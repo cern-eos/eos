@@ -53,6 +53,13 @@ inline Json::Value parseResponseJson(const common::HttpResponse* response)
   return root;
 }
 
+inline void assertEmptyOkResponse(const common::HttpResponse* response)
+{
+  ASSERT_NE(nullptr, response);
+  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  EXPECT_TRUE(response->GetBody().empty());
+}
+
 inline std::unique_ptr<eos::mgm::rest::TapeRestApiConfig> createTapeRestApiConfig(
   const std::string& accessURL = "/api/")
 {

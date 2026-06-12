@@ -31,6 +31,7 @@
 #include <memory>
 
 using namespace eos::mgm::rest;
+using eos::mgm::rest::test::assertEmptyOkResponse;
 using eos::mgm::rest::test::createHttpRequest;
 using eos::mgm::rest::test::createTapeRestApiConfig;
 using eos::mgm::rest::test::parseResponseJson;
@@ -133,4 +134,36 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage200)
   ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("req-id", root["id"].asString());
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestDispatchesDeleteStage200Empty)
+{
+  EXPECT_CALL(*mMockBusiness, deleteStageBulkRequest("req-id", _));
+
+  auto request = createHttpRequest("DELETE", "/api/v1/stage/req-id");
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  assertEmptyOkResponse(response.get());
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestDispatchesCancelStage200Empty)
+{
+  EXPECT_CALL(*mMockBusiness, cancelStageBulkRequest("req-id", _, _));
+
+  const std::string body = R"({"paths":["/eos/user/file.txt"]})";
+  auto request = createHttpRequest("POST", "/api/v1/stage/req-id/cancel", body);
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  assertEmptyOkResponse(response.get());
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestDispatchesRelease200Empty)
+{
+  EXPECT_CALL(*mMockBusiness, releasePaths(_, _));
+
+  const std::string body = R"({"paths":["/eos/user/file.txt"]})";
+  auto request = createHttpRequest("POST", "/api/v1/release/req-id", body);
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  assertEmptyOkResponse(response.get());
 }

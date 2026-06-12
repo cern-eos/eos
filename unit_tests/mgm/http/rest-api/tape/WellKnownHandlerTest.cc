@@ -25,6 +25,7 @@
 #include "mgm/http/rest-api/handler/wellknown/WellKnownHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include <gtest/gtest.h>
+#include <map>
 
 using namespace eos::mgm::rest;
 using eos::mgm::rest::test::createHttpRequest;
@@ -75,4 +76,56 @@ TEST_F(WellKnownHandlerTest, postWellKnownTapeRestApiReturns405)
   ASSERT_EQ(common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("Method not allowed", root["title"].asString());
+}
+
+TEST_F(WellKnownHandlerTest, getWellKnownAcceptsGetWithoutRequestBody)
+{
+  auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  EXPECT_FALSE(response->GetBody().empty());
+}
+
+TEST_F(WellKnownHandlerTest, getWellKnownIgnoresRequestBodyOnGet)
+{
+  auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api",
+                                   R"({"unexpected":"payload"})");
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("cern-prod-tape-atlas", root["sitename"].asString());
+}
+
+TEST_F(WellKnownHandlerTest, getWellKnownReflectsConfigEndpointMapping)
+{
+  std::map<std::string, std::string> endpointMap = {
+    {"v1", "https://custom.example.org:9999/api/v1"}
+  };
+  mManager->getTapeRestApiConfig()->setEndpointToUrlMapping(endpointMap);
+  mHandler = std::make_unique<WellKnownHandler>(mManager->getWellKnownAccessURL(),
+                mManager.get());
+
+  auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("https://custom.example.org:9999/api/v1",
+            root["endpoints"][0]["uri"].asString());
+}
+
+TEST_F(WellKnownHandlerTest, getWellKnownReturns500WhenTapeApiDisabled)
+{
+  mManager->getTapeRestApiConfig()->setTapeEnabled(false);
+  mHandler = std::make_unique<WellKnownHandler>(mManager->getWellKnownAccessURL(),
+                mManager.get());
+
+  auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
+  std::unique_ptr<common::HttpResponse> response(
+    mHandler->handleRequest(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("Internal server error", root["title"].asString());
+  EXPECT_NE(std::string::npos, root["detail"].asString().find("tapeenabled"));
 }
