@@ -120,6 +120,70 @@ TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenFileNotInRequest
                FileDoesNotBelongToBulkRequestException);
 }
 
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestCancelsSubsetOfFiles)
+{
+  const std::string requestId = "req-cancel-subset";
+  const std::string pathToCancel = "/eos/user/cancel-me.txt";
+  const std::string pathToKeep = "/eos/user/keep-me.txt";
+  addStageRequestFiles(requestId, {pathToCancel, pathToKeep}, mIssuer);
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  setupCancelPrepareMock(*mockFsPtr);
+  mBusiness->setBulkRequestPrepareManager(
+    makeBulkRequestPrepareManager(std::move(mockFsPtr)));
+
+  PathsModel paths;
+  paths.addFile(pathToCancel);
+  ASSERT_NO_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mIssuer));
+  EXPECT_TRUE(stageRequestExists(requestId));
+}
+
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenRequestMissing)
+{
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  ASSERT_THROW(mBusiness->cancelStageBulkRequest("missing-id", &paths, &mIssuer),
+               ObjectNotFoundException);
+}
+
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestForbiddenForNonIssuer)
+{
+  const std::string requestId = "req-cancel-forbidden";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  ASSERT_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mOtherUser),
+               ForbiddenException);
+}
+
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenPrepareFails)
+{
+  const std::string requestId = "req-cancel-fail";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  mBusiness->setBulkRequestPrepareManager(
+    std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+      "cancel prepare failed"));
+
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  ASSERT_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mIssuer),
+               TapeRestApiBusinessException);
+}
+
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestSkipsPrepareWhenFilesAlreadyHaveErrors)
+{
+  const std::string requestId = "req-cancel-skipped";
+  const std::string path = "/eos/user/failed.txt";
+  addStageRequestWithFileError(requestId, path, "already failed", mIssuer);
+  mBusiness->setBulkRequestPrepareManager(
+    std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+      "prepare should not run"));
+
+  PathsModel paths;
+  paths.addFile(path);
+  ASSERT_NO_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mIssuer));
+}
+
 TEST_F(TapeRestApiBusinessTest, deleteStageBulkRequestRemovesPersistedRequest)
 {
   const std::string requestId = "req-delete";

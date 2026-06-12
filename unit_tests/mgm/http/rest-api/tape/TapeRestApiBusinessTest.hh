@@ -35,6 +35,7 @@
 #include <gtest/gtest.h>
 #include <XrdSys/XrdSysError.hh>
 #include <memory>
+#include <vector>
 
 USE_EOSBULKNAMESPACE;
 USE_EOSMGMRESTNAMESPACE;
@@ -155,8 +156,32 @@ protected:
   void addStageRequest(const std::string& requestId, const std::string& path,
                        const eos::common::VirtualIdentity& issuer)
   {
+    addStageRequestFiles(requestId, {path}, issuer);
+  }
+
+  void addStageRequestFiles(const std::string& requestId,
+                            const std::vector<std::string>& paths,
+                            const eos::common::VirtualIdentity& issuer)
+  {
     auto request = std::make_unique<bulk::StageBulkRequest>(requestId, issuer);
-    request->addFile(std::make_unique<bulk::File>(path));
+
+    for (const auto& path : paths) {
+      request->addFile(std::make_unique<bulk::File>(path));
+    }
+
+    bulk::InMemoryBulkRequestDAO dao(mStore);
+    dao.addStageRequest(std::move(request));
+  }
+
+  void addStageRequestWithFileError(const std::string& requestId,
+                                    const std::string& path,
+                                    const std::string& error,
+                                    const eos::common::VirtualIdentity& issuer)
+  {
+    auto request = std::make_unique<bulk::StageBulkRequest>(requestId, issuer);
+    auto file = std::make_unique<bulk::File>(path);
+    file->setError(error);
+    request->addFile(std::move(file));
     bulk::InMemoryBulkRequestDAO dao(mStore);
     dao.addStageRequest(std::move(request));
   }
