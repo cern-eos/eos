@@ -25,7 +25,7 @@
 #define EOS_TAPERESTAPIBUSINESSTEST_HH
 
 #include "InMemoryBulkRequestDAO.hh"
-#include "mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"

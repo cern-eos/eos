@@ -34,17 +34,17 @@
 
 namespace eos::mgm::rest::test {
 
-inline std::unique_ptr<common::HttpRequest> createHttpRequest(
+inline std::unique_ptr<eos::common::HttpRequest> createHttpRequest(
   const std::string& method, const std::string& url, const std::string& body = "")
 {
-  common::HttpRequest::HeaderMap headers;
+  eos::common::HttpRequest::HeaderMap headers;
   size_t dataSize = body.size();
-  common::HttpRequest::HeaderMap cookies;
-  return std::make_unique<common::HttpRequest>(headers, method, url, body, "",
+  eos::common::HttpRequest::HeaderMap cookies;
+  return std::make_unique<eos::common::HttpRequest>(headers, method, url, body, "",
       &dataSize, cookies);
 }
 
-inline Json::Value parseResponseJson(const common::HttpResponse* response)
+inline Json::Value parseResponseJson(eos::common::HttpResponse* response)
 {
   Json::Value root;
   Json::Reader reader;
@@ -53,10 +53,10 @@ inline Json::Value parseResponseJson(const common::HttpResponse* response)
   return root;
 }
 
-inline void assertEmptyOkResponse(const common::HttpResponse* response)
+inline void assertEmptyOkResponse(eos::common::HttpResponse* response)
 {
   ASSERT_NE(nullptr, response);
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   EXPECT_TRUE(response->GetBody().empty());
 }
 

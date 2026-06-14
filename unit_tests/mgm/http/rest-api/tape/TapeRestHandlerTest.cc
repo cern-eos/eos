@@ -93,9 +93,9 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage404)
   .WillOnce(Throw(ObjectNotFoundException("not found")));
 
   auto request = createHttpRequest("GET", "/api/v1/stage/missing-id");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::NOT_FOUND, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::NOT_FOUND, response->GetResponseCode());
 }
 
 TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage403ForForbiddenIssuer)
@@ -104,9 +104,9 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage403ForForbiddenIssuer
   .WillOnce(Throw(ForbiddenException("You are not allowed to get this bulk-request")));
 
   auto request = createHttpRequest("GET", "/api/v1/stage/req-id");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::FORBIDDEN, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::FORBIDDEN, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("Forbidden", root["title"].asString());
 }
@@ -114,9 +114,9 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage403ForForbiddenIssuer
 TEST_F(TapeRestHandlerTest, handleRequestReturns405ForUnsupportedMethod)
 {
   auto request = createHttpRequest("PUT", "/api/v1/stage/");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
 }
 
 TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage200)
@@ -129,9 +129,9 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage200)
   .WillOnce(Return(responseModel));
 
   auto request = createHttpRequest("GET", "/api/v1/stage/req-id");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("req-id", root["id"].asString());
 }
@@ -141,7 +141,7 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesDeleteStage200Empty)
   EXPECT_CALL(*mMockBusiness, deleteStageBulkRequest("req-id", _));
 
   auto request = createHttpRequest("DELETE", "/api/v1/stage/req-id");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
@@ -152,7 +152,7 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesCancelStage200Empty)
 
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/stage/req-id/cancel", body);
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
@@ -163,7 +163,7 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesRelease200Empty)
 
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/release/req-id", body);
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }

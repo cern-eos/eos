@@ -33,10 +33,10 @@ TEST(RouterTest, throwsActionNotFoundWhenNoRouteMatches)
 {
   Router router;
   eos::common::VirtualIdentity vid;
-  router.add("/api/v1/stage/", common::HttpHandler::Methods::POST,
-             [](common::HttpRequest*, const common::VirtualIdentity*)
-  -> common::HttpResponse* {
-    return new common::PlainHttpResponse(common::HttpResponse::OK);
+  router.add("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
+             [](eos::common::HttpRequest*, const eos::common::VirtualIdentity*)
+  -> eos::common::HttpResponse* {
+    return new eos::common::PlainHttpResponse(eos::common::HttpResponse::OK);
   });
   auto request = createHttpRequest("POST", "/api/v1/archiveinfo/");
   ASSERT_THROW(router.dispatch(request.get(), &vid), ActionNotFoundException);
@@ -46,10 +46,10 @@ TEST(RouterTest, throwsMethodNotAllowedWhenPatternMatchesButMethodDiffers)
 {
   Router router;
   eos::common::VirtualIdentity vid;
-  router.add("/api/v1/stage/", common::HttpHandler::Methods::POST,
-             [](common::HttpRequest*, const common::VirtualIdentity*)
-  -> common::HttpResponse* {
-    return new common::PlainHttpResponse(common::HttpResponse::OK);
+  router.add("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
+             [](eos::common::HttpRequest*, const eos::common::VirtualIdentity*)
+  -> eos::common::HttpResponse* {
+    return new eos::common::PlainHttpResponse(eos::common::HttpResponse::OK);
   });
   auto request = createHttpRequest("GET", "/api/v1/stage/");
   ASSERT_THROW(router.dispatch(request.get(), &vid), MethodNotAllowedException);
@@ -59,12 +59,12 @@ TEST(RouterTest, dispatchesWhenPatternAndMethodMatch)
 {
   Router router;
   eos::common::VirtualIdentity vid;
-  router.add("/api/v1/stage/", common::HttpHandler::Methods::POST,
-             [](common::HttpRequest*, const common::VirtualIdentity*)
-  -> common::HttpResponse* {
-    return new common::PlainHttpResponse(common::HttpResponse::CREATED);
+  router.add("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
+             [](eos::common::HttpRequest*, const eos::common::VirtualIdentity*)
+  -> eos::common::HttpResponse* {
+    return new eos::common::PlainHttpResponse(eos::common::HttpResponse::CREATED);
   });
   auto request = createHttpRequest("POST", "/api/v1/stage/");
-  std::unique_ptr<common::HttpResponse> response(router.dispatch(request.get(), &vid));
-  ASSERT_EQ(common::HttpResponse::CREATED, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(router.dispatch(request.get(), &vid));
+  ASSERT_EQ(eos::common::HttpResponse::CREATED, response->GetResponseCode());
 }

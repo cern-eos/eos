@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "TapeRestApiBusinessTest.hh"
-#include "mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "common/Constants.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"

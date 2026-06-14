@@ -56,9 +56,9 @@ protected:
 TEST_F(WellKnownHandlerTest, getWellKnownTapeRestApiReturnsDiscoveryDocument)
 {
   auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("cern-prod-tape-atlas", root["sitename"].asString());
   ASSERT_TRUE(root["endpoints"].isArray());
@@ -71,9 +71,9 @@ TEST_F(WellKnownHandlerTest, getWellKnownTapeRestApiReturnsDiscoveryDocument)
 TEST_F(WellKnownHandlerTest, postWellKnownTapeRestApiReturns405)
 {
   auto request = createHttpRequest("POST", "/.well-known/wlcg-tape-rest-api");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("Method not allowed", root["title"].asString());
 }
@@ -81,9 +81,9 @@ TEST_F(WellKnownHandlerTest, postWellKnownTapeRestApiReturns405)
 TEST_F(WellKnownHandlerTest, getWellKnownAcceptsGetWithoutRequestBody)
 {
   auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   EXPECT_FALSE(response->GetBody().empty());
 }
 
@@ -91,9 +91,9 @@ TEST_F(WellKnownHandlerTest, getWellKnownIgnoresRequestBodyOnGet)
 {
   auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api",
                                    R"({"unexpected":"payload"})");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("cern-prod-tape-atlas", root["sitename"].asString());
 }
@@ -108,7 +108,7 @@ TEST_F(WellKnownHandlerTest, getWellKnownReflectsConfigEndpointMapping)
                 mManager.get());
 
   auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("https://custom.example.org:9999/api/v1",
@@ -122,9 +122,9 @@ TEST_F(WellKnownHandlerTest, getWellKnownReturns500WhenTapeApiDisabled)
                 mManager.get());
 
   auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
-  std::unique_ptr<common::HttpResponse> response(
+  std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+  ASSERT_EQ(eos::common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("Internal server error", root["title"].asString());
   EXPECT_NE(std::string::npos, root["detail"].asString().find("tapeenabled"));

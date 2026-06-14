@@ -71,15 +71,15 @@ TEST_F(TapeActionsTest, createStageReturns201WithLocationHeader)
   EXPECT_CALL(*mMockBusiness, createStageBulkRequest(_, _))
   .WillOnce(Return(stageRequest));
 
-  CreateStageBulkRequest action("/api/v1/stage/", common::HttpHandler::Methods::POST,
+  CreateStageBulkRequest action("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
                                 mMockBusiness,
                                 std::make_shared<CreateStageRequestModelBuilder>("test-site"),
                                 std::make_shared<CreatedStageBulkRequestJsonifier>(),
                                 mTapeRestHandler.get());
   const std::string body = R"({"files":[{"path":"/eos/user/file.txt"}]})";
   auto request = createHttpRequest("POST", "/api/v1/stage/", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::CREATED, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::CREATED, response->GetResponseCode());
   const auto& headers = response->GetHeaders();
   ASSERT_EQ(1u, headers.count("Location"));
   EXPECT_EQ("https://tape.example.org:1234/api/v1/stage/" + requestId,
@@ -96,11 +96,11 @@ TEST_F(TapeActionsTest, getStageExtractsRequestIdFromUrlPath)
   EXPECT_CALL(*mMockBusiness, getStageBulkRequest(requestId, _))
   .WillOnce(Return(responseModel));
 
-  GetStageBulkRequest action("/api/v1/stage/{id}", common::HttpHandler::Methods::GET,
+  GetStageBulkRequest action("/api/v1/stage/{id}", eos::common::HttpHandler::Methods::GET,
                              mMockBusiness, std::make_shared<GetStageBulkRequestJsonifier>());
   auto request = createHttpRequest("GET", "/api/v1/stage/" + requestId);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ(requestId, root["id"].asString());
 }
@@ -110,11 +110,11 @@ TEST_F(TapeActionsTest, getStageReturns404WhenRequestMissing)
   EXPECT_CALL(*mMockBusiness, getStageBulkRequest("missing-id", _))
   .WillOnce(Throw(ObjectNotFoundException("not found")));
 
-  GetStageBulkRequest action("/api/v1/stage/{id}", common::HttpHandler::Methods::GET,
+  GetStageBulkRequest action("/api/v1/stage/{id}", eos::common::HttpHandler::Methods::GET,
                              mMockBusiness, std::make_shared<GetStageBulkRequestJsonifier>());
   auto request = createHttpRequest("GET", "/api/v1/stage/missing-id");
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::NOT_FOUND, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::NOT_FOUND, response->GetResponseCode());
 }
 
 TEST_F(TapeActionsTest, cancelStageReturns200WithEmptyBodyOnSuccess)
@@ -122,11 +122,11 @@ TEST_F(TapeActionsTest, cancelStageReturns200WithEmptyBodyOnSuccess)
   EXPECT_CALL(*mMockBusiness, cancelStageBulkRequest("req-id", _, _));
 
   CancelStageBulkRequest action("/api/v1/stage/{id}/cancel",
-                                common::HttpHandler::Methods::POST, mMockBusiness,
+                                eos::common::HttpHandler::Methods::POST, mMockBusiness,
                                 std::make_shared<PathsModelBuilder>());
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/stage/req-id/cancel", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
 
@@ -136,12 +136,12 @@ TEST_F(TapeActionsTest, cancelStageReturns400WhenFileMissingFromRequest)
   .WillOnce(Throw(FileDoesNotBelongToBulkRequestException("file not in request")));
 
   CancelStageBulkRequest action("/api/v1/stage/{id}/cancel",
-                                common::HttpHandler::Methods::POST, mMockBusiness,
+                                eos::common::HttpHandler::Methods::POST, mMockBusiness,
                                 std::make_shared<PathsModelBuilder>());
   const std::string body = R"({"paths":["/eos/user/other.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/stage/req-id/cancel", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("File missing from stage request", root["title"].asString());
 }
@@ -152,9 +152,9 @@ TEST_F(TapeActionsTest, deleteStageExtractsRequestIdFromUrlPath)
   EXPECT_CALL(*mMockBusiness, deleteStageBulkRequest(requestId, _));
 
   DeleteStageBulkRequest action("/api/v1/stage/{id}",
-                                common::HttpHandler::Methods::DELETE, mMockBusiness);
+                                eos::common::HttpHandler::Methods::DELETE, mMockBusiness);
   auto request = createHttpRequest("DELETE", "/api/v1/stage/" + requestId);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
 
@@ -163,27 +163,27 @@ TEST_F(TapeActionsTest, deleteStageReturns200WithEmptyBody)
   EXPECT_CALL(*mMockBusiness, deleteStageBulkRequest("req-id", _));
 
   DeleteStageBulkRequest action("/api/v1/stage/{id}",
-                                common::HttpHandler::Methods::DELETE, mMockBusiness);
+                                eos::common::HttpHandler::Methods::DELETE, mMockBusiness);
   auto request = createHttpRequest("DELETE", "/api/v1/stage/req-id");
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
 
 TEST_F(TapeActionsTest, releaseParsesPathsFromRequestBody)
 {
   EXPECT_CALL(*mMockBusiness, releasePaths(_, _))
-  .WillOnce([](const PathsModel* model, const common::VirtualIdentity*)
+  .WillOnce([](const PathsModel* model, const eos::common::VirtualIdentity*)
   {
     ASSERT_EQ(1u, model->getFiles().getPaths().size());
     EXPECT_EQ("/eos/user/file.txt", model->getFiles().getPaths().front());
   });
 
   CreateReleaseBulkRequest action("/api/v1/release/{id}",
-                                  common::HttpHandler::Methods::POST, mMockBusiness,
+                                  eos::common::HttpHandler::Methods::POST, mMockBusiness,
                                   std::make_shared<PathsModelBuilder>());
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/release/stage-req-id", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
 
@@ -192,24 +192,24 @@ TEST_F(TapeActionsTest, releaseReturns200WithEmptyBody)
   EXPECT_CALL(*mMockBusiness, releasePaths(_, _));
 
   CreateReleaseBulkRequest action("/api/v1/release/{id}",
-                                  common::HttpHandler::Methods::POST, mMockBusiness,
+                                  eos::common::HttpHandler::Methods::POST, mMockBusiness,
                                   std::make_shared<PathsModelBuilder>());
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/release/stage-req-id", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
 }
 
 TEST_F(TapeActionsTest, createStageReturns400WhenJsonInvalid)
 {
-  CreateStageBulkRequest action("/api/v1/stage/", common::HttpHandler::Methods::POST,
+  CreateStageBulkRequest action("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
                                 mMockBusiness,
                                 std::make_shared<CreateStageRequestModelBuilder>("test-site"),
                                 std::make_shared<CreatedStageBulkRequestJsonifier>(),
                                 mTapeRestHandler.get());
   auto request = createHttpRequest("POST", "/api/v1/stage/", "not-json");
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("JSON Validation error", root["title"].asString());
 }
@@ -219,15 +219,15 @@ TEST_F(TapeActionsTest, createStageReturns500WhenBusinessFails)
   EXPECT_CALL(*mMockBusiness, createStageBulkRequest(_, _))
   .WillOnce(Throw(TapeRestApiBusinessException("prepare failed")));
 
-  CreateStageBulkRequest action("/api/v1/stage/", common::HttpHandler::Methods::POST,
+  CreateStageBulkRequest action("/api/v1/stage/", eos::common::HttpHandler::Methods::POST,
                                 mMockBusiness,
                                 std::make_shared<CreateStageRequestModelBuilder>("test-site"),
                                 std::make_shared<CreatedStageBulkRequestJsonifier>(),
                                 mTapeRestHandler.get());
   const std::string body = R"({"files":[{"path":"/eos/user/file.txt"}]})";
   auto request = createHttpRequest("POST", "/api/v1/stage/", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("Internal server error", root["title"].asString());
   ASSERT_EQ("prepare failed", root["detail"].asString());
@@ -238,21 +238,21 @@ TEST_F(TapeActionsTest, getStageReturns500WhenBusinessFails)
   EXPECT_CALL(*mMockBusiness, getStageBulkRequest("req-id", _))
   .WillOnce(Throw(TapeRestApiBusinessException("query failed")));
 
-  GetStageBulkRequest action("/api/v1/stage/{id}", common::HttpHandler::Methods::GET,
+  GetStageBulkRequest action("/api/v1/stage/{id}", eos::common::HttpHandler::Methods::GET,
                              mMockBusiness, std::make_shared<GetStageBulkRequestJsonifier>());
   auto request = createHttpRequest("GET", "/api/v1/stage/req-id");
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
 }
 
 TEST_F(TapeActionsTest, getArchiveInfoReturns400WhenJsonInvalid)
 {
-  GetArchiveInfo action("/api/v1/archiveinfo/", common::HttpHandler::Methods::POST,
+  GetArchiveInfo action("/api/v1/archiveinfo/", eos::common::HttpHandler::Methods::POST,
                       mMockBusiness, std::make_shared<PathsModelBuilder>(),
                       std::make_shared<GetArchiveInfoResponseJsonifier>());
   auto request = createHttpRequest("POST", "/api/v1/archiveinfo/", "{}");
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_EQ("JSON Validation error", root["title"].asString());
 }
@@ -267,13 +267,13 @@ TEST_F(TapeActionsTest, getArchiveInfoReturns200WithArrayBody)
   queryResponse->responses.push_back(file);
   EXPECT_CALL(*mMockBusiness, getFileInfo(_, _)).WillOnce(Return(queryResponse));
 
-  GetArchiveInfo action("/api/v1/archiveinfo/", common::HttpHandler::Methods::POST,
+  GetArchiveInfo action("/api/v1/archiveinfo/", eos::common::HttpHandler::Methods::POST,
                       mMockBusiness, std::make_shared<PathsModelBuilder>(),
                       std::make_shared<GetArchiveInfoResponseJsonifier>());
   const std::string body = R"({"paths":["/eos/user/file.txt"]})";
   auto request = createHttpRequest("POST", "/api/v1/archiveinfo/", body);
-  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
-  ASSERT_EQ(common::HttpResponse::OK, response->GetResponseCode());
+  std::unique_ptr<eos::common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
   const Json::Value root = parseResponseJson(response.get());
   ASSERT_TRUE(root.isArray());
   ASSERT_EQ(1u, root.size());
