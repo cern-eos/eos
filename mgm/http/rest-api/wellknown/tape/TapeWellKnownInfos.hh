@@ -41,13 +41,16 @@ class TapeWellKnownInfos
 {
 public:
   typedef std::vector<std::unique_ptr<TapeRestApiEndpoint>> Endpoints;
-  TapeWellKnownInfos(const std::string& siteName);
+  TapeWellKnownInfos(const std::string& siteName,
+                     const std::string& description = "");
   void addEndpoint(const std::string& uri, const std::string& version);
   const Endpoints& getEndpoints() const;
   const std::string getSiteName() const;
+  const std::string& getDescription() const;
 private:
   //The sitename that has to be used for targeted metadata on stage bulk-request submission
   std::string mSiteName;
+  std::string mDescription;
   //The endpoints allowing the clients to reach a specific version of the tape REST API
   std::vector<std::unique_ptr<TapeRestApiEndpoint>> mEndpoints;
   //If metadata are needed, add a list in this class

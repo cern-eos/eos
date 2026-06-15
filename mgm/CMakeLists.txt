@@ -319,7 +319,8 @@ add_library(
   # http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc header-only
   # http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc header-only
   # http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.cc header-only
-  # grouped under TapeModelBuilders.hh / TapeJsonifiers.hh
+  http/rest-api/json/tape/TapeJsonifiers.cc
+  # grouped under TapeModelBuilders.hh
   http/rest-api/response/RestResponseFactory.cc
   http/rest-api/response/ErrorHandling.hh
   http/rest-api/router/Router.hh

@@ -122,6 +122,36 @@ TEST_F(RestApiTest, URLParserTestMatchesBegin)
   ASSERT_TRUE(urlParser->startsBy("/api/v1/stage"));
 }
 
+TEST_F(RestApiTest, URLParserExtractsStageRequestIdFromGetUrl)
+{
+  const std::string requestId = "93be38df-435c-4322-801d-b95e77ac5bbc";
+  std::unique_ptr<URLParser> urlParser(
+    new URLParser("/api/v1/stage/" + requestId));
+  std::map<std::string, std::string> params;
+  ASSERT_TRUE(urlParser->matchesAndExtractParameters("/api/v1/stage/{id}", params));
+  ASSERT_EQ(requestId, params.at("{id}"));
+}
+
+TEST_F(RestApiTest, URLParserExtractsStageRequestIdFromDeleteUrl)
+{
+  const std::string requestId = "93be38df-435c-4322-801d-b95e77ac5bbc";
+  std::unique_ptr<URLParser> urlParser(
+    new URLParser("/api/v1/stage/" + requestId));
+  std::map<std::string, std::string> params;
+  ASSERT_TRUE(urlParser->matchesAndExtractParameters("/api/v1/stage/{id}", params));
+  ASSERT_EQ(requestId, params.at("{id}"));
+}
+
+TEST_F(RestApiTest, URLParserExtractsReleaseRequestIdFromUrl)
+{
+  const std::string requestId = "93be38df-435c-4322-801d-b95e77ac5bbc";
+  std::unique_ptr<URLParser> urlParser(
+    new URLParser("/api/v1/release/" + requestId));
+  std::map<std::string, std::string> params;
+  ASSERT_TRUE(urlParser->matchesAndExtractParameters("/api/v1/release/{id}", params));
+  ASSERT_EQ(requestId, params.at("{id}"));
+}
+
 TEST_F(RestApiTest, URLParserTestMatchesAndExtractParameters)
 {
   std::string urlClient = "/api/v1/stage/request-id/cancel";
