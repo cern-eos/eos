@@ -47,7 +47,6 @@ common::HttpResponse* GetArchiveInfo::run(common::HttpRequest* request,
     return mResponseFactory.InternalError(ex.what()).getHttpResponse();
   }
 
-  //Build the json response and return it to the client
   std::shared_ptr<GetArchiveInfoResponseModel> response =
     std::make_shared<GetArchiveInfoResponseModel>(queryPrepareResponse);
   response->setJsonifier(mOutputObjectJsonifier);

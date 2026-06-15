@@ -112,6 +112,38 @@ TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_
             createStageRequestModel->getFiles().getOpaqueInfos().at(0));
 }
 
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_ignoresDiskLifetime)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::ostringstream oss;
+  oss << "{\"" << CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
+      << "{"
+      << "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME
+      << "\": \"/path/to/file.txt\","
+      << "\"diskLifetime\": \"PT1H\""
+      << "}"
+      << "]}";
+  auto createStageRequestModel = builder.buildFromJson(oss.str());
+  ASSERT_EQ("", createStageRequestModel->getFiles().getOpaqueInfos().at(0));
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, pathsModelBuilderTest_pathsField)
+{
+  PathsModelBuilder builder;
+  std::string json = R"({"paths":["/path/example.txt","/path/example2.txt"]})";
+  auto model = builder.buildFromJson(json);
+  ASSERT_EQ(2u, model->getFiles().getPaths().size());
+  ASSERT_EQ("/path/example.txt", model->getFiles().getPaths().at(0));
+  ASSERT_EQ("/path/example2.txt", model->getFiles().getPaths().at(1));
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, pathsModelBuilderTest_rejectsEmptyPaths)
+{
+  PathsModelBuilder builder;
+  std::string json = R"({"paths":[]})";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+}
+
 TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_normalEndpoint)
 {
   CreateStageRequestModelBuilder builder(restApiEndpointID);

@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: TapeWellKnownInfos.cc
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file TapeJsonifierTest.hh
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,33 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "TapeWellKnownInfos.hh"
+#ifndef EOS_TAPEJSONIFIERTEST_HH
+#define EOS_TAPEJSONIFIERTEST_HH
 
-EOSMGMRESTNAMESPACE_BEGIN
+#include "common/json/Jsonifiable.hh"
+#include <gtest/gtest.h>
+#include <json/json.h>
+#include <sstream>
+#include <string>
 
-TapeWellKnownInfos::TapeWellKnownInfos(const std::string& siteName,
-                                       const std::string& description)
-  : mSiteName(siteName), mDescription(description) {}
-
-void TapeWellKnownInfos::addEndpoint(const std::string& uri,
-                                     const std::string& version)
+class TapeJsonifierTest : public ::testing::Test
 {
-  mEndpoints.push_back(std::make_unique<TapeRestApiEndpoint>(uri, version));
-}
+protected:
+  template<typename Model>
+  static std::string toJson(const Model& model)
+  {
+    std::stringstream ss;
+    model.jsonify(ss);
+    return ss.str();
+  }
 
-const TapeWellKnownInfos::Endpoints& TapeWellKnownInfos::getEndpoints() const
-{
-  return mEndpoints;
-}
+  static Json::Value parseJson(const std::string& json)
+  {
+    Json::Value root;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(json, root)) << reader.getFormattedErrorMessages();
+    return root;
+  }
+};
 
-const std::string TapeWellKnownInfos::getSiteName() const
-{
-  return mSiteName;
-}
-
-const std::string& TapeWellKnownInfos::getDescription() const
-{
-  return mDescription;
-}
-
-EOSMGMRESTNAMESPACE_END
+#endif // EOS_TAPEJSONIFIERTEST_HH

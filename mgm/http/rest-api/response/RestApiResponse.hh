@@ -95,7 +95,7 @@ inline common::HttpResponse* RestApiResponse<Model>::getHttpResponse() const
   common::HttpResponse* response = new common::PlainHttpResponse();
 
   if (mModel) {
-    mHeaderMap["application/type"] = "json";
+    mHeaderMap["Content-Type"] = "application/json";
     response->SetHeaders(mHeaderMap);
     std::stringstream ss;
     mModel->jsonify(ss);

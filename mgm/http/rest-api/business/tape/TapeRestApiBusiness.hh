@@ -48,10 +48,10 @@ public:
   virtual void releasePaths(const PathsModel* model,
                             const common::VirtualIdentity* vid) override;
 protected:
-  std::unique_ptr<bulk::BulkRequestPrepareManager>
+  virtual std::unique_ptr<bulk::BulkRequestPrepareManager>
   createBulkRequestPrepareManager();
-  std::unique_ptr<bulk::PrepareManager> createPrepareManager();
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  virtual std::unique_ptr<bulk::PrepareManager> createPrepareManager();
+  virtual std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
   /**
    * Checks whether the issuer of a request is allowed to access the stage bulk-request
    * for modification, consultation, deletion...

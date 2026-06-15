@@ -54,7 +54,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request,
   } catch (const ObjectNotFoundException& ex) {
     return mResponseFactory.NotFound().getHttpResponse();
   } catch (const FileDoesNotBelongToBulkRequestException& ex) {
-    return mResponseFactory.BadRequest(ex.what()).getHttpResponse();
+    return mResponseFactory.FileMissingFromStageRequest(ex.what()).getHttpResponse();
   }
 
   return mResponseFactory.OkEmpty().getHttpResponse();
