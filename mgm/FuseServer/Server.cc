@@ -1034,7 +1034,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   if ((uid_t)md.uid() == vid.uid &&
       (vid.sudoer || (gid_t)md.gid() == vid.gid ||
        vid.allowed_gids.count((gid_t)md.gid()))) {
-    return true;        // md and vid agree 
+    return true; // md and vid agree
   }
   if (vid.uid == 0 || vid.sudoer) {
     return true;        // root & sudoers can create as any owner
@@ -1722,7 +1722,7 @@ Server::OpSetDirectory(const std::string& id,
       if ( !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chown */ {
 	return EPERM;
       }
-      
+
       if (exclusive && pcmd->findContainer(md.name())) {
         // O_EXCL set on creation -
         eos_err("ino=%lx name=%s msg=\"name already exists\"", md.md_pino(),
@@ -2664,7 +2664,24 @@ Server::OpSetFile(const std::string& id,
     fmd->setCGid(md.gid());
     {
       try {
-        eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+        // The quota accounting must follow the file's *actual* current parent
+        // container, not the parent claimed by the client in md.md_pino(). When
+        // a file has been relocated behind the client's back (e.g. an 'rm' moved
+        // it to the recycle bin or a versioning operation moved it to a version
+        // directory) a delayed flush still carries the original parent inode. In
+        // that case resolving the quota node from pcmd would re-inject the file
+        // size into the original directory's quota node for a file that no
+        // longer lives there - leaking space quota that nothing ever reclaims.
+        // The inode counter stays consistent (remove/add are symmetric by one)
+        // which is why only the space quota gets corrupted in this scenario.
+        std::shared_ptr<eos::IContainerMD> qcmd = pcmd;
+        const eos::IContainerMD::id_t real_cid = fmd->getContainerId();
+
+        if (recycleOrVersioned && (real_cid != md.md_pino())) {
+          qcmd = gOFS->eosDirectoryService->getContainerMD(real_cid);
+        }
+
+        eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(qcmd.get());
 
         // free previous quota
         if (quotanode) {

@@ -446,6 +446,98 @@ TEST_F(HierarchicalViewF, QuotaTest)
   ASSERT_NO_THROW(view()->finalize());
 }
 
+//------------------------------------------------------------------------------
+// Regression test for the quota corruption triggered by a delayed fusex flush
+// that arrives *after* a file has already been relocated to a different quota
+// node (e.g. moved to the recycle bin by a concurrent 'rm'). The delayed flush
+// carries the original parent inode supplied by the client, but the quota
+// accounting must follow the file's *actual* current container, otherwise the
+// file size is re-injected into the original directory's quota node and leaks
+// forever.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, QuotaDelayedFlushAfterRecycle)
+{
+  setSizeMapper(mapSize);
+  // Two independent quota nodes: the user home and the recycle bin
+  std::shared_ptr<eos::IContainerMD> userCont{
+      view()->createContainer("/eos/user/t/test", true)};
+  std::shared_ptr<eos::IContainerMD> recycleCont{
+      view()->createContainer("/eos/proc/recycle", true)};
+  eos::IQuotaNode* userNode = view()->registerQuotaNode(userCont.get());
+  eos::IQuotaNode* recycleNode = view()->registerQuotaNode(recycleCont.get());
+  ASSERT_TRUE(userNode);
+  ASSERT_TRUE(recycleNode);
+  ASSERT_NE(userNode, recycleNode);
+  const uid_t uid = 100;
+  const gid_t gid = 101;
+  const uint64_t initial_size = 1024;      // size known at 'rm' time
+  const uint64_t flushed_size = 825088912; // final size from the delayed flush
+  const eos::IFileMD::layoutId_t lid = 2;
+  // Create the file in the user home and account it against the user node
+  std::shared_ptr<eos::IFileMD> file{view()->createFile("/eos/user/t/test/file.root")};
+  file->setLayoutId(lid);
+  file->setCUid(uid);
+  file->setCGid(gid);
+  file->setSize(initial_size);
+  view()->updateFileStore(file.get());
+  userNode->addFile(file.get());
+  ASSERT_EQ(userNode->getNumFilesByUser(uid), 1u);
+  ASSERT_EQ(userNode->getUsedSpaceByUser(uid), initial_size);
+  ASSERT_EQ(userNode->getPhysicalSpaceByUser(uid), lid * initial_size);
+  ASSERT_EQ(recycleNode->getNumFilesByUser(uid), 0u);
+  // --- Step 1: an 'rm' relocates the file to the recycle bin, transferring
+  // the quota between nodes (mirrors XrdMgmOfs::_rename).
+  const std::string old_name = file->getName();
+  userCont->removeFile(old_name);
+  userNode->removeFile(file.get());
+  file->setName("file.root.recycled");
+  file->setContainerId(recycleCont->getId());
+  recycleCont->addFile(file.get());
+  recycleNode->addFile(file.get());
+  view()->updateFileStore(file.get());
+  // The user node is empty again, the recycle node now holds the file
+  ASSERT_EQ(userNode->getNumFilesByUser(uid), 0u);
+  ASSERT_EQ(userNode->getUsedSpaceByUser(uid), 0u);
+  ASSERT_EQ(userNode->getPhysicalSpaceByUser(uid), 0u);
+  ASSERT_EQ(recycleNode->getNumFilesByUser(uid), 1u);
+  ASSERT_EQ(recycleNode->getUsedSpaceByUser(uid), initial_size);
+  // --- Step 2: the delayed flush arrives. The fix resolves the quota node
+  // from the file's *actual* container (getContainerId) instead of the stale
+  // parent inode the client still believes in.
+  std::shared_ptr<eos::IContainerMD> real_parent =
+      containerSvc()->getContainerMD(file->getContainerId());
+  ASSERT_EQ(real_parent->getId(), recycleCont->getId());
+  eos::IQuotaNode* qnode = view()->getQuotaNode(real_parent.get());
+  ASSERT_EQ(qnode, recycleNode);
+  qnode->removeFile(file.get());
+  file->setSize(flushed_size);
+  qnode->addFile(file.get());
+  view()->updateFileStore(file.get());
+  // The original directory's quota node must be completely untouched - no
+  // phantom space and no inode left behind.
+  ASSERT_EQ(userNode->getNumFilesByUser(uid), 0u);
+  ASSERT_EQ(userNode->getUsedSpaceByUser(uid), 0u)
+      << "phantom logical space leaked into the original directory quota node";
+  ASSERT_EQ(userNode->getPhysicalSpaceByUser(uid), 0u)
+      << "phantom physical space leaked into the original directory quota node";
+  // The recycle node correctly reflects the final flushed size
+  ASSERT_EQ(recycleNode->getNumFilesByUser(uid), 1u);
+  ASSERT_EQ(recycleNode->getUsedSpaceByUser(uid), flushed_size);
+  ASSERT_EQ(recycleNode->getPhysicalSpaceByUser(uid), lid * flushed_size);
+  // --- Characterize the bug: had the flush been charged to the original
+  // parent (userNode) using the buggy remove(old size)/setSize/add(new size)
+  // sequence, the inode count would return to zero while the space counter
+  // leaks by the size delta.
+  file->setSize(initial_size);
+  userNode->removeFile(file.get()); // -1 inode, -initial_size
+  file->setSize(flushed_size);
+  userNode->addFile(file.get()); // +1 inode, +flushed_size
+  ASSERT_EQ(userNode->getNumFilesByUser(uid), 0u)
+      << "inode accounting stays correct - remove/add are symmetric by one";
+  ASSERT_EQ(userNode->getUsedSpaceByUser(uid), flushed_size - initial_size)
+      << "the bug: space leaks by the size delta even though inodes are correct";
+}
+
 TEST_F(HierarchicalViewF, LostContainerTest)
 {
   std::shared_ptr<eos::IContainerMD> cont1 =
