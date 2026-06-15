@@ -26,22 +26,77 @@
 #include "mgm/Namespace.hh"
 #include "common/json/Jsonifiable.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
- * This Model represents the object that will be returned to the client
- * for any ArchiveInfo request
+ * Response model for POST /api/v1/archiveinfo (WLCG Tape REST API v1).
  */
 class GetArchiveInfoResponseModel
   : public common::Jsonifiable<GetArchiveInfoResponseModel>
 {
 public:
-  GetArchiveInfoResponseModel(std::shared_ptr<bulk::QueryPrepareResponse>
-                              queryPrepareResponse): mQueryPrepareResponse(queryPrepareResponse) {}
-  inline std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const { return mQueryPrepareResponse; }
+  struct Entry
+  {
+    std::string path;
+    std::optional<std::string> locality;
+    std::optional<std::string> error;
+  };
+
+  GetArchiveInfoResponseModel() = default;
+
+  explicit GetArchiveInfoResponseModel(
+    const std::shared_ptr<bulk::QueryPrepareResponse>& queryPrepareResponse)
+  {
+    if (!queryPrepareResponse) {
+      return;
+    }
+
+    for (const auto& response : queryPrepareResponse->responses) {
+      Entry entry;
+      entry.path = response.path;
+
+      if (!response.is_exists) {
+        if (!response.error_text.empty()) {
+          entry.error = response.error_text;
+        } else {
+          // PrepareManager::queryPrepare normally sets error_text for missing
+          // files; this fallback matches the WLCG archiveinfo example response.
+          entry.error =
+            "USER ERROR: file does not exist or is not accessible to you";
+        }
+      } else if (!response.error_text.empty()) {
+        entry.error = response.error_text;
+      } else {
+        entry.locality = mapLocality(response);
+      }
+
+      mEntries.push_back(std::move(entry));
+    }
+  }
+
+  inline const std::vector<Entry>& getEntries() const { return mEntries; }
+
 private:
-  std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
+  static std::string mapLocality(const bulk::QueryPrepareFileResponse& response)
+  {
+    if (response.is_online && response.is_on_tape) {
+      return "DISK_AND_TAPE";
+    }
+    if (response.is_online) {
+      return "DISK";
+    }
+    if (response.is_on_tape) {
+      return "TAPE";
+    }
+    return "UNAVAILABLE";
+  }
+
+  std::vector<Entry> mEntries;
 };
 
 EOSMGMRESTNAMESPACE_END

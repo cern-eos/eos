@@ -32,6 +32,7 @@
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/stat/Stat.hh"
+#include <algorithm>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -150,8 +151,9 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
   // belonging to the issuer; without this check any authenticated REST API
   // peer who can guess the UUID receives those details.
   checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid, "get");
-  //Set bulk-request related attributes
-  ret->setCreationTime(bulkRequest->getCreationTime());
+  const time_t createdAt = bulkRequest->getCreationTime();
+  ret->setCreatedAt(createdAt);
+  ret->setStartedAt(createdAt);
   ret->setId(bulkRequest->getId());
   //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_QUERY);
@@ -173,33 +175,74 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
+  struct FileStatus
+  {
+    std::string path;
+    std::optional<std::string> error;
+    bool onDisk = false;
+    bool terminal = false;
+  };
+
+  std::vector<FileStatus> fileStatuses;
+  fileStatuses.reserve(queryPrepareResult->getResponse()->responses.size());
+
   for (const auto& queryPrepareResponse :
        queryPrepareResult->getResponse()->responses) {
     const auto& filesFromBulkRequest = bulkRequest->getFilesMap();
     auto fileFromBulkRequestItor = filesFromBulkRequest->find(
                                      queryPrepareResponse.path);
 
-    if (fileFromBulkRequestItor != filesFromBulkRequest->end()) {
-      auto& fileFromBulkRequest = fileFromBulkRequestItor->second;
-      std::unique_ptr<GetStageBulkRequestResponseModel::File> item =
-        std::make_unique<GetStageBulkRequestResponseModel::File>();
-      item->mPath = queryPrepareResponse.path;
-
-      if (fileFromBulkRequest->getError()) {
-        item->mError = *fileFromBulkRequest->getError();
-      } else if (!queryPrepareResponse.error_text.empty()) {
-        //Error comes from CTA, so we need to update the state of the file to ERROR
-        item->mError = queryPrepareResponse.error_text;
-      } else if (!queryPrepareResponse.is_online && !queryPrepareResponse.is_reqid_present) {
-        //If there is no request for the file, an error should be returned
-        item->mError = "File not requested with request ID " + requestId;
-      } else {
-        item->mError = "";
-      }
-
-      item->mOnDisk = queryPrepareResponse.is_online;
-      ret->addFile(std::move(item));
+    if (fileFromBulkRequestItor == filesFromBulkRequest->end()) {
+      continue;
     }
+
+    auto& fileFromBulkRequest = fileFromBulkRequestItor->second;
+    FileStatus status;
+    status.path = queryPrepareResponse.path;
+
+    if (fileFromBulkRequest->getError()) {
+      status.error = *fileFromBulkRequest->getError();
+    } else if (!queryPrepareResponse.error_text.empty()) {
+      status.error = queryPrepareResponse.error_text;
+    } else if (!queryPrepareResponse.is_online &&
+               !queryPrepareResponse.is_reqid_present) {
+      status.error = "File not requested with request ID " + requestId;
+    }
+
+    status.onDisk = queryPrepareResponse.is_online;
+    status.terminal = status.error.has_value() || status.onDisk;
+    fileStatuses.push_back(std::move(status));
+  }
+
+  const bool allFilesTerminal = !fileStatuses.empty() &&
+    std::all_of(fileStatuses.begin(), fileStatuses.end(),
+  [](const FileStatus & status) {
+    return status.terminal;
+  });
+  const time_t now = ::time(nullptr);
+
+  for (const auto& status : fileStatuses) {
+    std::unique_ptr<GetStageBulkRequestResponseModel::File> item =
+      std::make_unique<GetStageBulkRequestResponseModel::File>();
+    item->mPath = status.path;
+
+    if (allFilesTerminal) {
+      item->mStartedAt = createdAt;
+      item->mFinishedAt = now;
+      if (status.error) {
+        item->mState = "FAILED";
+        item->mError = status.error;
+      } else {
+        item->mState = "COMPLETED";
+      }
+    } else if (status.error) {
+      item->mError = status.error;
+      item->mOnDisk = false;
+    } else {
+      item->mOnDisk = status.onDisk;
+    }
+
+    ret->addFile(std::move(item));
   }
 
   EXEC_TIMING_END("TapeRestApiBusiness::getStageBulkRequest");
