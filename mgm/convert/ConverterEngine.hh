@@ -23,17 +23,18 @@
 
 #pragma once
 
-#include <map>
 #include "common/Logging.hh"
 #include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/convert/ConversionJob.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include <XrdOuc/XrdOucCallBack.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <map>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -88,13 +89,14 @@ public:
   //! @param conversion_info the conversion info string
   //! @param err_msg error message in case of failure
   //! @param callback shared pointer to a callback object - default is nullptr
+  //! @param eInfo if not null the callback's Init method is invoked with eInfo
   //!
   //! @return true if scheduling succeeded, false otherwise
   //----------------------------------------------------------------------------
-  bool ScheduleJob(const eos::IFileMD::id_t& id,
-                   const std::string& conversion_info,
+  bool ScheduleJob(const eos::IFileMD::id_t& id, const std::string& conversion_info,
                    std::string& err_msg,
-                   std::shared_ptr<XrdOucCallBack> callback = nullptr);
+                   std::shared_ptr<XrdOucCallBack> callback = nullptr,
+                   XrdOucErrInfo* eInfo = nullptr);
 
   //----------------------------------------------------------------------------
   //! Get running state info

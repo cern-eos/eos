@@ -1374,21 +1374,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (conversion == Policy::eAsync) {
         error.setErrCode(0);
         auto conversionCb = std::make_shared<XrdOucCallBack>();
-        conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
         std::string err_msg;
 
-        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
-                                                err_msg, conversionCb)) {
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag, err_msg,
+                                                conversionCb, &error)) {
           eos_info("msg=\"update conversion started\" fxid=%08llx conv=\"%s\"",
                    byfid, conversiontag.c_str());
           return SFS_STARTED;
         } else {
-          // remove the callback from the error object
-          error.setErrCB(0);
-          error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for update conversion");
           eos_info("msg=\"stalling client for update conversion\" fxid=%08llx "
                    "conv=\"%s\"", byfid, conversiontag.c_str());
@@ -1745,21 +1741,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (conversion == Policy::eAsync) {
         error.setErrCode(0);
         auto conversionCb = std::make_shared<XrdOucCallBack>();
-        conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
         std::string err_msg;
 
-        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
-                                                err_msg, conversionCb)) {
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag, err_msg,
+                                                conversionCb, &error)) {
           eos_info("msg=\"read conversion started\" fxid=%08llx conv=\"%s\"",
                    byfid, conversiontag.c_str());
           return SFS_STARTED;
         } else {
-          // remove the callback from the error object
-          error.setErrCB(0);
-          error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for read conversion");
           eos_info("msg=\"stalling client for read conversion\" fxid=%08llx "
                    "conv=\"%s\"", byfid, conversiontag.c_str());

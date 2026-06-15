@@ -220,9 +220,9 @@ ConverterEngine::JoinAllConversionJobs()
 //------------------------------------------------------------------------------
 bool
 ConverterEngine::ScheduleJob(const eos::IFileMD::id_t& id,
-                             const std::string& conversion_info,
-                             std::string& err_msg,
-                             std::shared_ptr<XrdOucCallBack> callback)
+                             const std::string& conversion_info, std::string& err_msg,
+                             std::shared_ptr<XrdOucCallBack> callback,
+                             XrdOucErrInfo* eInfo)
 {
   if (!mIsRunning) {
     err_msg = "converter not running";
@@ -251,7 +251,16 @@ ConverterEngine::ScheduleJob(const eos::IFileMD::id_t& id,
 
   JobInfoT info = std::make_tuple(id, conversion_info, callback);
   mPendingJobs.push(info);
-  return mQdbHelper.AddPendingJob(info);
+  const bool added = mQdbHelper.AddPendingJob(info);
+
+  // After the OucCallBack is initialised it has to be completed or cancelled,
+  // so we give the option of delaying the initialisation until here.
+  if (callback && eInfo) {
+    callback->Init(eInfo);
+    return true;
+  }
+
+  return added;
 }
 
 //------------------------------------------------------------------------------
