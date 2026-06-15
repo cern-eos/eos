@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "mgm/acl/Acl.hh"
+#include "mgm/auth/AccessChecker.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/misc/AuditHelpers.hh"
 #include "mgm/misc/Constants.hh"
@@ -1072,6 +1073,27 @@ CheckOwnerAcl(const eos::fusex::md& md,
   return acl.CanChown(); // we require chown permission
 }
 
+static bool
+CheckCreateAcl(eos::common::VirtualIdentity& vid,
+               const std::shared_ptr<eos::IContainerMD>& cmd,
+               const eos::IContainerMD::XAttrMap& attrmap)
+{
+  if (!cmd) {
+    return false;
+  }
+
+  vid.scope = gOFS->eosView->getUri(cmd.get());
+
+  if (!AccessChecker::checkContainer(cmd.get(), attrmap, W_OK, vid)) {
+    eos_static_info("msg=\"rejecting create without current write access\" "
+                    "scope=\"%s\" name=\"%s\" vid(%lu:%lu)",
+                    vid.scope.c_str(), cmd->getName().c_str(), vid.uid, vid.gid);
+    return false;
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Validate permissions froa given meta-data object
 //------------------------------------------------------------------------------
@@ -1729,6 +1751,13 @@ Server::OpSetDirectory(const std::string& id,
         eos_err("ino=%lx name=%s msg=\"name already exists\"", md.md_pino(),
                 md.name().c_str());
         return EEXIST;
+      }
+
+      eos::IContainerMD::XAttrMap acl_attrmap;
+      gOFS->listAttributes(gOFS->eosView, &(*pcmd), acl_attrmap, false);
+
+      if (!CheckCreateAcl(vid, pcmd, acl_attrmap)) {
+        return EPERM;
       }
 
       attrmap = pcmd->getAttributes();
@@ -2467,6 +2496,12 @@ Server::OpSetFile(const std::string& id,
         return EPERM;
       }
 
+      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
+
+      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
+        return EPERM;
+      }
+
       std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
       int nlink;
       nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
@@ -2542,6 +2577,11 @@ Server::OpSetFile(const std::string& id,
       long forcedGroup = 0;
       std::string space;
       gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
+
+      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
+        return EPERM;
+      }
+
       XrdOucEnv env;
       std::string bandwidth;
       bool schedule = false;
@@ -3059,6 +3099,13 @@ Server::OpSetLink(const std::string& id,
 		!CheckOwnerAcl(md, vid, pcmd)) ) {
 	  return EPERM;
 	}
+      }
+
+      eos::IContainerMD::XAttrMap attrmap;
+      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
+
+      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
+        return EPERM;
       }
 
       fmd = gOFS->eosFileService->createFile(0);

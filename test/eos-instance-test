@@ -2287,6 +2287,16 @@ runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE
 runtest "### Chmod     " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 runtest "### Attr Set  " unix SUCCESS "" eos attr set user.fusex.rename.version=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
+runtest "### Imm Mkdir " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Chmod " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Warm  " unix SUCCESS "" shell runuser nobody -s /bin/bash -c "'touch /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/warmup && rm /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/warmup'"
+runtest "### Imm Attr  " unix SUCCESS "" eos attr set sys.eval.useracl=1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Attr  " unix SUCCESS "" eos attr set user.acl=z:i "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Touch " unix ERROR "" shell runuser nobody -s /bin/bash -c "'touch /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/thisshouldnotwork'"
+runtest "### Imm Leak  " unix ERROR "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/thisshouldnotwork"
+runtest "### Imm Clean " unix IGNORE "" eos attr rm user.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Clean " unix IGNORE "" eos attr rm sys.eval.useracl "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
+runtest "### Imm Clean " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/immutable/"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
