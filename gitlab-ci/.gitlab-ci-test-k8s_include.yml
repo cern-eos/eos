@@ -138,6 +138,30 @@ k8s_stress:
     - k8s
 
 
+# Whoever triggers this job, must have the rights to start a pipeline in CTA
+trigger_cta_regression_tests:
+  stage: test
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  variables:
+    CTA_BRANCH: main
+    PIPELINE_TYPE: REGR_AGAINST_CTA_VERSION
+    CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_SHORT_SHA.el9
+  trigger:
+    project: cta/CTA
+    branch: $CTA_BRANCH
+    strategy: mirror
+    forward:
+      pipeline_variables: false # Prevent accidentally overwriting CTA pipeline variables
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_TAG.el9
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - !reference [.rules-manual, rules]
+
+
 # schedules ------------------------------
 
 .k8s_fusex_ub_focal:
