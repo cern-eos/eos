@@ -1635,9 +1635,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
   eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
+  // Scope a response timeout to the SharedManager QClient that backs all MGM
+  // SharedHash objects: if a QDB peer keeps the connection open but stops
+  // replying (e.g. a leader killed/frozen/partitioned during a master
+  // transition), a synchronous SharedHash set/get would otherwise deadlock
+  // forever since the connection never breaks and the retry/purge logic - only
+  // evaluated on reconnection - never runs. Dropping the silent connection lets
+  // reconnection (and re-routing to the new master) take over.
+  qclient::SubscriptionOptions qsm_opts =
+      mQdbContactDetails.constructSubscriptionOptions();
+  qsm_opts.responseTimeout = std::chrono::seconds(30);
+  qsm_opts.tcpKeepAlive = true;
   qclient::SharedManager* qsm =
-    new qclient::SharedManager(mQdbContactDetails.members,
-                               mQdbContactDetails.constructSubscriptionOptions());
+      new qclient::SharedManager(mQdbContactDetails.members, std::move(qsm_opts));
   mMessagingRealm.reset(new eos::mq::MessagingRealm(qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
