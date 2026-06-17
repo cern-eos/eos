@@ -22,6 +22,35 @@
  ************************************************************************/
 
 #include "EnvironmentReader.hh"
+#include "ProcessInfo.hh"
+#include "Utils.hh"
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+#include <atomic>
+#include <limits>
+
+namespace
+{
+bool readProcessStartTime(pid_t pid, Jiffies& startTime)
+{
+  ProcessInfo processInfo;
+  ProcessInfoProvider provider;
+
+  if (!provider.retrieveBasic(pid, processInfo)) {
+    return false;
+  }
+
+  startTime = processInfo.getStartTime();
+  return true;
+}
+
+// When /proc/<pid>/stat is unavailable, avoid deduplicating unrelated requests.
+Jiffies allocateEphemeralStartTime()
+{
+  static std::atomic<Jiffies> counter{0};
+  return -1 - counter.fetch_add(1, std::memory_order_relaxed);
+}
+} // namespace
 
 //------------------------------------------------------------------------------
 //! Constructor - launch a thread pool with the specified number of threads
@@ -123,12 +152,12 @@ void EnvironmentReader::worker()
         // Real response, read environment. If a (temporary) kernel deadlock
         // occurs, it will be at this point. Provide simulated or real response?
         //----------------------------------------------------------------------
-        env.fromFile(SSTR("/proc/" << request.pid << "/environ"));
+        env.fromFile(SSTR("/proc/" << request.key.pid << "/environ"));
       } else {
         //----------------------------------------------------------------------
         // Simulation
         //----------------------------------------------------------------------
-        fillFromInjection(request.pid, env);
+        fillFromInjection(request.key.pid, env);
       }
 
       //----------------------------------------------------------------------
@@ -140,7 +169,7 @@ void EnvironmentReader::worker()
         std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
       if (duration.count() > 5) {
-        eos_static_notice("Reading /proc/%d/environ took %dms (uid=%d)", request.pid,
+        eos_static_notice("Reading /proc/%d/environ took %dms (uid=%d)", request.key.pid,
                           duration.count(), request.uid);
       }
 
@@ -148,11 +177,11 @@ void EnvironmentReader::worker()
       // It's over, it's done. Give back result.
       //------------------------------------------------------------------------
       lock.lock();
-      auto it = pendingRequests.find(request.pid);
+      auto it = pendingRequests.find(request.key);
 
       if (it == pendingRequests.end()) {
-        eos_static_crit("EnvironmentReader queue corruption, unable to find entry for pid %d",
-                        request.pid);
+        eos_static_crit("EnvironmentReader queue corruption, unable to find entry for pid %d start_time=%" PRId64,
+                        request.key.pid, request.key.startTime);
       } else {
         pendingRequests.erase(it);
       }
@@ -178,19 +207,32 @@ void EnvironmentReader::worker()
 // Returns a FutureEnvironment object, which _might_ be kernel-deadlocked,
 // and must be waited-for with a timeout.
 //------------------------------------------------------------------------------
-FutureEnvironment EnvironmentReader::stageRequest(pid_t pid, uid_t uid)
+FutureEnvironment EnvironmentReader::stageRequest(pid_t pid, uid_t uid,
+    Jiffies startTime)
 {
+  ProcessEnvironmentKey key;
+  key.pid = pid;
+
+  if (startTime < 0) {
+    if (!readProcessStartTime(pid, key.startTime)) {
+      key.startTime = allocateEphemeralStartTime();
+    }
+  } else {
+    key.startTime = startTime;
+  }
+
   std::unique_lock<std::mutex> lock(mtx);
-  eos_static_debug("Staging request to read environment of pid %d for %d", pid,
-                   uid);
+  eos_static_debug("Staging request to read environment of pid %d (start_time=%" PRId64
+                   ") for %d", pid, key.startTime, uid);
   //----------------------------------------------------------------------------
   //! Check: Is this request already pending? If so, give back the same
   //! response, connected to the same promise object.
   //----------------------------------------------------------------------------
-  auto it = pendingRequests.find(pid);
+  auto it = pendingRequests.find(key);
 
   if (it != pendingRequests.end()) {
-    eos_static_debug("Request to read environment for pid %d already staged", pid);
+    eos_static_debug("Request to read environment for pid %d (start_time=%" PRId64
+                     ") already staged", pid, key.startTime);
     return it->second;
   }
 
@@ -199,14 +241,14 @@ FutureEnvironment EnvironmentReader::stageRequest(pid_t pid, uid_t uid)
   //----------------------------------------------------------------------------
   QueuedRequest request;
   FutureEnvironment response;
-  request.pid = pid;
+  request.key = key;
   request.uid = uid;
   response.contents = request.promise.get_future();
   response.queuedSince = std::chrono::high_resolution_clock::now();
-  pendingRequests[pid] = response;
+  pendingRequests[key] = response;
   requestQueue.push(std::move(request));
-  eos_static_debug("Queueing request to read environment for pid %d, notifying workers",
-                   pid);
+  eos_static_debug("Queueing request to read environment for pid %d (start_time=%" PRId64
+                   "), notifying workers", pid, key.startTime);
   queueCV.notify_all();
   return response;
 }

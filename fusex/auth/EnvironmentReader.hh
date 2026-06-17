@@ -29,6 +29,24 @@
 #include <chrono>
 #include <queue>
 #include "CredentialFinder.hh"
+#include "ProcessInfo.hh"
+
+// Uniquely identifies a process instance for /proc/<pid>/environ reads.
+// PID alone is not enough: the kernel can reuse a pid while an earlier read
+// is still pending.
+struct ProcessEnvironmentKey {
+  pid_t pid{0};
+  Jiffies startTime{0};
+
+  bool operator<(const ProcessEnvironmentKey& other) const
+  {
+    if (pid != other.pid) {
+      return pid < other.pid;
+    }
+
+    return startTime < other.startTime;
+  }
+};
 
 struct FutureEnvironment {
   std::shared_future<Environment> contents;
@@ -68,12 +86,12 @@ struct FutureEnvironment {
 //! We return a future to all requests. Never block on it, always wait with a
 //! timeout.
 //!
-//! If we receive a request for the same file again, and the other is still
-//! pending, we should tell the caller for how long the other request has been
-//! pending for.
+//! If we receive a request for the same process instance again, and the other
+//! is still pending, we return the same future.
 //!
-//! This is because a single execve() will typically issue many requests to
-//! fuse - we only want to pay the wait penalty once.
+//! Requests are keyed by (pid, start_time) so pid reuse does not attach to a
+//! stale in-flight read. A single execve() will typically issue many fuse
+//! requests for the same process - we only want to pay the wait penalty once.
 //------------------------------------------------------------------------------
 class EnvironmentReader
 {
@@ -94,7 +112,8 @@ public:
   //! Returns a FutureEnvironment object, which _might_ be kernel-deadlocked,
   //! and must be waited-for with a timeout.
   //----------------------------------------------------------------------------
-  FutureEnvironment stageRequest(pid_t pid, uid_t uid = -1);
+  FutureEnvironment stageRequest(pid_t pid, uid_t uid = -1,
+                                 Jiffies startTime = -1);
 
   //----------------------------------------------------------------------------
   //! Inject fake data into this class. _All_ responses will be faked if there's
@@ -126,7 +145,7 @@ private:
   //! object with the corresponding promise.
   //----------------------------------------------------------------------------
   struct QueuedRequest {
-    pid_t pid;
+    ProcessEnvironmentKey key;
     uid_t uid;
     std::promise<Environment> promise;
   };
@@ -146,7 +165,7 @@ private:
   std::mutex mtx;
   std::condition_variable queueCV;
   std::queue<QueuedRequest> requestQueue;
-  std::map<pid_t, FutureEnvironment> pendingRequests;
+  std::map<ProcessEnvironmentKey, FutureEnvironment> pendingRequests;
 
   std::mutex injectionMtx;
   std::map<pid_t, SimulatedResponse> injections;

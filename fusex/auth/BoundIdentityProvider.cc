@@ -584,13 +584,13 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::pidEnvironmentToBoundIdentity(
   const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
-  bool reconnect, LogbookScope& scope, Environment& env)
+  bool reconnect, LogbookScope& scope, Environment& env, Jiffies startTime)
 {
   LogbookScope subscope(scope.makeScope(
                           SSTR("Attempting to produce BoundIdentity out of process environment, pid=" <<
                                pid)));
   // First, let's read the environment to build up a UserCredentials object.
-  FutureEnvironment response = environmentReader.stageRequest(pid, uid);
+  FutureEnvironment response = environmentReader.stageRequest(pid, uid, startTime);
 
   if (!response.waitUntilDeadline(
         std::chrono::milliseconds(credConfig.environ_deadlock_timeout))) {

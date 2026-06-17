@@ -28,6 +28,7 @@
 #include "common/Logging.hh"
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <iostream>
 
 //------------------------------------------------------------------------------
@@ -182,6 +183,12 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   FileDescriptor current = std::move(jailfd);
   auto splitPath = eos::common::SplitPath(path);
 
+  if (splitPath.empty()) {
+    eos_static_alert("Failed to interpret path '%s' inside jail pid=%d (empty split path)",
+                     path.c_str(), jail.pid);
+    return Info(CredentialState::kCannotStat, {0, 0});
+  }
+
   for (size_t i = 0; i < splitPath.size() - 1; i++) {
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
@@ -195,7 +202,9 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
                                O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if (!next.ok()) {
-      eos_static_alert("Failed to openat next child");
+      const int myerrno = errno;
+      eos_static_alert("Failed to openat next child '%s' (pid=%d, path='%s', errno=%d, msg='%s')",
+                       splitPath[i].c_str(), jail.pid, path.c_str(), myerrno, strerror(myerrno));
       return Info(CredentialState::kCannotStat, {0, 0});
     }
 
@@ -209,7 +218,9 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
                                O_NOFOLLOW | O_RDONLY));
 
   if (!fileFd.ok()) {
-    eos_static_alert("Failed to openat file");
+    const int myerrno = errno;
+    eos_static_alert("Failed to openat file '%s' (pid=%d, path='%s', errno=%d, msg='%s')",
+                     splitPath.back().c_str(), jail.pid, path.c_str(), myerrno, strerror(myerrno));
     return Info(CredentialState::kCannotStat, {0, 0});
   }
 

@@ -70,7 +70,8 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(
     const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope& logbook, Environment& env);
+    bool reconnect, LogbookScope& logbook, Environment& env,
+    Jiffies startTime = -1);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of default paths, such

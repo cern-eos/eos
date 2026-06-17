@@ -51,6 +51,24 @@ TEST(EnvironmentReader, BasicSanity)
   ASSERT_EQ(response3978.contents.get(), env2);
 }
 
+TEST(EnvironmentReader, DedupRequiresSameStartTime)
+{
+  EnvironmentReader reader(3);
+  Environment env;
+  env.fromVector({"KEY=VALUE"});
+  reader.inject(99, env, std::chrono::milliseconds(0));
+
+  FutureEnvironment sameProcessA = reader.stageRequest(99, -1, 111);
+  FutureEnvironment sameProcessB = reader.stageRequest(99, -1, 111);
+  FutureEnvironment reusedPid = reader.stageRequest(99, -1, 222);
+
+  ASSERT_EQ(sameProcessA.queuedSince, sameProcessB.queuedSince);
+  ASSERT_NE(sameProcessA.queuedSince, reusedPid.queuedSince);
+  ASSERT_EQ(sameProcessA.contents.get(), env);
+  ASSERT_EQ(sameProcessB.contents.get(), env);
+  ASSERT_EQ(reusedPid.contents.get(), env);
+}
+
 static void inject(EnvironmentReader& reader, size_t from, size_t until)
 {
   for (size_t i = from; i < until; i++) {

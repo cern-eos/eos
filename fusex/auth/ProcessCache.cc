@@ -139,7 +139,8 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if (!execveAlarm) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-             processInfo.getPid(), uid, gid, reconnect, scope, pidEnv);
+             processInfo.getPid(), uid, gid, reconnect, scope, pidEnv,
+             processInfo.getStartTime());
 
     if (output) {
       return output;
