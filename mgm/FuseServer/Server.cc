@@ -1740,6 +1740,13 @@ Server::OpSetDirectory(const std::string& id,
         return EPERM;
       }
 
+      eos::common::Path nPath(gOFS->eosView->getUri(pcmd.get()).c_str());
+      if (nPath.GetSubPathSize() > eos::common::Path::MAX_LEVELS - 3) {
+        eos_err("pino=%lx newname=%s msg=\"parent path too long to create subdirectory\"",
+                md.md_pino(), md.name().c_str());
+        return ENAMETOOLONG;
+      }
+
       cmd = gOFS->eosDirectoryService->createContainer(0);
       cmd->setName(md.name());
       md_ino = cmd->getId();

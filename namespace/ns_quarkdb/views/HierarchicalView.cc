@@ -190,7 +190,7 @@ QuarkHierarchicalView::getItem(const std::string& uri, bool follow)
   // Initial state: We're at "/", and have to look up all chunks.
   //----------------------------------------------------------------------------
   FileOrContainerMD initialState {nullptr, pRoot};
-  return getPathInternal(initialState, pendingChunks, follow, 0);
+  return getPathInternal(initialState, pendingChunks, follow, 0, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -206,8 +206,8 @@ static FileOrContainerMD toFileOrContainerMD(IContainerMDPtr ptr)
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
 QuarkHierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
-                                       std::deque<std::string> pendingChunks,
-                                       bool follow, size_t expendedEffort)
+                                       std::deque<std::string> pendingChunks, bool follow,
+                                       size_t expendedEffort, size_t* effp)
 {
   //----------------------------------------------------------------------------
   // We're blocked on a network request. "Pause" execution of getPathInternal
@@ -217,9 +217,8 @@ QuarkHierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
   // request is completed.
   //----------------------------------------------------------------------------
   return fut.via(pExecutor.get())
-         .thenValue(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1,
-                              pendingChunks,
-                              follow, expendedEffort));
+      .thenValue(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1,
+                           pendingChunks, follow, expendedEffort, effp));
 }
 
 //------------------------------------------------------------------------------
@@ -227,17 +226,16 @@ QuarkHierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
 QuarkHierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
-                                       std::deque<std::string> pendingChunks,
-                                       bool follow, size_t expendedEffort)
+                                       std::deque<std::string> pendingChunks, bool follow,
+                                       size_t expendedEffort, size_t* effp)
 {
   //----------------------------------------------------------------------------
   // Same as getPathDeferred taking FileOrContainerMD.
   //----------------------------------------------------------------------------
   return fut.via(pExecutor.get())
-         .thenValue(toFileOrContainerMD)
-         .thenValue(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1,
-                              pendingChunks,
-                              follow, expendedEffort));
+      .thenValue(toFileOrContainerMD)
+      .thenValue(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1,
+                           pendingChunks, follow, expendedEffort, effp));
 }
 
 //------------------------------------------------------------------------------
@@ -245,8 +243,8 @@ QuarkHierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
 QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
-                                       std::deque<std::string> pendingChunks,
-                                       bool follow, size_t expendedEffort)
+                                       std::deque<std::string> pendingChunks, bool follow,
+                                       size_t expendedEffort, size_t* effp)
 {
   //----------------------------------------------------------------------------
   // Our goal is to consume pendingChunks until it's empty.
@@ -261,6 +259,9 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
     // Protection against symbolic link loops.
     //--------------------------------------------------------------------------
     expendedEffort++;
+    if (effp) {
+      *effp = expendedEffort;
+    }
 
     if (expendedEffort > 255) {
       return folly::makeFuture<FileOrContainerMD>(make_mdexception(
@@ -307,7 +308,8 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
           //--------------------------------------------------------------------
           // We're blocked, "pause" execution, unblock caller.
           //--------------------------------------------------------------------
-          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
+          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort,
+                                 effp);
         }
 
         state.container = std::move(fut).get();
@@ -333,7 +335,8 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
         //----------------------------------------------------------------------
         // We're blocked, "pause" execution, unblock caller.
         //----------------------------------------------------------------------
-        return getPathDeferred(std::move(next), pendingChunks, follow, expendedEffort);
+        return getPathDeferred(std::move(next), pendingChunks, follow, expendedEffort,
+                               effp);
       }
     }
 
@@ -382,7 +385,8 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
           //--------------------------------------------------------------------
           // We're blocked, "pause" execution, unblock caller.
           //--------------------------------------------------------------------
-          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
+          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort,
+                                 effp);
         }
 
         state.container = std::move(fut).get();
@@ -433,8 +437,8 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid,
 
   std::string lastChunk = chunks.back();
   chunks.pop_back();
-  FileOrContainerMD item = getPathInternal(FileOrContainerMD {nullptr, pRoot},
-                           chunks, true, 0).get();
+  FileOrContainerMD item =
+      getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0, 0).get();
 
   if (item.file) {
     throw_mdexception(ENOTDIR, "Not a directory");
@@ -623,10 +627,20 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
     throw_mdexception(EEXIST, uri << ": File exists");
   }
 
+  if (chunks.size() > 253) {
+    // even with no symlinks, deeper than this would require too many lookups
+    // in getPathInternal, which would report it with ELOOP.
+    throw_mdexception(ENAMETOOLONG, uri << ": Too many directories");
+  }
+
   // Resolve path chunks one by one
   FileOrContainerMD state = {nullptr, pRoot};
   UpdateStoreGuard updateGuard(this);
   bool created = false;
+
+  // start effort count spent in getPathInternal at 2 units: 1 is assumed
+  // below for a previous iteration, another unit so a created dir fits.
+  size_t expendedEffort = 2;
 
   while (true) {
     if (state.file) {
@@ -651,7 +665,13 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
 
     // Lookup next chunk ..
     try {
-      state = getPathInternal(state, nextChunkDeque, true, 0).get();
+      // the lookup of all the path chunks are broken into iterations of one
+      // chunk at a time. we skip one unit of effort from the previous
+      // iteration which was counted just before getPathInternal returns.
+      expendedEffort--;
+      state =
+          getPathInternal(state, nextChunkDeque, true, expendedEffort, &expendedEffort)
+              .get();
     } catch (const eos::MDException& e) {
       if (e.getErrno() != ENOENT) {
         // Something's wrong, rethrow
@@ -695,8 +715,8 @@ QuarkHierarchicalView::getPathExpectContainer(const std::deque<std::string>&
     return pRoot;
   }
 
-  return getPathInternal(FileOrContainerMD {nullptr, pRoot}, chunks, true, 0)
-         .thenValue(extractContainerMD);
+  return getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0, 0)
+      .thenValue(extractContainerMD);
 }
 
 //------------------------------------------------------------------------------

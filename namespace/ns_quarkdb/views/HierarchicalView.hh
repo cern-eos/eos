@@ -313,25 +313,26 @@ private:
   //----------------------------------------------------------------------------
   //! Lookup a given path - internal function.
   //----------------------------------------------------------------------------
-  folly::Future<FileOrContainerMD>
-  getPathInternal(FileOrContainerMD state, std::deque<std::string> pendingChunks,
-                  bool follow, size_t expendedEffort);
+  folly::Future<FileOrContainerMD> getPathInternal(FileOrContainerMD state,
+                                                   std::deque<std::string> pendingChunks,
+                                                   bool follow, size_t expendedEffort,
+                                                   size_t* effp);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
   //----------------------------------------------------------------------------
-  folly::Future<FileOrContainerMD>
-  getPathDeferred(folly::Future<FileOrContainerMD> fut,
-                  std::deque<std::string> pendingChunks,
-                  bool follow, size_t expendedEffort);
+  folly::Future<FileOrContainerMD> getPathDeferred(folly::Future<FileOrContainerMD> fut,
+                                                   std::deque<std::string> pendingChunks,
+                                                   bool follow, size_t expendedEffort,
+                                                   size_t* effp);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
   //----------------------------------------------------------------------------
-  folly::Future<FileOrContainerMD>
-  getPathDeferred(folly::Future<IContainerMDPtr> fut,
-                  std::deque<std::string> pendingChunks,
-                  bool follow, size_t expendedEffort);
+  folly::Future<FileOrContainerMD> getPathDeferred(folly::Future<IContainerMDPtr> fut,
+                                                   std::deque<std::string> pendingChunks,
+                                                   bool follow, size_t expendedEffort,
+                                                   size_t* effp);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path, expect a container there.
