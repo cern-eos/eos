@@ -172,7 +172,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   eos-synctime-test eos-rclone-test eos-bash test-eos-iam-mapfile.py
   fusex/eos-test-credential-bindings fusex/eos-fusex-functional-test
   fusex/eos-msoffice-save-test
-  eos-acl-concurrent eos-recycle-test
+  eos-acl-concurrent eos-recycle-test eos-ec-parallel-write-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE

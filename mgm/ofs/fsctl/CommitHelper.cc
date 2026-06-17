@@ -574,6 +574,13 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     }
 
     fmd->setSize(size);
+
+    // Once the EC/RAIN file carries data, the parallel-write creator marker is
+    // no longer needed - the guard in XrdMgmOfsFile::open only protects a still
+    // 0-size file being created. Drop it on the first commit with real data.
+    if ((size > 0) && fmd->hasAttribute("sys.fusex.creator")) {
+      fmd->removeAttribute("sys.fusex.creator");
+    }
   }
 
   if (ns_quota) {
