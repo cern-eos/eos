@@ -847,6 +847,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-test-utils
 %{_sbindir}/eos-fsck-test
 %{_sbindir}/eos-recycle-test
+%{_sbindir}/eos-ec-parallel-write-test
 %{_sbindir}/eos-fst-close-test
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-acl-concurrent

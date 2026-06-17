@@ -1333,6 +1333,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   isInjection = !isFuse && openOpaque->Get("eos.injection") != nullptr;
   isRepair = openOpaque->Get("eos.repair") != nullptr;
   isRepairRead = openOpaque->Get("eos.repairread") != nullptr;
+  // Fusex client uuid - tagged on write opens, used to detect and block
+  // parallel writers into the same (RAIN/EC) file while it is being created
+  const std::string client_uuid =
+      (openOpaque->Get("mgm.uuid") ? openOpaque->Get("mgm.uuid") : "");
 
   // Short-cut to block multi-source access to EC files
   if (IsRainRetryWithExclusion(isRW, fmdlid)) {
@@ -1403,6 +1407,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
                   "you have to be a priviledged user for updates");
+    }
+
+    // Block parallel writers into a (RAIN/EC) file which is still being created
+    if (isFuse && (fmdsize == 0) && LayoutId::IsRain(fmdlid)) {
+      if (BlockParallelEcWriters(fmd, client_uuid, path) != SFS_OK) {
+        return SFS_ERROR;
+      }
     }
 
     if (!isInjection && (open_flags & O_TRUNC) && fmd) {
@@ -2082,6 +2093,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
         fmd->setAttribute(it->first, it->second);
+      }
+
+      // Remember the fusex client (re)creating this EC file so that other
+      // clients can be blocked from writing into the same inode in parallel
+      // while it is still being written - see the 0-size RAIN guard above.
+      if (isFuse && !client_uuid.empty() && LayoutId::IsRain(layoutId)) {
+        fmd->setAttribute("sys.fusex.creator", client_uuid);
       }
 
       if (acl.EvalUserAttrFile()) {
@@ -3592,6 +3610,75 @@ XrdMgmOfsFile::Emsg(const char* pfx,
   // Place the error message in the error object and return
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Block parallel writers into a (RAIN/EC) file which is still being created
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::BlockParallelEcWriters(const std::shared_ptr<eos::IFileMD>& fmd,
+                                      const std::string& client_uuid, const char* path)
+{
+  static const char* epname = "open";
+
+  // The 0-size carve-out in the RAIN update guard exists for the FUSE lazy-open
+  // flow, but it also lets two clients writing to the same path advance their
+  // asynchronous opens and write two different streams into the same inode. A
+  // 0-size RAIN file that already carries the creator's fusex uuid is being
+  // written by that client - only the same client is allowed to (re)open it.
+  // The caller already restricts this to FUSE opens of 0-size RAIN files.
+  if (!fmd || client_uuid.empty() || !fmd->hasAttribute("sys.fusex.creator")) {
+    return SFS_OK;
+  }
+
+  const std::string creator = fmd->getAttribute("sys.fusex.creator");
+
+  if (creator == client_uuid) {
+    return SFS_OK;
+  }
+
+  // The creator marker is considered stale if the file metadata (ctime) has not
+  // been updated for more than 5 minutes. This allows a new client (e.g. a
+  // remounted FUSE client with a fresh uuid) to take over a 0-size EC file
+  // whose original creator abandoned it, instead of being blocked forever.
+  eos::IFileMD::ctime_t ctime;
+  fmd->getCTime(ctime);
+  time_t age = time(nullptr) - (time_t)ctime.tv_sec;
+
+  if (age <= 300) {
+    eos_warning("msg=\"block parallel writer on EC file being created\" "
+                "path=\"%s\" fxid=%08llx creator=\"%s\" client=\"%s\" "
+                "ctime_age_sec=%ld",
+                path, (unsigned long long)mFid, creator.c_str(), client_uuid.c_str(),
+                (long)age);
+    gOFS->MgmStats.Add("OpenFailedParallelWrite", vid.uid, vid.gid, 1, vid.app);
+    return Emsg(epname, error, EBUSY,
+                "open file - another client is "
+                "currently writing this EC file",
+                path);
+  }
+
+  eos_info("msg=\"allow takeover of stale EC file being created\" "
+           "path=\"%s\" fxid=%08llx creator=\"%s\" client=\"%s\" "
+           "ctime_age_sec=%ld",
+           path, (unsigned long long)mFid, creator.c_str(), client_uuid.c_str(),
+           (long)age);
+
+  // Record the taking-over client as the new creator so that its own subsequent
+  // (lazy) opens are accepted and any other client is now blocked against the
+  // new owner.
+  try {
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    std::shared_ptr<eos::IFileMD> wfmd = gOFS->eosFileService->getFileMD(mFid);
+    wfmd->setAttribute("sys.fusex.creator", client_uuid);
+    gOFS->eosView->updateFileStore(wfmd.get());
+  } catch (eos::MDException& e) {
+    eos_warning("msg=\"failed to update EC creator on takeover\" "
+                "fxid=%08llx ec=%d emsg=\"%s\"",
+                (unsigned long long)mFid, e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------

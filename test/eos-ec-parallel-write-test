@@ -1,0 +1,181 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# File: eos-ec-parallel-write-test
+# Author: Elvin-Alin Sindrilaru - CERN
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+#------------------------------------------------------------------------------
+# Description: Regression test for the protection against parallel writers to
+#   the same EC/RAIN file. With FUSE lazy-open the namespace entry of an EC
+#   file is created while its size is still 0. Without protection two clients
+#   writing to the same path both pass the MGM open and write two different
+#   streams into the same inode, corrupting the file.
+#
+#   The MGM now stamps the creating FUSE client (its uuid) on the file as the
+#   'sys.fusex.creator' extended attribute and, on a subsequent write open of
+#   a 0-size EC file, rejects any client whose uuid differs from the creator
+#   with EBUSY.
+#
+#   This test emulates two distinct FUSE clients at the protocol level by
+#   passing 'eos.app=fuse' (so the MGM treats the open as a FUSE access) and
+#   different 'mgm.uuid=<uuid>' values in the xrdcp open opaque, so it is fully
+#   deterministic and does not rely on winning a race.
+#
+# Usage: eos-ec-parallel-write-test <redirector_host> <eos_test_dir>
+#   <redirector_host> - MGM hostname[:port], e.g. localhost
+#   <eos_test_dir>    - EOS namespace directory used for the test, it is
+#                       created and configured with a raid6 layout and removed
+#                       at the end, e.g. /eos/dockertest/test/ec_parallel
+#
+# Note: requires at least 6 file systems to host a raid6 layout.
+#------------------------------------------------------------------------------
+
+# Set the path to the xrdcp and eos commands, considering it may come from eos-xrootd
+export EOS_XROOTSYS=/opt/eos/xrootd/
+export LD_LIBRARY_PATH=$EOS_XROOTSYS/lib64/:$LD_LIBRARY_PATH
+export PATH=$EOS_XROOTSYS/bin:$PATH
+
+XRDCP="$(command -v xrdcp) --nopbar"
+EOS=$(command -v eos)
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: $0 <redirector_host> <eos_test_dir>"
+  exit 1
+fi
+
+RDR_HOST="$1"
+EOS_DIR="$2"
+EOSURL="root://${RDR_HOST}"
+# xrdcp needs the double-slash form root://host//eos/...
+XRD_DIR="${EOSURL}/${EOS_DIR}"
+
+# Two emulated FUSE clients with distinct uuids
+CLIENT_A="ec-parallel-client-aaaaaaaa"
+CLIENT_B="ec-parallel-client-bbbbbbbb"
+
+FNAME="ec_parallel.dat"
+EOS_FILE="${EOS_DIR}/${FNAME}"
+XRD_FILE="${XRD_DIR}/${FNAME}"
+
+TMP_DIR=$(mktemp -d)
+EMPTY_FILE="${TMP_DIR}/empty.dat"
+DATA_FILE="${TMP_DIR}/data.dat"
+: > "${EMPTY_FILE}"
+dd if=/dev/urandom of="${DATA_FILE}" bs=1k count=64 status=none
+
+cleanup() {
+  ${EOS} ${EOSURL} rm -r "${EOS_DIR}" > /dev/null 2>&1
+  rm -rf "${TMP_DIR}"
+}
+
+trap cleanup EXIT
+
+fail() {
+  echo "error: $1"
+  exit 1
+}
+
+# Open with eos.app=fuse so the MGM treats it as a FUSE access and tag the
+# request with the given client uuid via mgm.uuid
+fuse_url() {
+  local uuid=$1
+  echo "${XRD_FILE}?eos.app=fuse&mgm.uuid=${uuid}"
+}
+
+# Return the value of an extended attribute of the test file
+get_xattr() {
+  local key=$1
+  ${EOS} ${EOSURL} attr ls "${EOS_FILE}" 2>/dev/null \
+    | sed -n "s/^${key}=\"\(.*\)\"$/\1/p"
+}
+
+# Return the size of the test file using the JSON fileinfo output
+get_size() {
+  ${EOS} -j ${EOSURL} fileinfo "${EOS_FILE}" 2>/dev/null | jq -r '.size'
+}
+
+#------------------------------------------------------------------------------
+# Set up a raid6 (EC) test directory
+#------------------------------------------------------------------------------
+${EOS} ${EOSURL} mkdir -p "${EOS_DIR}"           || fail "could not create test dir ${EOS_DIR}"
+${EOS} ${EOSURL} chmod 777 "${EOS_DIR}"          || fail "could not chmod test dir"
+${EOS} ${EOSURL} attr set sys.forced.checksum=crc32c "${EOS_DIR}"      || fail "could not set checksum attr"
+${EOS} ${EOSURL} attr set sys.forced.blockchecksum=crc32c "${EOS_DIR}" || fail "could not set blockchecksum attr"
+${EOS} ${EOSURL} attr set sys.forced.blocksize=1M "${EOS_DIR}"         || fail "could not set blocksize attr"
+${EOS} ${EOSURL} attr set sys.forced.layout=raid6 "${EOS_DIR}"         || fail "could not set layout attr"
+${EOS} ${EOSURL} attr set sys.forced.nstripes=6 "${EOS_DIR}"           || fail "could not set nstripes attr"
+
+#------------------------------------------------------------------------------
+# 1. Client A creates the 0-size EC file. The MGM must stamp the creator uuid.
+#------------------------------------------------------------------------------
+echo "### Step 1: client A creates the 0-size EC file"
+${XRDCP} -f "${EMPTY_FILE}" "$(fuse_url ${CLIENT_A})" \
+  || fail "client A failed to create the EC file (need >= 6 file systems for raid6?)"
+
+SIZE=$(get_size)
+test "${SIZE}" = "0" || fail "expected a 0-size file after creation, got size='${SIZE}'"
+
+CREATOR=$(get_xattr "sys.fusex.creator")
+test "${CREATOR}" = "${CLIENT_A}" \
+  || fail "expected sys.fusex.creator='${CLIENT_A}', got '${CREATOR}'"
+echo "ok: file created 0-size with sys.fusex.creator='${CREATOR}'"
+
+#------------------------------------------------------------------------------
+# 2. A different client (B) must NOT be able to write the still 0-size EC file
+#------------------------------------------------------------------------------
+echo "### Step 2: parallel writer (client B) must be blocked"
+${XRDCP} -f "${DATA_FILE}" "$(fuse_url ${CLIENT_B})" > /dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+  fail "client B was allowed to write the EC file being created by client A"
+fi
+
+# The blocked write must not have altered the file (still 0-size, same creator)
+SIZE=$(get_size)
+test "${SIZE}" = "0" || fail "blocked write changed the file size to '${SIZE}'"
+CREATOR=$(get_xattr "sys.fusex.creator")
+test "${CREATOR}" = "${CLIENT_A}" \
+  || fail "blocked client B changed the creator to '${CREATOR}'"
+echo "ok: client B was blocked and the file was left untouched"
+
+#------------------------------------------------------------------------------
+# 3. The creating client (A) must still be able to write its own file
+#------------------------------------------------------------------------------
+echo "### Step 3: creating client A is allowed to write"
+${XRDCP} -f "${DATA_FILE}" "$(fuse_url ${CLIENT_A})" \
+  || fail "creating client A was wrongly blocked from writing its own EC file"
+
+# The key property is that client A was allowed to write (not blocked); the
+# file must now carry data (non 0-size)
+SIZE=$(get_size)
+test -n "${SIZE}" && [ "${SIZE}" -gt 0 ] 2>/dev/null \
+  || fail "creating client A write did not produce a non-zero size (got '${SIZE}')"
+echo "ok: creating client A wrote the file (size=${SIZE})"
+
+#------------------------------------------------------------------------------
+# 4. After a successful (non 0-size) write the creator marker must be cleaned up
+#------------------------------------------------------------------------------
+echo "### Step 4: creator marker is cleaned up after a successful write"
+CREATOR=$(get_xattr "sys.fusex.creator")
+test -z "${CREATOR}" \
+  || fail "sys.fusex.creator was not cleaned up after a successful write (got '${CREATOR}')"
+echo "ok: sys.fusex.creator was removed after the file got data"
+exit 0

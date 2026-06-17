@@ -22,36 +22,37 @@
  ************************************************************************/
 
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/misc/Constants.hh"
-#include "mgm/utils/AttrHelper.hh"
+#include "common/Definitions.hh"
+#include "common/LayoutId.hh"
+#include "common/Logging.hh"
+#include "common/Path.hh"
 #include "mgm/acl/Acl.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/misc/AuditHelpers.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/zmq/ZMQ.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "mgm/workflow/Workflow.hh"
 #include "mgm/xattr/XattrLock.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/ContainerIterators.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/utils/Attributes.hh"
-#include "common/Path.hh"
-#include "common/Logging.hh"
-#include "common/Definitions.hh"
+#include "namespace/utils/Checksum.hh"
+#include "proto/Audit.pb.h"
+#include <cstdlib>
 #include <google/protobuf/util/json_util.h>
 #include <string>
-#include <cstdlib>
 #include <thread>
-#include "proto/Audit.pb.h"
-#include "namespace/utils/Checksum.hh"
-#include "mgm/misc/AuditHelpers.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -2614,6 +2615,14 @@ Server::OpSetFile(const std::string& id,
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       fmd->setAttribute("sys.eos.btime", btime);
       fmd->setAttribute("sys.vtrace", vid.getTrace());
+
+      // For RAIN/EC files remember the creating client so that the MGM can
+      // block other clients from writing into the same inode in parallel
+      // while the file is still being created (size 0) - see the 0-size RAIN
+      // guard in XrdMgmOfsFile::open.
+      if (eos::common::LayoutId::IsRain(layoutId) && md.clientuuid().length()) {
+        fmd->setAttribute("sys.fusex.creator", md.clientuuid());
+      }
     }
 
     if (!recycleOrVersioned) {
@@ -2698,6 +2707,14 @@ Server::OpSetFile(const std::string& id,
         fmd->setSize(md.size());
       }
     }
+
+    // Once the EC/RAIN file carries data the parallel-write creator marker is
+    // no longer needed - the guard in XrdMgmOfsFile::open only protects a still
+    // 0-size file being created. Drop it as soon as a non-zero size is flushed.
+    if ((md.size() > 0) && fmd->hasAttribute("sys.fusex.creator")) {
+      fmd->removeAttribute("sys.fusex.creator");
+    }
+
     // for the moment we store 9 bits here
     fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
     eos::IFileMD::ctime_t ctime;

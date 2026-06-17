@@ -381,6 +381,31 @@ private:
   bool IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const;
 
   //----------------------------------------------------------------------------
+  //! Block parallel writers into a (RAIN/EC) file which is still being created.
+  //!
+  //! With the FUSE lazy-open flow the namespace entry of an EC file exists
+  //! while its size is still 0. Without protection two clients writing to the
+  //! same path both pass the open and write two different streams into the same
+  //! inode. A 0-size RAIN file carries the creating client's fusex uuid in the
+  //! "sys.fusex.creator" attribute - only that same client may (re)open it for
+  //! write. A different client is rejected with EBUSY, unless the creator is
+  //! stale (file ctime older than 5 minutes) in which case the new client takes
+  //! over and is recorded as the new creator.
+  //!
+  //! The caller must restrict the invocation to FUSE opens of 0-size RAIN
+  //! files.
+  //!
+  //! @param fmd file metadata object (may be null)
+  //! @param client_uuid fusex client uuid from the open opaque (may be empty)
+  //! @param path file path used for logging and error messages
+  //!
+  //! @return SFS_OK if the open may proceed, otherwise SFS_ERROR with the error
+  //!         object populated (EBUSY).
+  //----------------------------------------------------------------------------
+  int BlockParallelEcWriters(const std::shared_ptr<eos::IFileMD>& fmd,
+                             const std::string& client_uuid, const char* path);
+
+  //----------------------------------------------------------------------------
   //! Parse the triedrc opaque info and return the corresponding error number
   //!
   //! @param input input string in the form of "enoent,ioerr,fserr,srverr"

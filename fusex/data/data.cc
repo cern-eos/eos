@@ -3004,7 +3004,16 @@ data::datax::set_remote(const std::string& hostport,
   remoteurl += appname;
   remoteurl += "&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
 
-  if (!isRW) {
+  if (isRW) {
+    // Tag write opens with the client uuid so the MGM can detect and block
+    // parallel writers to the same (RAIN/EC) file
+    std::string cuuid = EosFuse::Instance().mds.get_clientuuid();
+
+    if (cuuid.length()) {
+      remoteurl += "&mgm.uuid=";
+      remoteurl += cuuid;
+    }
+  } else {
     // we don't check checksums in read, because we might read a file which is open and it does not have
     // a final checksum when we read over the end
     remoteurl += "&eos.checksum=ignore";

@@ -438,6 +438,10 @@ eos_rain() {
     echo eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
 
+eos_ec_parallel() {
+    echo eos-ec-parallel-write-test $EOS_TEST_REDIRECTOR $1 >& $EOSLASTLOG; eval eos-ec-parallel-write-test $EOS_TEST_REDIRECTOR $1 >> $EOSCERTLOG 2>&1
+}
+
 eos_quota() {
     echo eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
@@ -2963,6 +2967,9 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Delay      " unix SUCCESS "" delay 2
    runtest "### QrainTest  " unix SUCCESS "" eos_rain "qrain" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_TMP"
    runtest "### Delay      " unix SUCCESS "" delay 2
+
+   # Verify that parallel writers to the same EC file being created are blocked
+   runtest "### ECParallelWr" unix SUCCESS "" eos_ec_parallel "/eos/$EOS_TEST_INSTANCE/test/instancetest/ec_parallel"
 
    # Run the eos-io-test for sequential and non-streaming IO against the RAIN
    # directories
