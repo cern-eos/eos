@@ -1301,7 +1301,6 @@ Server::OpEndFlush(const std::string& id,
 //------------------------------------------------------------------------------
 // Server a meta-data GET or LS operation
 //------------------------------------------------------------------------------
-
 int
 Server::OpGetLs(const std::string& id,
                 const eos::fusex::md& md,
@@ -1489,15 +1488,9 @@ Server::OpGetLs(const std::string& id,
   return 0;
 }
 
-
-
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
 //------------------------------------------------------------------------------
-
-
-/*----------------------------------------------------------------------------*/
-
 int
 Server::OpSet(const std::string& id,
               const eos::fusex::md& md,
@@ -1563,14 +1556,9 @@ Server::OpSet(const std::string& id,
   return EINVAL;
 }
 
-
-
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
 //------------------------------------------------------------------------------
-
-/*----------------------------------------------------------------------------*/
-
 int
 Server::OpSetDirectory(const std::string& id,
                        const eos::fusex::md& md,
@@ -1585,8 +1573,7 @@ Server::OpSetDirectory(const std::string& id,
   if (!md_pino) {
     // -----------------------------------------------------------------------
     // this can be a creation with an implied capability and the remote inode
-    // of the parent directory
-    // was not yet send back to the creating client
+    // of the parent directory was not yet sent back to the creating client
     // -----------------------------------------------------------------------
     md_pino = InodeFromCAP(md);
   }
@@ -1596,23 +1583,16 @@ Server::OpSetDirectory(const std::string& id,
   };
   set_type op;
   uint64_t md_ino = 0;
-  bool exclusive = false;
-
-  if (md.type() == md.EXCL) {
-    exclusive = true;
-  }
-
-  eos_info("ino=%lx pin=%lx authid=%s msg=\"set-dir\"", (long) md.md_ino(),
-           (long) md.md_pino(),
-           md.authid().c_str());
+  bool exclusive = (md.type() == md.EXCL);
+  eos_info("ino=%lx pin=%lx authid=%s msg=\"set-dir\"", (long)md.md_ino(),
+           (long)md.md_pino(), md.authid().c_str());
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IContainerMD> cpcmd;
-  eos::IContainerMD::XAttrMap attrmap;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::string oldname;
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1753,18 +1733,13 @@ Server::OpSetDirectory(const std::string& id,
         return EEXIST;
       }
 
-      eos::IContainerMD::XAttrMap acl_attrmap;
-      gOFS->listAttributes(gOFS->eosView, &(*pcmd), acl_attrmap, false);
+      eos::IContainerMD::XAttrMap attrmap;
+      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
 
-      if (!CheckCreateAcl(vid, pcmd, acl_attrmap)) {
+      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
         return EPERM;
       }
 
-      attrmap = pcmd->getAttributes();
-      // test to verify this is the culprit of failing all eosxd system tests in the CI
-      // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
-      // return EPERM;
-      // }
       cmd = gOFS->eosDirectoryService->createContainer(0);
       cmd->setName(md.name());
       md_ino = cmd->getId();
@@ -1779,7 +1754,6 @@ Server::OpSetDirectory(const std::string& id,
       }
 
       // parent attribute inheritance
-
       for (const auto& elem : attrmap) {
         cmd->setAttribute(elem.first, elem.second);
       }
@@ -1808,6 +1782,7 @@ Server::OpSetDirectory(const std::string& id,
 
     // Snapshot old attributes for xattr audit on UPDATE
     eos::IContainerMD::XAttrMap oldDirAttrs;
+
     if (op != CREATE) {
       oldDirAttrs = cmd->getAttributes();
     }
@@ -1821,8 +1796,8 @@ Server::OpSetDirectory(const std::string& id,
 
     size_t numAttr = cmd->numAttributes();
 
-    if (op != CREATE &&
-        numAttr != md.attr().size()) { /* an attribute got removed */
+    if ((op != CREATE) && (numAttr != md.attr().size())) {
+      /* an attribute got removed */
       eos::IContainerMD::XAttrMap cmap = cmd->getAttributes();
 
       for (auto it = cmap.begin(); it != cmap.end(); ++it) {
@@ -1958,13 +1933,9 @@ Server::OpSetDirectory(const std::string& id,
   return 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
 //------------------------------------------------------------------------------
-
-/*----------------------------------------------------------------------------*/
-
 int
 Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
@@ -2010,6 +1981,7 @@ Server::OpSetFile(const std::string& id,
   try {
     uint64_t clock = 0;
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+    gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
     // For UPDATE auditing across the function
     eos::audit::Stat beforeStat;
     uint32_t oldMode = 0;
@@ -2083,7 +2055,6 @@ Server::OpSetFile(const std::string& id,
               eos_debug("removing previous file in move %s", md.name().c_str());
             }
 
-            attrmap = pcmd->getAttributes();
             // check if there is versioning to be done
             int versioning = 0;
 
@@ -2221,8 +2192,7 @@ Server::OpSetFile(const std::string& id,
                 eos_debug("removing previous file in update %s", md.name().c_str());
               }
 
-              attrmap = pcmd->getAttributes();
-              // check if there is versioning to be done
+              // Check if there is versioning to be done
               int versioning = 0;
 
               if (attrmap.count("user.fusex.rename.version")) {
@@ -2399,8 +2369,8 @@ Server::OpSetFile(const std::string& id,
                (long) fid,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
-    } else if (strncmp(md.target().c_str(), "////hlnk",
-                       8) == 0) {  /* hard link creation */
+    } else if (strncmp(md.target().c_str(), "////hlnk", 8) == 0) {
+      /* hard link creation */
       fs_rd_lock.Release();
       // ----------------------------------------------------------------------
       // SECURITY: parse and validate the target inode supplied via md.target().
@@ -2496,8 +2466,6 @@ Server::OpSetFile(const std::string& id,
         return EPERM;
       }
 
-      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
-
       if (!CheckCreateAcl(vid, pcmd, attrmap)) {
         return EPERM;
       }
@@ -2524,13 +2492,13 @@ Server::OpSetFile(const std::string& id,
 
       pcmd->addFile(gmd.get());
       gOFS->eosFileService->updateStore(gmd.get());
-            gOFS->eosView->updateContainerStore(pcmd.get());
-            // Audit rename
-            if (gOFS->mAudit) {
-              std::string newPath = gOFS->eosView->getUri(fmd.get());
-              gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
-                                  oldname);
-            }
+      gOFS->eosView->updateContainerStore(pcmd.get());
+      // Audit rename
+      if (gOFS->mAudit) {
+        std::string newPath = gOFS->eosView->getUri(fmd.get());
+        gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
+                            oldname);
+      }
       eos::fusex::response resp;
       resp.set_type(resp.ACK);
       resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -2563,25 +2531,22 @@ Server::OpSetFile(const std::string& id,
         return EPERM;
       }
 
-      if (pcmd->findContainer(
-            md.name())) {
+      if (pcmd->findContainer(md.name())) {
         return EEXIST;
       }
 
-      if ( !CheckOwnerAcl(md, vid, pcmd)) /* a create */ {
-	return EPERM;
+      if (!CheckOwnerAcl(md, vid, pcmd)) {
+        return EPERM;
+      }
+
+      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
+        return EPERM;
       }
 
       unsigned long layoutId = 0;
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
       std::string space;
-      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
-
-      if (!CheckCreateAcl(vid, pcmd, attrmap)) {
-        return EPERM;
-      }
-
       XrdOucEnv env;
       std::string bandwidth;
       bool schedule = false;
