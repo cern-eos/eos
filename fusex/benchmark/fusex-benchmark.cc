@@ -35,6 +35,7 @@
 #define LOOP_20 100
 #define LOOP_21 10000
 #define LOOP_22 5
+#define LOOP_23 260
 
 int main(int argc, char* argv[])
 {
@@ -1002,6 +1003,64 @@ int main(int argc, char* argv[])
     }
 
     COMMONTIMING("concurrent-list-recursive", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 23;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    eos::common::cmd_status rc;
+    eos::common::ShellCmd mktoplev("mkdir test23");
+    rc = mktoplev.wait(5);
+
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] toplevel mkdir failed\n", testno);
+      exit(testno);
+    }
+
+    std::string path = "test23";
+    int erritr = -1;
+    for (int i = 0; i < LOOP_23; i++) {
+      std::string newpath = path + "/p";
+      if (mkdir(newpath.c_str(), S_IRWXU)) {
+        const int err = errno;
+        if (errno != ENAMETOOLONG) {
+          fprintf(stderr, "[test=%03d] mkdir failed itr=%d errno=%d\n", testno, i, err);
+          exit(testno);
+        }
+        erritr = i;
+        break;
+      }
+      path = newpath;
+    }
+
+    if (erritr < 200) {
+      fprintf(stderr,
+              "[test=%03d] unexpcted number of subdirectories created erritr=%d\n",
+              testno, erritr);
+      exit(testno);
+    }
+
+    path += "/file";
+    int fd = open(path.c_str(), O_RDWR | O_CREAT, 0644);
+    if (fd < 0) {
+      int err = errno;
+      fprintf(stderr, "[test=%03d] create file failed erritr=%d errno=%d\n", testno,
+              erritr, err);
+      exit(testno);
+    }
+    close(fd);
+
+    eos::common::ShellCmd removedir("rm -r test23");
+    rc = removedir.wait(5);
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] rm -r test23 dir failed\n", testno);
+      exit(testno);
+    }
+
+    COMMONTIMING("deep-mkdir", &tm);
   }
 
   tm.Print();
