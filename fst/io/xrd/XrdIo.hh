@@ -279,6 +279,18 @@ public:
   fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
                  XrdSfsXferSize length);
 
+  //----------------------------------------------------------------------------
+  //! Write to file - async, zero-copy variant (see FileIo::fileWriteAsync).
+  //!
+  //! The provided owner is retained inside the XrdIoHandler so the buffer
+  //! remains valid until XrdCl finishes the write. No memcpy is performed.
+  //----------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(std::shared_ptr<eos::common::Buffer> keep,
+                 XrdSfsFileOffset buf_offset,
+                 XrdSfsFileOffset file_offset,
+                 XrdSfsXferSize length) override;
+
   //--------------------------------------------------------------------------
   //! Wait for all async IO
   //!
@@ -713,6 +725,27 @@ public:
 
     // The promise must be swaped after any potential exception is thrown
     // otherwise the caller will be left with an invalid promise.
+    std::swap(mPromise, promise);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Constructor - zero-copy variant.
+  //!
+  //! The supplied buffer is retained for the lifetime of the handler; no
+  //! per-request allocation or memcpy takes place. The retained owner is
+  //! released when the handler is destroyed in HandleResponse() (via
+  //! delete this), which only happens after the XrdCl async write has
+  //! completed and reported back.
+  //!
+  //! @param promise  promise object used to notify when the answer arrives
+  //! @param op       type of operation for current handler
+  //! @param keepalive ref-counted owner of the source buffer (must stay
+  //!                  alive until the async write completes)
+  //----------------------------------------------------------------------------
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& promise, OpType op,
+               std::shared_ptr<eos::common::Buffer> keepalive):
+    mOperationType(op), mBufMgr(nullptr), mBuffer(std::move(keepalive))
+  {
     std::swap(mPromise, promise);
   }
 

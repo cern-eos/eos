@@ -27,11 +27,13 @@
 
 #include "common/Logging.hh"
 #include "common/Statfs.hh"
+#include "common/BufferManager.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include <string>
 #include <list>
 #include <future>
+#include <memory>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -223,6 +225,37 @@ public:
   virtual std::future<XrdCl::XRootDStatus>
   fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
                  XrdSfsXferSize length) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Write to file - async, zero-copy variant.
+  //!
+  //! The caller hands in a ref-counted owner of the source buffer; the
+  //! implementation must keep that owner alive until the underlying transport
+  //! finishes the write, but it must NOT memcpy the contents into a separate
+  //! per-request buffer. This is the hot path for RAIN stripe fan-out where
+  //! the same RainBlock buffer is shared across multiple in-flight async
+  //! writes on disjoint byte ranges.
+  //!
+  //! @param keep        ref-counted owner of the underlying buffer
+  //! @param buf_offset  byte offset within keep->GetDataPtr()
+  //! @param file_offset offset in the target file
+  //! @param length      number of bytes to write
+  //!
+  //! @return future holding the status response
+  //!
+  //! The default implementation falls back to the copy-based overload above
+  //! so subclasses for which the copy is unavoidable (or already absent, like
+  //! the local pwrite-based backends) need not override.
+  //----------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(std::shared_ptr<eos::common::Buffer> keep,
+                 XrdSfsFileOffset buf_offset,
+                 XrdSfsFileOffset file_offset,
+                 XrdSfsXferSize length)
+  {
+    return fileWriteAsync(keep->GetDataPtr() + buf_offset,
+                          file_offset, length);
+  }
 
   //--------------------------------------------------------------------------
   //! Wait for all async IO

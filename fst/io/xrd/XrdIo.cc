@@ -746,6 +746,59 @@ XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
 }
 
 //------------------------------------------------------------------------------
+// Write to file - async, zero-copy variant.
+//
+// The caller's shared_ptr<Buffer> is handed to the XrdIoHandler which keeps
+// it alive until the XrdCl async write completes; no memcpy is performed.
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+XrdIo::fileWriteAsync(std::shared_ptr<eos::common::Buffer> keep,
+                      XrdSfsFileOffset buf_offset,
+                      XrdSfsFileOffset file_offset,
+                      XrdSfsXferSize length)
+{
+  std::promise<XrdCl::XRootDStatus> wr_promise;
+  std::future<XrdCl::XRootDStatus>  wr_future = wr_promise.get_future();
+
+  if (!mXrdFile) {
+    errno = EIO;
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                         XrdCl::errOSError, errno));
+    return wr_future;
+  }
+
+  // Sanity-check the caller-supplied window against the buffer capacity.
+  if (!keep || (buf_offset < 0) || (length < 0) ||
+      ((uint64_t)(buf_offset + length) > keep->mCapacity)) {
+    errno = EINVAL;
+    eos_err("msg=\"zero-copy write rejected: bad buffer window\" "
+            "buf_offset=%lld length=%lli cap=%llu",
+            (long long)buf_offset, (long long)length,
+            keep ? (unsigned long long) keep->mCapacity : 0ull);
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                         XrdCl::errInvalidArgs, errno));
+    return wr_future;
+  }
+
+  char* data_ptr = keep->GetDataPtr() + buf_offset;
+  // The handler retains the shared_ptr<Buffer> for us. Allocation cannot
+  // throw the BufferAllocateException because no pool buffer is requested.
+  XrdIoHandler* wr_handler = new XrdIoHandler(std::move(wr_promise),
+      XrdIoHandler::OpType::Write, std::move(keep));
+  XrdCl::XRootDStatus status = mXrdFile->Write(
+      static_cast<uint64_t>(file_offset),
+      static_cast<uint32_t>(length),
+      data_ptr,
+      wr_handler);
+
+  if (!status.IsOK()) {
+    wr_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
+  }
+
+  return wr_future;
+}
+
+//------------------------------------------------------------------------------
 // Wait for async IO
 //------------------------------------------------------------------------------
 int

@@ -108,6 +108,20 @@ public:
     return mBuffer->GetDataPtr();
   }
 
+  //----------------------------------------------------------------------------
+  //! Get the shared owner of the underlying buffer.
+  //!
+  //! Returning a copy of the shared_ptr extends the buffer's lifetime past
+  //! the RainGroup recycle, which is exactly what the zero-copy
+  //! FileIo::fileWriteAsync path needs in order to keep the source storage
+  //! valid while one or more XrdCl async writes are still in flight on
+  //! disjoint byte ranges within this block.
+  //----------------------------------------------------------------------------
+  inline std::shared_ptr<eos::common::Buffer> GetBufferShared() const
+  {
+    return mBuffer;
+  }
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
