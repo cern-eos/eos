@@ -406,9 +406,9 @@ ReedSLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 
     // Write parity block
     if (mStripe[physical_id]) {
-      // Option (B): zero-copy fan-out of the parity stripe. The whole block
-      // is the payload, so buf_offset is 0. Falls back to the copy-based
-      // overload when EOS_FST_RAIN_LEGACY_COPY is set.
+      // Zero-copy fan-out of the parity stripe. The whole block is the
+      // payload, so buf_offset is 0. Falls back to the copy-based overload
+      // when EOS_FST_RAIN_LEGACY_COPY is set.
       if (LegacyCopyDispatch()) {
         grp->StoreFuture(mStripe[physical_id]->fileWriteAsync(data_blocks[i](),
                          offset_local,

@@ -460,9 +460,8 @@ RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
     off_parity_local = (grp_off / mNbDataFiles) + (i * mStripeWidth);
     off_parity_local += mSizeHeader;
 
-    // Option (B): zero-copy fan-out for both the simple- and the double-
-    // parity stripe. Falls back to the copy-based overload when
-    // EOS_FST_RAIN_LEGACY_COPY is set.
+    // Zero-copy fan-out for both the simple- and the double- parity stripe.
+    // Fall back to the copy-based overload when EOS_FST_RAIN_LEGACY_COPY set.
     if (LegacyCopyDispatch()) {
       grp->StoreFuture(mStripe[physical_pindex]->
                        fileWriteAsync(data_blocks[index_pblock](),

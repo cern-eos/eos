@@ -62,7 +62,7 @@ RainMetaLayout::LegacyCopyDispatch() noexcept
       return false;
     }
 
-    return std::strcmp(v, "0") != 0;
+    return std::strcmp(v, "1") == 0;
   }();
   return sLegacy;
 }
@@ -1256,10 +1256,10 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
       return false;
     }
 
-    // Option (B): hand the RainBlock's shared buffer directly to the IO
-    // backend so XrdIo does not memcpy the stripe into a per-request pool
-    // buffer. The backing buffer is kept alive by the XrdIoHandler until
-    // XrdCl signals completion - well past RainGroup recycling.
+    // Hand the RainBlock's shared buffer directly to the IO backend so XrdIo
+    // does not memcpy the stripe into a per-request pool buffer. The backing
+    // buffer is kept alive by the XrdIoHandler until XrdCl signals completion
+    // - well past RainGroup recycling.
     if (LegacyCopyDispatch()) {
       grp->StoreFuture(file->fileWriteAsync(ptr, file_offset, length));
     } else {
