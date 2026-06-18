@@ -46,6 +46,15 @@ class RainMetaLayout : public Layout
 public:
 
   //----------------------------------------------------------------------------
+  //! Kill-switch for the zero-copy async fan-out introduced by option (B)
+  //! of the FST throughput analysis. Returns true when the legacy copy-based
+  //! FileIo::fileWriteAsync overload must be used. The decision is cached on
+  //! first call, looking at the EOS_FST_RAIN_LEGACY_COPY environment variable
+  //! at process startup. Empty / unset means "use the zero-copy path".
+  //----------------------------------------------------------------------------
+  static bool LegacyCopyDispatch() noexcept;
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file handler to current file
