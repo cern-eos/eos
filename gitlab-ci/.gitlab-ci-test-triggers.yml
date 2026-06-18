@@ -25,10 +25,13 @@ trigger_cta_regression_tests:
   variables:
     CTA_BRANCH: main
     PIPELINE_TYPE: REGR_AGAINST_CTA_VERSION
-    # Forwarded to the CTA pipeline; value computed by the workflow rules in
-    # the top-level .gitlab-ci.yml. Declared here so it is passed downstream
-    # despite forward.pipeline_variables being false.
-    CUSTOM_EOS_IMAGE_TAG: $EOS_IMAGE_TAG
+    # Direct references to predefined CI variables are expanded in the upstream pipeline,
+    # while references through another custom variable are re-evaluated downstream.
+    # As a result, CUSTOM_EOS_IMAGE_TAG must refer to $CI_COMMIT_SHORT_SHA directly
+    # and cannot refer to another variable that contains $CI_COMMIT_SHORT_SHA.
+    # For this reason, we also cannot cleanly !reference the existing rules.
+    # Basically, GitLab doesn't do transitive variable expansion.
+    CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_SHORT_SHA.el9
   trigger:
     project: cta/CTA
     branch: $CTA_BRANCH
@@ -37,5 +40,8 @@ trigger_cta_regression_tests:
       pipeline_variables: false # Prevent accidentally overwriting CTA pipeline variables
   rules:
     # Auto-run on schedules and tags, manual otherwise
-    - !reference [.rules-schedules-and-tags, rules]
+    - if: $CI_COMMIT_TAG
+      variables:
+        CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_TAG.el9
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - !reference [.rules-manual, rules]
