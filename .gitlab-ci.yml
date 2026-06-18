@@ -34,6 +34,10 @@ variables:
   CODENAME: "diopside"
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 1
+  # EOS image tag tested by the downstream CTA regression pipeline. Kept in
+  # sync with the tag produced by the *_docker_image jobs: short SHA by
+  # default, overridden to the git tag on tagged releases (see workflow rules).
+  EOS_IMAGE_TAG: "$CI_COMMIT_SHORT_SHA.el9"
 
 default:
   interruptible: true
@@ -57,6 +61,7 @@ workflow:
     - if: '$CI_COMMIT_TAG'
       variables:
         KOJI_SCRATCH: ""
+        EOS_IMAGE_TAG: "$CI_COMMIT_TAG.el9"
     # Merge request pipelines
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       variables:
@@ -149,6 +154,7 @@ include:
   - local: /gitlab-ci/.gitlab-ci-test-dock8s.yml
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
+  - local: /gitlab-ci/.gitlab-ci-test-triggers.yml
   - local: /gitlab-ci/.gitlab-ci-publish.yml
   - local: /gitlab-ci/.gitlab-ci-clean.yml
   - local: /gitlab-ci/.gitlab-ci-misc.yml

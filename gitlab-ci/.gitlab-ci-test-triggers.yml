@@ -1,0 +1,41 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Whoever triggers this job, must have the rights to start a pipeline in CTA
+trigger_cta_regression_tests:
+  stage: test
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  variables:
+    CTA_BRANCH: main
+    PIPELINE_TYPE: REGR_AGAINST_CTA_VERSION
+    # Forwarded to the CTA pipeline; value computed by the workflow rules in
+    # the top-level .gitlab-ci.yml. Declared here so it is passed downstream
+    # despite forward.pipeline_variables being false.
+    CUSTOM_EOS_IMAGE_TAG: $EOS_IMAGE_TAG
+  trigger:
+    project: cta/CTA
+    branch: $CTA_BRANCH
+    strategy: mirror
+    forward:
+      pipeline_variables: false # Prevent accidentally overwriting CTA pipeline variables
+  rules:
+    # Auto-run on schedules and tags, manual otherwise
+    - !reference [.rules-schedules-and-tags, rules]
+    - !reference [.rules-manual, rules]
