@@ -125,7 +125,6 @@ email_notification:
     - job: publish_koji_al9
   rules: !reference [.rules-tags-only, rules]
 
-
 #-------------------------------------------------------------------------------
 # RPM artifacts publishing to storage-ci
 #-------------------------------------------------------------------------------
