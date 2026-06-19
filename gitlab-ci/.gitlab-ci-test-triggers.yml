@@ -1,0 +1,47 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Whoever triggers this job, must have the rights to start a pipeline in CTA
+trigger_cta_regression_tests:
+  stage: test
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  variables:
+    CTA_BRANCH: main
+    PIPELINE_TYPE: REGR_AGAINST_CTA_VERSION
+    # Direct references to predefined CI variables are expanded in the upstream pipeline,
+    # while references through another custom variable are re-evaluated downstream.
+    # As a result, CUSTOM_EOS_IMAGE_TAG must refer to $CI_COMMIT_SHORT_SHA directly
+    # and cannot refer to another variable that contains $CI_COMMIT_SHORT_SHA.
+    # For this reason, we also cannot cleanly !reference the existing rules.
+    # Basically, GitLab doesn't do transitive variable expansion.
+    CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_SHORT_SHA.el9
+  trigger:
+    project: cta/CTA
+    branch: $CTA_BRANCH
+    strategy: mirror
+    forward:
+      pipeline_variables: false # Prevent accidentally overwriting CTA pipeline variables
+  rules:
+    # Auto-run on schedules and tags, manual otherwise
+    - if: $CI_COMMIT_TAG
+      variables:
+        CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_TAG.el9
+    - !reference [.rules-schedules-and-tags, rules]
+    - !reference [.rules-manual, rules]

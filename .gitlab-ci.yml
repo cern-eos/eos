@@ -149,6 +149,7 @@ include:
   - local: /gitlab-ci/.gitlab-ci-test-dock8s.yml
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
+  - local: /gitlab-ci/.gitlab-ci-test-triggers.yml
   - local: /gitlab-ci/.gitlab-ci-publish.yml
   - local: /gitlab-ci/.gitlab-ci-clean.yml
   - local: /gitlab-ci/.gitlab-ci-misc.yml
