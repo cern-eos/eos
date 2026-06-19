@@ -17,26 +17,27 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "common/Assert.hh"
+#include "common/Logging.hh"
+#include "common/StacktraceHere.hh"
+#include "common/StringConversion.hh"
+#include "common/Utils.hh"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+#include "namespace/PermissionHandler.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/tree_size/TreeSizeAccountingSequencer.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
-#include "namespace/ns_quarkdb/persistency/Serialization.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/PermissionHandler.hh"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
-#include "common/Assert.hh"
-#include "common/StacktraceHere.hh"
-#include "common/StringConversion.hh"
-#include "common/Logging.hh"
-#include "common/Utils.hh"
-#include <sys/stat.h>
 #include <algorithm>
 #include <chrono>
 #include <optional>
+#include <sys/stat.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -110,6 +111,8 @@ QuarkContainerMD::QuarkContainerMD(const QuarkContainerMD& other)
   pFileSvc = other.pFileSvc;
   pQcl     = other.pQcl;
   mClock   = other.mClock;
+  mTreeSizeFileMembershipSequence = other.mTreeSizeFileMembershipSequence;
+  mTreeSizeChildMembershipSequence = other.mTreeSizeChildMembershipSequence;
   pFlusher = other.pFlusher;
   pDirsKey = other.pDirsKey;
   pFilesKey = other.pFilesKey;
@@ -125,6 +128,9 @@ QuarkContainerMD::InheritChildren(const IContainerMD& other)
     dynamic_cast<QuarkContainerMD&>(const_cast<IContainerMD&>(other));
   mFiles.get() = otherContainer.copyFileMap();
   mSubcontainers.get() = otherContainer.copyContainerMap();
+  const auto membership_snapshot = otherContainer.getTreeSizeMembershipSnapshot();
+  mTreeSizeFileMembershipSequence = membership_snapshot.fileMembershipSequence;
+  mTreeSizeChildMembershipSequence = membership_snapshot.childMembershipSequence;
   setTreeSize(otherContainer.getTreeSize());
 }
 
@@ -229,7 +235,8 @@ QuarkContainerMD::findItem(const std::string& name)
 void
 QuarkContainerMD::removeContainer(const std::string& name)
 {
-  runWriteOp([this, &name]() {
+  TreeSizeAccountingEvent accountingEvent;
+  runWriteOp([this, &name, &accountingEvent]() {
     auto it = mSubcontainers->find(name);
 
     if (it == mSubcontainers->end()) {
@@ -238,7 +245,10 @@ QuarkContainerMD::removeContainer(const std::string& name)
       throw e;
     }
 
+    accountingEvent = ReserveTreeSizeAccountingEvent(
+        TreeSizeAccountingEventType::ChildDetach, mCont.id(), it->second);
     mSubcontainers->erase(it);
+    mTreeSizeChildMembershipSequence = accountingEvent.sequence;
     // mSubcontainers->resize(0);
     // Delete container also from KV backend
     pFlusher->hdel(pDirsKey, name);
@@ -246,10 +256,9 @@ QuarkContainerMD::removeContainer(const std::string& name)
   // NOTE: This is an ugly hack. There's no file object here
   // and we hijack the "location" member of the Event
   // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
                                  // remove this container from the tree container counter
-  {0, 0, -1});
+                                 {0, 0, -1}, accountingEvent);
   pFileSvc->notifyListeners(&e);
 }
 
@@ -259,7 +268,8 @@ QuarkContainerMD::removeContainer(const std::string& name)
 void
 QuarkContainerMD::addContainer(IContainerMD* container)
 {
-  runWriteOp([this, container]() {
+  TreeSizeAccountingEvent accountingEvent;
+  runWriteOp([this, container, &accountingEvent]() {
     if (container->getName().empty()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EINVAL,
@@ -286,19 +296,21 @@ QuarkContainerMD::addContainer(IContainerMD* container)
                         << " while a file exists already there.");
     }
 
+    accountingEvent = ReserveTreeSizeAccountingEvent(
+        TreeSizeAccountingEventType::ChildAttach, mCont.id(), container->getId());
     container->setParentId(mCont.id());
     (void) mSubcontainers->insert(std::make_pair(container->getName(),
                                   container->getId()));
+    mTreeSizeChildMembershipSequence = accountingEvent.sequence;
     // Add to new container to KV backend
     pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
   });
   // NOTE: This is an ugly hack. There's no file object here
   // and we hijack the "location" member of the Event
   // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
-                                 //Add this container to the tree container counter
-  {0, 0, 1});
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
+                                 // Add this container to the tree container counter
+                                 {0, 0, 1}, accountingEvent);
   pFileSvc->notifyListeners(&e);
 }
 
@@ -344,7 +356,8 @@ QuarkContainerMD::findContainer(const std::string& name)
 void
 QuarkContainerMD::addFile(IFileMD* file)
 {
-  runWriteOp([this, file]() {
+  TreeSizeAccountingEvent accountingEvent;
+  runWriteOp([this, file, &accountingEvent]() {
     if (file->getName().empty()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EINVAL,
@@ -370,14 +383,18 @@ QuarkContainerMD::addFile(IFileMD* file)
                         " while a different file exists already there.");
     }
 
+    accountingEvent = ReserveTreeSizeAccountingEvent(
+        TreeSizeAccountingEventType::FileCreate, mCont.id(), file->getId());
     file->setContainerId(mCont.id());
     (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
+    mTreeSizeFileMembershipSequence = accountingEvent.sequence;
     pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
   });
   // NOTE: We hijack the "location" member of the Event to pass in the container id.
   IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
                                  // add the file size and do +1 in the tree files counter
-                                 {static_cast<int64_t>(file->getSize()), 1, 0});
+                                 {static_cast<int64_t>(file->getSize()), 1, 0},
+                                 accountingEvent);
   pFileSvc->notifyListeners(&e);
 }
 
@@ -389,13 +406,17 @@ QuarkContainerMD::removeFile(const std::string& name)
 {
   bool found = false;
   IFileMD::id_t id;
-  runWriteOp([this, &name, &found, &id]() {
+  TreeSizeAccountingEvent accountingEvent;
+  runWriteOp([this, &name, &found, &id, &accountingEvent]() {
     auto iter = mFiles->find(name);
 
     if (iter != mFiles->end()) {
       found = true;
       id = iter->second;
+      accountingEvent = ReserveTreeSizeAccountingEvent(
+          TreeSizeAccountingEventType::FileDelete, mCont.id(), id);
       mFiles->erase(iter);
+      mTreeSizeFileMembershipSequence = accountingEvent.sequence;
       // mFiles->resize(0);
       pFlusher->hdel(pFilesKey, name);
     }
@@ -408,7 +429,7 @@ QuarkContainerMD::removeFile(const std::string& name)
       IFileMDChangeListener::Event e(
           nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
           // remove the file size and do -1 in the tree files counter
-          {-static_cast<int64_t>(file->getSize()), -1, 0});
+          {-static_cast<int64_t>(file->getSize()), -1, 0}, accountingEvent);
       pFileSvc->notifyListeners(&e);
     } catch (MDException& e) {
       // File already removed
@@ -823,6 +844,8 @@ QuarkContainerMD::deserialize(Buffer& buffer)
   runWriteOp([this, &buffer]() {
     Serialization::deserializeContainer(buffer, mCont);
     loadChildren();
+    mTreeSizeFileMembershipSequence = 0;
+    mTreeSizeChildMembershipSequence = 0;
   });
 }
 
@@ -841,6 +864,8 @@ QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
     // Rebuild the file and subcontainer keys
     pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
     pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
+    mTreeSizeFileMembershipSequence = 0;
+    mTreeSizeChildMembershipSequence = 0;
   });
 }
 
@@ -852,6 +877,8 @@ QuarkContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 {
   runWriteOp([this, Proto = std::move(proto)]() {
     mCont = std::move(Proto);
+    mTreeSizeFileMembershipSequence = 0;
+    mTreeSizeChildMembershipSequence = 0;
   });
 }
 
@@ -947,6 +974,32 @@ QuarkContainerMD::copyFileMap() const
     }
 
     return retval;
+  });
+}
+
+//------------------------------------------------------------------------------
+// Get a membership snapshot with matching tree-size mutation watermarks
+//------------------------------------------------------------------------------
+QuarkContainerMD::TreeSizeMembershipSnapshot
+QuarkContainerMD::getTreeSizeMembershipSnapshot() const
+{
+  TreeSizeMembershipSnapshot snapshot;
+
+  return runReadOp([this, &snapshot]() {
+    snapshot.fileIds.reserve(mFiles->size());
+    snapshot.childContainerIds.reserve(mSubcontainers->size());
+
+    for (auto it = mFiles->begin(); it != mFiles->end(); ++it) {
+      snapshot.fileIds.push_back(it->second);
+    }
+
+    for (auto it = mSubcontainers->begin(); it != mSubcontainers->end(); ++it) {
+      snapshot.childContainerIds.push_back(it->second);
+    }
+
+    snapshot.fileMembershipSequence = mTreeSizeFileMembershipSequence;
+    snapshot.childMembershipSequence = mTreeSizeChildMembershipSequence;
+    return snapshot;
   });
 }
 

@@ -98,6 +98,7 @@ set(MGM_UT_SRCS
   mgm/PolicyTests.cc
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
+  mgm/TreeSizeAccountingManagerTests.cc
   mgm/TrafficShapingTests.cc
   mgm/placement/ClusterMapTests.cc
   mgm/placement/RRSeedTests.cc
@@ -150,6 +151,17 @@ set(COMMON_UT_SRCS
   common/RandTests.cc
   common/SciTokensTests.cc
   common/WebNotifyTests.cc
+  namespace/TreeSizeAccountingFenceTests.cc
+  namespace/TreeSizeAccountingSequencerTests.cc
+  namespace/TreeSizeCoverageClassifierTests.cc
+  namespace/TreeSizeJournalCaptureScopeTests.cc
+  namespace/TreeSizeJournalTests.cc
+  namespace/TreeSizeMissingMetadataRepairTests.cc
+  namespace/TreeSizePublisherTests.cc
+  namespace/TreeSizeRecomputePublishDecisionTests.cc
+  namespace/TreeSizeReconcilerTests.cc
+  namespace/TreeSizeSnapshotBuilderTests.cc
+  namespace/TreeSizeTopologyComposerTests.cc
 )
 
 set(FUSEX_UT_SRCS

@@ -45,6 +45,7 @@ add_library(
   interface/IFileMDSvc.hh
   interface/IContainerMDSvc.hh
   interface/Identifiers.hh
+  interface/TreeSizeAccountingEvent.hh
   interface/IFileMD.hh
   interface/IContainerMD.hh
 
@@ -57,6 +58,21 @@ add_library(
 
   # non-loadable classes used in QDB namespace
   ns_quarkdb/accounting/ContainerAccounting.cc            ns_quarkdb/accounting/ContainerAccounting.hh
+                                                          ns_quarkdb/accounting/tree_size/TreeSizeAccountingFence.hh
+                                                          ns_quarkdb/accounting/tree_size/TreeSizeAccountingService.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeAccountingSequencer.cc    ns_quarkdb/accounting/tree_size/TreeSizeAccountingSequencer.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeCoverageClassifier.cc     ns_quarkdb/accounting/tree_size/TreeSizeCoverageClassifier.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeJournal.cc                ns_quarkdb/accounting/tree_size/TreeSizeJournal.hh
+                                                          ns_quarkdb/accounting/tree_size/TreeSizeJournalCaptureScope.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeMissingMetadataRepair.cc
+                                                          ns_quarkdb/accounting/tree_size/TreeSizeMissingMetadataRepair.hh
+  ns_quarkdb/accounting/tree_size/TreeSizePublisher.cc              ns_quarkdb/accounting/tree_size/TreeSizePublisher.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeRecomputePublishDecision.cc
+                                                          ns_quarkdb/accounting/tree_size/TreeSizeRecomputePublishDecision.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeRecomputeEngine.cc        ns_quarkdb/accounting/tree_size/TreeSizeRecomputeEngine.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeReconciler.cc             ns_quarkdb/accounting/tree_size/TreeSizeReconciler.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeSnapshotBuilder.cc        ns_quarkdb/accounting/tree_size/TreeSizeSnapshotBuilder.hh
+  ns_quarkdb/accounting/tree_size/TreeSizeTopologyComposer.cc       ns_quarkdb/accounting/tree_size/TreeSizeTopologyComposer.hh
   ns_quarkdb/accounting/SyncTimeAccounting.cc             ns_quarkdb/accounting/SyncTimeAccounting.hh
   ns_quarkdb/accounting/FileSystemHandler.cc              ns_quarkdb/accounting/FileSystemHandler.hh
   ns_quarkdb/accounting/FileSystemView.cc                 ns_quarkdb/accounting/FileSystemView.hh

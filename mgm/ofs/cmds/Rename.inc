@@ -737,7 +737,8 @@ XrdMgmOfs::_rename(const char* old_name,
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->RemoveTree(dir.get(), {tree_size, tree_files, tree_cont});
+                gOFS->eosContainerAccounting->RemoveTree(
+                    dir.get(), rdir->getId(), {tree_size, tree_files, tree_cont});
               }
 
               eosView->updateContainerStore(dir.get());
@@ -771,7 +772,8 @@ XrdMgmOfs::_rename(const char* old_name,
               newdir->setMTimeNow();
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->AddTree(newdir.get(), {tree_size, tree_files, tree_cont});
+                gOFS->eosContainerAccounting->AddTree(newdir.get(), rdir->getId(),
+                                                      {tree_size, tree_files, tree_cont});
               }
 
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();

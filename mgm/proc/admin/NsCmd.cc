@@ -39,6 +39,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/treesizeaccounting/TreeSizeAccountingManager.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "namespace/Constants.hh"
 #include "namespace/Resolver.hh"
@@ -52,6 +53,7 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include <algorithm>
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <qclient/QClient.hh>
@@ -59,6 +61,7 @@
 #include <vector>
 
 namespace {
+
 struct HaClusterStatus {
   std::string local;
   std::string role;
@@ -85,6 +88,24 @@ JoinValuesOrNone(const std::vector<std::string>& values)
 {
   return values.empty() ? std::string("none")
                         : eos::common::StringConversion::Join(values, ",");
+}
+
+std::string
+DescribeContainerSpecification(
+    const eos::console::NsProto_ContainerSpecificationProto& container)
+{
+  using eos::console::NsProto_ContainerSpecificationProto;
+
+  switch (container.container_case()) {
+  case NsProto_ContainerSpecificationProto::kPath:
+    return container.path();
+  case NsProto_ContainerSpecificationProto::kCid:
+    return std::string("cid:") + container.cid();
+  case NsProto_ContainerSpecificationProto::kCxid:
+    return std::string("cxid:") + container.cxid();
+  default:
+    return "<unspecified>";
+  }
 }
 
 std::string
@@ -1067,6 +1088,18 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
+  if (!gOFS->mTreeSizeAccountingManager) {
+    reply.set_std_err("error: tree-size recompute manager unavailable");
+    reply.set_retc(EIO);
+    return;
+  }
+
+  if (tree.status() || tree.detail()) {
+    reply.set_std_out(gOFS->mTreeSizeAccountingManager->FormatStatus(tree.detail()));
+    reply.set_retc(0);
+    return;
+  }
+
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -1083,22 +1116,32 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return;
   }
 
-  std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
-  std::list< std::list<eos::IContainerMD::id_t> > bfs =
-    BreadthFirstSearchContainers(cont.get(), tree.depth());
+  const std::string root_spec = DescribeContainerSpecification(tree.container());
+  const eos::mgm::TreeSizeRecomputeRequest request{cont->getId(), root_spec,
+                                                   tree.depth()};
+  auto* accounting_service = gOFS->namespaceGroup
+                                 ? gOFS->namespaceGroup->getTreeSizeAccountingService()
+                                 : nullptr;
 
-  for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
-    for (const auto& id : *it_level) {
-      try {
-        tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
-      } catch (const eos::MDException& e) {
-        eos_err("error=\"%s\"", e.what());
-        continue;
-      }
-
-      UpdateTreeSize(tmp_cont);
-    }
+  if (!gOFS->eosDirectoryService || !gOFS->eosFileService) {
+    eos_warning("msg=\"tree size recompute manager unavailable\" "
+                "cid=%llu root=\"%s\"",
+                static_cast<unsigned long long>(cont->getId()), root_spec.c_str());
+    reply.set_std_err("error: tree-size recompute manager unavailable");
+    reply.set_retc(EIO);
+    return;
   }
+
+  const auto result = gOFS->mTreeSizeAccountingManager->SubmitRecompute(
+      request, *gOFS->eosDirectoryService, *gOFS->eosFileService, accounting_service);
+
+  if (result.retc == 0) {
+    reply.set_std_out(result.message);
+  } else {
+    reply.set_std_err(result.message);
+  }
+
+  reply.set_retc(result.retc);
 }
 
 //------------------------------------------------------------------------------
@@ -1335,56 +1378,6 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
                    ContainerIdentifier(cache.single_to_drop()));
     reply.set_retc(!found);
   }
-}
-
-//------------------------------------------------------------------------------
-// Do a breadth first search of all the subcontainers under the given
-// container
-//------------------------------------------------------------------------------
-std::list< std::list<eos::IContainerMD::id_t> >
-NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
-                                    uint32_t max_depth) const
-{
-  uint32_t num_levels = 0u;
-  std::shared_ptr<eos::IContainerMD> tmp_cont;
-  std::list< std::list<eos::IContainerMD::id_t> > depth(256);
-  auto it_lvl = depth.begin();
-  it_lvl->push_back(cont->getId());
-
-  while (it_lvl->size() && (it_lvl != depth.end())) {
-    auto it_next_lvl = it_lvl;
-    ++it_next_lvl;
-
-    for (const auto& cid : *it_lvl) {
-      try {
-        tmp_cont = gOFS->eosDirectoryService->getContainerMD(cid);
-      } catch (const eos::MDException& e) {
-        // ignore error
-        eos_static_err("error=\"%s\"", e.what());
-        continue;
-      }
-
-      for (auto subcont_it = ContainerMapIterator(tmp_cont); subcont_it.valid();
-           subcont_it.next()) {
-        if (it_next_lvl != depth.end()) {
-          it_next_lvl->push_back(subcont_it.value());
-        } else {
-          eos_static_notice("msg=\"reached maximum hierarchy depth\" "
-                            "cxid=%08llx", cid);
-        }
-      }
-    }
-
-    it_lvl = it_next_lvl;
-    ++num_levels;
-
-    if (max_depth && (num_levels == max_depth)) {
-      break;
-    }
-  }
-
-  depth.resize(num_levels);
-  return depth;
 }
 
 //------------------------------------------------------------------------------

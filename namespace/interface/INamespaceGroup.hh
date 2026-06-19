@@ -43,6 +43,7 @@ class IFsView;
 class IContainerMDChangeListener;
 class IQuotaStats;
 class IFileMDChangeListener;
+class ITreeSizeAccountingService;
 
 //------------------------------------------------------------------------------
 //! Interface object to hold ownership of all namespace objects.
@@ -94,6 +95,11 @@ public:
   //! Provide container accounting view
   //----------------------------------------------------------------------------
   virtual IFileMDChangeListener* getContainerAccountingView() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Provide tree-size accounting service
+  //----------------------------------------------------------------------------
+  virtual ITreeSizeAccountingService* getTreeSizeAccountingService() = 0;
 
   //----------------------------------------------------------------------------
   //! Provide quota stats

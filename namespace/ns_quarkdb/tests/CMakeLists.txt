@@ -40,6 +40,9 @@ add_executable(
   NextInodeProviderTest.cc
   OtherTests.cc
   NsTests.cc
+  TreeSizeAccountingFenceTest.cc
+  TreeSizeMetadataPublisherTest.cc
+  TreeSizeRecomputeEngineTest.cc
   VariousTests.cc)
 
 target_link_libraries(

@@ -103,6 +103,11 @@ public:
   virtual IFileMDChangeListener* getContainerAccountingView() override final;
 
   //----------------------------------------------------------------------------
+  //! Provide tree-size accounting service
+  //----------------------------------------------------------------------------
+  ITreeSizeAccountingService* getTreeSizeAccountingService() override final;
+
+  //----------------------------------------------------------------------------
   //! Provide sync time accounting view
   //----------------------------------------------------------------------------
   virtual IContainerMDChangeListener* getSyncTimeAccountingView() override final;

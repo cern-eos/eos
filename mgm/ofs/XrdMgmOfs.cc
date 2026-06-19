@@ -96,6 +96,7 @@
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/treesizeaccounting/TreeSizeAccountingManager.hh"
 #include "mgm/utils/AttrHelper.hh"
 #include "mgm/wfe/WFE.hh"
 #include "mgm/workflow/Workflow.hh"
@@ -318,6 +319,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
     , mReqIdMax(64)
     , MgmRedirector(false)
     , mErrLogEnabled(true)
+    , mTreeSizeAccountingManager(new eos::mgm::TreeSizeAccountingManager())
     , eosDirectoryService(0)
     , eosFileService(0)
     , eosView(0)
@@ -386,6 +388,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
 
   mRestApiManager = std::make_unique<rest::RestApiManager>();
   eos::common::LogId::SetSingleShotLogId();
+  mTreeSizeAccountingManager->StartWorker();
   mZmqContext = new zmq::context_t(1);
   mIoStats.reset(new eos::mgm::Iostat());
   mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
@@ -682,6 +685,8 @@ XrdMgmOfs::OrderlyShutdown()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  eos_warning("%s", "msg=\"stopping tree size accounting manager\"");
+  mTreeSizeAccountingManager->StopWorker();
   eos_warning("%s", "msg=\"stopping error logger thread\"");
   mErrLoggerTid.join();
   eos_warning("%s", "msg=\"stopping fs listener thread\"");

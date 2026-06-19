@@ -24,15 +24,19 @@
 #ifndef EOS_NS_I_FILE_MD_SVC_HH
 #define EOS_NS_I_FILE_MD_SVC_HH
 
+#include "namespace/MDException.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/MDException.hh"
 #include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/Misc.hh"
-#include "namespace/MDLocking.hh"
+#include "namespace/interface/TreeSizeAccountingEvent.hh"
+#include <cstdint>
 #include <folly/futures/Future.h>
 #include <map>
+#include <optional>
 #include <string>
+#include <utility>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -81,27 +85,33 @@ public:
   //! Event sent to the listener
   //----------------------------------------------------------------------------
   struct Event {
-    Event(IFileMD* _file, Action _action,
-          IFileMD::location_t _location = 0,
-          TreeInfos _changed_tree = {0,0,0}):
-      file(_file),
-      action(_action),
-      treeChange(_changed_tree),
-      location(_location) {}
+    Event(
+        IFileMD* _file, Action _action, IFileMD::location_t _location = 0,
+        TreeInfos _changed_tree = {0, 0, 0},
+        std::optional<TreeSizeAccountingEvent> _tree_size_accounting_event = std::nullopt)
+        : file(_file)
+        , action(_action)
+        , treeChange(_changed_tree)
+        , location(_location)
+        , treeSizeAccountingEvent(std::move(_tree_size_accounting_event))
+    {
+    }
 
     IFileMD*             file;
     Action               action;
     TreeInfos            treeChange;
     IFileMD::location_t  location;
-
+    std::optional<TreeSizeAccountingEvent> treeSizeAccountingEvent;
   };
 
   virtual ~IFileMDChangeListener() {}
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
   virtual bool fileMDCheck(IFileMD* obj) = 0;
-  virtual void AddTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
-  virtual void RemoveTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
+  virtual void AddTree(IContainerMD* obj, uint64_t subtreeRootId,
+                       TreeInfos treeInfos) = 0;
+  virtual void RemoveTree(IContainerMD* obj, uint64_t subtreeRootId,
+                          TreeInfos treeInfos) = 0;
 };
 
 //------------------------------------------------------------------------------

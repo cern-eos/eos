@@ -255,6 +255,17 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView()
 }
 
 //------------------------------------------------------------------------------
+// Provide tree-size accounting service
+//------------------------------------------------------------------------------
+ITreeSizeAccountingService*
+QuarkNamespaceGroup::getTreeSizeAccountingService()
+{
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  getContainerAccountingView();
+  return mContainerAccounting.get();
+}
+
+//------------------------------------------------------------------------------
 // Provide sync time accounting view
 //------------------------------------------------------------------------------
 IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
@@ -364,4 +375,3 @@ QuarkNamespaceGroup::getPerformanceMonitor()
 }
 
 EOSNSNAMESPACE_END
-

@@ -1674,7 +1674,8 @@ Server::OpSetDirectory(const std::string& id,
         cpcmd->removeContainer(cmd->getName());
 
         if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), {tree_size, tree_files, tree_cont});
+          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), cmd->getId(),
+                                                   {tree_size, tree_files, tree_cont});
         }
 
         gOFS->eosView->updateContainerStore(cpcmd.get());
@@ -1682,7 +1683,8 @@ Server::OpSetDirectory(const std::string& id,
         pcmd->addContainer(cmd.get());
 
         if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->AddTree(pcmd.get(), {tree_size, tree_files, tree_cont});
+          gOFS->eosContainerAccounting->AddTree(pcmd.get(), cmd->getId(),
+                                                {tree_size, tree_files, tree_cont});
         }
 
         gOFS->eosView->updateContainerStore(pcmd.get());

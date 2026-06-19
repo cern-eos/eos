@@ -190,6 +190,7 @@ class CommitHelper;
 class ReplicationTracker;
 class ConversionJob;
 class ConverterEngine;
+class TreeSizeAccountingManager;
 }
 
 namespace eos::mgm::tgc
@@ -1847,6 +1848,7 @@ public:
   // Namespace variables
   //----------------------------------------------------------------------------
   std::unique_ptr<eos::INamespaceGroup> namespaceGroup;
+  std::unique_ptr<eos::mgm::TreeSizeAccountingManager> mTreeSizeAccountingManager;
 
   eos::IContainerMDSvc* eosDirectoryService; ///< changelog for directories
   eos::IFileMDSvc* eosFileService; ///< changelog for files

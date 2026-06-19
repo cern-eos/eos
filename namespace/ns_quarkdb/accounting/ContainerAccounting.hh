@@ -22,25 +22,28 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/AssistedThread.hh"
+#include "namespace/ns_quarkdb/accounting/tree_size/TreeSizeAccountingService.hh"
+#include <condition_variable>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
-#include <vector>
-#include <utility>
 #include <unordered_map>
-#include <atomic>
-#include "common/ConcurrentQueue.hh"
+#include <utility>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
 //------------------------------------------------------------------------------
-class QuarkContainerAccounting : public IFileMDChangeListener
-{
+class QuarkContainerAccounting : public IFileMDChangeListener,
+                                 public ITreeSizeAccountingService {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -94,17 +97,19 @@ public:
   //! Add tree
   //!
   //! @param obj container where the tree information should be added
+  //! @param subtreeRootId root id of the subtree producing this delta
   //! @param treeAccounting tree accounting information to be updated
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, TreeInfos treeAccounting);
+  void AddTree(IContainerMD* obj, uint64_t subtreeRootId, TreeInfos treeAccounting);
 
   //----------------------------------------------------------------------------
   //! Remove tree
   //!
   //! @param obj container where the tree should be removed from
-  //! @param dsize size of the subtree to be removed
+  //! @param subtreeRootId root id of the subtree producing this delta
+  //! @param treeAccounting tree accounting information to be updated
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, TreeInfos treeAccounting);
+  void RemoveTree(IContainerMD* obj, uint64_t subtreeRootId, TreeInfos treeAccounting);
 
   //----------------------------------------------------------------------------
   //! Queue info for update
@@ -113,6 +118,23 @@ public:
   //! @param dsize size change
   //----------------------------------------------------------------------------
   void QueueForUpdate(IContainerMD::id_t pid, TreeInfos treeInfos);
+
+  //----------------------------------------------------------------------------
+  //! Start a raw tree-size journal capture session
+  //----------------------------------------------------------------------------
+  std::unique_ptr<TreeSizeJournalCaptureScope> StartTreeSizeJournalCapture() override;
+
+  //----------------------------------------------------------------------------
+  //! Acquire a short publish fence for covered tree-size accounting updates
+  //----------------------------------------------------------------------------
+  TreeSizeAccountingFenceStats
+  AcquireTreeSizeAccountingFence(const TreeSizeAccountingFenceRequest& request) override;
+
+  //----------------------------------------------------------------------------
+  //! Release the active publish fence
+  //----------------------------------------------------------------------------
+  TreeSizeAccountingFenceStats
+  ReleaseTreeSizeAccountingFence(TreeSizeAccountingFenceReleaseMode mode) override;
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure
@@ -131,6 +153,46 @@ public:
   void AsyncQueueForUpdate(ThreadAssistant * assistant = nullptr);
 
 private:
+  struct TreeSizeAccountingUpdate {
+    IContainerMD::id_t id = 0;
+    TreeInfos treeInfos;
+    bool hasAccountingMetadata = false;
+    TreeSizeAccountingEvent accountingEvent;
+  };
+
+  struct TreeSizeAccountingFenceState {
+    bool active = false;
+    TreeSizeAccountingFenceRequest request;
+    TreeSizeAccountingFenceStats stats;
+    std::vector<TreeSizeAccountingUpdate> directUpdates;
+    std::vector<TreeSizeAccountingUpdate> includedInPublishUpdates;
+    std::vector<TreeSizeAccountingUpdate> replayAfterPublishUpdates;
+    std::vector<TreeSizeAccountingUpdate> inFlightReplayAfterPublishUpdates;
+  };
+
+  void QueueForUpdate(IContainerMD::id_t pid, TreeInfos treeInfos,
+                      std::optional<TreeSizeAccountingEvent> accounting_event);
+  void CaptureTreeSizeJournalEntry(
+      const TreeInfos& treeInfos,
+      const std::optional<TreeSizeAccountingEvent>& accounting_event);
+  std::vector<TreeSizeAccountingUpdate>
+  BuildPropagationUpdates(const TreeSizeAccountingUpdate& update) const;
+  void QueueBatchUpdateLocked(const TreeSizeAccountingUpdate& update);
+  void RouteFenceOrBatchUpdateLocked(const TreeSizeAccountingUpdate& update);
+  void
+  RouteFenceOrBatchUpdatesLocked(const std::vector<TreeSizeAccountingUpdate>& updates);
+  void DrainRawQueueLocked(std::unique_lock<std::mutex>& fence_lock);
+  bool DrainFenceDirectUpdatesLocked(std::unique_lock<std::mutex>& fence_lock);
+  void DrainBatchUpdatesLocked();
+  void ReplayFenceUpdatesLocked(const std::vector<TreeSizeAccountingUpdate>& updates);
+  void RegisterRawUpdateInFlight();
+  void UnregisterRawUpdateInFlight();
+  void
+  RegisterInFlightUpdatesLocked(const std::vector<TreeSizeAccountingUpdate>& updates);
+  void UnregisterInFlightUpdates(const std::vector<TreeSizeAccountingUpdate>& updates);
+  void ClassifyInFlightUpdatesLocked();
+  uint64_t CountCoveredInFlightUpdatesLocked() const;
+  bool WaitForFenceDrainLocked(std::unique_lock<std::mutex>& fence_lock);
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure. Method ran by the
@@ -152,7 +214,7 @@ private:
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
   struct UpdateT {
-    std::unordered_map<IContainerMD::id_t, TreeInfos> mMap; ///< Map updates
+    std::vector<TreeSizeAccountingUpdate> mUpdates; ///< Pending target updates
   };
 
   //! Vector of two elements containing the batch which is currently being
@@ -162,11 +224,19 @@ private:
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
+  std::mutex mMutexFence;              ///< Mutex protecting publish fence state
+  std::condition_variable mFenceCv;    ///< Notifies fence state changes
+  TreeSizeAccountingFenceState mFence; ///< Active publish fence state
+  uint64_t mRawUpdatesInFlight = 0;    ///< Direct updates being expanded
+  std::vector<TreeSizeAccountingUpdate> mInFlightUpdates; ///< Updates being propagated
   AssistedThread mThread; ///< Thread updating the namespace
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeInfos>>  mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their corresponding infos to update
+  TreeSizeJournalCaptureController
+      mTreeSizeJournalCapture; ///< Optional journal capture controller
+  eos::common::ConcurrentQueue<TreeSizeAccountingUpdate>
+      mIdTreeInfosToUpdateQueue; ///< Queue containing direct container updates
 };
 
 EOSNSNAMESPACE_END

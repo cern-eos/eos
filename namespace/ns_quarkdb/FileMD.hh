@@ -176,6 +176,21 @@ public:
   void setSize(uint64_t size) override;
 
   //----------------------------------------------------------------------------
+  //! File size and tree-size mutation sequence read atomically
+  //----------------------------------------------------------------------------
+  struct TreeSizeSizeSnapshot {
+    uint64_t size = 0;
+    uint64_t sequence = 0;
+  };
+
+  TreeSizeSizeSnapshot
+  getTreeSizeSizeSnapshot() const
+  {
+    return runReadOp(
+        [this]() { return TreeSizeSizeSnapshot{mFile.size(), mTreeSizeSizeSequence}; });
+  }
+
+  //----------------------------------------------------------------------------
   //! Get cloneId
   //----------------------------------------------------------------------------
   inline uint64_t
@@ -783,6 +798,7 @@ private:
 
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
   uint64_t mClock; ///< Value tracking metadata changes
+  uint64_t mTreeSizeSizeSequence = 0; ///< Last sequenced tree-size size mutation
 };
 
 EOSNSNAMESPACE_END

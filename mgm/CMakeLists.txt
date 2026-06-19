@@ -122,6 +122,8 @@ add_library(
   access/Access.cc
   macros/Macros.cc
   geotreeengine/GeoTreeEngine.cc
+  treesizeaccounting/TreeSizeAccountingManager.cc
+  treesizeaccounting/TreeSizeAccountingManager.hh
   ${MGM_TGC_SRC_FILES}
   policy/Policy.cc
   namespacestats/NamespaceStats.cc

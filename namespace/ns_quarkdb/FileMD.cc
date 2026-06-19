@@ -16,20 +16,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <sstream>
-#include <chrono>
+#include "namespace/ns_quarkdb/FileMD.hh"
 #include "common/Logging.hh"
 #include "common/StacktraceHere.hh"
 #include "common/StringConversion.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/persistency/Serialization.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/utils/DataHelper.hh"
-#include "namespace/utils/Checksum.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/accounting/tree_size/TreeSizeAccountingSequencer.hh"
+#include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/DataHelper.hh"
+#include <chrono>
 #include <optional>
+#include <sstream>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -81,6 +82,7 @@ QuarkFileMD::operator = (const QuarkFileMD& other)
   return runWriteOp([this, &other]() -> QuarkFileMD& {
     mFile = other.mFile;
     mClock = other.mClock;
+    mTreeSizeSizeSequence = other.mTreeSizeSizeSequence;
     pFileMDSvc = 0;
     return *this;
   });
@@ -329,8 +331,10 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
 void
 QuarkFileMD::initialize(eos::ns::FileMdProto&& proto)
 {
-  runWriteOp(
-    [this, prot = std::move(proto)]() mutable { mFile = std::move(prot); });
+  runWriteOp([this, prot = std::move(proto)]() mutable {
+    mFile = std::move(prot);
+    mTreeSizeSizeSequence = 0;
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -342,6 +346,7 @@ QuarkFileMD::deserialize(const eos::Buffer& buffer)
   runWriteOp(
   [this, &buffer]() {
     Serialization::deserializeFile(buffer, mFile);
+    mTreeSizeSizeSequence = 0;
   });
 }
 
@@ -361,12 +366,16 @@ void
 QuarkFileMD::setSize(uint64_t size)
 {
   int64_t sizeChange = 0;
-  this->runWriteOp([this, size, &sizeChange]() {
+  TreeSizeAccountingEvent accountingEvent;
+  this->runWriteOp([this, size, &sizeChange, &accountingEvent]() {
     sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
+    accountingEvent = ReserveTreeSizeAccountingEvent(
+        TreeSizeAccountingEventType::FileDelta, mFile.cont_id(), mFile.id());
     mFile.set_size(size & 0x0000ffffffffffff);
+    mTreeSizeSizeSequence = accountingEvent.sequence;
   });
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
-  {sizeChange, 0, 0});
+                                 {sizeChange, 0, 0}, accountingEvent);
   pFileMDSvc->notifyListeners(&e);
 }
 

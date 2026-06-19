@@ -24,13 +24,14 @@
 #ifndef EOS_NS_CONTAINER_MD_HH
 #define EOS_NS_CONTAINER_MD_HH
 
+#include "common/FutureWrapper.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "proto/ContainerMd.pb.h"
-#include "common/FutureWrapper.hh"
-#include <sys/time.h>
 #include <cstdint>
+#include <sys/time.h>
+#include <vector>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
@@ -567,6 +568,18 @@ public:
   //----------------------------------------------------------------------------
   IContainerMD::FileMap copyFileMap() const override;
 
+  //----------------------------------------------------------------------------
+  //! Membership ids and tree-size mutation sequences read atomically
+  //----------------------------------------------------------------------------
+  struct TreeSizeMembershipSnapshot {
+    std::vector<IFileMD::id_t> fileIds;
+    std::vector<IContainerMD::id_t> childContainerIds;
+    uint64_t fileMembershipSequence = 0;
+    uint64_t childMembershipSequence = 0;
+  };
+
+  TreeSizeMembershipSnapshot getTreeSizeMembershipSnapshot() const;
+
 private:
   FRIEND_TEST(VariousTests, EtagFormattingContainer);
 
@@ -653,6 +666,8 @@ private:
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key
   uint64_t mClock;                      ///< Value tracking changes
+  uint64_t mTreeSizeFileMembershipSequence = 0;  ///< Last sequenced file map mutation
+  uint64_t mTreeSizeChildMembershipSequence = 0; ///< Last sequenced child map mutation
 
   common::FutureWrapper<ContainerMap> mSubcontainers;
   common::FutureWrapper<FileMap> mFiles;
