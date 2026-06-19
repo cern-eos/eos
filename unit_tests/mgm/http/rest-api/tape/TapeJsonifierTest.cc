@@ -126,39 +126,39 @@ TEST_F(TapeJsonifierTest, getStageJsonifierInProgressResponse)
   ASSERT_FALSE(root["files"][1].isMember("state"));
 }
 
-TEST_F(TapeJsonifierTest, getStageJsonifierTerminalResponse)
+TEST_F(TapeJsonifierTest, getStageJsonifierFileResponseUsesPathErrorAndOnDisk)
 {
   GetStageBulkRequestResponseModel model;
   model.setId("93be38df-435c-4322-801d-b95e77ac5bbc");
   model.setCreatedAt(1646305430);
   model.setStartedAt(1646305456);
 
-  auto completedFile = std::make_unique<GetStageBulkRequestResponseModel::File>();
-  completedFile->mPath = "/test/file.txt";
-  completedFile->mState = "COMPLETED";
-  completedFile->mStartedAt = 1646305470;
-  completedFile->mFinishedAt = 1646306000;
-  model.addFile(std::move(completedFile));
+  auto onlineFile = std::make_unique<GetStageBulkRequestResponseModel::File>();
+  onlineFile->mPath = "/test/file.txt";
+  onlineFile->mOnDisk = true;
+  model.addFile(std::move(onlineFile));
 
-  auto failedFile = std::make_unique<GetStageBulkRequestResponseModel::File>();
-  failedFile->mPath = "/test/file2.txt";
-  failedFile->mState = "FAILED";
-  failedFile->mStartedAt = 1646305456;
-  failedFile->mFinishedAt = 1646305456;
-  failedFile->mError = "Tape backend is unreachable";
-  model.addFile(std::move(failedFile));
+  auto erroredFile = std::make_unique<GetStageBulkRequestResponseModel::File>();
+  erroredFile->mPath = "/test/file2.txt";
+  erroredFile->mOnDisk = false;
+  erroredFile->mError = "Tape backend is unreachable";
+  model.addFile(std::move(erroredFile));
 
   model.setJsonifier(std::make_shared<GetStageBulkRequestJsonifier>());
 
   const Json::Value root = parseJson(toJson(model));
   ASSERT_FALSE(root.isMember("completedAt"));
-  ASSERT_EQ("COMPLETED", root["files"][0]["state"].asString());
-  ASSERT_EQ(1646305470, root["files"][0]["startedAt"].asInt());
-  ASSERT_EQ(1646306000, root["files"][0]["finishedAt"].asInt());
-  ASSERT_FALSE(root["files"][0].isMember("onDisk"));
-  ASSERT_EQ("FAILED", root["files"][1]["state"].asString());
+  ASSERT_EQ("/test/file.txt", root["files"][0]["path"].asString());
+  ASSERT_TRUE(root["files"][0]["onDisk"].asBool());
+  ASSERT_FALSE(root["files"][0].isMember("state"));
+  ASSERT_FALSE(root["files"][0].isMember("startedAt"));
+  ASSERT_FALSE(root["files"][0].isMember("finishedAt"));
+  ASSERT_EQ("/test/file2.txt", root["files"][1]["path"].asString());
+  ASSERT_FALSE(root["files"][1]["onDisk"].asBool());
   ASSERT_EQ("Tape backend is unreachable", root["files"][1]["error"].asString());
-  ASSERT_FALSE(root["files"][1].isMember("onDisk"));
+  ASSERT_FALSE(root["files"][1].isMember("state"));
+  ASSERT_FALSE(root["files"][1].isMember("startedAt"));
+  ASSERT_FALSE(root["files"][1].isMember("finishedAt"));
 }
 
 TEST_F(TapeJsonifierTest, archiveInfoJsonifierReturnsArrayWithLocality)

@@ -32,7 +32,6 @@
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/stat/Stat.hh"
-#include <algorithm>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -180,7 +179,6 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     std::string path;
     std::optional<std::string> error;
     bool onDisk = false;
-    bool terminal = false;
   };
 
   std::vector<FileStatus> fileStatuses;
@@ -210,37 +208,19 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     }
 
     status.onDisk = queryPrepareResponse.is_online;
-    status.terminal = status.error.has_value() || status.onDisk;
     fileStatuses.push_back(std::move(status));
   }
-
-  const bool allFilesTerminal = !fileStatuses.empty() &&
-    std::all_of(fileStatuses.begin(), fileStatuses.end(),
-  [](const FileStatus & status) {
-    return status.terminal;
-  });
-  const time_t now = ::time(nullptr);
 
   for (const auto& status : fileStatuses) {
     std::unique_ptr<GetStageBulkRequestResponseModel::File> item =
       std::make_unique<GetStageBulkRequestResponseModel::File>();
     item->mPath = status.path;
 
-    if (allFilesTerminal) {
-      item->mStartedAt = createdAt;
-      item->mFinishedAt = now;
-      if (status.error) {
-        item->mState = "FAILED";
-        item->mError = status.error;
-      } else {
-        item->mState = "COMPLETED";
-      }
-    } else if (status.error) {
+    if (status.error) {
       item->mError = status.error;
-      item->mOnDisk = false;
-    } else {
-      item->mOnDisk = status.onDisk;
     }
+
+    item->mOnDisk = status.onDisk;
 
     ret->addFile(std::move(item));
   }
