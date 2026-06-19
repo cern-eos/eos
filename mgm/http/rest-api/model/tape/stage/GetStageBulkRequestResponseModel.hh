@@ -45,10 +45,7 @@ public:
   public:
     std::string mPath;
     std::optional<std::string> mError;
-    std::optional<bool> mOnDisk;
-    std::optional<std::string> mState;
-    std::optional<time_t> mStartedAt;
-    std::optional<time_t> mFinishedAt;
+    bool mOnDisk = false;
   };
 
   GetStageBulkRequestResponseModel() = default;

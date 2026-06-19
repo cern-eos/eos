@@ -77,12 +77,10 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestInProgressUsesOnDiskField)
   ASSERT_EQ(1u, response->getFiles().size());
   const auto& file = *response->getFiles().front();
   ASSERT_EQ(path, file.mPath);
-  ASSERT_TRUE(file.mOnDisk.has_value());
-  ASSERT_FALSE(*file.mOnDisk);
-  ASSERT_FALSE(file.mState.has_value());
+  ASSERT_FALSE(file.mOnDisk);
 }
 
-TEST_F(TapeRestApiBusinessTest, getStageBulkRequestTerminalSetsCompletedState)
+TEST_F(TapeRestApiBusinessTest, getStageBulkRequestCompletedFileUsesOnDiskField)
 {
   const std::string requestId = "req-terminal";
   const std::string path = "/eos/user/online.txt";
@@ -103,11 +101,8 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestTerminalSetsCompletedState)
   auto response = mBusiness->getStageBulkRequest(requestId, &mIssuer);
   ASSERT_EQ(1u, response->getFiles().size());
   const auto& file = *response->getFiles().front();
-  ASSERT_TRUE(file.mState.has_value());
-  ASSERT_EQ("COMPLETED", *file.mState);
-  ASSERT_TRUE(file.mStartedAt.has_value());
-  ASSERT_TRUE(file.mFinishedAt.has_value());
-  ASSERT_FALSE(file.mOnDisk.has_value());
+  ASSERT_EQ(path, file.mPath);
+  ASSERT_TRUE(file.mOnDisk);
 }
 
 TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenFileNotInRequest)
@@ -230,7 +225,7 @@ TEST_F(TapeRestApiBusinessTest, getFileInfoReturnsQueryPrepareResponse)
   EXPECT_TRUE(response->responses.front().is_on_tape);
 }
 
-TEST_F(TapeRestApiBusinessTest, getStageBulkRequestTerminalSetsFailedState)
+TEST_F(TapeRestApiBusinessTest, getStageBulkRequestFailedFileUsesErrorAndOnDiskField)
 {
   const std::string requestId = "req-failed";
   const std::string path = "/eos/user/failed.txt";
@@ -251,10 +246,10 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestTerminalSetsFailedState)
   auto response = mBusiness->getStageBulkRequest(requestId, &mIssuer);
   ASSERT_EQ(1u, response->getFiles().size());
   const auto& file = *response->getFiles().front();
-  ASSERT_TRUE(file.mState.has_value());
-  ASSERT_EQ("FAILED", *file.mState);
+  ASSERT_EQ(path, file.mPath);
   ASSERT_TRUE(file.mError.has_value());
   ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_RETRIEVE_STR, *file.mError);
+  ASSERT_FALSE(file.mOnDisk);
 }
 
 TEST_F(TapeRestApiBusinessTest, getStageBulkRequestThrowsWhenQueryPrepareDoesNotFinish)
