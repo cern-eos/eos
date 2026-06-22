@@ -168,6 +168,7 @@ TEST_F(TapeJsonifierTest, archiveInfoJsonifierReturnsArrayWithLocality)
   onDiskAndTape.is_exists = true;
   onDiskAndTape.is_online = true;
   onDiskAndTape.is_on_tape = true;
+  onDiskAndTape.can_show_locality = true;
   queryResponse->responses.push_back(onDiskAndTape);
 
   eos::mgm::bulk::QueryPrepareFileResponse missingFile("/file/does/not/exist");
@@ -195,15 +196,18 @@ TEST_F(TapeJsonifierTest, archiveInfoJsonifierMapsDiskTapeAndUnavailable)
   eos::mgm::bulk::QueryPrepareFileResponse diskOnly("/disk/only.txt");
   diskOnly.is_exists = true;
   diskOnly.is_online = true;
+  diskOnly.can_show_locality = true;
   queryResponse->responses.push_back(diskOnly);
 
   eos::mgm::bulk::QueryPrepareFileResponse tapeOnly("/tape/only.txt");
   tapeOnly.is_exists = true;
   tapeOnly.is_on_tape = true;
+  tapeOnly.can_show_locality = true;
   queryResponse->responses.push_back(tapeOnly);
 
   eos::mgm::bulk::QueryPrepareFileResponse unavailable("/unavailable.txt");
   unavailable.is_exists = true;
+  unavailable.can_show_locality = true;
   queryResponse->responses.push_back(unavailable);
 
   GetArchiveInfoResponseModel model(queryResponse);

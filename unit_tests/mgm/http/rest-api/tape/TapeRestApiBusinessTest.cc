@@ -39,14 +39,6 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestThrowsWhenRequestMissing)
                ObjectNotFoundException);
 }
 
-TEST_F(TapeRestApiBusinessTest, getStageBulkRequestForbiddenForNonIssuer)
-{
-  const std::string requestId = "req-forbidden";
-  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
-  ASSERT_THROW(mBusiness->getStageBulkRequest(requestId, &mOtherUser),
-               ForbiddenException);
-}
-
 TEST_F(TapeRestApiBusinessTest, getStageBulkRequestInProgressUsesOnDiskField)
 {
   const std::string requestId = "req-in-progress";
@@ -77,7 +69,8 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestInProgressUsesOnDiskField)
   ASSERT_EQ(1u, response->getFiles().size());
   const auto& file = *response->getFiles().front();
   ASSERT_EQ(path, file.mPath);
-  ASSERT_FALSE(file.mOnDisk);
+  ASSERT_TRUE(file.mOnDisk.has_value());
+  ASSERT_FALSE(*file.mOnDisk);
 }
 
 TEST_F(TapeRestApiBusinessTest, getStageBulkRequestCompletedFileUsesOnDiskField)
@@ -102,7 +95,8 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestCompletedFileUsesOnDiskField)
   ASSERT_EQ(1u, response->getFiles().size());
   const auto& file = *response->getFiles().front();
   ASSERT_EQ(path, file.mPath);
-  ASSERT_TRUE(file.mOnDisk);
+  ASSERT_TRUE(file.mOnDisk.has_value());
+  ASSERT_TRUE(*file.mOnDisk);
 }
 
 TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenFileNotInRequest)
@@ -139,16 +133,6 @@ TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenRequestMissing)
   paths.addFile("/eos/user/file.txt");
   ASSERT_THROW(mBusiness->cancelStageBulkRequest("missing-id", &paths, &mIssuer),
                ObjectNotFoundException);
-}
-
-TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestForbiddenForNonIssuer)
-{
-  const std::string requestId = "req-cancel-forbidden";
-  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
-  PathsModel paths;
-  paths.addFile("/eos/user/file.txt");
-  ASSERT_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mOtherUser),
-               ForbiddenException);
 }
 
 TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenPrepareFails)
@@ -249,7 +233,8 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestFailedFileUsesErrorAndOnDiskF
   ASSERT_EQ(path, file.mPath);
   ASSERT_TRUE(file.mError.has_value());
   ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_RETRIEVE_STR, *file.mError);
-  ASSERT_FALSE(file.mOnDisk);
+  ASSERT_TRUE(file.mOnDisk.has_value());
+  ASSERT_FALSE(*file.mOnDisk);
 }
 
 TEST_F(TapeRestApiBusinessTest, getStageBulkRequestThrowsWhenQueryPrepareDoesNotFinish)

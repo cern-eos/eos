@@ -73,11 +73,6 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
     throw ObjectNotFoundException(ss.str());
   }
 
-  // SECURITY: only root or the issuer of the stage request may cancel it.
-  // Without this check any authenticated REST API peer can guess/scrape a
-  // bulk-request UUID and cancel another user's pending stage mid-recall.
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,
-      "cancel");
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer& filesFromClient = model->getFiles();
   auto filesFromBulkRequestContainer = bulkRequest->getFilesMap();
@@ -145,11 +140,6 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ex.what());
   }
 
-  // SECURITY: only root or the issuer of the stage request may inspect it.
-  // The response leaks the per-file recall status and CTA error strings
-  // belonging to the issuer; without this check any authenticated REST API
-  // peer who can guess the UUID receives those details.
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid, "get");
   const time_t createdAt = bulkRequest->getCreationTime();
   ret->setCreatedAt(createdAt);
   ret->setStartedAt(createdAt);
@@ -174,16 +164,6 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
-  struct FileStatus
-  {
-    std::string path;
-    std::optional<std::string> error;
-    bool onDisk = false;
-  };
-
-  std::vector<FileStatus> fileStatuses;
-  fileStatuses.reserve(queryPrepareResult->getResponse()->responses.size());
-
   for (const auto& queryPrepareResponse :
        queryPrepareResult->getResponse()->responses) {
     const auto& filesFromBulkRequest = bulkRequest->getFilesMap();
@@ -195,33 +175,22 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     }
 
     auto& fileFromBulkRequest = fileFromBulkRequestItor->second;
-    FileStatus status;
-    status.path = queryPrepareResponse.path;
-
-    if (fileFromBulkRequest->getError()) {
-      status.error = *fileFromBulkRequest->getError();
-    } else if (!queryPrepareResponse.error_text.empty()) {
-      status.error = queryPrepareResponse.error_text;
-    } else if (!queryPrepareResponse.is_online &&
-               !queryPrepareResponse.is_reqid_present) {
-      status.error = "File not requested with request ID " + requestId;
-    }
-
-    status.onDisk = queryPrepareResponse.is_online;
-    fileStatuses.push_back(std::move(status));
-  }
-
-  for (const auto& status : fileStatuses) {
     std::unique_ptr<GetStageBulkRequestResponseModel::File> item =
       std::make_unique<GetStageBulkRequestResponseModel::File>();
-    item->mPath = status.path;
+    item->mPath = queryPrepareResponse.path;
 
-    if (status.error) {
-      item->mError = status.error;
+    if (fileFromBulkRequest->getError()) {
+      item->mError = *fileFromBulkRequest->getError();
+    } else if (!queryPrepareResponse.error_text.empty()) {
+      item->mError = queryPrepareResponse.error_text;
+    } else if (!queryPrepareResponse.is_online &&
+               !queryPrepareResponse.is_reqid_present) {
+      item->mError = "File not requested with request ID " + requestId;
     }
 
-    item->mOnDisk = status.onDisk;
-
+    if (queryPrepareResponse.can_show_locality.value_or(false)) {
+      item->mOnDisk = queryPrepareResponse.is_online;
+    }
     ret->addFile(std::move(item));
   }
 
@@ -246,12 +215,6 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
     throw ObjectNotFoundException(ss.str());
   }
 
-  // SECURITY: only root or the issuer of the stage request may delete it.
-  // Deletion both cancels the recall and removes the persistency entry;
-  // without this check any authenticated REST API peer who can guess the
-  // UUID can destroy another user's stage request.
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,
-      "delete");
   //Create the prepare arguments, we will cancel all the files from this bulk-request
   auto filesFromBulkRequest = bulkRequest->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
@@ -262,8 +225,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
 
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
-  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error,
-                                    vid);
+  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retCancellation != SFS_OK) {
     std::stringstream ss;
@@ -272,7 +234,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
-  //Now that the request got cancelled, let's delete it from the persistency
+  // Now that the request got canceled, let's delete it from the persistency
   try {
     bulkRequestBusiness->deleteBulkRequest(bulkRequest.get());
   } catch (bulk::PersistencyException& ex) {

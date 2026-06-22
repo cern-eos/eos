@@ -25,8 +25,8 @@
 #include "common/Namespace.hh"
 #include <mutex>
 #include <set>
-#include <string>
 #include <string_view>
+#include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -78,6 +78,15 @@ public:
   //----------------------------------------------------------------------------
   int CreateToken(std::string& SciToken, time_t expires,
                   const std::set<std::string>& claims);
+
+  //----------------------------------------------------------------------------
+  //! Check whether the authz value contains a WLCG-profile SciToken.
+  //!
+  //! @param authz authorization value, optionally prefixed by Bearer
+  //!
+  //! @return true if the authz value is a WLCG-profile token, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsWlcgToken(const std::string& authz);
 
   //----------------------------------------------------------------------------
   //! Set parameters like keys, credential data and issuer to be used by the

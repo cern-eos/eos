@@ -71,7 +71,9 @@ public:
         }
       } else if (!response.error_text.empty()) {
         entry.error = response.error_text;
-      } else {
+      }
+
+      if (response.can_show_locality.value_or(false)) {
         entry.locality = mapLocality(response);
       }
 

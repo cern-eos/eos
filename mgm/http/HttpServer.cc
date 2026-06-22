@@ -22,17 +22,18 @@
  ************************************************************************/
 
 #include "mgm/http/HttpServer.hh"
-#include "mgm/http/ProtocolHandlerFactory.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/macros/Macros.hh"
+#include "common/ErrnoToString.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/ErrnoToString.hh"
+#include "common/token/SciToken.hh"
+#include "mgm/http/ProtocolHandlerFactory.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include "rest-api/manager/RestApiManager.hh"
 #include <XrdNet/XrdNetAddr.hh>
-#include <XrdAcc/XrdAccAuthorize.hh>
 #include <netdb.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -390,13 +391,29 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     // Get access operation type for the authz library
-    Access_Operation acc_op = MapHttpVerbToAOP(method);
+    vid = std::make_unique<VirtualIdentity>();
     const std::string env = ptr;
     query = env;
-    vid = std::make_unique<VirtualIdentity>();
+
+    std::map<std::string, std::string>::iterator auth_it;
+    bool isTapeRestApiWithWlcgToken = false;
+    if (gOFS->mRestApiManager->isRestRequest(uri)) {
+      auth_it = headers.find("authorization");
+      if (auth_it != headers.end() && SciToken::IsWlcgToken(auth_it->second)) {
+        isTapeRestApiWithWlcgToken = true;
+      }
+    }
+
+    Access_Operation acc_op = MapHttpVerbToAOP(method);
     EXEC_TIMING_BEGIN("IdMap");
-    Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
-                   authz_obj, acc_op, path);
+    if (isTapeRestApiWithWlcgToken) {
+      // If the request both comes by the Tape REST API andc contains a wlcg token,
+      // then the authentication may need to be done inside the request handler at a later stage, file-by-file.
+      vid->deferredClientPtr = &client; // client will exist for the duration of the request
+      vid->deferredAuth = auth_it->second;
+    } else {
+      Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, acc_op, path);
+    }
     EXEC_TIMING_END("IdMap");
   } else { // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";

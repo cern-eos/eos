@@ -66,6 +66,8 @@ struct VirtualIdentity {
   bool sudoer;
   bool gateway;
   std::shared_ptr<Token> token;
+  const void* deferredClientPtr;
+  std::string deferredAuth;
 
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
@@ -102,6 +104,11 @@ struct VirtualIdentity {
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
   bool isLocalhost() const;
+
+  //----------------------------------------------------------------------------
+  //! Check if this client is nobody
+  //----------------------------------------------------------------------------
+  bool isNobody() const;
 
   //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost

@@ -264,6 +264,7 @@ TEST_F(TapeActionsTest, getArchiveInfoReturns200WithArrayBody)
   file.is_exists = true;
   file.is_online = true;
   file.is_on_tape = true;
+  file.can_show_locality = true;
   queryResponse->responses.push_back(file);
   EXPECT_CALL(*mMockBusiness, getFileInfo(_, _)).WillOnce(Return(queryResponse));
 
