@@ -61,7 +61,10 @@ void GetStageBulkRequestJsonifier::jsonify(
   for (const auto& file : obj->getFiles()) {
     Json::Value fileJson;
     fileJson["path"] = file->mPath;
-    fileJson["onDisk"] = file->mOnDisk;
+
+    if (file->mOnDisk) {
+      fileJson["onDisk"] = *file->mOnDisk;
+    }
 
     if (file->mError && !file->mError->empty()) {
       fileJson["error"] = *file->mError;

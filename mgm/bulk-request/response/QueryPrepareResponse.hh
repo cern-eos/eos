@@ -28,6 +28,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <optional>
 #include "common/json/Jsonifiable.hh"
 
 EOSBULKNAMESPACE_BEGIN
@@ -44,23 +45,6 @@ public:
     path(_path), is_exists(false), is_on_tape(false), is_online(false),
     is_requested(false), is_reqid_present(false) {}
 
-  // @ccaffy TODO: to be removed at the end of the bulk-request implementation
-  friend std::ostream& operator<<(std::ostream& json,
-                                  QueryPrepareFileResponse& qpr)
-  {
-    json << "{"
-         << "\"path\":\""       << qpr.path << "\","
-         << "\"path_exists\":"  << (qpr.is_exists        ? "true," : "false,")
-         << "\"on_tape\":"      << (qpr.is_on_tape       ? "true," : "false,")
-         << "\"online\":"       << (qpr.is_online        ? "true," : "false,")
-         << "\"requested\":"    << (qpr.is_requested     ? "true," : "false,")
-         << "\"has_reqid\":"    << (qpr.is_reqid_present ? "true," : "false,")
-         << "\"req_time\":\""   << qpr.request_time << "\","
-         << "\"error_text\":\"" << qpr.error_text << "\""
-         << "}";
-    return json;
-  }
-
   //Path of the file
   std::string path;
   //Does it exist?
@@ -73,6 +57,8 @@ public:
   bool is_requested;
   //Is this file has a request id?
   bool is_reqid_present;
+  //Can show file locality (relevant for Tape REST API with staging tokens)
+  std::optional<bool> can_show_locality;
   //The time this file was requested
   std::string request_time;
   //The eventual error that the file encountered while being staged or archived

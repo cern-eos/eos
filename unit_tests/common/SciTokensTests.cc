@@ -91,4 +91,21 @@ TEST(SciToken, CFactory)
   ::unlink("/tmp/.eosunit.sci.cred");
 }
 
+TEST(SciToken, DetectsWlcgProfile)
+{
+  const std::string wlcg_token =
+    "eyJhbGciOiJub25lIn0."
+    "eyJ3bGNnLnZlciI6IjEuMCIsImlzcyI6Imh0dHBzOi8vZGVtby5zY2l0b2tlbnMub3JnIiwic3ViIjoiam9lIiwiZXhwIjo0MTAyNDQ0ODAwfQ.";
+  const std::string non_wlcg_token =
+    "eyJhbGciOiJub25lIn0."
+    "eyJpc3MiOiJodHRwczovL2RlbW8uc2NpdG9rZW5zLm9yZyIsInN1YiI6ImpvZSIsImV4cCI6NDEwMjQ0NDgwMH0.";
+
+  ASSERT_TRUE(SciToken::IsWlcgToken(wlcg_token));
+  ASSERT_TRUE(SciToken::IsWlcgToken("Bearer " + wlcg_token));
+  ASSERT_TRUE(SciToken::IsWlcgToken("Bearer%20" + wlcg_token));
+
+  ASSERT_FALSE(SciToken::IsWlcgToken(non_wlcg_token));
+  ASSERT_FALSE(SciToken::IsWlcgToken("not-a-token"));
+}
+
 EOSCOMMONTESTING_END

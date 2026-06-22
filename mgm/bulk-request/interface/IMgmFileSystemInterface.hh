@@ -24,12 +24,13 @@
 #ifndef EOS_IMGMFILESYSTEMINTERFACE_HH
 #define EOS_IMGMFILESYSTEMINTERFACE_HH
 
-#include "mgm/Namespace.hh"
-#include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdSfs/XrdSfsInterface.hh>
-#include <XrdSec/XrdSecEntity.hh>
 #include "common/VirtualIdentity.hh"
+#include "mgm/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -46,6 +47,7 @@ public:
                         unsigned long val) = 0;
   virtual bool isTapeEnabled() = 0;
   virtual int getReqIdMaxCount() = 0;
+  virtual XrdAccAuthorize* getTokenHandler() = 0;
   virtual int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode,
                    const char* op, const char* target = "") = 0;
   virtual int _exists(const char* path, XrdSfsFileExistence& file_exists,

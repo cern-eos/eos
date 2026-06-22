@@ -44,6 +44,13 @@ QueryPrepareFileResponse makeFileResponse(const std::string& path)
   return QueryPrepareFileResponse(path);
 }
 
+void assertLocality(const GetArchiveInfoResponseModel::Entry& entry,
+                    const std::string& expectedLocality)
+{
+  ASSERT_TRUE(entry.locality.has_value());
+  ASSERT_EQ(expectedLocality, *entry.locality);
+}
+
 } // namespace
 
 TEST(GetArchiveInfoResponseModelTest, prefersPrepareManagerErrorTextForMissingFile)
@@ -84,23 +91,27 @@ TEST(GetArchiveInfoResponseModelTest, mapsLocalityValues)
   auto diskOnly = makeFileResponse("/disk");
   diskOnly.is_exists = true;
   diskOnly.is_online = true;
+  diskOnly.can_show_locality = true;
 
   auto tapeOnly = makeFileResponse("/tape");
   tapeOnly.is_exists = true;
   tapeOnly.is_on_tape = true;
+  tapeOnly.can_show_locality = true;
 
   auto both = makeFileResponse("/both");
   both.is_exists = true;
   both.is_online = true;
   both.is_on_tape = true;
+  both.can_show_locality = true;
 
   auto unavailable = makeFileResponse("/none");
   unavailable.is_exists = true;
+  unavailable.can_show_locality = true;
 
   auto model = GetArchiveInfoResponseModel(makeQueryPrepareResponse(
   {diskOnly, tapeOnly, both, unavailable}));
-  ASSERT_EQ("DISK", *model.getEntries()[0].locality);
-  ASSERT_EQ("TAPE", *model.getEntries()[1].locality);
-  ASSERT_EQ("DISK_AND_TAPE", *model.getEntries()[2].locality);
-  ASSERT_EQ("UNAVAILABLE", *model.getEntries()[3].locality);
+  assertLocality(model.getEntries()[0], "DISK");
+  assertLocality(model.getEntries()[1], "TAPE");
+  assertLocality(model.getEntries()[2], "DISK_AND_TAPE");
+  assertLocality(model.getEntries()[3], "UNAVAILABLE");
 }
