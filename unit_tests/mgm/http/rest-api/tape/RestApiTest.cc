@@ -255,12 +255,12 @@ TEST_F(RestApiTest, TapeJsonifiersPreserveGetStageResponseShape)
 {
   GetStageBulkRequestResponseModel model;
   model.setId("request-id");
-  model.setCreationTime(12345);
+  model.setCreatedAt(12345);
+  model.setStartedAt(12345);
   auto file = std::make_unique<GetStageBulkRequestResponseModel::File>();
   file->mPath = "/path/to/file";
   file->mError = "failed";
   file->mOnDisk = true;
-  file->mShowOnDisk = true;
   model.addFile(std::move(file));
   GetStageBulkRequestJsonifier jsonifier;
 
@@ -280,12 +280,12 @@ TEST_F(RestApiTest, TapeJsonifiersPreserveGetStageResponseShape_PollNotAllowed)
 {
   GetStageBulkRequestResponseModel model;
   model.setId("request-id");
-  model.setCreationTime(12345);
+  model.setCreatedAt(12345);
+  model.setStartedAt(12345);
   auto file = std::make_unique<GetStageBulkRequestResponseModel::File>();
   file->mPath = "/path/to/file";
   file->mError = "failed";
-  file->mOnDisk = true;
-  file->mShowOnDisk = false;
+  file->mOnDisk = std::nullopt;
   model.addFile(std::move(file));
   GetStageBulkRequestJsonifier jsonifier;
 
@@ -307,12 +307,12 @@ TEST_F(RestApiTest, TapeJsonifiersPreserveArchiveInfoResponseShape)
   eos::mgm::bulk::QueryPrepareFileResponse diskAndTape("/path/to/file/on-both");
   diskAndTape.is_online = true;
   diskAndTape.is_on_tape = true;
-  diskAndTape.has_prepare_permission = true;
+  diskAndTape.can_show_locality = true;
   response->responses.emplace_back(diskAndTape);
   eos::mgm::bulk::QueryPrepareFileResponse tapeOnly("/path/to/file/on-tape");
   tapeOnly.is_on_tape = true;
   tapeOnly.error_text = "queued";
-  tapeOnly.has_prepare_permission = true;
+  tapeOnly.can_show_locality = true;
   response->responses.emplace_back(tapeOnly);
   GetArchiveInfoResponseModel model(response);
   GetArchiveInfoResponseJsonifier jsonifier;

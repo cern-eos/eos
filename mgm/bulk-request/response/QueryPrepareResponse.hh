@@ -57,8 +57,8 @@ public:
   bool is_requested;
   //Is this file has a request id?
   bool is_reqid_present;
-  //Has prepare permission
-  std::optional<bool> has_prepare_permission;
+  //Can show file locality (relevant for Tape REST API with staging tokens)
+  std::optional<bool> can_show_locality;
   //The time this file was requested
   std::string request_time;
   //The eventual error that the file encountered while being staged or archived

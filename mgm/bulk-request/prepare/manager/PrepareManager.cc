@@ -749,10 +749,14 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
     rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
 
+    bool has_prepare_permissions;
+
     if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, file_vid, "")) {
-      rsp.has_prepare_permission = false;
+      has_prepare_permissions = false;
+      rsp.can_show_locality = false;
     } else {
-      rsp.has_prepare_permission = true;
+      has_prepare_permissions = true;
+      rsp.can_show_locality = true;
     }
 
     // Check file status in the extended attributes
@@ -789,7 +793,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       goto logErrorAndContinue;
     }
 
-    if (!rsp.has_prepare_permission.value()) {
+    if (!has_prepare_permissions) {
       currentFile->setError(std::string("USER ERROR: you don't have prepare permission"));
       goto logErrorAndContinue;
     }

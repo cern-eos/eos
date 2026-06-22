@@ -45,8 +45,7 @@ public:
   public:
     std::string mPath;
     std::optional<std::string> mError;
-    bool mOnDisk = false;
-    bool mShowOnDisk = false;
+    std::optional<bool> mOnDisk;
   };
 
   GetStageBulkRequestResponseModel() = default;

@@ -164,16 +164,6 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
-  struct FileStatus
-  {
-    std::string path;
-    std::optional<std::string> error;
-    bool onDisk = false;
-  };
-
-  std::vector<FileStatus> fileStatuses;
-  fileStatuses.reserve(queryPrepareResult->getResponse()->responses.size());
-
   for (const auto& queryPrepareResponse :
        queryPrepareResult->getResponse()->responses) {
     const auto& filesFromBulkRequest = bulkRequest->getFilesMap();
@@ -185,33 +175,22 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     }
 
     auto& fileFromBulkRequest = fileFromBulkRequestItor->second;
-    FileStatus status;
-    status.path = queryPrepareResponse.path;
-
-    if (fileFromBulkRequest->getError()) {
-      status.error = *fileFromBulkRequest->getError();
-    } else if (!queryPrepareResponse.error_text.empty()) {
-      status.error = queryPrepareResponse.error_text;
-    } else if (!queryPrepareResponse.is_online &&
-               !queryPrepareResponse.is_reqid_present) {
-      status.error = "File not requested with request ID " + requestId;
-    }
-
-    status.onDisk = queryPrepareResponse.is_online;
-    fileStatuses.push_back(std::move(status));
-  }
-
-  for (const auto& status : fileStatuses) {
     std::unique_ptr<GetStageBulkRequestResponseModel::File> item =
       std::make_unique<GetStageBulkRequestResponseModel::File>();
-    item->mPath = status.path;
+    item->mPath = queryPrepareResponse.path;
 
-    if (status.error) {
-      item->mError = status.error;
+    if (fileFromBulkRequest->getError()) {
+      item->mError = *fileFromBulkRequest->getError();
+    } else if (!queryPrepareResponse.error_text.empty()) {
+      item->mError = queryPrepareResponse.error_text;
+    } else if (!queryPrepareResponse.is_online &&
+               !queryPrepareResponse.is_reqid_present) {
+      item->mError = "File not requested with request ID " + requestId;
     }
 
-    item->mOnDisk = status.onDisk;
-    item->mShowOnDisk = status.has_prepare_permission.value_or(false);
+    if (queryPrepareResponse.can_show_locality.value_or(false)) {
+      item->mOnDisk = queryPrepareResponse.is_online;
+    }
     ret->addFile(std::move(item));
   }
 
