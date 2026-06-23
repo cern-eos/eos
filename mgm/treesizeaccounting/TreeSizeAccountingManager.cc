@@ -25,9 +25,9 @@
 #include <cerrno>
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <sstream>
 #include <thread>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -36,8 +36,6 @@ namespace {
 
 constexpr uint64_t kTreeSizeRecomputeMaxRetryPasses = 3;
 constexpr uint64_t kTreeSizeRecomputeMaxPasses = 1 + kTreeSizeRecomputeMaxRetryPasses;
-constexpr uint64_t kTreeSizeRecomputeMaxAttemptsPerRoot =
-    1 + kTreeSizeRecomputeMaxRetryPasses;
 constexpr auto kTreeSizeRecomputeRetryDelay = std::chrono::milliseconds(250);
 
 uint64_t
@@ -130,6 +128,255 @@ MakeContainerRetrySpecification(eos::IContainerMD::id_t id)
   oss << "cid:" << static_cast<unsigned long long>(id);
   return oss.str();
 }
+
+struct TreeSizeRecomputeRetryPass {
+  eos::mgm::TreeSizeRecomputeResult result;
+  eos::mgm::TreeSizeRecomputeDiagnostics diagnostics;
+};
+
+class TreeSizeRecomputeRetryRunner {
+public:
+  using RunPassCallback = std::function<TreeSizeRecomputeRetryPass(
+      const eos::mgm::TreeSizeRecomputeRequest&)>;
+  using StopRequestedCallback = std::function<bool()>;
+  using UpdateProgressCallback = std::function<void(uint64_t, uint64_t, bool)>;
+
+  TreeSizeRecomputeRetryRunner(const eos::mgm::TreeSizeRecomputeRequest& original_request,
+                               RunPassCallback run_pass,
+                               StopRequestedCallback stop_requested,
+                               UpdateProgressCallback update_progress)
+      : mOriginalRequest(original_request)
+      , mRunPass(std::move(run_pass))
+      , mStopRequested(std::move(stop_requested))
+      , mUpdateProgress(std::move(update_progress))
+  {
+  }
+
+  eos::mgm::TreeSizeRecomputeResult
+  Run()
+  {
+    EnqueueRetry(mOriginalRequest.rootId);
+
+    while (!mPendingRequests.empty()) {
+      if (mStopRequested()) {
+        return StoppedResult();
+      }
+
+      if (mPassCount >= kTreeSizeRecomputeMaxPasses) {
+        MarkRetryLimitReached();
+        break;
+      }
+
+      const auto current_request = PopNextRequest();
+
+      RunAttempt(current_request);
+
+      if (mLastResult.retc == ECANCELED) {
+        return mLastResult;
+      }
+
+      if (LastPassFailedPermanently()) {
+        if (IsInitialRootPass(current_request)) {
+          return mLastResult;
+        }
+
+        MarkRetryLimitReached();
+        RememberFirstRetryError(mLastResult.error);
+        continue;
+      }
+
+      if (LastPassCompletedWithoutRetry(current_request)) {
+        continue;
+      }
+
+      RememberFirstRetryError(mLastResult.error);
+      EnqueueRetriesFromLastPass(current_request.rootId);
+
+      if (!mPendingRequests.empty()) {
+        if (mPassCount >= kTreeSizeRecomputeMaxPasses) {
+          MarkRetryLimitReached();
+          break;
+        }
+
+        if (!WaitBeforeRetry()) {
+          return StoppedResult();
+        }
+      }
+    }
+
+    return FinalResult();
+  }
+
+private:
+  uint64_t
+  RetryPassCount() const
+  {
+    return mPassCount == 0 ? 0 : mPassCount - 1;
+  }
+
+  void
+  UpdateRetryProgress()
+  {
+    mUpdateProgress(mPassCount, RetryPassCount(), mRetryLimitReached);
+  }
+
+  void
+  MarkRetryLimitReached()
+  {
+    mRetryLimitReached = true;
+    UpdateRetryProgress();
+  }
+
+  eos::mgm::TreeSizeRecomputeResult
+  StoppedResult() const
+  {
+    return MakeResult(ECANCELED, "tree-size recompute stopped");
+  }
+
+  eos::mgm::TreeSizeRecomputeRequest
+  MakeRetryRequest(eos::IContainerMD::id_t root_id) const
+  {
+    eos::mgm::TreeSizeRecomputeRequest retry_request;
+    retry_request.rootId = root_id;
+    retry_request.rootSpecification = root_id == mOriginalRequest.rootId
+                                          ? mOriginalRequest.rootSpecification
+                                          : MakeContainerRetrySpecification(root_id);
+    retry_request.maxDepth = mOriginalRequest.maxDepth;
+    return retry_request;
+  }
+
+  void
+  EnqueueRetry(eos::IContainerMD::id_t root_id)
+  {
+    if (root_id == 0) {
+      return;
+    }
+
+    if (!mQueuedRoots.insert(root_id).second) {
+      return;
+    }
+
+    mPendingRequests.push_back(MakeRetryRequest(root_id));
+  }
+
+  eos::mgm::TreeSizeRecomputeRequest
+  PopNextRequest()
+  {
+    auto current_request = mPendingRequests.front();
+    mPendingRequests.pop_front();
+    mQueuedRoots.erase(current_request.rootId);
+    return current_request;
+  }
+
+  void
+  RunAttempt(const eos::mgm::TreeSizeRecomputeRequest& request)
+  {
+    ++mPassCount;
+    const auto pass = mRunPass(request);
+    mLastResult = pass.result;
+    mLastDiagnostics = pass.diagnostics;
+    UpdateRetryProgress();
+  }
+
+  bool
+  LastPassFailedPermanently() const
+  {
+    return (mLastResult.retc != 0) && (mLastResult.retc != EAGAIN);
+  }
+
+  bool
+  IsInitialRootPass(const eos::mgm::TreeSizeRecomputeRequest& current_request) const
+  {
+    return (current_request.rootId == mOriginalRequest.rootId) && (mPassCount == 1);
+  }
+
+  void
+  RememberFirstRetryError(const std::string& error)
+  {
+    if (mFirstRetryError.empty()) {
+      mFirstRetryError = error;
+    }
+  }
+
+  bool
+  LastPassCompletedWithoutRetry(const eos::mgm::TreeSizeRecomputeRequest& current_request)
+  {
+    if (mLastDiagnostics.retryRequired || (mLastResult.retc != 0)) {
+      return false;
+    }
+
+    if ((current_request.rootId == mOriginalRequest.rootId) &&
+        mLastDiagnostics.converged) {
+      mPendingRequests.clear();
+      mQueuedRoots.clear();
+    }
+
+    return true;
+  }
+
+  void
+  EnqueueRetriesFromLastPass(eos::IContainerMD::id_t fallback_root_id)
+  {
+    const auto retry_root_id = mLastDiagnostics.retryRootContainerId != 0
+                                   ? mLastDiagnostics.retryRootContainerId
+                                   : fallback_root_id;
+
+    if (retry_root_id != 0) {
+      EnqueueRetry(retry_root_id);
+      return;
+    }
+
+    for (const auto retry_id : mLastDiagnostics.retryContainerIds) {
+      EnqueueRetry(retry_id);
+    }
+  }
+
+  bool
+  WaitBeforeRetry() const
+  {
+    const auto deadline = std::chrono::steady_clock::now() + kTreeSizeRecomputeRetryDelay;
+
+    while (std::chrono::steady_clock::now() < deadline) {
+      if (mStopRequested()) {
+        return false;
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+
+    return true;
+  }
+
+  eos::mgm::TreeSizeRecomputeResult
+  FinalResult()
+  {
+    if (mStopRequested()) {
+      return StoppedResult();
+    }
+
+    if (mRetryLimitReached ||
+        (mLastDiagnostics.available && !mLastDiagnostics.converged)) {
+      UpdateRetryProgress();
+      return MakeResult(0, mFirstRetryError.empty()
+                               ? "tree-size recompute finished before convergence"
+                               : mFirstRetryError);
+    }
+
+    return mLastResult;
+  }
+
+  const eos::mgm::TreeSizeRecomputeRequest& mOriginalRequest;
+  RunPassCallback mRunPass;
+  StopRequestedCallback mStopRequested;
+  UpdateProgressCallback mUpdateProgress;
+  std::deque<eos::mgm::TreeSizeRecomputeRequest> mPendingRequests;
+  std::unordered_set<eos::IContainerMD::id_t> mQueuedRoots;
+  eos::mgm::TreeSizeRecomputeResult mLastResult;
+  eos::mgm::TreeSizeRecomputeDiagnostics mLastDiagnostics;
+  uint64_t mPassCount = 0;
+  bool mRetryLimitReached = false;
+  std::string mFirstRetryError;
+};
 
 } // namespace
 
@@ -392,157 +639,21 @@ TreeSizeAccountingManager::RecomputeTreeSize(
     const TreeSizeRecomputeRequest& request, eos::IContainerMDSvc& container_svc,
     eos::IFileMDSvc& file_svc, eos::ITreeSizeAccountingService* accounting_service)
 {
-  std::deque<TreeSizeRecomputeRequest> pending_requests;
-  std::unordered_map<eos::IContainerMD::id_t, uint64_t> attempts_by_root;
-  std::unordered_set<eos::IContainerMD::id_t> queued_roots;
-  TreeSizeRecomputeResult last_result;
-  TreeSizeRecomputeDiagnostics last_diagnostics;
-  uint64_t pass_count = 0;
-  bool retry_limit_reached = false;
-  std::string first_retry_error;
+  TreeSizeRecomputeRetryRunner runner(
+      request,
+      [this, &container_svc, &file_svc,
+       accounting_service](const TreeSizeRecomputeRequest& pass_request) {
+        const auto pass = RecomputeTreeSizeOnce(pass_request, container_svc, file_svc,
+                                                accounting_service);
+        return TreeSizeRecomputeRetryPass{pass.result, pass.diagnostics};
+      },
+      [this]() { return StopRequested(); },
+      [this](uint64_t recompute_pass_count, uint64_t retry_pass_count,
+             bool retry_limit_reached) {
+        UpdateRetryProgress(recompute_pass_count, retry_pass_count, retry_limit_reached);
+      });
 
-  auto wait_before_retry = [&]() {
-    const auto deadline = std::chrono::steady_clock::now() + kTreeSizeRecomputeRetryDelay;
-
-    while (std::chrono::steady_clock::now() < deadline) {
-      if (StopRequested()) {
-        return false;
-      }
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(25));
-    }
-
-    return true;
-  };
-
-  auto enqueue_retry = [&](eos::IContainerMD::id_t root_id) {
-    if (root_id == 0) {
-      return;
-    }
-
-    if (attempts_by_root[root_id] >= kTreeSizeRecomputeMaxAttemptsPerRoot) {
-      retry_limit_reached = true;
-      return;
-    }
-
-    if (!queued_roots.insert(root_id).second) {
-      return;
-    }
-
-    TreeSizeRecomputeRequest retry_request;
-    retry_request.rootId = root_id;
-    retry_request.rootSpecification = root_id == request.rootId
-                                          ? request.rootSpecification
-                                          : MakeContainerRetrySpecification(root_id);
-    retry_request.maxDepth = request.maxDepth;
-    pending_requests.push_back(std::move(retry_request));
-  };
-
-  enqueue_retry(request.rootId);
-
-  while (!pending_requests.empty()) {
-    if (StopRequested()) {
-      return MakeResult(ECANCELED, "tree-size recompute stopped");
-    }
-
-    if (pass_count >= kTreeSizeRecomputeMaxPasses) {
-      retry_limit_reached = true;
-      UpdateRetryProgress(pass_count, pass_count == 0 ? 0 : pass_count - 1,
-                          retry_limit_reached);
-      break;
-    }
-
-    auto current_request = pending_requests.front();
-    pending_requests.pop_front();
-    queued_roots.erase(current_request.rootId);
-
-    auto& attempts = attempts_by_root[current_request.rootId];
-
-    if (attempts >= kTreeSizeRecomputeMaxAttemptsPerRoot) {
-      retry_limit_reached = true;
-      UpdateRetryProgress(pass_count, pass_count == 0 ? 0 : pass_count - 1,
-                          retry_limit_reached);
-      continue;
-    }
-
-    ++attempts;
-    ++pass_count;
-    auto pass_result = RecomputeTreeSizeOnce(current_request, container_svc, file_svc,
-                                             accounting_service);
-    last_result = pass_result.result;
-    last_diagnostics = pass_result.diagnostics;
-    UpdateRetryProgress(pass_count, pass_count == 0 ? 0 : pass_count - 1,
-                        retry_limit_reached);
-
-    if (last_result.retc == ECANCELED) {
-      return last_result;
-    }
-
-    if ((last_result.retc != 0) && (last_result.retc != EAGAIN)) {
-      if ((current_request.rootId == request.rootId) && (pass_count == 1)) {
-        return last_result;
-      }
-
-      retry_limit_reached = true;
-      UpdateRetryProgress(pass_count, pass_count == 0 ? 0 : pass_count - 1,
-                          retry_limit_reached);
-
-      if (first_retry_error.empty()) {
-        first_retry_error = last_result.error;
-      }
-
-      continue;
-    }
-
-    if (!last_diagnostics.retryRequired && (last_result.retc == 0)) {
-      if ((current_request.rootId == request.rootId) && last_diagnostics.converged) {
-        pending_requests.clear();
-        queued_roots.clear();
-      }
-
-      continue;
-    }
-
-    if (first_retry_error.empty()) {
-      first_retry_error = last_result.error;
-    }
-
-    const auto retry_root_id = last_diagnostics.retryRootContainerId != 0
-                                   ? last_diagnostics.retryRootContainerId
-                                   : current_request.rootId;
-    if (retry_root_id != 0) {
-      enqueue_retry(retry_root_id);
-
-      if (!pending_requests.empty() && !wait_before_retry()) {
-        return MakeResult(ECANCELED, "tree-size recompute stopped");
-      }
-
-      continue;
-    }
-
-    for (const auto retry_id : last_diagnostics.retryContainerIds) {
-      enqueue_retry(retry_id);
-    }
-
-    if (!pending_requests.empty() && !wait_before_retry()) {
-      return MakeResult(ECANCELED, "tree-size recompute stopped");
-    }
-  }
-
-  if (StopRequested()) {
-    return MakeResult(ECANCELED, "tree-size recompute stopped");
-  }
-
-  if (retry_limit_reached ||
-      (last_diagnostics.available && !last_diagnostics.converged)) {
-    UpdateRetryProgress(pass_count, pass_count == 0 ? 0 : pass_count - 1,
-                        retry_limit_reached);
-    return MakeResult(0, first_retry_error.empty()
-                             ? "tree-size recompute finished before convergence"
-                             : first_retry_error);
-  }
-
-  return last_result;
+  return runner.Run();
 }
 
 //------------------------------------------------------------------------------
