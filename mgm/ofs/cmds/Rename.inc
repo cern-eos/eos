@@ -337,6 +337,57 @@ XrdMgmOfs::_rename(const char* old_name,
   std::map<std::string, std::set<std::string> > found;
 
   if (renameDir) {
+    // Guard against moves that would push the directory - or part of its
+    // subtree - deeper than the maximum resolvable path depth. Otherwise the
+    // moved hierarchy could no longer be looked up and would surface as ELOOP
+    // on access. Mirrors the create-time depth guard; the "-2" matches
+    // QuarkHierarchicalView's MAX_CREATE_DEPTH.
+    {
+      const size_t max_depth = eos::common::Path::MAX_LEVELS - 2;
+      const size_t new_depth = nPath.GetSubPathSize();
+      const size_t old_depth = oPath.GetSubPathSize();
+
+      // Only depth-increasing moves can violate the limit.
+      if (new_depth > old_depth) {
+        if (new_depth > max_depth) {
+          errno = ENAMETOOLONG;
+          return Emsg(epname, error, ENAMETOOLONG,
+                      "rename - target directory path is too deep");
+        }
+
+        // Only scan the subtree when the destination is close enough to the
+        // limit that the bounded scan stays shallow.
+        const size_t allowed_rel = max_depth - new_depth;
+
+        if (allowed_rel <= eos::kSubtreeDepthScanThreshold) {
+          std::map<std::string, std::set<std::string>> depth_probe;
+          XrdOucString probe_stderr;
+          // Pre-set with E2BIG so _find fails (rather than truncates) if the
+          // tree is too large to scan fully - we then fail closed below.
+          XrdOucErrInfo probe_error;
+          probe_error.setErrInfo(E2BIG, "");
+
+          if (gOFS->_find(oPath.GetFullPath().c_str(), probe_error, probe_stderr, vid,
+                          depth_probe, nullptr, nullptr, true , 0,
+                          false, (int)(allowed_rel + 1) /* maxdepth */)) {
+            errno = ENAMETOOLONG;
+            return Emsg(epname, error, ENAMETOOLONG,
+                        "rename - source tree too large or deep to relocate safely");
+          }
+
+          for (const auto& elem : depth_probe) {
+            eos::common::Path dPath(elem.first.c_str());
+
+            if (((size_t)dPath.GetSubPathSize() - old_depth) > allowed_rel) {
+              errno = ENAMETOOLONG;
+              return Emsg(epname, error, ENAMETOOLONG,
+                          "rename - resulting directory hierarchy would be too deep");
+            }
+          }
+        }
+      }
+    }
+
     {
       // figure out if this is a move within the same quota node
       eos::IContainerMD::id_t q1 {0ull};

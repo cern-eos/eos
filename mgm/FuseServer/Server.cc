@@ -49,6 +49,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/PathDepthCheck.hh"
 #include "proto/Audit.pb.h"
 #include <cstdlib>
 #include <google/protobuf/util/json_util.h>
@@ -1637,6 +1638,49 @@ Server::OpSetDirectory(const std::string& id,
           }
         }
         op = MOVE;
+
+        // Guard against moves that would push the directory - or part of its
+        // subtree - deeper than the maximum resolvable path depth. Otherwise
+        // the moved hierarchy could no longer be looked up and would surface
+        // as ELOOP on access. Mirrors the create-time depth guard; the "-2"
+        // matches QuarkHierarchicalView's MAX_CREATE_DEPTH.
+        {
+          const size_t max_depth = eos::common::Path::MAX_LEVELS - 2;
+          eos::common::Path oFull(gOFS->eosView->getUri(cmd.get()).c_str());
+          eos::common::Path nParent(gOFS->eosView->getUri(pcmd.get()).c_str());
+          const size_t old_depth = oFull.GetSubPathSize();
+          const size_t new_depth = nParent.GetSubPathSize() + 1;
+
+          // Only depth-increasing moves can violate the limit.
+          if (new_depth > old_depth) {
+            if (new_depth > max_depth) {
+              eos_err("msg=\"move target path too deep\" ino=%lx pino=%lx name=%s",
+                      md.md_ino(), md.md_pino(), md.name().c_str());
+              return ENAMETOOLONG;
+            }
+
+            // Only scan the subtree when the destination is close enough to
+            // the limit that the scan stays shallow (and thus cheap under
+            // the view write lock we are holding here).
+            const size_t allowed_rel = max_depth - new_depth;
+
+            if (allowed_rel <= eos::kSubtreeDepthScanThreshold) {
+              bool budget_exceeded = false;
+
+              if (eos::subtreeExceedsRelDepth(gOFS->eosDirectoryService, cmd, allowed_rel,
+                                              eos::kSubtreeDepthScanBudget,
+                                              budget_exceeded) ||
+                  budget_exceeded) {
+                eos_err("msg=\"move would create too deep hierarchy\" ino=%lx "
+                        "pino=%lx name=%s budget_exceeded=%d",
+                        md.md_ino(), md.md_pino(), md.name().c_str(),
+                        (int)budget_exceeded);
+                return ENAMETOOLONG;
+              }
+            }
+          }
+        }
+
         // create a broadcast md object with the authid of the source directory,
         // the target is the standard authid for notification
         mv_md.set_authid(md.mv_authid());
