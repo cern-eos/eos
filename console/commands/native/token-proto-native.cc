@@ -4,7 +4,6 @@
 
 #include "console/CommandFramework.hh"
 #include "console/commands/helpers/TokenHelper.hh"
-#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
@@ -37,18 +36,6 @@ std::string MakeTokenHelp()
       << "          eos token --token zteos64:...\n"
       << "                                           : dump the given token\n";
   return oss.str();
-}
-
-void ConfigureTokenApp(CLI::App& app)
-{
-  app.name("token");
-  app.description("Token interface");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeTokenHelp();
-      }));
 }
 
 class TokenProtoCommand : public IConsoleCommand {
