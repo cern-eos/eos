@@ -36,6 +36,11 @@
 #define LOOP_21 10000
 #define LOOP_22 5
 #define LOOP_23 260
+// Upper bound for the depth-probe loops below: it only needs to be a little
+// larger than the maximum namespace path depth (eos::common::Path::MAX_LEVELS)
+// so the probe reliably reaches ENAMETOOLONG and stops - it is not the depth we
+// expect to create.
+#define MAX_DEPTH_PROBE 256
 
 int main(int argc, char* argv[])
 {
@@ -1061,6 +1066,113 @@ int main(int argc, char* argv[])
     }
 
     COMMONTIMING("deep-mkdir", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 24;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    eos::common::cmd_status rc;
+    eos::common::ShellCmd mktoplev("mkdir test24");
+    rc = mktoplev.wait(5);
+
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] toplevel mkdir failed\n", testno);
+      exit(testno);
+    }
+
+    // Probe for the deepest creatable directory - mkdir stops with
+    // ENAMETOOLONG once the maximum resolvable depth is reached. The deepest
+    // success ('deep') then sits exactly at the limit and its parent
+    // ('deep_parent') one level above it.
+    std::string deep = "test24";
+    std::string deep_parent = "test24";
+    int erritr = -1;
+    for (int i = 0; i < MAX_DEPTH_PROBE; i++) {
+      std::string newpath = deep + "/p";
+      if (mkdir(newpath.c_str(), S_IRWXU)) {
+        const int err = errno;
+        if (err != ENAMETOOLONG) {
+          fprintf(stderr, "[test=%03d] mkdir failed itr=%d errno=%d\n", testno, i, err);
+          exit(testno);
+        }
+        erritr = i;
+        break;
+      }
+      deep_parent = deep;
+      deep = newpath;
+    }
+
+    if (erritr < 200) {
+      fprintf(stderr,
+              "[test=%03d] unexpected number of subdirectories created erritr=%d\n",
+              testno, erritr);
+      exit(testno);
+    }
+
+    // Create a small source subtree to move around.
+    if (mkdir("test24src", S_IRWXU) || mkdir("test24src/child", S_IRWXU)) {
+      fprintf(stderr, "[test=%03d] source subtree mkdir failed errno=%d\n", testno,
+              errno);
+      exit(testno);
+    }
+
+    // Moving the subtree under the deepest directory pushes its root past the
+    // limit and must be rejected (exercises the target-root depth check).
+    std::string deep_target = deep + "/test24src";
+
+    if (rename("test24src", deep_target.c_str()) == 0) {
+      fprintf(stderr, "[test=%03d] deep mv unexpectedly succeeded\n", testno);
+      exit(testno);
+    }
+
+    if (errno != ENAMETOOLONG) {
+      fprintf(stderr, "[test=%03d] deep mv failed with wrong errno=%d\n", testno, errno);
+      exit(testno);
+    }
+
+    // Moving the subtree one level higher: its root would just fit, but the
+    // 'child' below it would not - must still be rejected (exercises the
+    // subtree depth scan).
+    std::string parent_target = deep_parent + "/test24src";
+
+    if (rename("test24src", parent_target.c_str()) == 0) {
+      fprintf(stderr, "[test=%03d] deep subtree mv unexpectedly succeeded\n", testno);
+      exit(testno);
+    }
+
+    if (errno != ENAMETOOLONG) {
+      fprintf(stderr, "[test=%03d] deep subtree mv failed with wrong errno=%d\n", testno,
+              errno);
+      exit(testno);
+    }
+
+    // Moving the subtree to a shallow location must still work and the source
+    // must remain accessible afterwards.
+    if (rename("test24src", "test24/test24src")) {
+      fprintf(stderr, "[test=%03d] shallow mv failed errno=%d\n", testno, errno);
+      exit(testno);
+    }
+
+    struct stat buf;
+
+    if (stat("test24/test24src/child", &buf)) {
+      fprintf(stderr, "[test=%03d] moved subtree not accessible errno=%d\n", testno,
+              errno);
+      exit(testno);
+    }
+
+    eos::common::ShellCmd removedir("rm -r test24 test24src");
+    rc = removedir.wait(5);
+
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] rm -r test24 dir failed\n", testno);
+      exit(testno);
+    }
+
+    COMMONTIMING("deep-mv", &tm);
   }
 
   tm.Print();
