@@ -59,7 +59,9 @@ public:
       , token_path(token_path)
       , protowfusegrpctls(protowfusegrpctls)
       , client_cert_path(client_cert_path)
-      , client_key_path(client_key_path) {}
+      , client_key_path(client_key_path)
+  {
+  }
 };
 
 class WFEGrpcClient : public WFEClient {
@@ -87,16 +89,18 @@ public:
       eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
       if (!cert_path.empty()) {
         std::string client_cert_contents;
-        eos::common::StringConversion::LoadFileIntoString(cert_path.c_str(), client_cert_contents);
+        eos::common::StringConversion::LoadFileIntoString(cert_path.c_str(),
+                                                          client_cert_contents);
         ssl_options.pem_cert_chain = client_cert_contents;
       }
       if (!key_path.empty()) {
         std::string client_key_contents;
-        eos::common::StringConversion::LoadFileIntoString(key_path.c_str(), client_key_contents);
+        eos::common::StringConversion::LoadFileIntoString(key_path.c_str(),
+                                                          client_key_contents);
         ssl_options.pem_private_key = client_key_contents;
       }
-      eos_static_info("mTLS client cert path=\"%s\" key path=\"%s\"",
-                      cert_path.c_str(), key_path.c_str());
+      eos_static_info("mTLS client cert path=\"%s\" key path=\"%s\"", cert_path.c_str(),
+                      key_path.c_str());
       credentials = grpc::SslCredentials(ssl_options);
     } else {
       credentials = grpc::InsecureChannelCredentials();
@@ -207,7 +211,8 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(const RequestSenderConfig &cf) {
+CreateRequestSender(const RequestSenderConfig& cf)
+{
   if (cf.protowfusegrpc) {
     return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs, cf.token_path,
                                            cf.protowfusegrpctls, cf.client_cert_path,
