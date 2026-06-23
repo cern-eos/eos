@@ -306,7 +306,10 @@ public:
   {
     if (newlogid && (strncmp(newlogid, logId, sizeof(logId) - 1) != 0)) {
       // ensure bounded copy; accept truncation
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
       strncpy(logId, newlogid, sizeof(logId) - 1);
+#pragma GCC diagnostic pop
       logId[sizeof(logId) - 1] = '\0';
     }
   }
@@ -318,7 +321,10 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
       strncpy(logId, newlogid, sizeof(logId) - 1);
+#pragma GCC diagnostic pop
       logId[sizeof(logId) - 1] = '\0';
     }
 
