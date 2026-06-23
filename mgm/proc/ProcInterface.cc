@@ -42,6 +42,7 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
@@ -318,6 +319,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new FileRegisterCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kFile:
+    cmd.reset(new FileCmd(std::move(req), vid));
+    break;
+
   default:
     eos_static_err("error: unknown request type");
     break;
@@ -494,6 +499,14 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
       return false;
     }
 
+  // 'file' has no read-only subcommand (no ls/status equivalent) - every
+  // currently implemented subcommand (drop/move/rename/tag/touch/convert/...)
+  // mutates the namespace or triggers an FST-side action, so treat the whole
+  // command class as a write, matching the closed-by-default pattern used
+  // for kSpace/kNode above.
+  case RequestProto::kFile:
+    return true;
+
   // always true
   case RequestProto::kRm:
   case RequestProto::kEvict:
@@ -666,6 +679,7 @@ ProcInterface::IsAdminCmd(eos::console::RequestProto::CommandCase cc)
   case R::kRoute:
   case R::kRecycle:
   case R::kQuota:
+  case R::kFile:
     return false;
 
   // Closed-by-default for unknown / future command classes (this also
