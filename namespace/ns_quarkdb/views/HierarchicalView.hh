@@ -45,6 +45,24 @@ class QuarkHierarchicalView : public IView
 {
 public:
   //----------------------------------------------------------------------------
+  //! Maximum effort (path lookups + symlink expansions) that getPathInternal
+  //! is allowed to spend resolving a single path before it gives up with
+  //! ELOOP. This also acts as the effective maximum resolvable path depth, so
+  //! the directory-creation guards below are derived from it to make sure we
+  //! never create a directory that can later not be resolved.
+  //----------------------------------------------------------------------------
+  static constexpr size_t MAX_PATH_EFFORT = 255;
+
+  //----------------------------------------------------------------------------
+  //! Maximum number of path chunks (i.e. directory depth) that createContainer
+  //! is allowed to create. The "-2" accounts for the effort offset applied
+  //! while creating the directory so that the deepest created directory still
+  //! fits within MAX_PATH_EFFORT both while being created and when later
+  //! resolved.
+  //----------------------------------------------------------------------------
+  static constexpr size_t MAX_CREATE_DEPTH = MAX_PATH_EFFORT - 2;
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   QuarkHierarchicalView(qclient::QClient* qcl, MetadataFlusher* quotaFlusher);
@@ -311,15 +329,45 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  //! Maximum effort (path lookups + symlink expansions) that getPathInternal
+  //! is allowed to spend resolving a single path before it gives up with
+  //! ELOOP. This doubles as the effective maximum resolvable path depth, so
+  //! the directory-creation guards below are derived from it to make sure we
+  //! never create a directory that can later not be resolved. Keep the literal
+  //! used in getPathInternal in sync with this constant.
+  //----------------------------------------------------------------------------
+  static constexpr size_t MAX_PATH_EFFORT = 255;
+
+  //----------------------------------------------------------------------------
+  //! Maximum number of path chunks (i.e. directory depth) that createContainer
+  //! is allowed to create. The "-2" accounts for the effort offset applied
+  //! while creating the directory so that the deepest created directory still
+  //! fits within MAX_PATH_EFFORT both while being created and when later
+  //! resolved.
+  //----------------------------------------------------------------------------
+  static constexpr size_t MAX_CREATE_DEPTH = MAX_PATH_EFFORT - 2;
+
+  //----------------------------------------------------------------------------
   //! Lookup a given path - internal function.
+  //!
+  //! @param effp optional out-parameter that receives the running effort count
+  //!        accumulated during the lookup. A pointer (not a reference) on
+  //!        purpose: it MUST only be used by callers that immediately block on
+  //!        the returned future (e.g. via .get()), because when the lookup
+  //!        needs a network request it resumes in a deferred continuation that
+  //!        writes through this pointer, so the pointee must still be alive at
+  //!        that point. Callers that hand the future back for asynchronous
+  //!        resolution must leave it nullptr so nothing is written.
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD> getPathInternal(FileOrContainerMD state,
                                                    std::deque<std::string> pendingChunks,
                                                    bool follow, size_t expendedEffort,
-                                                   size_t* effp);
+                                                   size_t* effp = nullptr);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
+  //!
+  //! @param effp see getPathInternal; same lifetime constraints apply.
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD> getPathDeferred(folly::Future<FileOrContainerMD> fut,
                                                    std::deque<std::string> pendingChunks,
@@ -328,6 +376,8 @@ private:
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
+  //!
+  //! @param effp see getPathInternal; same lifetime constraints apply.
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD> getPathDeferred(folly::Future<IContainerMDPtr> fut,
                                                    std::deque<std::string> pendingChunks,

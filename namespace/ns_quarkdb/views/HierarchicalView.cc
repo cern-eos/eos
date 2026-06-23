@@ -190,7 +190,7 @@ QuarkHierarchicalView::getItem(const std::string& uri, bool follow)
   // Initial state: We're at "/", and have to look up all chunks.
   //----------------------------------------------------------------------------
   FileOrContainerMD initialState {nullptr, pRoot};
-  return getPathInternal(initialState, pendingChunks, follow, 0, 0);
+  return getPathInternal(initialState, pendingChunks, follow, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -263,7 +263,7 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
       *effp = expendedEffort;
     }
 
-    if (expendedEffort > 255) {
+    if (expendedEffort > MAX_PATH_EFFORT) {
       return folly::makeFuture<FileOrContainerMD>(make_mdexception(
                ELOOP, "Too many symbolic links were encountered in translating the pathname"));
     }
@@ -438,7 +438,7 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid,
   std::string lastChunk = chunks.back();
   chunks.pop_back();
   FileOrContainerMD item =
-      getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0, 0).get();
+      getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0).get();
 
   if (item.file) {
     throw_mdexception(ENOTDIR, "Not a directory");
@@ -627,7 +627,7 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
     throw_mdexception(EEXIST, uri << ": File exists");
   }
 
-  if (chunks.size() > 253) {
+  if (chunks.size() > MAX_CREATE_DEPTH) {
     // even with no symlinks, deeper than this would require too many lookups
     // in getPathInternal, which would report it with ELOOP.
     throw_mdexception(ENAMETOOLONG, uri << ": Too many directories");
@@ -715,7 +715,7 @@ QuarkHierarchicalView::getPathExpectContainer(const std::deque<std::string>&
     return pRoot;
   }
 
-  return getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0, 0)
+  return getPathInternal(FileOrContainerMD{nullptr, pRoot}, chunks, true, 0)
       .thenValue(extractContainerMD);
 }
 

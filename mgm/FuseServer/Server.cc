@@ -1740,6 +1740,10 @@ Server::OpSetDirectory(const std::string& id,
         return EPERM;
       }
 
+      // The new directory is created directly here (bypassing
+      // QuarkHierarchicalView::createContainer), so guard its depth so that it
+      // stays resolvable later by getPathInternal. The "-3" keeps the child
+      // depth at most MAX_LEVELS-2, matching createContainer's MAX_CREATE_DEPTH.
       eos::common::Path nPath(gOFS->eosView->getUri(pcmd.get()).c_str());
       if (nPath.GetSubPathSize() > eos::common::Path::MAX_LEVELS - 3) {
         eos_err("pino=%lx newname=%s msg=\"parent path too long to create subdirectory\"",
