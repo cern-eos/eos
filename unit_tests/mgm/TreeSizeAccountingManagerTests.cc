@@ -307,15 +307,11 @@ TEST(TreeSizeAccountingManager, RejectsSecondSubmitWhileQueued)
 
   const auto status = manager.GetStatus();
   EXPECT_EQ(eos::mgm::TreeSizeRecomputeJobState::Queued, status.state);
-  EXPECT_EQ(42ull, status.rootId);
-  EXPECT_EQ("/eos/test", status.rootSpecification);
+  EXPECT_EQ(42ull, status.request.rootId);
+  EXPECT_EQ("/eos/test", status.request.rootSpecification);
 
   const auto status_output = manager.FormatStatus();
   EXPECT_NE(std::string::npos, status_output.find("state=queued"));
   EXPECT_NE(std::string::npos, status_output.find("retc=0"));
-  EXPECT_EQ(std::string::npos, status_output.find("\ndetail "));
-
-  const auto detail_output = manager.FormatStatus(true);
-  EXPECT_NE(std::string::npos, detail_output.find("state=queued"));
-  EXPECT_NE(std::string::npos, detail_output.find("\ndetail available=0"));
+  EXPECT_NE(std::string::npos, status_output.find("available=0"));
 }

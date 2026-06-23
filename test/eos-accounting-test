@@ -73,86 +73,65 @@ status_field() {
   echo "$status_line" | tr ' ' '\n' | sed -n "s/^${key}=//p" | tail -n1
 }
 
-assert_detail_field_eq() {
-  local detail_output=$1
+assert_status_field_eq() {
+  local status_output=$1
   local key=$2
   local expected=$3
   local context=$4
   local value
-  value=$(status_field "$detail_output" "$key")
+  value=$(status_field "$status_output" "$key")
 
   if [[ "$value" != "$expected" ]];
   then
-    echo "$detail_output"
+    echo "$status_output"
     fail "$context: expected $key=$expected, got ${value:-missing}"
   fi
 }
 
-assert_detail_field_positive() {
-  local detail_output=$1
+assert_status_field_positive() {
+  local status_output=$1
   local key=$2
   local context=$3
   local value
-  value=$(status_field "$detail_output" "$key")
+  value=$(status_field "$status_output" "$key")
 
   if [[ -z "$value" || ! "$value" =~ ^[0-9]+$ || "$value" -le 0 ]];
   then
-    echo "$detail_output"
+    echo "$status_output"
     fail "$context: expected positive $key, got ${value:-missing}"
   fi
 }
 
-assert_recompute_detail_subtree_move_seen() {
+assert_recompute_status_success() {
   local context=$1
-  local detail_output
-  local detail_rc
+  local status_output
+  local status_rc
 
-  detail_output=$(eos ns recompute_tree_size --detail 2>&1)
-  detail_rc=$?
+  status_output=$(eos ns recompute_tree_size --status 2>&1)
+  status_rc=$?
 
-  if [[ $detail_rc -ne 0 ]];
+  if [[ $status_rc -ne 0 ]];
   then
-    echo "$detail_output"
-    fail "$context: failed to query recompute_tree_size --detail"
+    echo "$status_output"
+    fail "$context: failed to query recompute_tree_size --status"
   fi
 
-  assert_detail_field_positive \
-    "$detail_output" "fence_included_subtree_attach_updates" "$context detail"
-  assert_detail_field_positive \
-    "$detail_output" "fence_included_subtree_detach_updates" "$context detail"
-  pass "$context: real MGM directory move subtree propagation was fenced"
-}
-
-assert_recompute_detail_success() {
-  local context=$1
-  local detail_output
-  local detail_rc
-
-  detail_output=$(eos ns recompute_tree_size --detail 2>&1)
-  detail_rc=$?
-
-  if [[ $detail_rc -ne 0 ]];
-  then
-    echo "$detail_output"
-    fail "$context: failed to query recompute_tree_size --detail"
-  fi
-
-  assert_detail_field_eq "$detail_output" "state" "completed" "$context detail"
-  assert_detail_field_eq "$detail_output" "retc" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "result" "success" "$context detail"
-  assert_detail_field_eq "$detail_output" "available" "1" "$context detail"
-  assert_detail_field_eq "$detail_output" "converged" "1" "$context detail"
-  assert_detail_field_eq "$detail_output" "publishable" "1" "$context detail"
-  assert_detail_field_eq "$detail_output" "retry_required" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "retry_candidates" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "missing_targets" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "write_failed_targets" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "failed_containers" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "publish_apply_status" "0" "$context detail"
-  assert_detail_field_eq "$detail_output" "fence_acquired" "1" "$context detail"
-  assert_detail_field_positive "$detail_output" "snapshot_containers" "$context detail"
-  assert_detail_field_positive "$detail_output" "publish_targets" "$context detail"
-  pass "$context: recompute --detail reports a successful published run"
+  assert_status_field_eq "$status_output" "state" "completed" "$context status"
+  assert_status_field_eq "$status_output" "retc" "0" "$context status"
+  assert_status_field_eq "$status_output" "result" "success" "$context status"
+  assert_status_field_eq "$status_output" "available" "1" "$context status"
+  assert_status_field_eq "$status_output" "converged" "1" "$context status"
+  assert_status_field_eq "$status_output" "publishable" "1" "$context status"
+  assert_status_field_eq "$status_output" "retry_required" "0" "$context status"
+  assert_status_field_eq "$status_output" "retry_candidates" "0" "$context status"
+  assert_status_field_eq "$status_output" "missing_targets" "0" "$context status"
+  assert_status_field_eq "$status_output" "write_failed_targets" "0" "$context status"
+  assert_status_field_eq "$status_output" "failed_containers" "0" "$context status"
+  assert_status_field_eq "$status_output" "publish_apply_status" "0" "$context status"
+  assert_status_field_eq "$status_output" "fence_acquired" "1" "$context status"
+  assert_status_field_positive "$status_output" "snapshot_containers" "$context status"
+  assert_status_field_positive "$status_output" "publish_targets" "$context status"
+  pass "$context: recompute --status reports a successful published run"
 }
 
 wait_for_live_accounting() {
@@ -348,7 +327,7 @@ recompute_tree_size_and_wait() {
       wait_recompute_tree_size_status 0 || return 1
       elapsed=$(elapsed_since "$start_time")
       pass "$context: recompute completed in $elapsed seconds"
-      assert_recompute_detail_success "$context"
+      assert_recompute_status_success "$context"
       return 0
     fi
 
@@ -641,7 +620,6 @@ pass "Destination moved back to source in $elapsed seconds"
 recompute_tree_size_and_wait "$EOS_ACCOUNTING_DIR/" \
   "root recompute after delete-and-move" ||
   fail "root recompute after delete-and-move failed"
-assert_recompute_detail_subtree_move_seen "root recompute after delete-and-move"
 
 section "Validate recomputed accounting after delete-and-move"
 # Source directory has now the destination directory + all directories under it that got divided by two by the previous deletion

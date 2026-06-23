@@ -1094,8 +1094,8 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return;
   }
 
-  if (tree.status() || tree.detail()) {
-    reply.set_std_out(gOFS->mTreeSizeAccountingManager->FormatStatus(tree.detail()));
+  if (tree.status()) {
+    reply.set_std_out(gOFS->mTreeSizeAccountingManager->FormatStatus());
     reply.set_retc(0);
     return;
   }
@@ -1124,9 +1124,6 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                                  : nullptr;
 
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService) {
-    eos_warning("msg=\"tree size recompute manager unavailable\" "
-                "cid=%llu root=\"%s\"",
-                static_cast<unsigned long long>(cont->getId()), root_spec.c_str());
     reply.set_std_err("error: tree-size recompute manager unavailable");
     reply.set_retc(EIO);
     return;

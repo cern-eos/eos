@@ -187,8 +187,6 @@ NsNativeHelper::ParseCommand(const char* arg)
         }
       } else if (soption == "--status") {
         tree->set_status(true);
-      } else if (soption == "--detail") {
-        tree->set_detail(true);
       } else if ((soption.find("cid:") == 0)) {
         pos = soption.find(':') + 1;
         tree->mutable_container()->set_cid(soption.substr(pos));
@@ -564,15 +562,12 @@ std::string MakeNsHelp()
       << std::endl
       << "  ns recompute_tree_size "
          "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>] | "
-         "--status | --detail"
+         "--status"
       << std::endl
       << "    submit tree size recomputation for a directory and all its "
          "subdirectories"
       << std::endl
       << "    --status : show active or last tree size recomputation status" << std::endl
-      << "    --detail : show status plus developer diagnostics for the active "
-         "or last recomputation"
-      << std::endl
       << "    --depth : maximum depth for recomputation, default 0 i.e no "
          "limit"
       << std::endl

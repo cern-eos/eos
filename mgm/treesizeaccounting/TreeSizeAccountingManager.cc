@@ -69,12 +69,6 @@ StateToString(eos::mgm::TreeSizeRecomputeJobState state)
   return "unknown";
 }
 
-bool
-IsPartialPublish(const eos::mgm::TreeSizeRecomputeStatus& status)
-{
-  return status.partialPublish || status.diagnostics.partialPublish;
-}
-
 std::string
 ResultToString(const eos::mgm::TreeSizeRecomputeStatus& status)
 {
@@ -89,9 +83,9 @@ ResultToString(const eos::mgm::TreeSizeRecomputeStatus& status)
       return "failed";
     }
 
-    return status.converged ? "success" : "non_converged";
+    return status.diagnostics.converged ? "success" : "non_converged";
   case eos::mgm::TreeSizeRecomputeJobState::Failed:
-    if (IsPartialPublish(status)) {
+    if (status.diagnostics.partialPublish) {
       return "partial_publish";
     }
 
@@ -118,85 +112,6 @@ StatusElapsedSeconds(const eos::mgm::TreeSizeRecomputeStatus& status)
   }
 
   return 0;
-}
-
-void
-AppendDetail(std::ostringstream& oss, const eos::mgm::TreeSizeRecomputeStatus& status)
-{
-  const auto& details = status.diagnostics;
-  oss << "detail available=" << (details.available ? 1u : 0u)
-      << " duration=" << StatusElapsedSeconds(status)
-      << " converged=" << (details.converged ? 1u : 0u)
-      << " publishable=" << (details.publishable ? 1u : 0u)
-      << " retry_required=" << (details.retryRequired ? 1u : 0u)
-      << " partial_publish=" << (details.partialPublish ? 1u : 0u)
-      << " retry_reason=" << details.retryReason
-      << " retry_candidates=" << details.retryCandidateCount
-      << " missing_targets=" << details.publishMissingTargets
-      << " write_failed_targets=" << details.publishWriteFailedTargets
-      << " recompute_passes=" << status.recomputePassCount
-      << " retry_passes=" << status.retryPassCount
-      << " retry_limit_reached=" << (status.retryLimitReached ? 1u : 0u)
-      << " retry_root_cid=" << details.retryRootContainerId
-      << " failed_containers=" << details.failedContainerCount
-      << " failed_cid=" << details.failedContainerId
-      << " discovered_containers=" << details.discoveredContainers
-      << " snapshot_containers=" << details.snapshotContainers
-      << " snapshot_files=" << details.snapshotFiles
-      << " decision_reason_mask=" << details.decisionReasonMask << " decision_reasons=\""
-      << details.decisionReasons << "\""
-      << " discovery_missing_metadata=" << details.discoveryMissingMetadata
-      << " discovery_resolved_metadata=" << details.discoveryResolvedMetadata
-      << " discovery_unresolved_metadata=" << details.discoveryUnresolvedMetadata
-      << " journal_entries=" << details.journalEntries
-      << " baseline_sequence=" << details.baselineSequence
-      << " journal_latest_sequence=" << details.journalLatestSequence
-      << " fence_validated_sequence=" << details.fenceValidatedSequence
-      << " journal_missing_metadata=" << details.journalMissingMetadata
-      << " non_increasing_sequence=" << details.nonIncreasingSequence
-      << " reconcile_missing_metadata=" << details.reconcileMissingMetadata
-      << " reconcile_suppressed_entries=" << details.reconcileSuppressedEntries
-      << " unknown_parents=" << details.unknownParents
-      << " negative_counters=" << details.negativeCounters
-      << " unsupported_events=" << details.unsupportedEvents
-      << " coverage_missing_metadata=" << details.coverageMissingMetadata
-      << " coverage_covered_entries=" << details.coverageCoveredEntries
-      << " coverage_outside_entries=" << details.coverageOutsideEntries
-      << " coverage_post_discovery_entries=" << details.coveragePostDiscoveryEntries
-      << " coverage_post_discovery_container_ids="
-      << details.coveragePostDiscoveryContainerIds
-      << " compose_missing_direct_counters=" << details.composeMissingDirectCounters
-      << " compose_missing_topology=" << details.composeMissingTopology
-      << " compose_cycle_edges=" << details.composeCycleEdges
-      << " publish_targets=" << details.publishTargets
-      << " publish_order_entries=" << details.publishOrderEntries
-      << " publish_missing_counters=" << details.publishMissingCounters
-      << " publish_negative_counters=" << details.publishNegativeCounters
-      << " publish_duplicate_targets=" << details.publishDuplicateTargets
-      << " publish_unplanned_counters=" << details.publishUnplannedCounters
-      << " publish_apply_status=" << details.publishApplyStatus
-      << " publish_attempted_targets=" << details.publishAttemptedTargets
-      << " publish_applied_targets=" << details.publishAppliedTargets
-      << " publish_skipped_missing_targets=" << details.publishSkippedMissingTargets
-      << " publish_missing_targets=" << details.publishMissingTargets
-      << " publish_write_failed_targets=" << details.publishWriteFailedTargets
-      << " fence_available=" << (details.fenceAvailable ? 1u : 0u)
-      << " fence_attempted=" << (details.fenceAttempted ? 1u : 0u)
-      << " fence_acquired=" << (details.fenceAcquired ? 1u : 0u)
-      << " fence_wait_timeout=" << (details.fenceWaitTimeout ? 1u : 0u)
-      << " fence_covered_ids=" << details.fenceCoveredIds
-      << " fence_included_updates=" << details.fenceIncludedUpdates
-      << " fence_included_subtree_attach_updates="
-      << details.fenceIncludedSubtreeAttachUpdates
-      << " fence_included_subtree_detach_updates="
-      << details.fenceIncludedSubtreeDetachUpdates
-      << " fence_replay_after_updates=" << details.fenceReplayAfterUpdates
-      << " fence_unsequenced_updates=" << details.fenceUnsequencedUpdates
-      << " fence_passed_through_updates=" << details.fencePassedThroughUpdates
-      << " fence_drained_raw_updates=" << details.fenceDrainedRawUpdates
-      << " fence_drained_batch_updates=" << details.fenceDrainedBatchUpdates
-      << " fence_in_flight_covered_updates=" << details.fenceInFlightCoveredUpdates
-      << '\n';
 }
 
 eos::mgm::TreeSizeRecomputeResult
@@ -245,7 +160,6 @@ TreeSizeAccountingManager::StopWorker()
 
     if (mStatus.state == TreeSizeRecomputeJobState::Queued) {
       mStatus.state = TreeSizeRecomputeJobState::Stopped;
-      mStatus.phase = "stopped";
       mStatus.retc = ECANCELED;
       mStatus.error = "tree-size recompute stopped before execution";
       mStatus.finishedAt = NowUnixTime();
@@ -294,10 +208,7 @@ TreeSizeAccountingManager::SubmitRecompute(
   mPendingJob = WorkerJob{request, &container_svc, &file_svc, accounting_service};
   mStatus = TreeSizeRecomputeStatus{};
   mStatus.state = TreeSizeRecomputeJobState::Queued;
-  mStatus.phase = "queued";
-  mStatus.rootId = request.rootId;
-  mStatus.rootSpecification = request.rootSpecification;
-  mStatus.maxDepth = request.maxDepth;
+  mStatus.request = request;
   mStatus.submittedAt = NowUnixTime();
   result.message = "success: tree-size recompute submitted";
   mCondition.notify_one();
@@ -312,46 +223,50 @@ TreeSizeAccountingManager::GetStatus() const
 }
 
 std::string
-TreeSizeAccountingManager::FormatStatus(bool detail) const
+TreeSizeAccountingManager::FormatStatus() const
 {
   const auto status = GetStatus();
+  const auto& details = status.diagnostics;
   std::ostringstream oss;
   oss << "state=" << StateToString(status.state) << " retc=" << status.retc
       << " result=" << ResultToString(status)
-      << " cid=" << static_cast<unsigned long long>(status.rootId) << " root=\""
-      << status.rootSpecification << "\""
-      << " depth=" << status.maxDepth << " phase=" << status.phase
+      << " cid=" << static_cast<unsigned long long>(status.request.rootId) << " root=\""
+      << status.request.rootSpecification << "\""
+      << " depth=" << status.request.maxDepth
       << " elapsed=" << StatusElapsedSeconds(status)
       << " submitted=" << status.submittedAt << " started=" << status.startedAt
       << " finished=" << status.finishedAt
-      << " discovered_containers=" << status.discoveredContainers
-      << " snapshot_containers=" << status.snapshotContainers
-      << " snapshot_files=" << status.snapshotFiles
-      << " publish_targets=" << status.publishTargets
-      << " published_targets=" << status.publishAppliedTargets
-      << " retry_candidates=" << status.retryCandidateCount
-      << " missing_targets=" << status.missingTargetCount
-      << " write_failed_targets=" << status.writeFailedTargetCount
+      << " available=" << (details.available ? 1u : 0u)
+      << " discovered_containers=" << details.discoveredContainers
+      << " snapshot_containers=" << details.snapshotContainers
+      << " snapshot_files=" << details.snapshotFiles
+      << " publish_targets=" << details.publishTargets
+      << " published_targets=" << details.publishAppliedTargets
+      << " publish_attempted_targets=" << details.publishAttemptedTargets
+      << " retry_candidates=" << details.retryCandidateCount
+      << " missing_targets=" << details.publishMissingTargets
+      << " write_failed_targets=" << details.publishWriteFailedTargets
       << " recompute_passes=" << status.recomputePassCount
       << " retry_passes=" << status.retryPassCount
       << " retry_limit_reached=" << (status.retryLimitReached ? 1u : 0u)
-      << " converged=" << (status.converged ? 1u : 0u)
-      << " failed_containers=" << status.failedContainerCount;
+      << " converged=" << (details.converged ? 1u : 0u)
+      << " publishable=" << (details.publishable ? 1u : 0u)
+      << " retry_required=" << (details.retryRequired ? 1u : 0u)
+      << " partial_publish=" << (details.partialPublish ? 1u : 0u)
+      << " failed_containers=" << details.failedContainerCount
+      << " publish_apply_status=" << details.publishApplyStatus
+      << " fence_acquired=" << (details.fenceAcquired ? 1u : 0u);
 
-  if (IsPartialPublish(status)) {
-    oss << " publish_attempted_targets=" << status.publishAttemptedTargets;
+  if (!details.retryReason.empty()) {
+    oss << " retry_reason=" << details.retryReason;
   }
 
-  if (!status.retryReason.empty()) {
-    oss << " retry_reason=" << status.retryReason;
+  if (details.retryRootContainerId != 0) {
+    oss << " retry_root_cid=" << details.retryRootContainerId;
   }
 
-  if (status.retryRootContainerId != 0) {
-    oss << " retry_root_cid=" << status.retryRootContainerId;
-  }
-
-  if (status.failedContainerId != 0) {
-    oss << " failed_cid=" << status.failedContainerId;
+  if (details.failedContainerId != 0) {
+    oss << " failed_cid=" << details.failedContainerId;
   }
 
   if (!status.error.empty()) {
@@ -359,10 +274,6 @@ TreeSizeAccountingManager::FormatStatus(bool detail) const
   }
 
   oss << '\n';
-
-  if (detail) {
-    AppendDetail(oss, status);
-  }
 
   return oss.str();
 }
@@ -374,13 +285,6 @@ TreeSizeAccountingManager::StopRequested() const
 }
 
 void
-TreeSizeAccountingManager::UpdatePhase(const std::string& phase)
-{
-  std::lock_guard<std::mutex> lock(mMutex);
-  mStatus.phase = phase;
-}
-
-void
 TreeSizeAccountingManager::UpdateProgress(uint64_t discovered_containers,
                                           uint64_t snapshot_containers,
                                           uint64_t snapshot_files,
@@ -388,11 +292,11 @@ TreeSizeAccountingManager::UpdateProgress(uint64_t discovered_containers,
                                           uint64_t publish_applied_targets)
 {
   std::lock_guard<std::mutex> lock(mMutex);
-  mStatus.discoveredContainers = discovered_containers;
-  mStatus.snapshotContainers = snapshot_containers;
-  mStatus.snapshotFiles = snapshot_files;
-  mStatus.publishTargets = publish_targets;
-  mStatus.publishAppliedTargets = publish_applied_targets;
+  mStatus.diagnostics.discoveredContainers = discovered_containers;
+  mStatus.diagnostics.snapshotContainers = snapshot_containers;
+  mStatus.diagnostics.snapshotFiles = snapshot_files;
+  mStatus.diagnostics.publishTargets = publish_targets;
+  mStatus.diagnostics.publishAppliedTargets = publish_applied_targets;
 }
 
 void
@@ -412,21 +316,6 @@ TreeSizeAccountingManager::UpdateDiagnostics(
 {
   std::lock_guard<std::mutex> lock(mMutex);
   mStatus.diagnostics = diagnostics;
-  mStatus.discoveredContainers = diagnostics.discoveredContainers;
-  mStatus.snapshotContainers = diagnostics.snapshotContainers;
-  mStatus.snapshotFiles = diagnostics.snapshotFiles;
-  mStatus.publishTargets = diagnostics.publishTargets;
-  mStatus.publishAttemptedTargets = diagnostics.publishAttemptedTargets;
-  mStatus.publishAppliedTargets = diagnostics.publishAppliedTargets;
-  mStatus.missingTargetCount = diagnostics.publishMissingTargets;
-  mStatus.writeFailedTargetCount = diagnostics.publishWriteFailedTargets;
-  mStatus.converged = diagnostics.converged;
-  mStatus.partialPublish = diagnostics.partialPublish;
-  mStatus.retryReason = diagnostics.retryReason;
-  mStatus.retryCandidateCount = diagnostics.retryCandidateCount;
-  mStatus.retryRootContainerId = diagnostics.retryRootContainerId;
-  mStatus.failedContainerCount = diagnostics.failedContainerCount;
-  mStatus.failedContainerId = diagnostics.failedContainerId;
 }
 
 void
@@ -455,7 +344,6 @@ TreeSizeAccountingManager::WorkerLoop(ThreadAssistant& assistant) noexcept
       job = *mPendingJob;
       mPendingJob.reset();
       mStatus.state = TreeSizeRecomputeJobState::Running;
-      mStatus.phase = "starting";
       mStatus.startedAt = NowUnixTime();
     }
 
@@ -483,10 +371,8 @@ TreeSizeAccountingManager::WorkerLoop(ThreadAssistant& assistant) noexcept
 
       if (result.retc == 0) {
         mStatus.state = TreeSizeRecomputeJobState::Completed;
-        mStatus.phase = "completed";
       } else if ((result.retc == ECANCELED) && mStopRequested.load()) {
         mStatus.state = TreeSizeRecomputeJobState::Stopped;
-        mStatus.phase = "stopped";
       } else {
         mStatus.state = TreeSizeRecomputeJobState::Failed;
       }
@@ -670,7 +556,6 @@ TreeSizeAccountingManager::RecomputeTreeSizeOnce(
   RecomputePassResult pass_result;
   eos::TreeSizeRecomputeEngineCallbacks callbacks;
   callbacks.stopRequested = [this]() { return StopRequested(); };
-  callbacks.updatePhase = [this](const std::string& phase) { UpdatePhase(phase); };
   callbacks.updateProgress = [this](uint64_t discovered_containers,
                                     uint64_t snapshot_containers, uint64_t snapshot_files,
                                     uint64_t publish_targets,
@@ -684,11 +569,8 @@ TreeSizeAccountingManager::RecomputeTreeSizeOnce(
         UpdateDiagnostics(diagnostics);
       };
 
-  const auto engine_result = eos::TreeSizeRecomputeEngine().Recompute(
-      eos::TreeSizeRecomputeRequest{request.rootId, request.rootSpecification,
-                                    request.maxDepth},
-      container_svc, file_svc, accounting_service, callbacks);
-  pass_result.result = MakeResult(engine_result.retc, engine_result.error);
+  pass_result.result = eos::TreeSizeRecomputeEngine().Recompute(
+      request, container_svc, file_svc, accounting_service, callbacks);
   return pass_result;
 }
 

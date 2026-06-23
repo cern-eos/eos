@@ -25,7 +25,6 @@
 
 #include "common/AssistedThread.hh"
 #include "mgm/Namespace.hh"
-#include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/accounting/tree_size/TreeSizeRecomputeEngine.hh"
 #include <atomic>
 #include <condition_variable>
@@ -42,17 +41,8 @@ class ITreeSizeAccountingService;
 
 EOSMGMNAMESPACE_BEGIN
 
-struct TreeSizeRecomputeRequest {
-  eos::IContainerMD::id_t rootId = 0;
-  std::string rootSpecification;
-  uint32_t maxDepth = 0;
-};
-
-struct TreeSizeRecomputeResult {
-  int retc = 0;
-  std::string error;
-};
-
+using TreeSizeRecomputeRequest = eos::TreeSizeRecomputeRequest;
+using TreeSizeRecomputeResult = eos::TreeSizeRecomputeResult;
 using TreeSizeRecomputeDiagnostics = eos::TreeSizeRecomputeDiagnostics;
 
 enum class TreeSizeRecomputeJobState {
@@ -66,33 +56,15 @@ enum class TreeSizeRecomputeJobState {
 
 struct TreeSizeRecomputeStatus {
   TreeSizeRecomputeJobState state = TreeSizeRecomputeJobState::Idle;
-  std::string phase = "idle";
-  eos::IContainerMD::id_t rootId = 0;
-  std::string rootSpecification;
-  uint32_t maxDepth = 0;
+  TreeSizeRecomputeRequest request;
   int retc = 0;
   std::string error;
   uint64_t submittedAt = 0;
   uint64_t startedAt = 0;
   uint64_t finishedAt = 0;
-  uint64_t discoveredContainers = 0;
-  uint64_t snapshotContainers = 0;
-  uint64_t snapshotFiles = 0;
-  uint64_t publishTargets = 0;
-  uint64_t publishAttemptedTargets = 0;
-  uint64_t publishAppliedTargets = 0;
-  uint64_t missingTargetCount = 0;
-  uint64_t writeFailedTargetCount = 0;
   uint64_t recomputePassCount = 0;
   uint64_t retryPassCount = 0;
   bool retryLimitReached = false;
-  bool converged = false;
-  bool partialPublish = false;
-  std::string retryReason;
-  uint64_t retryCandidateCount = 0;
-  uint64_t retryRootContainerId = 0;
-  uint64_t failedContainerCount = 0;
-  uint64_t failedContainerId = 0;
   TreeSizeRecomputeDiagnostics diagnostics;
 };
 
@@ -121,7 +93,7 @@ public:
                   eos::ITreeSizeAccountingService* accounting_service);
 
   TreeSizeRecomputeStatus GetStatus() const;
-  std::string FormatStatus(bool detail = false) const;
+  std::string FormatStatus() const;
 
 private:
   struct WorkerJob {
@@ -147,7 +119,6 @@ private:
 
   void WorkerLoop(ThreadAssistant& assistant) noexcept;
   bool StopRequested() const;
-  void UpdatePhase(const std::string& phase);
   void UpdateProgress(uint64_t discovered_containers, uint64_t snapshot_containers,
                       uint64_t snapshot_files, uint64_t publish_targets,
                       uint64_t publish_applied_targets);
