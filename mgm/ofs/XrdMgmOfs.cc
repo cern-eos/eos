@@ -113,6 +113,7 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/PathDepthCheck.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/Stat.hh"
 #include <XrdOss/XrdOss.hh>
