@@ -90,7 +90,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/clear-cmd-native.cc
   commands/native/debug-cmd-native.cc
   commands/native/evict-cmd-native.cc
-  commands/native/file-cmd-native.cc
+  commands/native/file-proto-native.cc
   commands/native/geosched-cmd-native.cc
   commands/native/ln-cmd-native.cc
   commands/native/ls-cmd-native.cc
