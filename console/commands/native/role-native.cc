@@ -8,6 +8,15 @@
 #include <sstream>
 
 namespace {
+std::string MakeRoleHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: role <user-role> [<group-role>]                       : select user role <user-role> [and group role <group-role>]\n"
+      << "            <user-role> can be a virtual user ID (unsigned int) or a user mapping alias\n"
+      << "            <group-role> can be a virtual group ID (unsigned int) or a group mapping alias\n";
+  return oss.str();
+}
+
 class RoleCommand : public IConsoleCommand {
 public:
   const char*
@@ -29,7 +38,7 @@ public:
   run(const std::vector<std::string>& args, CommandContext&) override
   {
     if (args.empty() || wants_help(args[0].c_str())) {
-      fprintf(stderr, "Usage: role <user-role> [<group-role>]\n");
+      printHelp();
       global_retc = EINVAL;
       return 0;
     }
@@ -38,6 +47,11 @@ public:
       group_role = args[1].c_str();
     else
       group_role = "";
+    if (user_role.beginswith("-")) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
     if (!silent)
       fprintf(stdout,
               "=> selected user role ruid=<%s> and group role rgid=<%s>\n",
@@ -49,6 +63,7 @@ public:
   void
   printHelp() const override
   {
+    fprintf(stderr, "%s", MakeRoleHelp().c_str());
   }
 };
 } // namespace
