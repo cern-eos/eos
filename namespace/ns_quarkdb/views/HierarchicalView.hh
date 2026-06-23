@@ -329,25 +329,6 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Maximum effort (path lookups + symlink expansions) that getPathInternal
-  //! is allowed to spend resolving a single path before it gives up with
-  //! ELOOP. This doubles as the effective maximum resolvable path depth, so
-  //! the directory-creation guards below are derived from it to make sure we
-  //! never create a directory that can later not be resolved. Keep the literal
-  //! used in getPathInternal in sync with this constant.
-  //----------------------------------------------------------------------------
-  static constexpr size_t MAX_PATH_EFFORT = 255;
-
-  //----------------------------------------------------------------------------
-  //! Maximum number of path chunks (i.e. directory depth) that createContainer
-  //! is allowed to create. The "-2" accounts for the effort offset applied
-  //! while creating the directory so that the deepest created directory still
-  //! fits within MAX_PATH_EFFORT both while being created and when later
-  //! resolved.
-  //----------------------------------------------------------------------------
-  static constexpr size_t MAX_CREATE_DEPTH = MAX_PATH_EFFORT - 2;
-
-  //----------------------------------------------------------------------------
   //! Lookup a given path - internal function.
   //!
   //! @param effp optional out-parameter that receives the running effort count

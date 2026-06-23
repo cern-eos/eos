@@ -24,13 +24,14 @@
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/utils/PathDepthCheck.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <algorithm>
@@ -548,6 +549,52 @@ TEST_F(HierarchicalViewF, RenameDirectoryAsSubdirOfItself)
   ASSERT_TRUE(eos::isSafeToRename(view(), cont2.get(),
                                   cont1.get())); // non-sensical to do, but safe (no-op)
   ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont2.get()));
+}
+
+TEST_F(HierarchicalViewF, SubtreeDepthCheck)
+{
+  // Build a chain "a/b/c/d" (4 levels) below /root plus a shallow sibling.
+  view()->createContainer("/root/a/b/c/d", true);
+  view()->createContainer("/root/x", true);
+  eos::IContainerMDSvc* svc = containerSvc();
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/root");
+  std::shared_ptr<eos::IContainerMD> a = view()->getContainer("/root/a");
+  std::shared_ptr<eos::IContainerMD> d = view()->getContainer("/root/a/b/c/d");
+  bool budget = false;
+  // Deepest descendant of /root ("d") sits 4 levels below it.
+  ASSERT_FALSE(eos::subtreeExceedsRelDepth(svc, root, 4, 1000, budget));
+  ASSERT_FALSE(budget);
+  ASSERT_TRUE(eos::subtreeExceedsRelDepth(svc, root, 3, 1000, budget));
+  ASSERT_FALSE(budget);
+  // Relative to "a", the chain "b/c/d" is 3 levels deep.
+  ASSERT_FALSE(eos::subtreeExceedsRelDepth(svc, a, 3, 1000, budget));
+  ASSERT_TRUE(eos::subtreeExceedsRelDepth(svc, a, 2, 1000, budget));
+  // A leaf container can never exceed any non-negative depth.
+  ASSERT_FALSE(eos::subtreeExceedsRelDepth(svc, d, 0, 1000, budget));
+  // Exhausting the node budget reports "cannot verify" (false + flag set).
+  ASSERT_FALSE(eos::subtreeExceedsRelDepth(svc, root, 100, 1, budget));
+  ASSERT_TRUE(budget);
+}
+
+TEST_F(HierarchicalViewF, CreateContainerDepthLimit)
+{
+  // A path exactly at the maximum creatable depth must succeed, while one
+  // level deeper must be rejected with ENAMETOOLONG before anything is created.
+  std::ostringstream max_path;
+
+  for (size_t i = 0; i < eos::QuarkHierarchicalView::MAX_CREATE_DEPTH; ++i) {
+    max_path << "/d";
+  }
+
+  ASSERT_NO_THROW(view()->createContainer(max_path.str(), true));
+  std::string too_deep = max_path.str() + "/d";
+
+  try {
+    view()->createContainer(too_deep, true);
+    FAIL() << "expected ENAMETOOLONG for an over-deep directory";
+  } catch (const eos::MDException& e) {
+    ASSERT_EQ(e.getErrno(), ENAMETOOLONG);
+  }
 }
 
 TEST_F(HierarchicalViewF, AddFileWithConflicts)
