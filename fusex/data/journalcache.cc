@@ -150,7 +150,9 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
 
   if ((nbAttached == 0) && (fd == -1)) {
     std::string path;
-    int rc = location(path);
+    // we get path setting only, attempt directory
+    // creation below if needed
+    int rc = location(path, false);
 
     if (rc) {
       return rc;
@@ -175,14 +177,14 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
           // re-create the directory structure
           rc = location(path);
 
-          if (rc) {
+          if (rc && rc != -ENOENT) {
             return rc;
           }
 
           if (tries < 10) {
             continue;
           } else {
-            return -errno;
+            return -ENOENT;
           }
         }
 

@@ -731,8 +731,9 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     char msg[1024];
     snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx errno=%d", id(),
              errno);
-    eos_crit("%s", msg);
-    throw std::runtime_error(msg);
+    eos_warning("%s", msg);
+    remove_file_cache();
+    bcache = 0;
   }
 
   if (jcache < 0) {
