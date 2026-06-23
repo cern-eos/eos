@@ -162,7 +162,9 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
 
   if (nattached == 0) {
     std::string path;
-    rc = location(path);
+    // we get path setting only, attempt directory
+    // creation below if needed
+    rc = location(path, false);
 
     if (rc) {
       return rc;
@@ -185,14 +187,14 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
           // re-create the directory structure
           rc = location(path);
 
-          if (rc) {
+          if (rc && rc != -ENOENT) {
             return rc;
           }
 
           if (tries < 10) {
             continue;
           } else {
-            return -errno;
+            return -ENOENT;
           }
         }
 
