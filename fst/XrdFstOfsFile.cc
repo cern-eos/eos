@@ -4136,7 +4136,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
     RequestSenderConfig cf(protowfusegrpc, endPoint, resource, root_certs, tokenPath,
-                           protowfusegrpctls, protowfusegrpctlscert, protowfusegrpctlskey);
+                           protowfusegrpctls, protowfusegrpctlscert,
+                           protowfusegrpctlskey);
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
     auto sentAt = std::chrono::steady_clock::now();
     response_type = request_sender->send(request, response);

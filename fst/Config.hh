@@ -63,7 +63,7 @@ public:
   std::string JwtTokenPath; // where to find the JWT to be used in WFE calls for authentication when gRPC is used
   bool protowfusegrpctls = false; // use TLS encrypted connections or plaintext connections for grpc
   std::string protowfusegrpctlscert; // path to the client certificate for mutual TLS
-  std::string protowfusegrpctlskey; // path to the client private key for mutual TLS
+  std::string protowfusegrpctlskey;  // path to the client private key for mutual TLS
 
   Config()
   {
