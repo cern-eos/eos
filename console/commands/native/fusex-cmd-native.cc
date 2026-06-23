@@ -17,7 +17,7 @@ namespace {
 std::string MakeFusexHelp()
 {
   std::ostringstream oss;
-  oss << "usage: fusex ls [-l] [-f] [-m]                     :  print statistics about eosxd fuse clients\n"
+  oss << "Usage: fusex ls [-l] [-f] [-m]                     :  print statistics about eosxd fuse clients\n"
       << "                [no option]                                          -  break down by client host [default]\n"
       << "                -l                                                   -  break down by client host and show statistics \n"
       << "                -f                                                   -  show ongoing flush locks\n"
