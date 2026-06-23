@@ -66,7 +66,7 @@ constexpr const char* kAutomaticDetailCardinalityPrefix = "auto-cardinality:";
 std::string MakeIoHelp()
 {
   std::ostringstream oss;
-  oss << " usage:\n"
+  oss << "Usage:\n"
       << std::endl
       << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si] : print io "
          "statistics\n"
@@ -677,8 +677,7 @@ public:
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
-      eos::console::IoProto io;
-      BuildAndParseIoApp(joined, &io);
+      printHelp();
       global_retc = EINVAL;
       return 0;
     }
