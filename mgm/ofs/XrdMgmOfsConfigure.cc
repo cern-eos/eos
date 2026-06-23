@@ -1142,7 +1142,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (!strcmp("protowfusegrpctlscert", var)) {
         if (!(val = Config.GetWord())) {
           Eroute.Emsg("Config", "argument for protowfusegrpctlscert missing. "
-                      "Should be an absolute path to the client certificate.");
+                                "Should be an absolute path to the client certificate.");
           NoGo = 1;
         } else {
           protowfusegrpctlscert = val;
@@ -1153,7 +1153,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (!strcmp("protowfusegrpctlskey", var)) {
         if (!(val = Config.GetWord())) {
           Eroute.Emsg("Config", "argument for protowfusegrpctlskey missing. "
-                      "Should be an absolute path to the client private key.");
+                                "Should be an absolute path to the client private key.");
           NoGo = 1;
         } else {
           protowfusegrpctlskey = val;
