@@ -13,18 +13,18 @@ Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libfuse3-d
  libeosxrootd-private-dev (>= _XRD_DEB_VER_),
  libeosxrootd-client-dev (>= _XRD_DEB_VER_),
  libeosxrootd-server-dev (>= _XRD_DEB_VER_),
- libeosxrdapputils2t64 (>= _XRD_DEB_VER_),
- libeosxrdcrypto2t64 (>= _XRD_DEB_VER_),
- libeosxrdcryptolite2t64 (>= _XRD_DEB_VER_),
- libeosxrdxml3t64 (>= _XRD_DEB_VER_),
- libeosxrdutils3t64 (>= _XRD_DEB_VER_),
- libeosxrdhttputils2t64 (>= _XRD_DEB_VER_),
- libeosxrdserver3t64 (>= _XRD_DEB_VER_),
- libeosxrdssilib2t64 (>= _XRD_DEB_VER_),
- libeosxrdssishmap2t64 (>= _XRD_DEB_VER_),
- libeosxrdcl3t64 (>= _XRD_DEB_VER_),
- libeosxrdffs3t64 (>= _XRD_DEB_VER_),
- libeosxrdposix3t64 (>= _XRD_DEB_VER_),
+ libeosxrdapputils6t64 (>= _XRD_DEB_VER_),
+ libeosxrdcrypto6t64 (>= _XRD_DEB_VER_),
+ libeosxrdcryptolite6t64 (>= _XRD_DEB_VER_),
+ libeosxrdxml6t64 (>= _XRD_DEB_VER_),
+ libeosxrdutils6t64 (>= _XRD_DEB_VER_),
+ libeosxrdhttputils6t64 (>= _XRD_DEB_VER_),
+ libeosxrdserver6t64 (>= _XRD_DEB_VER_),
+ libeosxrdssilib6t64 (>= _XRD_DEB_VER_),
+ libeosxrdssishmap6t64 (>= _XRD_DEB_VER_),
+ libeosxrdcl6t64 (>= _XRD_DEB_VER_),
+ libeosxrdffs6t64 (>= _XRD_DEB_VER_),
+ libeosxrdposix6t64 (>= _XRD_DEB_VER_),
  _PROCPS_TAG_
 Homepage: http://eos.web.cern.ch/
 Vcs-Git: https://gitlab.cern.ch/dss/eos.git
@@ -37,9 +37,9 @@ Depends: ${shlibs:Depends}, systemd,
  eos-grpc,
  eos-xrootd-plugins (>= _XRD_DEB_VER_),
  libeosxrootd-client-dev (>= _XRD_DEB_VER_),
- libeosxrdposix3t64 (>= _XRD_DEB_VER_),
- libeosxrdutils3t64 (>= _XRD_DEB_VER_),
- libeosxrdcl3t64 (>= _XRD_DEB_VER_)
+ libeosxrdposix6t64 (>= _XRD_DEB_VER_),
+ libeosxrdutils6t64 (>= _XRD_DEB_VER_),
+ libeosxrdcl6t64 (>= _XRD_DEB_VER_)
 Description: EOS client package
 
 Package: eos-fusex
@@ -48,8 +48,8 @@ Multi-Arch: same
 Depends: ${shlibs:Depends}, eos-grpc, fuse, fuse3,
   eos-client (=${binary:Version}),
   libeosxrootd-client-dev (>= _XRD_DEB_VER_),
-  libeosxrdcl3t64 (>= _XRD_DEB_VER_),
-  libeosxrdutils3t64 (>= _XRD_DEB_VER_)
+  libeosxrdcl6t64 (>= _XRD_DEB_VER_),
+  libeosxrdutils6t64 (>= _XRD_DEB_VER_)
 Replaces: eos-fuse
 Description: EOS fuse client bundle
 
