@@ -16,8 +16,45 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.5.0 Diopside``
+===================
+
+2026-06-24
+
+Note: Update dependency to xrootd/eos-xrootd 6.0.3 release.
+
+Bug
+----
+
+* [EOS-4181] - CLI not working with escaped paths
+* [EOS-5708] - Parallel writes to EC files is not prevented
+* [EOS-5905] - CLI as root impossible via sss on IPV6 only MGM
+* [EOS-6302] - Scheduler should take into account EC
+* [EOS-6462] - space quota not updated on concurrent file deletion (commit after delete?)
+* [EOS-6556] - EOSATLAS high heartbeats for nodes, file systems fine
+* [EOS-6559] - fsck should fix files with all zero checksum and non-zero size
+* [EOS-6567] - EOS fails to compile with GRPC 1.67.0 and later
+* [EOS-6593] - Creating a symlink doesn't update eos.ttime of parent dir
+* [EOS-6595] - EOS MGM blocked after QDB master change.
+* [EOS-6600] - silence FST startup log error when FS device not accessible
+* [EOS-6604] - FUSE creates zero-byte namespace entries under immutable ACL directories
+* [EOS-6607] - Fuse crash in lxplus during open
+* FUSEX: Extend client-side unix uid transport to 33 bits to allow uids > 1M.
+
+Improvement
+------------
+
+* [EOS-4802] - Expose the EOS version through the grpc and/or XrdHTTP interfaces
+* [EOS-5755] - Honour eos.excludefsid also for read access
+* [EOS-6023] - RFE: MGM: treat /var/eos/ns-queue/ as expendable ?
+* [EOS-6389] - RFE: groupdrainer to randomize file candidates
+* [EOS-6605] - Trigger CTA regression tests using Downstream pipelines
+
+
 ``v5.4.7 Diopside``
 ===================
+
+2026-06-11
 
 Bug
 ---
