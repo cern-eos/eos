@@ -4,8 +4,6 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
-#include <algorithm>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -23,18 +21,6 @@ std::string MakeTouchHelp()
          "  -0  truncate\n"
          "  -l  lock\n"
          "  -u  unlock\n";
-}
-
-void ConfigureTouchApp(CLI::App& app)
-{
-  app.name("touch");
-  app.description("Touch a file");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeTouchHelp();
-      }));
 }
 
 class TouchCommand : public IConsoleCommand {
@@ -76,31 +62,12 @@ public:
       return 0;
     }
 
-    CLI::App app;
-    ConfigureTouchApp(app);
-
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
-    try {
-      app.parse(cli_args);
-    } catch (const CLI::ParseError&) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    std::vector<std::string> remaining = app.remaining();
-    std::reverse(remaining.begin(), remaining.end());
-    if (remaining.empty()) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
+    // This command has no flags of its own to parse - it just delegates
+    // everything to 'file touch'
     std::vector<std::string> fargs;
-    fargs.reserve(remaining.size() + 1);
+    fargs.reserve(args.size() + 1);
     fargs.push_back("touch");
-    fargs.insert(fargs.end(), remaining.begin(), remaining.end());
+    fargs.insert(fargs.end(), args.begin(), args.end());
     return fileCmd->run(fargs, ctx);
   }
   void
