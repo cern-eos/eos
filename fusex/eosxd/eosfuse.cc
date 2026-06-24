@@ -4715,6 +4715,29 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
       }
     }
 
+    // Reject directory moves that would push the directory - or part of its
+    // locally cached subtree - beyond the maximum resolvable namespace path
+    // depth. The MGM enforces the same limit, but a fusex directory move is
+    // applied optimistically in the local cache and flushed asynchronously, so
+    // the server-side rejection can never surface as the rename() return code -
+    // we have to fail early here. See metad::check_move_depth.
+    if (!rc) {
+      bool is_dir = false;
+      {
+        XrdSysMutexHelper mLock(md->Locker());
+        is_dir = S_ISDIR((*md)()->mode());
+      }
+
+      if (is_dir) {
+        rc = Instance().mds.check_move_depth(p2md, md, newname);
+
+        if (rc) {
+          eos_static_err("msg=\"refusing too deep directory move\" src=%s dst=%s rc=%d",
+                         name, newname, rc);
+        }
+      }
+    }
+
     if (!rc) {
       // fake rename logic for online editing if configured
       if (Instance().Config().options.fakerename && (*p1md)()->tmptime()) {

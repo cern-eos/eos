@@ -770,6 +770,20 @@ public:
 
   std::string calculateLocalPath(shared_md md);
 
+  //----------------------------------------------------------------------------
+  //! Check whether moving directory 'md' to become a child named 'newname'
+  //! under 'p2md' would push the directory - or part of its locally cached
+  //! subtree - beyond the maximum resolvable namespace path depth.
+  //!
+  //! The MGM enforces the same limit, but a fusex directory move is applied
+  //! optimistically in the local cache and flushed asynchronously, so a
+  //! server-side rejection can never surface as the rename() return code. We
+  //! therefore have to reject such moves up-front on the client side.
+  //!
+  //! @return 0 if the move stays within the depth limit, ENAMETOOLONG otherwise
+  //----------------------------------------------------------------------------
+  int check_move_depth(shared_md p2md, shared_md md, const std::string& newname);
+
   void cleanup(shared_md md);
   void cleanup(fuse_ino_t ino);
 
@@ -1188,7 +1202,7 @@ private:
   // want connect: 0 no connect wanted or ongoing
   //               1 in connect()
   //               2 send error, should reconnect
-  std::atomic<int> want_zmq_connect; 
+  std::atomic<int> want_zmq_connect;
   std::atomic<int> fusex_visible;
   backend* mdbackend;
 
