@@ -31,6 +31,11 @@
 /*----------------------------------------------------------------------------*/
 #include <arpa/inet.h>
 
+namespace {
+// Unix transport via ~ encoding round-trips safely while (uid << 6) fits in 40 bits.
+constexpr uint64_t kMaxUnixTransportUid = (1ULL << 33) - 1;
+} // namespace
+
 // Logic extracted from the old AuthIdManager::mapUser.
 
 LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
@@ -53,8 +58,8 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
     map_only_user = true;
   }
 
-  // this mechanism can only transport uid's over UNIX < 1024*1024 !
-  if (uid >= (1024*1024)) {
+  // Reject uids that no longer round-trip through the truncated base64 login id.
+  if (uid > kMaxUnixTransportUid) {
     eos_static_info("msg=\"unable to map uid+gid - out of range - requesting 99/99");
     uid = 99;
     gid = 99;
