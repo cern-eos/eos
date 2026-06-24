@@ -2179,7 +2179,19 @@ FileCmd::FileinfoSubcmd(const eos::console::FileinfoProto& info,
   ProcCommand cmd;
   XrdOucErrInfo error;
   std::string cmd_in = "mgm.cmd=fileinfo";
-  cmd_in += "&mgm.path=" + path;
+  bool is_identifier = (path.find("fid:") == 0) || (path.find("fxid:") == 0) ||
+                       (path.find("pid:") == 0) || (path.find("pxid:") == 0) ||
+                       (path.find("inode:") == 0);
+
+  if (is_identifier) {
+    cmd_in += "&mgm.path=" + path;
+  } else {
+    // the path may contain CGI-reserved characters (e.g. '&') that would
+    // otherwise break parsing of this opaque string on the MGM side -
+    // escape it the same way the console client's AppendEncodedPath() does
+    cmd_in += "&mgm.path=" + eos::common::StringConversion::curl_escaped(path);
+    cmd_in += "&eos.encodepath=1";
+  }
 
   if (WantsJsonOutput()) {
     cmd_in += "&mgm.format=json";
@@ -2233,17 +2245,25 @@ FileCmd::FileinfoSubcmd(const eos::console::FileinfoProto& info,
   cmd.AddOutput(std_out, std_err);
   cmd.close();
 
-  // JSON output is built by ProcCommand::MakeResult() (invoked from open())
-  // into a separate 'stdJson' member rather than 'stdOut', and then normally
-  // gets wrapped/sealed for the legacy opaque CGI transport - bypass that
-  // wrapping and hand back the raw JSON text directly in the reply.
+  // ProcCommand::MakeResult() (invoked from open()) unconditionally seals
+  // '&' into '#and#' in place in stdOut/stdErr/stdJson (for the legacy
+  // opaque CGI transport, where the old CLI unseals it back after parsing
+  // 'mgm.proc.stdout='/'mgm.proc.json=' etc. out of the raw response) -
+  // undo that sealing here since we hand the text back directly without
+  // going through that transport.
   if (WantsJsonOutput()) {
-    reply.set_std_out(cmd.GetStdJson());
+    XrdOucString json_out = cmd.GetStdJson();
+    eos::common::StringConversion::UnSeal(json_out);
+    reply.set_std_out(json_out.c_str() ? json_out.c_str() : "");
   } else {
-    reply.set_std_out(std_out);
+    XrdOucString text_out = std_out.c_str();
+    eos::common::StringConversion::UnSeal(text_out);
+    reply.set_std_out(text_out.c_str() ? text_out.c_str() : "");
   }
 
-  reply.set_std_err(std_err);
+  XrdOucString err_out = std_err.c_str();
+  eos::common::StringConversion::UnSeal(err_out);
+  reply.set_std_err(err_out.c_str() ? err_out.c_str() : "");
   reply.set_retc(cmd.GetRetc());
 }
 
