@@ -2751,6 +2751,115 @@ metad::calculateLocalPath(shared_md md)
 }
 
 /* -------------------------------------------------------------------------- */
+int
+metad::check_move_depth(shared_md p2md, shared_md md, const std::string& newname)
+/* -------------------------------------------------------------------------- */
+{
+  // Matches QuarkHierarchicalView's MAX_CREATE_DEPTH and the server-side move
+  // guards in XrdMgmOfs::_rename and FuseServer::OpSetDirectory.
+  const size_t max_depth = eos::common::Path::MAX_LEVELS - 2;
+  // Mirror namespace/utils/PathDepthCheck.hh: only scan the subtree when the
+  // destination is within this many levels of the limit, and bound the scan.
+  static constexpr size_t kScanThreshold = 64;
+  static constexpr size_t kScanBudget = 10000;
+  std::string parent_full;
+  std::string old_full;
+  {
+    XrdSysMutexHelper pLock(p2md->Locker());
+    parent_full = (*p2md)()->fullpath();
+  }
+  {
+    XrdSysMutexHelper mLock(md->Locker());
+    old_full = (*md)()->fullpath();
+  }
+
+  if (parent_full.empty()) {
+    // Without the absolute target path we cannot evaluate the depth - leave
+    // the namespace protection to the MGM.
+    return 0;
+  }
+
+  std::string new_full = parent_full;
+
+  if (new_full.back() != '/') {
+    new_full += "/";
+  }
+
+  new_full += newname;
+  eos::common::Path nPath(new_full.c_str());
+  const size_t new_depth = nPath.GetSubPathSize();
+  size_t old_depth = 0;
+
+  if (!old_full.empty()) {
+    eos::common::Path oPath(old_full.c_str());
+    old_depth = oPath.GetSubPathSize();
+  }
+
+  // Only depth-increasing moves can violate the limit.
+  if (new_depth <= old_depth) {
+    return 0;
+  }
+
+  // The moved directory itself would already sit too deep.
+  if (new_depth > max_depth) {
+    return ENAMETOOLONG;
+  }
+
+  const size_t allowed_rel = max_depth - new_depth;
+
+  // Destination shallow enough that a violating subtree is implausible.
+  if (allowed_rel > kScanThreshold) {
+    return 0;
+  }
+
+  // Bounded, cache-only scan of the subtree being moved. 'md' itself is at
+  // relative depth 0, its direct children at relative depth 1, etc.
+  size_t visited = 0;
+  std::vector<std::pair<fuse_ino_t, size_t>> stack;
+  {
+    XrdSysMutexHelper mLock(md->Locker());
+
+    for (const auto& child : md->local_children()) {
+      stack.emplace_back(child.second, 1);
+    }
+  }
+
+  while (!stack.empty()) {
+    const fuse_ino_t ino = stack.back().first;
+    const size_t depth = stack.back().second;
+    stack.pop_back();
+
+    if (++visited > kScanBudget) {
+      // Could not verify the subtree fits - fail closed.
+      return ENAMETOOLONG;
+    }
+
+    if (depth > allowed_rel) {
+      return ENAMETOOLONG;
+    }
+
+    shared_md cmd;
+
+    if (!mdmap.retrieveTS(ino, cmd)) {
+      // Not in the local cache - best-effort scan, skip it.
+      continue;
+    }
+
+    XrdSysMutexHelper cLock(cmd->Locker());
+
+    if (!S_ISDIR((*cmd)()->mode())) {
+      continue;
+    }
+
+    for (const auto& child : cmd->local_children()) {
+      stack.emplace_back(child.second, depth + 1);
+    }
+  }
+
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 metad::mdcallback(ThreadAssistant& assistant)
 {
