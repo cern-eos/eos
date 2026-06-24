@@ -11,7 +11,6 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
-#include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCompletion.hh"
@@ -627,19 +626,19 @@ public:
   ParseCommand(const char* arg) override
   {
     eos::console::FileProto* file = mReq.mutable_file();
-    eos::common::StringTokenizer tokenizer(arg);
-    tokenizer.GetLine();
-    std::string token;
+    // TokenizeQuoted: unlike common::StringTokenizer, this never seals '&'
+    // into '#AND#' (that legacy opaque-CGI convention doesn't apply here -
+    // tokens go straight into FileProto fields), while still respecting
+    // quotes and escapes.
+    std::vector<std::string> all_tokens;
+    eos::common::StringConversion::TokenizeQuoted(arg, all_tokens, " ");
 
-    if (!tokenizer.NextToken(token)) {
+    if (all_tokens.empty()) {
       return false;
     }
 
-    std::vector<std::string> rest;
-    std::string tmp;
-    while (tokenizer.NextToken(tmp)) {
-      rest.push_back(tmp);
-    }
+    const std::string& token = all_tokens[0];
+    std::vector<std::string> rest(all_tokens.begin() + 1, all_tokens.end());
 
     if (token == "rename") {
       if (rest.size() < 2) {
