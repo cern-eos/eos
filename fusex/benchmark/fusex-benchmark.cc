@@ -1164,7 +1164,7 @@ int main(int argc, char* argv[])
       exit(testno);
     }
 
-    eos::common::ShellCmd removedir("rm -r test24 test24src");
+    eos::common::ShellCmd removedir("rm -r test24");
     rc = removedir.wait(5);
 
     if (rc.exit_code) {
