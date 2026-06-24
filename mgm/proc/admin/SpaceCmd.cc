@@ -22,29 +22,31 @@
  ************************************************************************/
 
 #include "SpaceCmd.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/tgc/Constants.hh"
-#include "mgm/http/rest-api/Constants.hh"
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/lru/LRU.hh"
-#include "mgm/acl/Acl.hh"
-#include "common/Path.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/inspector/FileInspector.hh"
-#include "mgm/egroup/Egroup.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/groupbalancer/GroupBalancer.hh"
-#include "mgm/groupdrainer/GroupDrainer.hh"
-#include "mgm/balancer/FsBalancer.hh"
-#include "mgm/placement/FsScheduler.hh"
-#include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/interface/IView.hh"
 #include "common/Constants.hh"
+#include "common/Path.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/token/EosTok.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/balancer/FsBalancer.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/egroup/Egroup.hh"
+#include "mgm/groupbalancer/GroupBalancer.hh"
+#include "mgm/groupdrainer/GroupDrainer.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/inspector/FileInspector.hh"
+#include "mgm/lru/LRU.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/tgc/Constants.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
+#include <algorithm>
+#include <cctype>
 
 EOSMGMNAMESPACE_BEGIN
 static const std::string BALANCER_KEY_PREFIX = "balancer";
@@ -785,7 +787,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
           if ((value != "on") && (value != "off")) {
             ret_c = EINVAL;
-            std_err.str("error: value has to either on or off");
+            std_err.str("error: value has to be either on or off");
           } else {
             if (!space->SetConfigMember(key, value)) {
               ret_c = EIO;
@@ -927,7 +929,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           TapeRestApiStageSubcmd(space_name, value, space, ret_c, std_out, std_err);
         } else if (key == "groupsize" || key == "groupmod") {
           applied = true;
-          if (!space->SetConfigMember(key, value)) {
+          if (value.empty() || !std::all_of(value.begin(), value.end(), ::isdigit)) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to be a non-negative integer");
+          } else if (!space->SetConfigMember(key, value)) {
             ret_c = EIO;
             std_err.str("error: cannot set space config value");
           } else {
@@ -1478,7 +1483,7 @@ SpaceCmd::TapeRestApiStatusSubcmd(const std::string& space_name, const std::stri
   // REST API activation
   if ((value != "on") && (value != "off")) {
     ret_c = EINVAL;
-    std_err.str("error: value has to either on or off");
+    std_err.str("error: value has to be either on or off");
   } else {
     if (space_name != "default") {
       ret_c = EIO;
@@ -1533,7 +1538,7 @@ SpaceCmd::TapeRestApiStageSubcmd(const std::string& space_name, const std::strin
   // REST API activation
   if ((value != "on") && (value != "off")) {
     ret_c = EINVAL;
-    std_err.str("error: value has to either on or off");
+    std_err.str("error: value has to be either on or off");
   } else {
     if (space_name != "default") {
       ret_c = EIO;
