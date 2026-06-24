@@ -630,8 +630,15 @@ public:
     // into '#AND#' (that legacy opaque-CGI convention doesn't apply here -
     // tokens go straight into FileProto fields), while still respecting
     // quotes and escapes.
+    static const char kBackslashSentinel = '\x01';
+    std::string sanitized = arg;
+    std::replace(sanitized.begin(), sanitized.end(), '\\', kBackslashSentinel);
     std::vector<std::string> all_tokens;
-    eos::common::StringConversion::TokenizeQuoted(arg, all_tokens, " ");
+    eos::common::StringConversion::TokenizeQuoted(sanitized, all_tokens, " ");
+
+    for (auto& tok : all_tokens) {
+      std::replace(tok.begin(), tok.end(), kBackslashSentinel, '\\');
+    }
 
     if (all_tokens.empty()) {
       return false;
