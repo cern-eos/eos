@@ -107,13 +107,7 @@
 #include "common/Mapping.hh"
 #include "common/MutexLatencyWatcher.hh"
 #include "common/XrdConnPool.hh"
-#include "common/Audit.hh"
-#include "mgm/proc/ProcCommand.hh"
-#include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/drain/Drainer.hh"
-#include "mgm/misc/IdTrackerWithValidity.hh"
-#include "mgm/imaster/IMaster.hh"
+#include "common/wfe/WFEEndpoint.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/imaster/IMaster.hh"
@@ -130,8 +124,6 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "mgm/inflighttracker/InFlightTracker.hh"
-#include "mgm/namespacestats/NamespaceStats.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <chrono>
 #include <mutex>
@@ -1794,23 +1786,22 @@ public:
   mPostSlaveToMaster; ///< Path of the script running after the Slave to Master transition
   int ManagerPort; ///< manager port as number e.g. 1094
   uint16_t XrdHttpPort; ///< The port on which the XrdHttp server is running
-  std::string
-  ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
+  std::optional<WFEndpoint>
+      ProtoWFEndpoint; ///< schema, host and port of service to communicate with in case
+                       ///< of proto workflows (typically CTA frontend)
   std::string
   ProtoWFResource; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
-  bool protowfusegrpc; ///< use xrootd/ssi or grpc to talk to CTA Frontend?
   //! Path to the JWT to be used for authenticating gRPC WFE calls to CTA Frontend
   std::string JwtTokenPath;
   //! Use TLS encrypted connections or plaintext connections for grpc
-  bool protowfusegrpctls = false;
   //! Path to the client certificate for mutual TLS
-  std::string protowfusegrpctlscert;
+  std::string GrpcTlsCertPath;
   //! Path to the client private key for mutual TLS
-  std::string protowfusegrpctlskey;
+  std::string GrpcTlsKeyPath;
   static XrdSysError* eDest; ///< error routing object
 
   //----------------------------------------------------------------------------
