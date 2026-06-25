@@ -1,4 +1,4 @@
-	###########################################################
+###########################################################
 set MGM=$EOS_MGM_ALIAS
 ###########################################################
 
@@ -34,13 +34,14 @@ fstofs.metalog /var/eos/md/
 # QuarkDB cluster info needed by FSCK to perform the namespace scan
 #fstofs.qdbcluster localhost:777
 #fstofs.qdbpassword_file /etc/eos.keytab
-# Use gRPC?
-#fstofs.protowfusegrpc true
 #fstofs.jwttokenpath /etc/grid-security/jwt-token-grpc
-#fstofs.protowfusegrpctls true
-# additionally provide the cert and key for mutual tls
-#fstofs.protowfusegrpctlscert
-#fstofs.protowfusegrpctlskey
+
+#
+#fstofs.protowfendpoint grpcs://cta-frontend-wfe:10956
+#fstofs.protowfresource /ctafrontend
+# provide the cert and key for mutual tls
+#fstofs.protowfgrpctlscert
+#fstofs.protowfgrpctlskey
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000

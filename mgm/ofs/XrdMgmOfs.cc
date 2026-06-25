@@ -303,7 +303,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
     , LinuxStatsStartup{0}
     , HostName(0)
     , HostPref(0)
-    , protowfusegrpc(false)
     , mNamespaceState(NamespaceState::kDown)
     , mFileInitTime(0)
     , mTotalInitTime(time(nullptr))

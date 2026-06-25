@@ -27,8 +27,8 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
-#include "common/WFEClient.hh"
 #include "common/http/OwnCloud.hh"
+#include "common/wfe/WFEClient.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "cta_frontend.grpc.pb.h"
 #include "cta_frontend.pb.h"
@@ -4102,25 +4102,21 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   notification->mutable_transport()->set_error_report_url(
     errorReportStream.str());
   // Communication with service
-  std::string endPoint;
+  std::optional<WFEndpoint> endPoint;
   std::string resource;
-  bool protowfusegrpc;
   std::string tokenPath;
-  bool protowfusegrpctls;
-  std::string protowfusegrpctlscert;
-  std::string protowfusegrpctlskey;
+  std::string GrpcTlsCertPath;
+  std::string GrpcTlsKeyPath;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
     resource = gConfig.ProtoWFResource;
-    protowfusegrpc = gConfig.protowfusegrpc;
     tokenPath = gConfig.JwtTokenPath;
-    protowfusegrpctls = gConfig.protowfusegrpctls;
-    protowfusegrpctlscert = gConfig.protowfusegrpctlscert;
-    protowfusegrpctlskey = gConfig.protowfusegrpctlskey;
+    GrpcTlsCertPath = gConfig.GrpcTlsCertPath;
+    GrpcTlsKeyPath = gConfig.GrpcTlsKeyPath;
   }
 
-  if (endPoint.empty() || resource.empty()) {
+  if (!endPoint.has_value() || resource.empty()) {
     eos_static_err("%s", "msg=\"you are running proto wf jobs without "
                    "specifying fstofs.protowfendpoint or "
                    "fstofs.protowfresource in the FST config file\"");
@@ -4135,9 +4131,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    RequestSenderConfig cf(protowfusegrpc, endPoint, resource, root_certs, tokenPath,
-                           protowfusegrpctls, protowfusegrpctlscert,
-                           protowfusegrpctlskey);
+    RequestSenderConfig cf(endPoint.value(), resource, root_certs, tokenPath,
+                           GrpcTlsCertPath, GrpcTlsKeyPath);
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
     auto sentAt = std::chrono::steady_clock::now();
     response_type = request_sender->send(request, response);

@@ -433,8 +433,10 @@ XrdFstOfs::XrdFstOfs() :
     }
 
     mMgmXrdPool.reset(new eos::common::XrdConnPool(true, max_size));
-    fprintf(stderr, "Config Enabled CallManager xrootd connection pool with "
-            "size=%i\n", max_size);
+    fprintf(stderr,
+            "Config Enabled CallManager xrootd connection pool with "
+            "size=%i\n",
+            max_size);
   }
 
   if (getenv("EOS_FST_FSCK_DELETE_BY_MOVE")) {
@@ -558,6 +560,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
+  std::string wfEndpointUrl;
+
   if (!ConfigFN || !*ConfigFN) {
     // this error will be reported by XrdOfsFS.Configure
   } else {
@@ -611,69 +615,34 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
-        // Use gRPC calls instead of xrootd notifications?
-        if (!strcmp("protowfusegrpc", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for protowfusegrpc is invalid. "
-                        "Must be <true>, <false>, <1> or <0>!");
-            NoGo = 1;
-          } else {
-            gConfig.protowfusegrpc = false;
-
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              gConfig.protowfusegrpc = true;
-            }
-
-            Eroute.Say("=====> fstofs.protowfusegrpc : ", val);
-          }
-        }
-
-        if (!strcmp("protowfusegrpctls", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
-                        "Must be <true>, <false>, <1> or <0>!");
-            NoGo = 1;
-          } else {
-            /* false already set when declared */
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              gConfig.protowfusegrpctls = true;
-            }
-
-            Eroute.Say("=====> fstofs.protowfusegrpctls : ", val);
-          }
-        }
-
-        if (!strcmp("protowfusegrpctlscert", var)) {
+        if (!strcmp("protowfgrpctlscert", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config",
-                        "argument for protowfusegrpctlscert missing. "
+                        "argument for protowfgrpctlscert missing. "
                         "Should be an absolute path to the client certificate.");
             NoGo = 1;
           } else {
-            gConfig.protowfusegrpctlscert = val;
-            Eroute.Say("=====> fstofs.protowfusegrpctlscert : ", val);
+            gConfig.GrpcTlsCertPath = val;
+            Eroute.Say("=====> fstofs.protowfgrpctlscert : ", val);
           }
         }
 
-        if (!strcmp("protowfusegrpctlskey", var)) {
+        if (!strcmp("protowfgrpctlskey", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config",
-                        "argument for protowfusegrpctlskey missing. "
+                        "argument for protowfgrpctlskey missing. "
                         "Should be an absolute path to the client private key.");
             NoGo = 1;
           } else {
-            gConfig.protowfusegrpctlskey = val;
-            Eroute.Say("=====> fstofs.protowfusegrpctlskey : ", val);
+            gConfig.GrpcTlsKeyPath = val;
+            Eroute.Say("=====> fstofs.protowfgrpctlskey : ", val);
           }
         }
 
         if (!strcmp("jwttokenpath", var)) {
           if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for JwtTokenPath missing. Should be "
+            Eroute.Emsg("Config",
+                        "argument 2 for JwtTokenPath missing. Should be "
                         "an absolute path like /etc/grid-security/jwt-token-grpc");
             NoGo = 1;
           } else {
@@ -715,7 +684,14 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
         if (!strcmp("protowfendpoint", var)) {
           if ((val = Config.GetWord())) {
-            gConfig.ProtoWFEndpoint = val;
+            try {
+              wfEndpointUrl = val;
+              Eroute.Say("=====> fstofs.protowfendpoint : ", val);
+            } catch (const std::exception& ex) {
+              Eroute.Emsg("Config",
+                          "argument for protowfendpoint is invalid: ", ex.what());
+              NoGo = 1;
+            }
           }
         }
 
@@ -779,6 +755,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (NoGo) {
     return 1;
+  }
+
+  if (!wfEndpointUrl.empty()) {
+    // Set the workflow endpoint
+    gConfig.ProtoWFEndpoint =
+        WFEndpoint::from_config(wfEndpointUrl, gConfig.GrpcTlsCertPath,
+                                gConfig.GrpcTlsKeyPath, gConfig.JwtTokenPath);
   }
 
   // Make sure we have a proper QuarkDB configuration present

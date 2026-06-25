@@ -410,6 +410,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   std::string tapeRestApiSitename;
+  std::string wfEndpointUrl;
   std::map<std::string, std::string> tapeRestApiEndpointUrlMap;
   XrdHttpPort = ManagerPort;
 
@@ -1058,37 +1059,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("protowfendpoint", var)) {
-          val = Config.GetWord();
-
-          if (val != nullptr) {
-            ProtoWFEndPoint = val;
-          }
-        }
-
         if (!strcmp("protowfresource", var)) {
           val = Config.GetWord();
 
           if (val != nullptr) {
             ProtoWFResource = val;
-          }
-        }
-
-        // Use gRPC calls instead of xrootd notifications?
-        if (!strcmp("protowfusegrpc", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for protowfusegrpc is invalid. "
-                        "Must be <true>, <false>, <1> or <0>!");
-          } else {
-            protowfusegrpc = false;
-
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              protowfusegrpc = true;
-            }
-
-            Eroute.Say("=====> mgmofs.protowfusegrpc : ", val);
           }
         }
 
@@ -1103,43 +1078,42 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
-      if (!strcmp("protowfusegrpctls", var)) {
-        if ((!(val = Config.GetWord())) ||
-            (strcmp("true", val) && strcmp("false", val) &&
-             strcmp("1", val) && strcmp("0", val))) {
-          Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
-                      "Must be <true>, <false>, <1> or <0>!");
+      if (!strcmp("protowfgrpctlscert", var)) {
+        if (!(val = Config.GetWord())) {
+          Eroute.Emsg("Config", "argument for protowfgrpctlscert missing. "
+                                "Should be an absolute path to the client certificate.");
+          NoGo = 1;
         } else {
-          /* false already set when declared */
-          if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-            protowfusegrpctls = true;
+          GrpcTlsCertPath = val;
+          Eroute.Say("=====> mgmofs.protowfgrpctlscert : ", val);
+        }
+      }
+
+      if (!strcmp("protowfgrpctlskey", var)) {
+        if (!(val = Config.GetWord())) {
+          Eroute.Emsg("Config", "argument for protowfgrpctlskey missing. "
+                                "Should be an absolute path to the client private key.");
+          NoGo = 1;
+        } else {
+          GrpcTlsKeyPath = val;
+          Eroute.Say("=====> mgmofs.protowfgrpctlskey : ", val);
+        }
+      }
+
+      if (!strcmp("protowfendpoint", var)) {
+        if ((val = Config.GetWord())) {
+          try {
+            wfEndpointUrl = val;
+            Eroute.Say("=====> mgmofs.protowfendpoint : ", val);
+          } catch (const std::exception& ex) {
+            Eroute.Emsg("Config",
+                        "argument for protowfendpointl is invalid: ", ex.what());
+            NoGo = 1;
           }
         }
       }
 
-      if (!strcmp("protowfusegrpctlscert", var)) {
-        if (!(val = Config.GetWord())) {
-          Eroute.Emsg("Config", "argument for protowfusegrpctlscert missing. "
-                                "Should be an absolute path to the client certificate.");
-          NoGo = 1;
-        } else {
-          protowfusegrpctlscert = val;
-          Eroute.Say("=====> mgmofs.protowfusegrpctlscert : ", val);
-        }
-      }
-
-      if (!strcmp("protowfusegrpctlskey", var)) {
-        if (!(val = Config.GetWord())) {
-          Eroute.Emsg("Config", "argument for protowfusegrpctlskey missing. "
-                                "Should be an absolute path to the client private key.");
-          NoGo = 1;
-        } else {
-          protowfusegrpctlskey = val;
-          Eroute.Say("=====> mgmofs.protowfusegrpctlskey : ", val);
-        }
-      }
-
-      //Get the XrdHttp server port number
+      // Get the XrdHttp server port number
       if (!strcmp("xrd.protocol", var)) {
         val = Config.GetWord();
 
@@ -1215,6 +1189,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Config.Close();
   }
 
+  if (!wfEndpointUrl.empty()) {
+    // Set the WFE endpoint
+    ProtoWFEndpoint = WFEndpoint::from_config(wfEndpointUrl, GrpcTlsCertPath,
+                                              GrpcTlsKeyPath, JwtTokenPath);
+  }
+
   // Make sure we have a proper QuarkDB configuration present
   if (mQdbContactDetails.empty()) {
     Eroute.Say("=====> ERROR: No QuarkDB configuration - missing mgmofs.qdbcluster!");
@@ -1227,18 +1207,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> ERROR: EOS will not connect to a QuarkDB instance "
                "which is not protected by a password!");
     return 1;
-  }
-
-  if (protowfusegrpc) {
-    Eroute.Say("=====> mgmofs.protowfusegrpc : true");
-  } else {
-    Eroute.Say("=====> mgmofs.protowfusegrpc : false");
-  }
-
-  if (protowfusegrpctls) {
-    Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
-  } else {
-    Eroute.Say("=====> mgmofs.protowfusegrpctls : false");
   }
 
   if (NoGo) {

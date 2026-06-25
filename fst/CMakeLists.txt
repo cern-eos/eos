@@ -311,6 +311,8 @@ set(XRDEOSFST_SRCS
   utils/XrdOfsPathHandler.cc
   utils/DiskMeasurements.cc
   storage/TrafficShaping.hh storage/TrafficShaping.cc
+  # WFE
+  ../common/wfe/WFEClient.cc
 )
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
