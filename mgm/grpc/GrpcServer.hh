@@ -26,6 +26,7 @@
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/shaping/TrafficShaping.hh"
+#include <vector>
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
@@ -100,6 +101,10 @@ public:
   /* return true if the VID's configured gRPC scopes allow the requested scope */
   static bool ScopeAllowed(const eos::common::VirtualIdentity& vid,
                            const std::string& scope);
+
+  /* return true if the configured gRPC scopes allow the requested scope */
+  static bool ScopeListAllows(const std::vector<std::string>& scopes,
+                              const std::string& scope);
 
 #endif
 };

@@ -65,26 +65,6 @@ ScopeDenied(const eos::common::VirtualIdentity& vid, const std::string& scope)
   return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
 }
 
-bool
-ScopeListAllows(const std::vector<std::string>& scopes,
-                const std::string& requested_scope)
-{
-  for (std::string configured_scope : scopes) {
-    if ((configured_scope == "*") || (configured_scope == requested_scope)) {
-      return true;
-    }
-
-    if (configured_scope.size() > 1 && configured_scope.back() == '*') {
-      configured_scope.pop_back();
-
-      if (requested_scope.compare(0, configured_scope.size(), configured_scope) == 0) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
 } // namespace
 
 class RequestServiceImpl final : public Eos::Service {
@@ -404,11 +384,32 @@ GrpcServer::ScopeAllowed(const eos::common::VirtualIdentity& vid,
     const auto scopes = vid.token->Scopes();
 
     if (!scopes.empty()) {
-      return ScopeListAllows(scopes, scope);
+      return GrpcServer::ScopeListAllows(scopes, scope);
     }
   }
 
   return true;
+}
+
+bool
+GrpcServer::ScopeListAllows(const std::vector<std::string>& scopes,
+                            const std::string& requested_scope)
+{
+  for (std::string configured_scope : scopes) {
+    if ((configured_scope == "*") || (configured_scope == requested_scope)) {
+      return true;
+    }
+
+    if (configured_scope.size() > 1 && configured_scope.back() == '*') {
+      configured_scope.pop_back();
+
+      if (requested_scope.compare(0, configured_scope.size(), configured_scope) == 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 #endif
