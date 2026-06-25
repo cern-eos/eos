@@ -325,6 +325,13 @@ EosTok::SetRequester(const std::string& requester)
 }
 
 int
+EosTok::AddScope(const std::string& scope)
+{
+  share->mutable_token()->add_scopes(scope);
+  return 0;
+}
+
+int
 EosTok::AddOrigin(const std::string& host, const std::string& name,
                   const std::string& prot)
 {
@@ -500,6 +507,12 @@ std::string
 EosTok::Requester() const
 {
   return share->token().requester();
+}
+
+std::vector<std::string>
+EosTok::Scopes() const
+{
+  return {share->token().scopes().begin(), share->token().scopes().end()};
 }
 
 bool

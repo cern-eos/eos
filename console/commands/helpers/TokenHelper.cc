@@ -138,6 +138,12 @@ TokenHelper::ParseCommand(const char* arg)
         }
       }
     }
+
+    if (args.count("scope")) {
+      for (const auto& scope : args["scope"]) {
+        token->add_scopes(scope);
+      }
+    }
   }
 
   return true;

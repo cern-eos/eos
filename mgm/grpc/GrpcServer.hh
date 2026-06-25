@@ -97,6 +97,10 @@ public:
                   eos::common::VirtualIdentity& vid,
                   const std::string& authkey);
 
+  /* return true if the VID's configured gRPC scopes allow the requested scope */
+  static bool ScopeAllowed(const eos::common::VirtualIdentity& vid,
+                           const std::string& scope);
+
 #endif
 };
 

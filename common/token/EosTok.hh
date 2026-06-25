@@ -75,6 +75,7 @@ public:
   virtual int SetExpires(time_t expires);
   virtual int SetGeneration(uint64_t generation);
   virtual int SetRequester(const std::string& requester);
+  virtual int AddScope(const std::string& scope);
   virtual int AddOrigin(const std::string& host, const std::string& name,
                         const std::string& prot);
   virtual int VerifyOrigin(const std::string& host, const std::string& name,
@@ -88,6 +89,7 @@ public:
   virtual std::string Path() const;
   virtual std::string Voucher() const;
   virtual std::string Requester() const;
+  virtual std::vector<std::string> Scopes() const;
   virtual time_t Expires() const;
   virtual int Generation() const;
 

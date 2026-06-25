@@ -55,6 +55,38 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
 
+namespace {
+Status
+ScopeDenied(const eos::common::VirtualIdentity& vid, const std::string& scope)
+{
+  eos_static_warning("msg=\"grpc scope denied\" uid=%u gid=%u scope=\"%s\" "
+                     "configured=\"%s\"",
+                     vid.uid, vid.gid, scope.c_str(), vid.scope.c_str());
+  return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+}
+
+bool
+ScopeListAllows(const std::vector<std::string>& scopes,
+                const std::string& requested_scope)
+{
+  for (std::string configured_scope : scopes) {
+    if ((configured_scope == "*") || (configured_scope == requested_scope)) {
+      return true;
+    }
+
+    if (configured_scope.size() > 1 && configured_scope.back() == '*') {
+      configured_scope.pop_back();
+
+      if (requested_scope.compare(0, configured_scope.size(), configured_scope) == 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+} // namespace
+
 class RequestServiceImpl final : public Eos::Service {
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
@@ -64,6 +96,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str(), request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.ping")) {
+      return ScopeDenied(vid, "grpc.ping");
+    }
+
     reply->set_message(request->message());
     return Status::OK;
   }
@@ -77,6 +114,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.file_insert")) {
+      return ScopeDenied(vid, "grpc.file_insert");
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
@@ -90,6 +132,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.container_insert")) {
+      return ScopeDenied(vid, "grpc.container_insert");
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::ContainerInsert(vid, reply, request);
   }
@@ -101,6 +148,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.md")) {
+      return ScopeDenied(vid, "grpc.md");
+    }
+
     WAIT_BOOT;
 
     switch (request->type()) {
@@ -128,6 +180,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.find")) {
+      return ScopeDenied(vid, "grpc.find");
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::Find(vid, writer, request);
   }
@@ -141,6 +198,11 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!GrpcServer::ScopeAllowed(vid, "grpc.nsstat")) {
+      return ScopeDenied(vid, "grpc.nsstat");
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::NsStat(vid, reply, request);
   }
@@ -332,6 +394,21 @@ GrpcServer::Vid(grpc::ServerContext* context,
   }
 
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
+}
+
+bool
+GrpcServer::ScopeAllowed(const eos::common::VirtualIdentity& vid,
+                         const std::string& scope)
+{
+  if (vid.token && vid.token->Valid()) {
+    const auto scopes = vid.token->Scopes();
+
+    if (!scopes.empty()) {
+      return ScopeListAllows(scopes, scope);
+    }
+  }
+
+  return true;
 }
 
 #endif
