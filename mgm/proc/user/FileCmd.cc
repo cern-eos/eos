@@ -1924,12 +1924,12 @@ FileCmd::PurgeSubcmd(const eos::console::FilePurgeProto& purge, const std::strin
 {
   XrdOucErrInfo mError;
   std::ostringstream std_out, std_err;
+  // The client already resolves "no purge-version argument given" to -1
+  // (read the max version from the parent xattr) before ever sending the
+  // request, so an explicit 0 here is a real user request to purge down to
+  // zero versions (i.e. remove the whole version directory) - it must not
+  // be remapped to -1, unlike a naive 'falsy means absent' check would do.
   int max_versions = purge.purge_version();
-
-  if (!max_versions) {
-    max_versions = -1; // read the max version from the parent xattr
-  }
-
   struct stat buf;
 
   if (gOFS->_stat(spath.c_str(), &buf, mError, mVid, "")) {
@@ -1972,12 +1972,18 @@ FileCmd::VersionSubcmd(const eos::console::FileVersionProto& version,
 {
   XrdOucErrInfo mError;
   std::ostringstream std_out, std_err;
+  // The client already resolves "no purge-version argument given" to -1
+  // before ever sending the request, so an explicit 0 here means the user
+  // really typed '0' - matching legacy behaviour, that's rejected as an
+  // illegal version count (unlike 'file purge', 0 has no special meaning
+  // for 'file version').
   int maxversion = version.purge_version();
 
-  if (!maxversion) {
-    // Match legacy behaviour: max_count absent => -1 (no purge limit change);
-    // max_count == "0" (parses to 0) is rejected as illegal.
-    maxversion = -1;
+  if (maxversion == 0) {
+    std_err << "error: illegal version count specified version-cnt=0";
+    reply.set_retc(EINVAL);
+    reply.set_std_err(std_err.str());
+    return;
   }
 
   struct stat buf;
