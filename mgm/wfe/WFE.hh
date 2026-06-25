@@ -24,17 +24,18 @@
 #ifndef __EOSMGM_WFE__HH__
 #define __EOSMGM_WFE__HH__
 
-#include "mgm/Namespace.hh"
-#include "common/Mapping.hh"
-#include "common/Timing.hh"
-#include "common/FileId.hh"
-#include "common/ThreadPool.hh"
 #include "common/AssistedThread.hh"
+#include "common/FileId.hh"
+#include "common/Mapping.hh"
+#include "common/ThreadPool.hh"
+#include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "mgm/Namespace.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucErrInfo.hh>
 #include <Xrd/XrdJob.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
 
 //! Forward declaration
@@ -278,7 +279,6 @@ public:
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
-    
 
     //! @brief Execute evict as user root
     //!

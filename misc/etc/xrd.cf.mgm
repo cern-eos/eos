@@ -102,8 +102,8 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 # Configuration for the MGM workflow engine
 #-------------------------------------------------------------------------------
 
-# The SSI protocol buffer endpoint for notification messages from "proto" workflow actions
-#mgmofs.protowfendpoint HOSTNAME.2NDLEVEL.TOPLEVEL:10955
+# The protocol buffer endpoint for notification messages from "proto" workflow actions
+#mgmofs.protowfendpoint SCHEMA://HOSTNAME.2NDLEVEL.TOPLEVEL:10955
 #mgmofs.protowfresource /SSI_RESOURCE
 
 #-------------------------------------------------------------------------------
@@ -121,9 +121,6 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 # EOS spaces for which the tape aware garbage collector should be enabled
 #mgmofs.tgc.enablespace space1 space2 ...
 
-# Use gRPC?
-#mgmofs.protowfusegrpc true
-#mgmofs.protowfusegrpctls true
 #mgmofs.jwttokenpath /etc/grid-security/jwt-token-grpc
-#mgmofs.protowfusegrpctlscert
-#mgmofs.protowfusegrpctlskey
+#mgmofs.protowfgrpctlscert
+#mgmofs.protowfgrpctlskey

@@ -22,13 +22,15 @@
  ************************************************************************/
 
 #pragma once
-#include "fst/Namespace.hh"
 #include "common/Locators.hh"
+#include "common/wfe/WFEEndpoint.hh"
+#include "fst/Namespace.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <optional>
 
 //! Forward declaration
 class ThreadAssistant;
@@ -51,7 +53,7 @@ public:
   XrdOucString FstS3Credentials; // S3 storage credentials <access>:<secret>
   XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
-  std::string ProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)
+  std::optional<WFEndpoint> ProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)
   std::string ProtoWFResource; //  proto wf resource (typically CTA frontend)
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
@@ -59,11 +61,9 @@ public:
   XrdOucString HostAlias; // alias for this hostname to use in redirection
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
-  bool protowfusegrpc; // use the xrootd or the grpc protocol
   std::string JwtTokenPath; // where to find the JWT to be used in WFE calls for authentication when gRPC is used
-  bool protowfusegrpctls = false; // use TLS encrypted connections or plaintext connections for grpc
-  std::string protowfusegrpctlscert; // path to the client certificate for mutual TLS
-  std::string protowfusegrpctlskey;  // path to the client private key for mutual TLS
+  std::string GrpcTlsCertPath; // path to the client certificate for mutual TLS
+  std::string GrpcTlsKeyPath;  // path to the client private key for mutual TLS
 
   Config()
   {
