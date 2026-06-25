@@ -6,12 +6,45 @@ prefix=${prefix%/}
 host=${2-"localhost"}
 grpc_port=${3-"50051"}
 grpc_endpoint="${host}:${grpc_port}"
+wnc_endpoint="${host}:50052"
 host_ips=($(hostname -i))
 
 test -z "$1" && echo "error: must specify test directory " && exit -1
 test -z "$2" && echo "error: must specify FQDN of GRPC endpoint" && exit -1
 
 authkey=12345678
+
+expect_grpc_scope_denied() {
+  output=$("$@" 2>&1)
+  rc=$?
+  echo "$output"
+
+  if [ $rc -eq 0 ]; then
+    echo "error: scoped gRPC request unexpectedly succeeded"
+    exit -16
+  fi
+
+  echo "$output" | grep "grpc scope denied" || {
+    echo "error: scoped gRPC request failed for an unexpected reason"
+    exit -16
+  }
+}
+
+expect_grpc_scope_allowed() {
+  output=$("$@" 2>&1)
+  rc=$?
+  echo "$output"
+
+  if [ $rc -ne 0 ]; then
+    echo "error: scoped gRPC request unexpectedly failed"
+    exit -16
+  fi
+
+  echo "$output" | grep "grpc scope denied" && {
+    echo "error: scoped gRPC request was denied"
+    exit -16
+  }
+}
 
 for ip in "${host_ips[@]}"; do
   eos vid add gateway "$ip" grpc
@@ -189,6 +222,17 @@ eos rmdir $prefix/t_grpc/
 
 #user quota
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey -p $prefix --inodes 123 --volume 6000000000 --username nobody quota set | grep error && exit -13
+eos space config default space.token.generation=1 || exit -16
+quota_get_token=$(eos token --path $prefix/ --permission rx --tree --scope grpc.exec.quota.get) || exit -16
+ping_token=$(eos token --path $prefix/ --permission rx --tree --scope grpc.ping) || exit -16
+expect_grpc_scope_allowed eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token "$quota_get_token" -p $prefix --username nobody quota get
+expect_grpc_scope_denied eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token "$ping_token" -p $prefix --username nobody quota get
+expect_grpc_scope_denied eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token "$quota_get_token" -p $prefix --inodes 1 --volume 1 --username nobody quota set
+expect_grpc_scope_denied eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token "$quota_get_token" -p $prefix/t_grpc/scoped-token-touch touch
+expect_grpc_scope_allowed eos-grpc-wnc --endpoint ${wnc_endpoint} --token "$quota_get_token" -p $prefix --uid nobody quota get
+expect_grpc_scope_denied eos-grpc-wnc --endpoint ${wnc_endpoint} --token "$ping_token" -p $prefix --uid nobody quota get
+expect_grpc_scope_denied eos-grpc-wnc --endpoint ${wnc_endpoint} --token "$quota_get_token" -p $prefix --uid nobody --inodes 1 --volume 1 quota set
+expect_grpc_scope_denied eos-grpc-wnc --endpoint ${wnc_endpoint} --token "$quota_get_token" version
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey -p $prefix --username nobody --quota inode quota rm | grep error && exit -13
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey -p $prefix --username nobody --quota volume quota rm | grep error && exit -13
 

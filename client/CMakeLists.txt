@@ -55,6 +55,7 @@ add_executable(eos-grpc-find grpc/Find.cc)
 add_executable(eos-grpc-ns grpc/Ns.cc)
 add_executable(eos-grpc-insert grpc/Insert.cc)
 add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
+add_executable(eos-grpc-wnc grpc/Wnc.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
@@ -91,8 +92,13 @@ target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcClient-Objects
   EosCommon)
 
-install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert 
-  eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
+target_link_libraries(eos-grpc-wnc PUBLIC
+  EosWncGrpcProto-Objects
+  GRPC::grpc
+  EosCommon)
+
+install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert
+  eos-grpc-ns eos-grpc-find eos-grpc-ns-stat eos-grpc-wnc
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
