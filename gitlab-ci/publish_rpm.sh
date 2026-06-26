@@ -29,10 +29,10 @@ CODENAME=$1
 BUILD_TYPE=$2
 PATH_PREFIX=$3
 
-for artifacts_dir in *_artifacts; do
-  build=${artifacts_dir%_*}
+for artifacts_dir in *-artifacts; do
+  build=${artifacts_dir%-*}
   repo=${BUILDMAP[${build}]}
-  build_artifacts=${build}_artifacts
+  build_artifacts=${build}-artifacts
 
   # Handle only builds registered in the build map
   [ -z ${repo} ] && continue
