@@ -50,25 +50,95 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Synthesize Office's 5-step save against an existing v1.docx.
-# Caller writes "v1" content into v1.docx beforehand.
+show_office_state() {
+  local label="$1"
+  local dir="$2"
+  local name="$3"
+  local version_dir="$dir/.sys.v#.$name"
+
+  echo "--- $label ---"
+  echo "\$ ls -alhrt \"$dir\""
+  ls -alhrt "$dir" || echo "WARN: ls failed for $dir"
+
+  if [ -d "$version_dir" ]; then
+    echo "\$ ls -alhrt \"$version_dir\""
+    ls -alhrt "$version_dir" || echo "WARN: ls failed for $version_dir"
+  fi
+}
+
+file_fxid() {
+  local path="$1"
+  local fxid
+  fxid="$(eos fileinfo "$path" --fxid | awk '/^fxid:/ { print $2; exit }')"
+  [ -n "$fxid" ] || { echo "FAIL: could not get fxid for $path"; exit 1; }
+  printf '%s\n' "$fxid"
+}
+
+restore_previous_version() {
+  local dir="$1"
+  local eos_dir="$2"
+  local name="$3"
+  local expected_content="$4"
+  local version_dir="$dir/.sys.v#.$name"
+  local eos_path="$eos_dir/$name"
+  local eos_version_dir="$eos_dir/.sys.v#.$name"
+  local version_name
+  local current_fxid
+  local version_fxid
+  local restored_fxid
+  local got
+
+  version_name="$(ls -A "$version_dir" | head -n 1)"
+  [ -n "$version_name" ] \
+    || { echo "FAIL: no version name found under $version_dir"; exit 1; }
+  current_fxid="$(file_fxid "$eos_path")"
+  version_fxid="$(file_fxid "$eos_version_dir/$version_name")"
+  echo "fxid before restore for $eos_path: $current_fxid"
+  echo "saved version fxid for $eos_path: $version_fxid"
+  [ "$current_fxid" != "$version_fxid" ] \
+    || { echo "FAIL: current and saved version fxid are both $current_fxid"; exit 1; }
+
+  eos file versions "$eos_path" "$version_name"
+  show_office_state "after version restore for $name" "$dir" "$name"
+
+  got="$(cat "$dir/$name")"
+  [ "$got" = "$expected_content" ] \
+    || { echo "FAIL: restored $name content '$got' != '$expected_content'"; exit 1; }
+  restored_fxid="$(file_fxid "$eos_path")"
+  echo "restored fxid for $eos_path: $restored_fxid"
+  [ "$restored_fxid" = "$version_fxid" ] \
+    || { echo "FAIL: restored fxid $restored_fxid != saved version fxid $version_fxid"; exit 1; }
+  [ "$restored_fxid" != "$current_fxid" ] \
+    || { echo "FAIL: restored fxid still matches pre-restore current fxid $current_fxid"; exit 1; }
+}
+
+# Synthesize Office's 5-step save against an existing Office document.
+# Caller writes "v1" content into the document beforehand.
 office_save_sequence() {
   local dir="$1"
   local newcontent="$2"
+  local name="${3:-v1.docx}"
+  show_office_state "before Office save for $name" "$dir" "$name"
   # 1. owner-lock (~$<name>) — Office uses an 8.3-truncated form for
   #    long names; touch the literal short form which our hook also
-  #    probes (~$v1.docx).
-  : > "$dir/~\$v1.docx"
+  #    probes.
+  : > "$dir/~\$$name"
+  show_office_state "after owner-lock creation for $name" "$dir" "$name"
   # 2. write new content to XXXX.tmp
   printf '%s' "$newcontent" > "$dir/aaaa.tmp"
-  # 3. backup: rename original v1.docx → YYYY.tmp  (HOOK FIRES HERE)
-  mv "$dir/v1.docx" "$dir/bbbb.tmp"
-  # 4. install: rename new content → v1.docx
-  mv "$dir/aaaa.tmp" "$dir/v1.docx"
+  show_office_state "after temporary content write for $name" "$dir" "$name"
+  # 3. backup: rename original document → YYYY.tmp  (HOOK FIRES HERE)
+  mv "$dir/$name" "$dir/bbbb.tmp"
+  show_office_state "after backup rename for $name" "$dir" "$name"
+  # 4. install: rename new content → original document name
+  mv "$dir/aaaa.tmp" "$dir/$name"
+  show_office_state "after new document install for $name" "$dir" "$name"
   # 5. discard backup
   rm -f "$dir/bbbb.tmp"
+  show_office_state "after backup removal for $name" "$dir" "$name"
   # release owner-lock
-  rm -f "$dir/~\$v1.docx"
+  rm -f "$dir/~\$$name"
+  show_office_state "after owner-lock removal for $name" "$dir" "$name"
 }
 
 #-----------------------------------------------------------------------
@@ -101,6 +171,71 @@ done
 eos file versions "$EOS_DIR_ON/v1.docx" | grep -q . \
   || { echo "FAIL: eos file versions returned nothing"; exit 1; }
 
+# 1.4 Restoring a previous version of a normal document must work.
+restore_previous_version "$DIR_ON" "$EOS_DIR_ON" 'v1.docx' 'v1'
+
+# 1.5 A document name containing '&' must survive proc opaque escaping.
+amp_doc='v1&x.docx'
+printf 'v1' > "$DIR_ON/$amp_doc"
+office_save_sequence "$DIR_ON" 'v2' "$amp_doc"
+
+got="$(cat "$DIR_ON/$amp_doc")"
+[ "$got" = "v2" ] || { echo "FAIL: $amp_doc content '$got' != 'v2'"; exit 1; }
+
+ver_dir_amp="$DIR_ON/.sys.v#.$amp_doc"
+[ -d "$ver_dir_amp" ] || { echo "FAIL: $ver_dir_amp missing"; exit 1; }
+nver_amp=$(find "$ver_dir_amp" -maxdepth 1 -type f | wc -l)
+[ "$nver_amp" -ge 1 ] || { echo "FAIL: no version files under $ver_dir_amp"; exit 1; }
+found="no"
+for f in "$ver_dir_amp"/*; do
+  if [ "$(cat "$f")" = "v1" ]; then found="yes"; break; fi
+done
+[ "$found" = "yes" ] || { echo "FAIL: no version file with content 'v1' for $amp_doc"; exit 1; }
+
+eos file versions "$EOS_DIR_ON/$amp_doc" | grep -q . \
+  || { echo "FAIL: eos file versions returned nothing for $amp_doc"; exit 1; }
+
+# 1.6 Restoring a previous version of a document containing '&' must work.
+restore_previous_version "$DIR_ON" "$EOS_DIR_ON" "$amp_doc" 'v1'
+
+# 1.7 Parent directories containing '&' must also round-trip.
+special_dir='dir&with-marker'
+mkdir -p "$DIR_ON/$special_dir"
+special_cid=$(stat -c '%i' "$DIR_ON/$special_dir")
+eos attr set sys.versioning=5 "cid:$special_cid"
+special_doc='v1&nested.docx'
+printf 'v1' > "$DIR_ON/$special_dir/$special_doc"
+office_save_sequence "$DIR_ON/$special_dir" 'v2' "$special_doc"
+
+got="$(cat "$DIR_ON/$special_dir/$special_doc")"
+[ "$got" = "v2" ] || { echo "FAIL: $special_dir/$special_doc content '$got' != 'v2'"; exit 1; }
+
+ver_dir_special="$DIR_ON/$special_dir/.sys.v#.$special_doc"
+[ -d "$ver_dir_special" ] || { echo "FAIL: $ver_dir_special missing"; exit 1; }
+special_parent_ls="$(ls -A "$DIR_ON/$special_dir")"
+printf '%s\n' "$special_parent_ls" | grep -Fxq -- ".sys.v#.$special_doc" \
+  || { echo "FAIL: ls did not show .sys.v#.$special_doc under $DIR_ON/$special_dir"; exit 1; }
+special_version_ls="$(ls -A "$ver_dir_special")"
+[ -n "$special_version_ls" ] \
+  || { echo "FAIL: ls returned no version files under $ver_dir_special"; exit 1; }
+found="no"
+while IFS= read -r version_name; do
+  [ -n "$version_name" ] || continue
+  version_file="$ver_dir_special/$version_name"
+  if [ -f "$version_file" ] && [ "$(cat "$version_file")" = "v1" ]; then
+    found="yes"
+    break
+  fi
+done <<EOF
+$special_version_ls
+EOF
+[ "$found" = "yes" ] \
+  || { echo "FAIL: no version file with content 'v1' for $special_dir/$special_doc"; exit 1; }
+
+# 1.8 Restoring a previous version under a directory containing '&' must work.
+restore_previous_version "$DIR_ON/$special_dir" "$EOS_DIR_ON/$special_dir" \
+  "$special_doc" 'v1'
+
 #-----------------------------------------------------------------------
 # Section 2: positive — second save adds another version + retention works
 #-----------------------------------------------------------------------
@@ -132,10 +267,11 @@ office_save_sequence "$DIR_OFF_VERS" 'v2'
 if [ -n "$MNT_OFF" ]; then
   echo "=== negative: hack OFF mount → no version dir ==="
   DIR_HACK_OFF="$MNT_OFF/msoffice-save-test-flag-off"
+  EOS_DIR_HACK_OFF="$EOS_PREFIX/msoffice-save-test-flag-off"
   mkdir -p "$DIR_HACK_OFF"
   # Even with sys.versioning set on the dir, the hook is unavailable on
   # this mount so no snapshot should be produced.
-  eos attr set sys.versioning=5 "$EOS_PREFIX/msoffice-save-test-flag-off" || true
+  eos attr set sys.versioning=5 "$EOS_DIR_HACK_OFF" || true
 
   printf 'v1' > "$DIR_HACK_OFF/v1.docx"
   office_save_sequence "$DIR_HACK_OFF" 'v2'

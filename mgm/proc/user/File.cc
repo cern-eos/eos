@@ -21,30 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/SecEntity.hh"
+#include "common/StringConversion.hh"
+#include "common/Utils.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/cache/ReadThroughCache.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
-#include "mgm/xattr/XattrLock.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/macros/Macros.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "namespace/Prefetcher.hh"
-#include "common/Utils.hh"
-#include "common/Path.hh"
-#include "common/LayoutId.hh"
-#include "common/SecEntity.hh"
+#include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Attributes.hh"
-#include "namespace/Resolver.hh"
+#include "namespace/utils/Checksum.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <math.h>
 #include <memory>
@@ -994,6 +995,9 @@ ProcCommand::File()
       cmdok = true;
       XrdOucString src = spath;
       XrdOucString dst = pOpaque->Get("mgm.file.target");
+      // mgm.file.target does not pass through NAMESPACEMAP. Keep the legacy
+      // proc opaque contract for '&' by unsealing it before path checks.
+      eos::common::StringConversion::UnsealXrdPath(dst);
 
       if (!dst.length()) {
         stdErr += "error: missing destination argument";
