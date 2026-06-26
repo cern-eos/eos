@@ -682,6 +682,14 @@ backend::versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_
   snprintf(vname, sizeof(vname) - 1, "%llu.%08llx", (unsigned long long)src_ctime,
            (unsigned long long)src_fid);
   std::string version_path = version_dir + "/" + vname;
+  // These values are embedded in proc opaque arguments. Use the legacy EOS
+  // path seal so '&' is not parsed as an argument separator before MGM sees it.
+  const std::string sealed_full_path =
+      eos::common::StringConversion::SealXrdPath(full_path);
+  const std::string sealed_version_dir =
+      eos::common::StringConversion::SealXrdPath(version_dir);
+  const std::string sealed_version_path =
+      eos::common::StringConversion::SealXrdPath(version_path);
   eos_static_debug("msg=\"hack-ms-office-file-save: versionFile entry\" "
                    "src=\"%s\" version_dir=\"%s\" version_path=\"%s\" "
                    "max_versions=%d",
@@ -689,7 +697,7 @@ backend::versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_
                    max_versions);
   // 1) mkdir -p the version directory.
   int rc = procCommand(
-      req, {{"mgm.cmd", "mkdir"}, {"mgm.path", version_dir}, {"mgm.option", "p"}});
+      req, {{"mgm.cmd", "mkdir"}, {"mgm.path", sealed_version_dir}, {"mgm.option", "p"}});
 
   if (rc && rc != EEXIST) {
     eos_static_err("msg=\"hack-ms-office-file-save: mkdir version dir failed\" "
@@ -709,8 +717,8 @@ backend::versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_
   //    stays idempotent.
   rc = procCommand(req, {{"mgm.cmd", "file"},
                          {"mgm.subcmd", "copy"},
-                         {"mgm.path", full_path},
-                         {"mgm.file.target", version_path},
+                         {"mgm.path", sealed_full_path},
+                         {"mgm.file.target", sealed_version_path},
                          {"mgm.file.option", "f"}});
 
   if (rc) {
@@ -728,7 +736,7 @@ backend::versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_
   if (max_versions > 0) {
     rc = procCommand(req, {{"mgm.cmd", "file"},
                            {"mgm.subcmd", "purge"},
-                           {"mgm.path", full_path},
+                           {"mgm.path", sealed_full_path},
                            {"mgm.purge.version", std::to_string(max_versions)}});
 
     if (rc) {
@@ -758,13 +766,16 @@ backend::renameVersionDir(fuse_req_t req, const std::string& parent_full_path,
 
   std::string from_dir = parent_full_path + ".sys.v#." + from_basename;
   std::string to_dir = parent_full_path + ".sys.v#." + to_basename;
+  const std::string sealed_from_dir =
+      eos::common::StringConversion::SealXrdPath(from_dir);
+  const std::string sealed_to_dir = eos::common::StringConversion::SealXrdPath(to_dir);
   eos_static_debug("msg=\"hack-ms-office-file-save: renameVersionDir entry\" "
                    "from=\"%s\" to=\"%s\"",
                    from_dir.c_str(), to_dir.c_str());
   int rc = procCommand(req, {{"mgm.cmd", "file"},
                              {"mgm.subcmd", "rename"},
-                             {"mgm.path", from_dir},
-                             {"mgm.file.target", to_dir}});
+                             {"mgm.path", sealed_from_dir},
+                             {"mgm.file.target", sealed_to_dir}});
 
   if (rc) {
     eos_static_err("msg=\"hack-ms-office-file-save: restore version dir failed\" "
