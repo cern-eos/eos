@@ -1799,9 +1799,9 @@ public:
   std::string JwtTokenPath;
   //! Use TLS encrypted connections or plaintext connections for grpc
   //! Path to the client certificate for mutual TLS
-  std::string GrpcTlsCertPath;
+  std::string TlsCertPath;
   //! Path to the client private key for mutual TLS
-  std::string GrpcTlsKeyPath;
+  std::string TlsKeyPath;
   static XrdSysError* eDest; ///< error routing object
 
   //----------------------------------------------------------------------------

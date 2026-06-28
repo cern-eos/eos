@@ -34,14 +34,14 @@ fstofs.metalog /var/eos/md/
 # QuarkDB cluster info needed by FSCK to perform the namespace scan
 #fstofs.qdbcluster localhost:777
 #fstofs.qdbpassword_file /etc/eos.keytab
-#fstofs.jwttokenpath /etc/grid-security/jwt-token-grpc
+#fstofs.wfjwttokenpath /etc/grid-security/jwt-token-grpc
 
 #
-#fstofs.protowfendpoint grpcs://cta-frontend-wfe:10956
-#fstofs.protowfresource /ctafrontend
+#fstofs.wfendpoint grpcs://cta-frontend-wfe:10956
+#fstofs.wfresource /ctafrontend
 # provide the cert and key for mutual tls
-#fstofs.protowfgrpctlscert
-#fstofs.protowfgrpctlskey
+#fstofs.wftlscertpath
+#fstofs.wftlskeypath
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000

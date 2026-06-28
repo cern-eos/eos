@@ -2936,9 +2936,9 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   if (!gOFS->ProtoWFEndpoint.has_value() || gOFS->ProtoWFResource.empty()) {
     eos_static_err(
         "protoWFEndpoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-        "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint "
+        "msg=\"You are running proto wf jobs without specifying mgmofs.wfendpoint "
         "or "
-        "mgmofs.protowfresource in the MGM config file.\"",
+        "mgmofs.wfresource in the MGM config file.\"",
         gOFS->ProtoWFEndpoint.has_value() ? gOFS->ProtoWFEndpoint->uri() : "",
         gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str());
     jobPtr->MoveWithResults(ENOTCONN);
@@ -2957,7 +2957,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   auto root_certs = gOFS->ConcatenatedServerRootCA;
   // Instantiate service object only once, static is thread-safe
   RequestSenderConfig cf(endpoint, gOFS->ProtoWFResource, root_certs, gOFS->JwtTokenPath,
-                         gOFS->GrpcTlsCertPath, gOFS->GrpcTlsKeyPath);
+                         gOFS->TlsCertPath, gOFS->TlsKeyPath);
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
   cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
