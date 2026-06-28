@@ -2933,19 +2933,27 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   EXEC_TIMING_BEGIN(exec_tag.c_str());
   gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
 
-  if (!gOFS->ProtoWFEndpoint.has_value() || gOFS->ProtoWFResource.empty()) {
+  if (!gOFS->ProtoWFEndpoint.has_value()) {
     eos_static_err(
-        "protoWFEndpoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-        "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint "
-        "or "
-        "mgmofs.protowfresource in the MGM config file.\"",
-        gOFS->ProtoWFEndpoint.has_value() ? gOFS->ProtoWFEndpoint->uri() : "",
-        gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str());
+        "fullPath=\"%s\" event=\"%s\" "
+        "msg=\"You are running proto wf jobs without specifying mgmofs.wfendpoint "
+        "in the MGM config file.\"",
+        fullPath.c_str(), event.c_str());
     jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
 
-  WFEndpoint endpoint = gOFS->ProtoWFEndpoint.value();
+  WFEndpoint& endpoint = gOFS->ProtoWFEndpoint.value();
+
+  if (endpoint.type == WFEndpoint::ClientType::XROOTD_SSI &&
+      gOFS->ProtoWFResource.empty()) {
+    eos_static_err("protoWFEndpoint=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                   "msg=\"You are running proto wf jobs in XRootD-SSI mode without "
+                   "specifying mgmofs.wfresource in the MGM config file.\"",
+                   endpoint.uri().c_str(), fullPath.c_str(), event.c_str());
+    jobPtr->MoveWithResults(ENOTCONN);
+    return ENOTCONN;
+  }
 
   eos_static_info("Connecting to endpoint %s with scheme %s", endpoint.address().c_str(),
                   (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT ||
@@ -2957,7 +2965,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   auto root_certs = gOFS->ConcatenatedServerRootCA;
   // Instantiate service object only once, static is thread-safe
   RequestSenderConfig cf(endpoint, gOFS->ProtoWFResource, root_certs, gOFS->JwtTokenPath,
-                         gOFS->GrpcTlsCertPath, gOFS->GrpcTlsKeyPath);
+                         gOFS->TlsCertPath, gOFS->TlsKeyPath);
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
   cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
