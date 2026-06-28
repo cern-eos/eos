@@ -62,8 +62,8 @@ public:
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   std::string JwtTokenPath; // where to find the JWT to be used in WFE calls for authentication when gRPC is used
-  std::string GrpcTlsCertPath; // path to the client certificate for mutual TLS
-  std::string GrpcTlsKeyPath;  // path to the client private key for mutual TLS
+  std::string TlsCertPath;  // path to the client certificate for mutual TLS
+  std::string TlsKeyPath;   // path to the client private key for mutual TLS
 
   Config()
   {
