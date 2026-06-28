@@ -4105,21 +4105,30 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   std::optional<WFEndpoint> endPoint;
   std::string resource;
   std::string tokenPath;
-  std::string GrpcTlsCertPath;
-  std::string GrpcTlsKeyPath;
+  std::string tlsCertPath;
+  std::string tlsKeyPath;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
     resource = gConfig.ProtoWFResource;
     tokenPath = gConfig.JwtTokenPath;
-    GrpcTlsCertPath = gConfig.GrpcTlsCertPath;
-    GrpcTlsKeyPath = gConfig.GrpcTlsKeyPath;
+    tlsCertPath = gConfig.TlsCertPath;
+    tlsKeyPath = gConfig.TlsKeyPath;
   }
 
-  if (!endPoint.has_value() || resource.empty()) {
-    eos_static_err("%s", "msg=\"you are running proto wf jobs without "
-                   "specifying fstofs.protowfendpoint or "
-                   "fstofs.protowfresource in the FST config file\"");
+  if (!endPoint.has_value()) {
+    eos_static_err("msg=\"you are running proto wf jobs without "
+                   "specifying fstofs.wfendpoint or in the FST config file\"");
+    return ENOTCONN;
+  }
+
+  WFEndpoint& endPointValue = endPoint.value();
+
+  if (endPointValue.type == WFEndpoint::ClientType::XROOTD_SSI && resource.empty()) {
+    eos_static_err("protoWFEndpoint=\"%s\" "
+                   "msg=\"You are running proto wf jobs in XRootD-SSI mode without "
+                   "specifying fstofs.wfresource in the FST config file.\"",
+                   endPointValue.uri().c_str());
     return ENOTCONN;
   }
 
@@ -4131,8 +4140,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    RequestSenderConfig cf(endPoint.value(), resource, root_certs, tokenPath,
-                           GrpcTlsCertPath, GrpcTlsKeyPath);
+    RequestSenderConfig cf(endPoint.value(), resource, root_certs, tokenPath, tlsCertPath,
+                           tlsKeyPath);
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
     auto sentAt = std::chrono::steady_clock::now();
     response_type = request_sender->send(request, response);
@@ -4154,8 +4163,10 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     if (response.xattr().end() != archiveReqIdItor) {
       archive_req_id = archiveReqIdItor->second;
     } else {
-      eos_static_err("msg=\"Failed to extract sys.cta.objectstore.id from response to closew notification to"
-                     " protowfendpoint\" path=\"%s\"", fullpath.c_str());
+      eos_static_err("msg=\"Failed to extract sys.cta.objectstore.id from response to "
+                     "closew notification to"
+                     " wfendpoint\" path=\"%s\"",
+                     fullpath.c_str());
     }
   }
 

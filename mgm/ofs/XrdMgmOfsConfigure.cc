@@ -1059,7 +1059,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("protowfresource", var)) {
+        if (!strcmp("wfresource", var)) {
           val = Config.GetWord();
 
           if (val != nullptr) {
@@ -1067,47 +1067,46 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("jwttokenpath", var)) {
+        if (!strcmp("wfjwttokenpath", var)) {
           val = Config.GetWord();
 
           if (val != nullptr) {
             JwtTokenPath = val;
           }
 
-          Eroute.Say("=====> mgmofs.jwttokenpath : ", val);
+          Eroute.Say("=====> mgmofs.wfjwttokenpath : ", val);
         }
       }
 
-      if (!strcmp("protowfgrpctlscert", var)) {
+      if (!strcmp("wftlscertpath", var)) {
         if (!(val = Config.GetWord())) {
-          Eroute.Emsg("Config", "argument for protowfgrpctlscert missing. "
+          Eroute.Emsg("Config", "argument for wftlscertpath missing. "
                                 "Should be an absolute path to the client certificate.");
           NoGo = 1;
         } else {
-          GrpcTlsCertPath = val;
-          Eroute.Say("=====> mgmofs.protowfgrpctlscert : ", val);
+          TlsCertPath = val;
+          Eroute.Say("=====> mgmofs.wftlscertpath : ", val);
         }
       }
 
-      if (!strcmp("protowfgrpctlskey", var)) {
+      if (!strcmp("wftlskeypath", var)) {
         if (!(val = Config.GetWord())) {
-          Eroute.Emsg("Config", "argument for protowfgrpctlskey missing. "
+          Eroute.Emsg("Config", "argument for wftlskeypath missing. "
                                 "Should be an absolute path to the client private key.");
           NoGo = 1;
         } else {
-          GrpcTlsKeyPath = val;
-          Eroute.Say("=====> mgmofs.protowfgrpctlskey : ", val);
+          TlsKeyPath = val;
+          Eroute.Say("=====> mgmofs.wftlskeypath : ", val);
         }
       }
 
-      if (!strcmp("protowfendpoint", var)) {
+      if (!strcmp("wfendpoint", var)) {
         if ((val = Config.GetWord())) {
           try {
             wfEndpointUrl = val;
-            Eroute.Say("=====> mgmofs.protowfendpoint : ", val);
+            Eroute.Say("=====> mgmofs.wfendpoint : ", val);
           } catch (const std::exception& ex) {
-            Eroute.Emsg("Config",
-                        "argument for protowfendpointl is invalid: ", ex.what());
+            Eroute.Emsg("Config", "argument for wfendpoint is invalid: ", ex.what());
             NoGo = 1;
           }
         }
@@ -1191,8 +1190,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (!wfEndpointUrl.empty()) {
     // Set the WFE endpoint
-    ProtoWFEndpoint = WFEndpoint::from_config(wfEndpointUrl, GrpcTlsCertPath,
-                                              GrpcTlsKeyPath, JwtTokenPath);
+    ProtoWFEndpoint =
+        WFEndpoint::from_config(wfEndpointUrl, TlsCertPath, TlsKeyPath, JwtTokenPath);
   }
 
   // Make sure we have a proper QuarkDB configuration present
