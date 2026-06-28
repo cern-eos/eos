@@ -103,8 +103,8 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 #-------------------------------------------------------------------------------
 
 # The protocol buffer endpoint for notification messages from "proto" workflow actions
-#mgmofs.protowfendpoint SCHEMA://HOSTNAME.2NDLEVEL.TOPLEVEL:10955
-#mgmofs.protowfresource /SSI_RESOURCE
+#mgmofs.wfendpoint SCHEMA://HOSTNAME.2NDLEVEL.TOPLEVEL:10955
+#mgmofs.wfresource /SSI_RESOURCE
 
 #-------------------------------------------------------------------------------
 # Confguration parameters for tape
@@ -121,6 +121,6 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 # EOS spaces for which the tape aware garbage collector should be enabled
 #mgmofs.tgc.enablespace space1 space2 ...
 
-#mgmofs.jwttokenpath /etc/grid-security/jwt-token-grpc
-#mgmofs.protowfgrpctlscert
-#mgmofs.protowfgrpctlskey
+#mgmofs.wfjwttokenpath /etc/grid-security/jwt-token-grpc
+#mgmofs.wftlscertpath
+#mgmofs.wftlskeypath
