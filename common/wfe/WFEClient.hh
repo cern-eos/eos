@@ -65,10 +65,16 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string> root_certs,
-                const std::optional<std::string> token_path_str,
-                const std::optional<std::string> cert_path_str,
-                const std::optional<std::string> key_path_str);
+  // GRPC_JWT: insecure channel with JWT token
+  WFEGrpcClient(const WFEndpoint endpoint, const std::string& token_path_str);
+
+  // GRPCS_JWT: TLS with root certs and JWT token
+  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& root_certs,
+                const std::string& token_path_str);
+
+  // GRPCS_MTLS: TLS with root certs and client certificates
+  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& root_certs,
+                const std::string& cert_path_str, const std::string& key_path_str);
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
   cta::xrd::Response::ResponseType send(const cta::xrd::Request& request,
