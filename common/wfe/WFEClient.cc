@@ -24,54 +24,92 @@
 #include "common/wfe/WFEClient.hh"
 #include "jwt-cpp/jwt.h"
 
-WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
-                             const std::optional<std::string> root_certs,
-                             const std::optional<std::string> token_path_str,
-                             const std::optional<std::string> cert_path_str,
-                             const std::optional<std::string> key_path_str)
+// GRPC_JWT: insecure channel with JWT token
+WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint, const std::string& token_path_str)
     : endpoint(endpoint)
     , token_path(token_path_str)
+    , cert_path(std::nullopt)
+    , key_path(std::nullopt)
+{
+  auto credentials = grpc::InsecureChannelCredentials();
+
+  eos_static_info("Connecting to endpoint %s with scheme grpc",
+                  endpoint.address().c_str());
+  eos_static_info("Using JWT. Token path=\"%s\"", token_path_str.c_str());
+
+  std::shared_ptr<grpc::Channel> channel =
+      grpc::CreateChannel(endpoint.address(), credentials);
+  client_stub = cta::xrd::CtaRpc::NewStub(channel);
+}
+
+// GRPCS_JWT: TLS with root certs and JWT token
+WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
+                             const std::optional<std::string>& root_certs,
+                             const std::string& token_path_str)
+    : endpoint(endpoint)
+    , token_path(token_path_str)
+    , cert_path(std::nullopt)
+    , key_path(std::nullopt)
+{
+  grpc::SslCredentialsOptions ssl_options;
+
+  if (root_certs.has_value()) {
+    std::string root_certs_contents;
+    eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(),
+                                                      root_certs_contents);
+    ssl_options.pem_root_certs = root_certs_contents;
+  } else {
+    ssl_options.pem_root_certs = ""; // grpc will use default root certs if left blank
+  }
+  eos_static_info("value used in pem_root_certs is %s",
+                  ssl_options.pem_root_certs.c_str());
+
+  auto credentials = grpc::SslCredentials(ssl_options);
+
+  eos_static_info("Connecting to endpoint %s with scheme grpcs",
+                  endpoint.address().c_str());
+  eos_static_info("Using JWT. Token path=\"%s\"", token_path_str.c_str());
+
+  std::shared_ptr<grpc::Channel> channel =
+      grpc::CreateChannel(endpoint.address(), credentials);
+  client_stub = cta::xrd::CtaRpc::NewStub(channel);
+}
+
+// GRPCS_MTLS: TLS with root certs and client certificates
+WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
+                             const std::optional<std::string>& root_certs,
+                             const std::string& cert_path_str,
+                             const std::string& key_path_str)
+    : endpoint(endpoint)
+    , token_path(std::nullopt)
     , cert_path(cert_path_str)
     , key_path(key_path_str)
 {
-  std::shared_ptr<grpc::ChannelCredentials> credentials;
   grpc::SslCredentialsOptions ssl_options;
 
-  if (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT ||
-      endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS) {
-    if (root_certs.has_value()) {
-      std::string root_certs_contents;
-      eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(),
-                                                        root_certs_contents);
-      ssl_options.pem_root_certs = root_certs_contents;
-    } else {
-      ssl_options.pem_root_certs = ""; // grpc will use default root certs if left blank
-    }
-    eos_static_info("value used in pem_root_certs is %s",
-                    ssl_options.pem_root_certs.c_str());
-
-    if (endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS) {
-      eos::common::StringConversion::LoadFileIntoString(cert_path.value().c_str(),
-                                                        ssl_options.pem_cert_chain);
-      eos::common::StringConversion::LoadFileIntoString(key_path.value().c_str(),
-                                                        ssl_options.pem_private_key);
-      eos_static_info("Using mTLS. Client cert path=\"%s\" key path=\"%s\"",
-                      cert_path.value().c_str(), key_path.value().c_str());
-    } else if (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT) {
-      eos_static_info("Using JWT. Token path=\"%s\"", token_path.value().c_str());
-    }
-    credentials = grpc::SslCredentials(ssl_options);
+  if (root_certs.has_value()) {
+    std::string root_certs_contents;
+    eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(),
+                                                      root_certs_contents);
+    ssl_options.pem_root_certs = root_certs_contents;
   } else {
-    credentials = grpc::InsecureChannelCredentials();
+    ssl_options.pem_root_certs = ""; // grpc will use default root certs if left blank
   }
+  eos_static_info("value used in pem_root_certs is %s",
+                  ssl_options.pem_root_certs.c_str());
 
-  eos_static_info("Connecting to endpoint %s with scheme %s", endpoint.address().c_str(),
-                  (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT ||
-                   endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS)
-                      ? "grpcs"
-                      : "grpc");
+  eos::common::StringConversion::LoadFileIntoString(cert_path_str.c_str(),
+                                                    ssl_options.pem_cert_chain);
+  eos::common::StringConversion::LoadFileIntoString(key_path_str.c_str(),
+                                                    ssl_options.pem_private_key);
+  eos_static_info("Using mTLS. Client cert path=\"%s\" key path=\"%s\"",
+                  cert_path_str.c_str(), key_path_str.c_str());
 
-  // Create a channel with SSL credentials
+  auto credentials = grpc::SslCredentials(ssl_options);
+
+  eos_static_info("Connecting to endpoint %s with scheme grpcs",
+                  endpoint.address().c_str());
+
   std::shared_ptr<grpc::Channel> channel =
       grpc::CreateChannel(endpoint.address(), credentials);
   client_stub = cta::xrd::CtaRpc::NewStub(channel);
@@ -187,11 +225,15 @@ WFEXrdClient::send(const cta::xrd::Request& request, cta::xrd::Response& respons
 std::unique_ptr<WFEClient>
 CreateRequestSender(const RequestSenderConfig& cf)
 {
-  if (cf.endpoint.type == WFEndpoint::ClientType::GRPC_JWT ||
-      cf.endpoint.type == WFEndpoint::ClientType::GRPCS_JWT ||
-      cf.endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS) {
-    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs, cf.token_path,
-                                           cf.client_cert_path, cf.client_key_path);
+  if (cf.endpoint.type == WFEndpoint::ClientType::GRPC_JWT) {
+    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.token_path.value());
+  } else if (cf.endpoint.type == WFEndpoint::ClientType::GRPCS_JWT) {
+    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs,
+                                           cf.token_path.value());
+  } else if (cf.endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS) {
+    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs,
+                                           cf.client_cert_path.value(),
+                                           cf.client_key_path.value());
   } else {
     XrdSsiPb::Config config;
 
