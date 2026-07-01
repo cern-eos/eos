@@ -93,6 +93,13 @@ add_executable(threadpooltest ThreadPoolTest.cc)
 set_target_properties(threadpooltest PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(eos-idmap-benchmark EosIdMapBenchmark.cc)
 
+if (Python3_Interpreter_FOUND)
+  add_test(NAME eos-grpc-auth-scope-coverage
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/eos-grpc-auth-scope-coverage.py
+            ${CMAKE_SOURCE_DIR})
+endif()
+
 target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcppgread PRIVATE XROOTD::CL XROOTD::UTILS)
@@ -166,6 +173,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test
   eos-http-upload-test eos-https-functional-test eos-token-test eos-traffic-shaping-test
   eos-fst-close-test eos-rename-test eos-grpc-test eos-fsck-test
+  eos-grpc-auth-scope-coverage.py
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
   eos-convert-test eos-balance-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test eos-macaroon-init

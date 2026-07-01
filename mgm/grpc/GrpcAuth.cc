@@ -50,6 +50,15 @@ TokenString(std::string authkey)
 }
 
 bool
+UnknownAction(const std::string& action)
+{
+  static const std::string suffix = ".unknown";
+  return action.empty() ||
+         ((action.size() >= suffix.size()) &&
+          (action.compare(action.size() - suffix.size(), suffix.size(), suffix) == 0));
+}
+
+bool
 TokenKey(std::string& key)
 {
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
@@ -110,6 +119,8 @@ WncCommandName(const eos::console::RequestProto& request)
     return "Cp";
   case eos::console::RequestProto::kDebug:
     return "Debug";
+  case eos::console::RequestProto::kEvict:
+    return "Evict";
   case eos::console::RequestProto::kFile:
     return "File";
   case eos::console::RequestProto::kFileinfo:
@@ -322,6 +333,10 @@ bool
 GrpcAuth::ScopeListAllows(const std::vector<std::string>& scopes,
                           const std::string& action)
 {
+  if (UnknownAction(action)) {
+    return false;
+  }
+
   for (std::string configured_scope : scopes) {
     if ((configured_scope == "*") || (configured_scope == action)) {
       return true;

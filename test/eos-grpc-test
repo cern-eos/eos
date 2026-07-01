@@ -14,6 +14,11 @@ test -z "$2" && echo "error: must specify FQDN of GRPC endpoint" && exit -1
 
 authkey=12345678
 
+source_dir=${EOS_SOURCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+if [ -x "$source_dir/test/eos-grpc-auth-scope-coverage.py" ]; then
+  python3 "$source_dir/test/eos-grpc-auth-scope-coverage.py" "$source_dir" || exit -16
+fi
+
 expect_grpc_scope_denied() {
   output=$("$@" 2>&1)
   rc=$?
