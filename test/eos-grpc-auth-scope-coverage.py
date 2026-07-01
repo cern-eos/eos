@@ -295,7 +295,7 @@ def main():
     wnc_quota_cases = {field_to_case(field)
                        for field in extract_oneof_fields(quota_proto, "QuotaProto", "subcmd")}
     mapped_wnc_quota_cases = extract_cases(
-        extract_function_body(grpc_auth, "ConsoleQuotaScope"),
+        extract_function_body(grpc_auth, "QuotaSubcommandScope"),
         "eos::console::QuotaProto",
     )
     missing_wnc_quota_cases = wnc_quota_cases - mapped_wnc_quota_cases
@@ -306,18 +306,23 @@ def main():
             + ", ".join(sorted(missing_wnc_quota_cases))
         )
 
-    if "grpc.exec.quota" in extract_function_body(grpc_auth, "ConsoleQuotaScope"):
+    quota_subcommand_scope_body = extract_function_body(grpc_auth, "QuotaSubcommandScope")
+
+    if "grpc.exec.quota" in quota_subcommand_scope_body:
         errors.append("console quota scope helper must not emit native Exec quota scopes")
 
-    if 'ConsoleQuotaScope(request.quota(), "grpc.wnc.quota")' not in extract_function_body(
+    if "QuotaSubcommandScope(request.quota(), kWncQuotaScope)" not in extract_function_body(
         grpc_auth, "GrpcAuth::WncScope"
     ):
         errors.append("WNC quota requests must use WNC-specific quota scopes")
 
-    if 'ConsoleQuotaScope(quota, "grpc.rest.quota")' not in extract_function_body(
+    if "QuotaSubcommandScope(quota, kRestQuotaScope)" not in extract_function_body(
         grpc_auth, "GrpcAuth::RestQuotaScope"
     ):
         errors.append("REST quota requests must use REST-specific quota scopes")
+
+    if "kExecQuotaScope" not in extract_function_body(grpc_auth, "GrpcAuth::ExecScope"):
+        errors.append("native Exec quota requests must use the native Exec quota scope prefix")
 
     if "UnknownAction(action)" not in grpc_auth:
         errors.append("GrpcAuth::ScopeListAllows must reject unknown actions before wildcard matching")

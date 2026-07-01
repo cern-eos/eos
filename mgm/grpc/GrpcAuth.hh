@@ -24,6 +24,12 @@ struct GrpcAuthDecision {
   std::string configured_scopes;
 };
 
+// Central gRPC action-scope helper.
+//
+// Scope names are deliberately surface-specific. A token scoped to
+// grpc.exec.quota.get must not authorize the same semantic operation through
+// WNC or the REST gateway; callers that need multiple surfaces must request
+// each action explicitly.
 class GrpcAuth {
 public:
   static GrpcAuthDecision Authorize(const eos::common::VirtualIdentity& vid,

@@ -17,6 +17,10 @@ EOSMGMNAMESPACE_BEGIN
 
 namespace {
 
+constexpr const char* kExecQuotaScope = "grpc.exec.quota";
+constexpr const char* kRestQuotaScope = "grpc.rest.quota";
+constexpr const char* kWncQuotaScope = "grpc.wnc.quota";
+
 std::string
 JoinScopes(const std::vector<std::string>& scopes)
 {
@@ -94,20 +98,20 @@ Lower(std::string input)
 }
 
 std::string
-ConsoleQuotaScope(const eos::console::QuotaProto& quota, const std::string& prefix)
+QuotaSubcommandScope(const eos::console::QuotaProto& quota, const char* prefix)
 {
   switch (quota.subcmd_case()) {
   case eos::console::QuotaProto::kLs:
   case eos::console::QuotaProto::kLsuser:
-    return prefix + ".get";
+    return std::string(prefix) + ".get";
   case eos::console::QuotaProto::kSet:
-    return prefix + ".set";
+    return std::string(prefix) + ".set";
   case eos::console::QuotaProto::kRm:
-    return prefix + ".rm";
+    return std::string(prefix) + ".rm";
   case eos::console::QuotaProto::kRmnode:
-    return prefix + ".rmnode";
+    return std::string(prefix) + ".rmnode";
   default:
-    return prefix + ".unknown";
+    return std::string(prefix) + ".unknown";
   }
 }
 
@@ -294,15 +298,15 @@ GrpcAuth::ExecScope(const eos::rpc::NSRequest& request)
   case eos::rpc::NSRequest::kQuota:
     switch (request.quota().op()) {
     case eos::rpc::QUOTAOP::GET:
-      return "grpc.exec.quota.get";
+      return std::string(kExecQuotaScope) + ".get";
     case eos::rpc::QUOTAOP::SET:
-      return "grpc.exec.quota.set";
+      return std::string(kExecQuotaScope) + ".set";
     case eos::rpc::QUOTAOP::RM:
-      return "grpc.exec.quota.rm";
+      return std::string(kExecQuotaScope) + ".rm";
     case eos::rpc::QUOTAOP::RMNODE:
-      return "grpc.exec.quota.rmnode";
+      return std::string(kExecQuotaScope) + ".rmnode";
     default:
-      return "grpc.exec.quota.unknown";
+      return std::string(kExecQuotaScope) + ".unknown";
     }
   default:
     return "grpc.exec.unknown";
@@ -312,7 +316,7 @@ GrpcAuth::ExecScope(const eos::rpc::NSRequest& request)
 std::string
 GrpcAuth::RestQuotaScope(const eos::console::QuotaProto& quota)
 {
-  return ConsoleQuotaScope(quota, "grpc.rest.quota");
+  return QuotaSubcommandScope(quota, kRestQuotaScope);
 }
 
 std::string
@@ -334,7 +338,7 @@ std::string
 GrpcAuth::WncScope(const eos::console::RequestProto& request)
 {
   if (request.command_case() == eos::console::RequestProto::kQuota) {
-    return ConsoleQuotaScope(request.quota(), "grpc.wnc.quota");
+    return QuotaSubcommandScope(request.quota(), kWncQuotaScope);
   }
 
   return "grpc.wnc." + Lower(WncCommandName(request));
