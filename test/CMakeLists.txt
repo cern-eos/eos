@@ -170,6 +170,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   eos-convert-test eos-balance-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test eos-macaroon-init
   eos-synctime-test eos-rclone-test eos-bash test-eos-iam-mapfile.py
+  eos-tape-rest-xrootd-client-test
   fusex/eos-test-credential-bindings fusex/eos-fusex-functional-test
   fusex/eos-msoffice-save-test
   eos-acl-concurrent eos-recycle-test eos-ec-parallel-write-test

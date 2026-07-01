@@ -1,0 +1,199 @@
+#!/usr/bin/python3
+# ----------------------------------------------------------------------
+# File: eos-tape-rest-xrootd-client-test
+# ----------------------------------------------------------------------
+
+"""Exercise the EOS Tape REST API through the XRootD Python TapeClient."""
+
+import argparse
+import os
+import subprocess
+import sys
+
+
+def skip_or_fail(message):
+    print("SKIP: {}".format(message))
+    if os.environ.get("EOS_TAPE_REST_REQUIRE") == "1":
+        return 1
+    return 0
+
+
+def run(command, check=True):
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+    )
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            "command failed with code {}: {}\n{}".format(
+                result.returncode, " ".join(command), result.stdout
+            )
+        )
+    return result
+
+
+def require_status(status, action):
+    if not status.ok:
+        raise RuntimeError("{} failed: {}".format(action, status))
+
+
+def build_url(host, port, path):
+    return "davs://{}:{}{}".format(host, port, path)
+
+
+def ensure_tape_enabled():
+    output = run(["eos", "ns", "stat"], check=False).stdout
+    return "ns.tapeenabled=true" in output
+
+
+def run_test(args):
+    try:
+        from XRootD.client.tape import TapeClient
+    except Exception as exc:
+        return skip_or_fail(
+            "XRootD Python TapeClient is unavailable: {}".format(exc)
+        )
+
+    required_methods = (
+        "discover",
+        "archive_info",
+        "stage",
+        "stage_status",
+        "stage_cancel",
+        "stage_delete",
+        "release",
+    )
+    missing = [name for name in required_methods if not hasattr(TapeClient, name)]
+    if missing:
+        return skip_or_fail(
+            "XRootD Python TapeClient is missing methods: {}".format(
+                ", ".join(missing)
+            )
+        )
+
+    if not ensure_tape_enabled():
+        return skip_or_fail("MGM was not started with mgmofs.tapeenabled=true")
+
+    if args.cert:
+        os.environ["X509_USER_CERT"] = args.cert
+    if args.key:
+        os.environ["X509_USER_KEY"] = args.key
+    if args.capath:
+        os.environ["X509_CERT_DIR"] = args.capath
+
+    testdir = args.prefix.rstrip("/")
+    path = "{}/tape-rest-xrootd-client.dat".format(testdir)
+    url = build_url(args.host, args.port, path)
+    client = TapeClient(timeout=args.timeout)
+
+    try:
+        run(["eos", "space", "config", "default", "taperestapi.status=on"])
+        run(["eos", "space", "config", "default", "taperestapi.stage=on"])
+        run(["eos", "rm", "-r", testdir], check=False)
+        run(["eos", "mkdir", "-p", testdir])
+        run(["eos", "chmod", "777", testdir])
+        run(["xrdcp", "-f", "/etc/hosts", "root://localhost/{}".format(path)])
+
+        status, endpoint = client.discover(url)
+        require_status(status, "discover")
+        if not endpoint or endpoint.version != "v1" or not endpoint.uri:
+            raise RuntimeError("unexpected discovery endpoint: {}".format(endpoint))
+
+        status, archive_info = client.archive_info([url])
+        require_status(status, "archive_info")
+        if len(archive_info) != 1:
+            raise RuntimeError(
+                "archive_info returned {} entries".format(len(archive_info))
+            )
+        if getattr(archive_info[0], "error", None):
+            raise RuntimeError("archive_info returned error: {}".format(archive_info[0]))
+
+        status, stage = client.stage(
+            url,
+            [url],
+            disk_lifetime=3600,
+            targeted_metadata={"activity": "eos-ci"},
+        )
+        require_status(status, "stage")
+        request_id = stage.request_id
+        if not request_id:
+            raise RuntimeError("stage response did not include a request id")
+
+        status, stage_status = client.stage_status(url, request_id)
+        require_status(status, "stage_status")
+        if stage_status.id != request_id:
+            raise RuntimeError(
+                "stage_status id mismatch: {} != {}".format(
+                    stage_status.id, request_id
+                )
+            )
+        if stage_status.file_status(url) is None:
+            raise RuntimeError("stage_status did not include {}".format(url))
+
+        status = client.release(url, request_id, [url])
+        require_status(status, "release")
+
+        status = client.stage_cancel(url, request_id, [url])
+        require_status(status, "stage_cancel")
+
+        status = client.stage_delete(url, request_id)
+        require_status(status, "stage_delete")
+    finally:
+        run(["eos", "rm", "-r", testdir], check=False)
+        run(["eos", "space", "config", "default", "taperestapi.stage=off"],
+            check=False)
+        run(["eos", "space", "config", "default", "taperestapi.status=off"],
+            check=False)
+
+    print("Tape REST XRootD client integration test passed")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run EOS Tape REST API checks through XRootD TapeClient."
+    )
+    parser.add_argument(
+        "--host",
+        default=os.environ.get("EOS_TEST_FULL_REDIRECTOR", "localhost"),
+        help="Host name serving the EOS XrdHttp endpoint",
+    )
+    parser.add_argument(
+        "--port",
+        default=os.environ.get("EOS_HTTPS_PORT", "443"),
+        help="XrdHttp HTTPS port",
+    )
+    parser.add_argument(
+        "--prefix",
+        required=True,
+        help="EOS directory used for temporary test files",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="XRootD TapeClient timeout in seconds",
+    )
+    parser.add_argument(
+        "--cert",
+        default="/root/.globus/usercert.pem",
+        help="X509 user certificate path",
+    )
+    parser.add_argument(
+        "--key",
+        default="/root/.globus/userkey.pem",
+        help="X509 user key path",
+    )
+    parser.add_argument(
+        "--capath",
+        default="/etc/grid-security/certificates",
+        help="X509 CA certificate directory",
+    )
+    args = parser.parse_args()
+    return run_test(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

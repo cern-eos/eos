@@ -504,6 +504,13 @@ eos_lru() {
   echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+eos_tape_rest_xrootd_client() {
+  echo eos-tape-rest-xrootd-client-test "$1"
+  eos-tape-rest-xrootd-client-test --prefix "$1" \
+    --host "${EOS_TEST_FULL_REDIRECTOR}" \
+    --port "${EOS_HTTPS_PORT}" >> $EOSCERTLOG 2>&1
+}
+
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -2861,6 +2868,14 @@ runtest "### eos-grpc  " unix SUCCESS "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/
 categorie="accounting"
 # ------------------------------------------------------------------------------
 runtest "### eos-accounting  " unix SUCCESS "" eos_accounting "/eos/$EOS_TEST_INSTANCE/test/instancetest/accounting_test"
+
+################################################################################
+# Tape REST API tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="taperest"
+# ------------------------------------------------------------------------------
+runtest "### Tape REST " unix SUCCESS "" eos_tape_rest_xrootd_client "/eos/$EOS_TEST_INSTANCE/test/instancetest/tape-rest"
 
 ################################################################################
 # lru tests
