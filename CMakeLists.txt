@@ -103,6 +103,11 @@ include(CTest)
 find_package(Git REQUIRED)
 
 #-------------------------------------------------------------------------------
+# Build cern-nfs submodule (independent CMake project under build/cern-nfs)
+#-------------------------------------------------------------------------------
+include(BuildCernNfs)
+
+#-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
 #-------------------------------------------------------------------------------
 option(USE_SYSTEM_GTEST "Use GoogleTest installed in the system if found" OFF)

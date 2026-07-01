@@ -38,3 +38,6 @@
 [submodule "console/parser"]
 	path = common/parser
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "cern-nfs"]
+	path = cern-nfs
+	url = https://gitlab.cern.ch/eos/cern-nfs.git
