@@ -245,8 +245,8 @@ def main():
             errors.append(f"REST gateway method {method_name} does not authorize gRPC scope")
 
         if method_name == "QuotaRequest":
-            if "GrpcAuth::QuotaScope(*request)" not in body:
-                errors.append("REST gateway QuotaRequest must use shared quota scope mapping")
+            if "GrpcAuth::RestScope(*request)" not in body:
+                errors.append("REST gateway QuotaRequest must use REST quota scope mapping")
         elif "GrpcAuth::RestScope(__func__)" not in body:
             errors.append(f"REST gateway method {method_name} does not use RestScope")
 
@@ -295,7 +295,7 @@ def main():
     wnc_quota_cases = {field_to_case(field)
                        for field in extract_oneof_fields(quota_proto, "QuotaProto", "subcmd")}
     mapped_wnc_quota_cases = extract_cases(
-        extract_function_body(grpc_auth, "GrpcAuth::QuotaScope"),
+        extract_function_body(grpc_auth, "ConsoleQuotaScope"),
         "eos::console::QuotaProto",
     )
     missing_wnc_quota_cases = wnc_quota_cases - mapped_wnc_quota_cases
@@ -305,6 +305,19 @@ def main():
             "WNC quota subcommands are missing gRPC scope mappings: "
             + ", ".join(sorted(missing_wnc_quota_cases))
         )
+
+    if "grpc.exec.quota" in extract_function_body(grpc_auth, "ConsoleQuotaScope"):
+        errors.append("console quota scope helper must not emit native Exec quota scopes")
+
+    if 'ConsoleQuotaScope(request.quota(), "grpc.wnc.quota")' not in extract_function_body(
+        grpc_auth, "GrpcAuth::WncScope"
+    ):
+        errors.append("WNC quota requests must use WNC-specific quota scopes")
+
+    if 'ConsoleQuotaScope(quota, "grpc.rest.quota")' not in extract_function_body(
+        grpc_auth, "GrpcAuth::RestScope"
+    ):
+        errors.append("REST quota requests must use REST-specific quota scopes")
 
     if "UnknownAction(action)" not in grpc_auth:
         errors.append("GrpcAuth::ScopeListAllows must reject unknown actions before wildcard matching")

@@ -24,7 +24,7 @@ token
     eos token --path /eos/ --permission rx --tree
     : token with browse permission for the whole /eos/ tree
     eos token --path /eos/project/ --permission rx --tree --scope grpc.exec.quota.get
-    : token with normal rx tree permission for /eos/project/ and an action-only gRPC scope allowing quota get on any path
+    : token with normal rx tree permission for /eos/project/ and an action-only gRPC scope allowing native gRPC Exec quota get on any path. WNC and REST-gateway quota commands require separate grpc.wnc.quota.get or grpc.rest.quota.get scopes
     eos token --path /eos/file --permission rwx --owner foo --group bar
     : token granting write permission for /eos/file as user foo:bar
     eos token --token zteos64:...

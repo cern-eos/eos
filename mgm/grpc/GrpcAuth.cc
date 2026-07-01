@@ -94,6 +94,24 @@ Lower(std::string input)
 }
 
 std::string
+ConsoleQuotaScope(const eos::console::QuotaProto& quota, const std::string& prefix)
+{
+  switch (quota.subcmd_case()) {
+  case eos::console::QuotaProto::kLs:
+  case eos::console::QuotaProto::kLsuser:
+    return prefix + ".get";
+  case eos::console::QuotaProto::kSet:
+    return prefix + ".set";
+  case eos::console::QuotaProto::kRm:
+    return prefix + ".rm";
+  case eos::console::QuotaProto::kRmnode:
+    return prefix + ".rmnode";
+  default:
+    return prefix + ".unknown";
+  }
+}
+
+std::string
 WncCommandName(const eos::console::RequestProto& request)
 {
   switch (request.command_case()) {
@@ -292,21 +310,9 @@ GrpcAuth::ExecScope(const eos::rpc::NSRequest& request)
 }
 
 std::string
-GrpcAuth::QuotaScope(const eos::console::QuotaProto& quota)
+GrpcAuth::RestScope(const eos::console::QuotaProto& quota)
 {
-  switch (quota.subcmd_case()) {
-  case eos::console::QuotaProto::kLs:
-  case eos::console::QuotaProto::kLsuser:
-    return "grpc.exec.quota.get";
-  case eos::console::QuotaProto::kSet:
-    return "grpc.exec.quota.set";
-  case eos::console::QuotaProto::kRm:
-    return "grpc.exec.quota.rm";
-  case eos::console::QuotaProto::kRmnode:
-    return "grpc.exec.quota.rmnode";
-  default:
-    return "grpc.exec.quota.unknown";
-  }
+  return ConsoleQuotaScope(quota, "grpc.rest.quota");
 }
 
 std::string
@@ -328,7 +334,7 @@ std::string
 GrpcAuth::WncScope(const eos::console::RequestProto& request)
 {
   if (request.command_case() == eos::console::RequestProto::kQuota) {
-    return QuotaScope(request.quota());
+    return ConsoleQuotaScope(request.quota(), "grpc.wnc.quota");
   }
 
   return "grpc.wnc." + Lower(WncCommandName(request));
