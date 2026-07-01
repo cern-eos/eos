@@ -108,6 +108,18 @@ RestGatewayAuthKey(ServerContext* context)
   return std::string(it->second.data(), it->second.length());
 }
 
+bool
+RestGatewayPeerIsLocal(ServerContext* context, std::string* peer_ip = nullptr)
+{
+  std::string ip = GrpcRestGwServer::IP(context);
+
+  if (peer_ip) {
+    *peer_ip = ip;
+  }
+
+  return (ip == "127.0.0.1") || (ip == "[::1]") || (ip == "[::ffff:127.0.0.1]");
+}
+
 void
 SetRestScopeDenied(ReplyProto* reply, const GrpcAuthDecision& decision,
                    const eos::common::VirtualIdentity& vid)
@@ -117,10 +129,29 @@ SetRestScopeDenied(ReplyProto* reply, const GrpcAuthDecision& decision,
   reply->set_std_err("error: grpc scope denied");
 }
 
+void
+SetRestPeerDenied(ServerContext* context, ReplyProto* reply,
+                  eos::common::VirtualIdentity& vid)
+{
+  std::string peer_ip;
+  RestGatewayPeerIsLocal(context, &peer_ip);
+  eos_static_warning("msg=\"REST gateway request denied from non-loopback peer\" "
+                     "peer=\"%s\" ip=\"%s\"",
+                     context->peer().c_str(), peer_ip.c_str());
+  vid = eos::common::VirtualIdentity::Nobody();
+  reply->set_retc(EACCES);
+  reply->set_std_err("error: REST gateway gRPC endpoint is loopback-only");
+}
+
 bool
 AuthorizeRestGateway(ServerContext* context, const std::string& action,
                      eos::common::VirtualIdentity& vid, ReplyProto* reply)
 {
+  if (!RestGatewayPeerIsLocal(context)) {
+    SetRestPeerDenied(context, reply, vid);
+    return false;
+  }
+
   GrpcRestGwServer::Vid(context, vid);
   const std::string authkey = RestGatewayAuthKey(context);
   const auto decision = GrpcAuth::Authorize(vid, authkey, action);
@@ -203,12 +234,11 @@ GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity
   // identity is taken from three client-supplied gRPC metadata headers.
   // This is only safe when the peer is co-located on the same host as the
   // MGM (the gateway is intended to run as a sidecar). For any non-loopback
-  // peer we must refuse to honour the headers and fall back to 'nobody',
-  // so that an attacker who can reach the port cannot impersonate any
-  // configured identity.
-  std::string peer_ip = GrpcRestGwServer::IP(context);
-  const bool peer_is_local = (peer_ip == "127.0.0.1") || (peer_ip == "[::1]") ||
-                             (peer_ip == "[::ffff:127.0.0.1]");
+  // peer we must refuse to honour the headers. Normal request handling denies
+  // those peers before calling Vid(); the fallback here keeps direct future
+  // callers from accidentally trusting caller-supplied identity metadata.
+  std::string peer_ip;
+  const bool peer_is_local = RestGatewayPeerIsLocal(context, &peer_ip);
 
   if (!peer_is_local) {
     eos_static_warning("msg=\"refusing REST gateway request from non-loopback "
@@ -746,7 +776,7 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_GRPC_GATEWAY
   eos_static_crit("msg=\"REST gateway gRPC server starting in INSECURE "
-                  "mode - bound to loopback only\" http_port=%i grpc_port=i",
+                  "mode - bound to loopback only\" http_port=%i grpc_port=%i",
                   mHttpGwPort, mGrpcGwPort);
   EosRestGatewayServiceImpl service;
   // This line is often optional if the plugin is linked correctly,

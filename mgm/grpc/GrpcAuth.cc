@@ -357,7 +357,11 @@ GrpcAuth::ScopeListAllows(const std::vector<std::string>& scopes,
       return true;
     }
 
-    if (configured_scope.size() > 1 && configured_scope.back() == '*') {
+    static const std::string wildcard_suffix = ".*";
+
+    if (configured_scope.size() > wildcard_suffix.size() &&
+        configured_scope.compare(configured_scope.size() - wildcard_suffix.size(),
+                                 wildcard_suffix.size(), wildcard_suffix) == 0) {
       configured_scope.pop_back();
 
       if (action.compare(0, configured_scope.size(), configured_scope) == 0) {

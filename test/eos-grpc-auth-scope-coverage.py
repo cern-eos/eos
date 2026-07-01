@@ -309,6 +309,14 @@ def main():
     if "UnknownAction(action)" not in grpc_auth:
         errors.append("GrpcAuth::ScopeListAllows must reject unknown actions before wildcard matching")
 
+    if 'wildcard_suffix = ".*"' not in grpc_auth:
+        errors.append("GrpcAuth wildcard scopes must only wildcard whole scope components")
+
+    if "RestGatewayPeerIsLocal(context)" not in extract_function_body(
+        grpc_rest_gateway, "AuthorizeRestGateway"
+    ):
+        errors.append("REST gateway scope helper must reject non-loopback peers before auth")
+
     return fail(errors)
 
 
