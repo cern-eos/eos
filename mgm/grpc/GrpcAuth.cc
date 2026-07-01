@@ -310,7 +310,7 @@ GrpcAuth::ExecScope(const eos::rpc::NSRequest& request)
 }
 
 std::string
-GrpcAuth::RestScope(const eos::console::QuotaProto& quota)
+GrpcAuth::RestQuotaScope(const eos::console::QuotaProto& quota)
 {
   return ConsoleQuotaScope(quota, "grpc.rest.quota");
 }

@@ -245,7 +245,7 @@ def main():
             errors.append(f"REST gateway method {method_name} does not authorize gRPC scope")
 
         if method_name == "QuotaRequest":
-            if "GrpcAuth::RestScope(*request)" not in body:
+            if "GrpcAuth::RestQuotaScope(*request)" not in body:
                 errors.append("REST gateway QuotaRequest must use REST quota scope mapping")
         elif "GrpcAuth::RestScope(__func__)" not in body:
             errors.append(f"REST gateway method {method_name} does not use RestScope")
@@ -315,7 +315,7 @@ def main():
         errors.append("WNC quota requests must use WNC-specific quota scopes")
 
     if 'ConsoleQuotaScope(quota, "grpc.rest.quota")' not in extract_function_body(
-        grpc_auth, "GrpcAuth::RestScope"
+        grpc_auth, "GrpcAuth::RestQuotaScope"
     ):
         errors.append("REST quota requests must use REST-specific quota scopes")
 

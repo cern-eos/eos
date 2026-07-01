@@ -618,7 +618,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(*request), vid, reply)) {
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestQuotaScope(*request), vid, reply)) {
       return Status::OK;
     }
     GrpcRestGwInterface restGwInterface;
