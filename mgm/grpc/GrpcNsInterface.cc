@@ -22,28 +22,29 @@
  ************************************************************************/
 
 #include "GrpcNsInterface.hh"
+#include "GrpcAuth.hh"
 #include "common/LayoutId.hh"
+#include "common/LinuxFds.hh"
+#include "common/LinuxMemConsumption.hh"
+#include "common/LinuxStat.hh"
+#include "common/Path.hh"
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
-#include "common/Path.hh"
-#include "common/LinuxFds.hh"
-#include "common/LinuxStat.hh"
-#include "common/LinuxMemConsumption.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/proc/IProcCommand.hh"
-#include "mgm/proc/user/AclCmd.hh"
-#include "mgm/proc/admin/QuotaCmd.hh"
-#include "mgm/proc/user/RmCmd.hh"
-#include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
-#include "mgm/recycle/Recycle.hh"
+#include "mgm/proc/IProcCommand.hh"
+#include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
-#include "namespace/Prefetcher.hh"
+#include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "namespace/MDException.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
-#include "namespace/utils/Etag.hh"
 #include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Etag.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -54,65 +55,11 @@ EOSMGMNAMESPACE_BEGIN
 #ifdef EOS_GRPC
 
 namespace {
-std::string
-GrpcExecScope(const eos::rpc::NSRequest& request)
-{
-  switch (request.command_case()) {
-  case eos::rpc::NSRequest::kMkdir:
-    return "grpc.exec.mkdir";
-  case eos::rpc::NSRequest::kRmdir:
-    return "grpc.exec.rmdir";
-  case eos::rpc::NSRequest::kTouch:
-    return "grpc.exec.touch";
-  case eos::rpc::NSRequest::kUnlink:
-    return "grpc.exec.unlink";
-  case eos::rpc::NSRequest::kRm:
-    return "grpc.exec.rm";
-  case eos::rpc::NSRequest::kRename:
-    return "grpc.exec.rename";
-  case eos::rpc::NSRequest::kSymlink:
-    return "grpc.exec.symlink";
-  case eos::rpc::NSRequest::kXattr:
-    return "grpc.exec.xattr";
-  case eos::rpc::NSRequest::kVersion:
-    return "grpc.exec.version";
-  case eos::rpc::NSRequest::kOldRecycle:
-    return "grpc.exec.old_recycle";
-  case eos::rpc::NSRequest::kRecycle:
-    return "grpc.exec.recycle";
-  case eos::rpc::NSRequest::kChown:
-    return "grpc.exec.chown";
-  case eos::rpc::NSRequest::kChmod:
-    return "grpc.exec.chmod";
-  case eos::rpc::NSRequest::kAcl:
-    return "grpc.exec.acl";
-  case eos::rpc::NSRequest::kToken:
-    return "grpc.exec.token";
-  case eos::rpc::NSRequest::kQuota:
-    switch (request.quota().op()) {
-    case eos::rpc::QUOTAOP::GET:
-      return "grpc.exec.quota.get";
-    case eos::rpc::QUOTAOP::SET:
-      return "grpc.exec.quota.set";
-    case eos::rpc::QUOTAOP::RM:
-      return "grpc.exec.quota.rm";
-    case eos::rpc::QUOTAOP::RMNODE:
-      return "grpc.exec.quota.rmnode";
-    default:
-      return "grpc.exec.quota.unknown";
-    }
-  default:
-    return "grpc.exec.unknown";
-  }
-}
-
 void
-SetGrpcScopeDenied(eos::rpc::NSResponse* reply, const std::string& scope,
+SetGrpcScopeDenied(eos::rpc::NSResponse* reply, const GrpcAuthDecision& decision,
                    const eos::common::VirtualIdentity& vid)
 {
-  eos_static_warning("msg=\"grpc exec scope denied\" uid=%u gid=%u scope=\"%s\" "
-                     "configured=\"%s\"",
-                     vid.uid, vid.gid, scope.c_str(), vid.scope.c_str());
+  GrpcAuth::LogDenied(vid, decision, "eos.rpc.exec");
   reply->mutable_error()->set_code(EPERM);
   reply->mutable_error()->set_msg("error: grpc scope denied");
 }
@@ -1431,18 +1378,22 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
                       const eos::rpc::NSRequest* request)
 {
   eos::common::VirtualIdentity vid = ivid;
-  const std::string requested_scope = GrpcExecScope(*request);
+  const auto decision =
+      GrpcAuth::Authorize(ivid, request->authkey(), GrpcAuth::ExecScope(*request));
 
-  if (!GrpcServer::ScopeAllowed(ivid, requested_scope)) {
-    SetGrpcScopeDenied(reply, requested_scope, ivid);
+  if (!decision.allowed) {
+    SetGrpcScopeDenied(reply, decision, ivid);
     return grpc::Status::OK;
   }
 
   if (request->role().uid() || request->role().gid()) {
     if ((ivid.uid != request->role().uid()) ||
         (ivid.gid != request->role().gid())) {
-      if (!GrpcServer::ScopeAllowed(ivid, "grpc.exec.role")) {
-        SetGrpcScopeDenied(reply, "grpc.exec.role", ivid);
+      const auto role_decision =
+          GrpcAuth::Authorize(ivid, request->authkey(), "grpc.exec.role");
+
+      if (!role_decision.allowed) {
+        SetGrpcScopeDenied(reply, role_decision, ivid);
         return grpc::Status::OK;
       }
 

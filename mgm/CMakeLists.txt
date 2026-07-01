@@ -266,6 +266,7 @@ add_library(
   EosCtaReporter.cc
   workflow/Workflow.cc
   inflighttracker/InFlightTracker.cc
+  grpc/GrpcAuth.cc   grpc/GrpcAuth.hh
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh

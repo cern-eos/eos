@@ -7,17 +7,13 @@
 //-----------------------------------------------------------------------------
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
+#include "GrpcAuth.hh"
 #include "GrpcServer.hh"
 #include "common/StringConversion.hh"
-#include "common/SymKeys.hh"
-#include "common/token/EosTok.hh"
 #include "console/ConsoleMain.hh"
 #include "mgm/macros/Macros.hh"
 //-----------------------------------------------------------------------------
-#include <algorithm>
-#include <cctype>
 #include <cerrno>
-#include <sys/stat.h>
 #ifdef EOS_GRPC
 #include "proto/EosWnc.grpc.pb.h"
 using eos::console::EosWnc;
@@ -31,165 +27,11 @@ EOSMGMNAMESPACE_BEGIN
 
 namespace {
 
-std::string
-WncCommandScope(std::string command)
-{
-  std::transform(command.begin(), command.end(), command.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  return "grpc.wnc." + command;
-}
-
-std::string
-WncQuotaScope(const eos::console::QuotaProto& quota)
-{
-  switch (quota.subcmd_case()) {
-  case eos::console::QuotaProto::kLs:
-  case eos::console::QuotaProto::kLsuser:
-    return "grpc.exec.quota.get";
-
-  case eos::console::QuotaProto::kSet:
-    return "grpc.exec.quota.set";
-
-  case eos::console::QuotaProto::kRm:
-    return "grpc.exec.quota.rm";
-
-  case eos::console::QuotaProto::kRmnode:
-    return "grpc.exec.quota.rmnode";
-
-  default:
-    return "grpc.exec.quota.unknown";
-  }
-}
-
-std::string
-WncRequestScope(const eos::console::RequestProto& request, const std::string& command)
-{
-  if (request.command_case() == eos::console::RequestProto::kQuota) {
-    return WncQuotaScope(request.quota());
-  }
-
-  return WncCommandScope(command);
-}
-
-std::string
-WncTokenString(std::string authkey)
-{
-  static const std::string http_enc_tag = "Bearer%20";
-  static const std::string http_tag = "Bearer ";
-
-  if (authkey.find(http_enc_tag) == 0) {
-    authkey.erase(0, http_enc_tag.size());
-    authkey = eos::common::StringConversion::curl_default_unescaped(authkey);
-  } else if (authkey.find(http_tag) == 0) {
-    authkey.erase(0, http_tag.size());
-  }
-
-  return authkey;
-}
-
-bool
-WncTokenKey(std::string& key)
-{
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  key = symkey ? symkey->GetKey64() : "0123456789defaultkey";
-
-  if (getenv("EOS_MGM_TOKEN_KEYFILE")) {
-    struct stat buf;
-
-    if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
-      eos_static_err("msg=\"token keyfile does not exist\" location=\"%s\"",
-                     getenv("EOS_MGM_TOKEN_KEYFILE"));
-      return false;
-    }
-
-    if ((buf.st_uid != DAEMONUID) || (buf.st_mode != 0100400)) {
-      eos_static_err("msg=\"token keyfile mode bit\" mode=%o", buf.st_mode);
-      return false;
-    }
-
-    key = eos::common::StringConversion::LoadFileIntoString(
-        getenv("EOS_MGM_TOKEN_KEYFILE"), key);
-  }
-
-  return true;
-}
-
-std::string
-WncScopeString(const std::vector<std::string>& scopes)
-{
-  std::string result;
-
-  for (const auto& scope : scopes) {
-    if (!result.empty()) {
-      result += ",";
-    }
-
-    result += scope;
-  }
-
-  return result;
-}
-
-bool
-WncScopeAllowed(const eos::common::VirtualIdentity& vid, const std::string& authkey,
-                const std::string& requested_scope, std::string* configured_scopes)
-{
-  if (configured_scopes) {
-    configured_scopes->clear();
-  }
-
-  if (vid.token && vid.token->Valid()) {
-    const auto scopes = vid.token->Scopes();
-
-    if (configured_scopes) {
-      *configured_scopes = WncScopeString(scopes);
-    }
-
-    return GrpcServer::ScopeAllowed(vid, requested_scope);
-  }
-
-  const std::string token_string = WncTokenString(authkey);
-
-  if (token_string.substr(0, 8) != "zteos64:") {
-    return true;
-  }
-
-  std::string key;
-
-  if (!WncTokenKey(key)) {
-    return false;
-  }
-
-  eos::common::EosTok token;
-  const int rc =
-      token.Read(token_string, key, eos::common::EosTok::sTokenGeneration.load(), false);
-
-  if (rc) {
-    eos_static_err("msg=\"failed to decode wnc token\" errno=%d", -rc);
-    return false;
-  }
-
-  const auto scopes = token.Scopes();
-
-  if (configured_scopes) {
-    *configured_scopes = WncScopeString(scopes);
-  }
-
-  if (scopes.empty()) {
-    return true;
-  }
-
-  return GrpcServer::ScopeListAllows(scopes, requested_scope);
-}
-
 void
-SetWncScopeDenied(eos::console::ReplyProto* reply, const std::string& scope,
-                  const eos::common::VirtualIdentity& vid,
-                  const std::string& configured_scopes)
+SetWncScopeDenied(eos::console::ReplyProto* reply, const GrpcAuthDecision& decision,
+                  const eos::common::VirtualIdentity& vid)
 {
-  eos_static_warning("msg=\"grpc wnc scope denied\" uid=%u gid=%u "
-                     "scope=\"%s\" token_scopes=\"%s\"",
-                     vid.uid, vid.gid, scope.c_str(), configured_scopes.c_str());
+  GrpcAuth::LogDenied(vid, decision, "eos.wnc");
   reply->set_retc(EACCES);
   reply->set_std_err("error: grpc scope denied");
 }
@@ -376,12 +218,11 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
-    const std::string requested_scope = WncRequestScope(*request, command);
-    std::string configured_scopes;
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->auth().authkey(), GrpcAuth::WncScope(*request));
 
-    if (!WncScopeAllowed(vid, request->auth().authkey(), requested_scope,
-                         &configured_scopes)) {
-      SetWncScopeDenied(reply, requested_scope, vid, configured_scopes);
+    if (!decision.allowed) {
+      SetWncScopeDenied(reply, decision, vid);
       return grpc::Status::OK;
     }
 
@@ -419,13 +260,12 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
-    const std::string requested_scope = WncRequestScope(*request, command);
-    std::string configured_scopes;
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->auth().authkey(), GrpcAuth::WncScope(*request));
 
-    if (!WncScopeAllowed(vid, request->auth().authkey(), requested_scope,
-                         &configured_scopes)) {
+    if (!decision.allowed) {
       eos::console::ReplyProto reply;
-      SetWncScopeDenied(&reply, requested_scope, vid, configured_scopes);
+      SetWncScopeDenied(&reply, decision, vid);
       writer->Write(reply);
       return grpc::Status::OK;
     }

@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "GrpcServer.hh"
+#include "GrpcAuth.hh"
 #include "GrpcNsInterface.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
@@ -32,7 +33,6 @@
 #include <chrono>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <thread>
-#include <vector>
 
 #ifdef EOS_GRPC
 #include "proto/Rpc.grpc.pb.h"
@@ -57,11 +57,9 @@ EOSMGMNAMESPACE_BEGIN
 
 namespace {
 Status
-ScopeDenied(const eos::common::VirtualIdentity& vid, const std::string& scope)
+ScopeDenied(const eos::common::VirtualIdentity& vid, const GrpcAuthDecision& decision)
 {
-  eos_static_warning("msg=\"grpc scope denied\" uid=%u gid=%u scope=\"%s\" "
-                     "configured=\"%s\"",
-                     vid.uid, vid.gid, scope.c_str(), vid.scope.c_str());
+  GrpcAuth::LogDenied(vid, decision, "eos.rpc");
   return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
 }
 
@@ -77,8 +75,10 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.ping")) {
-      return ScopeDenied(vid, "grpc.ping");
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.ping");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     reply->set_message(request->message());
@@ -95,8 +95,11 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.file_insert")) {
-      return ScopeDenied(vid, "grpc.file_insert");
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->authkey(), "grpc.file_insert");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     WAIT_BOOT;
@@ -113,8 +116,11 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.container_insert")) {
-      return ScopeDenied(vid, "grpc.container_insert");
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->authkey(), "grpc.container_insert");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     WAIT_BOOT;
@@ -129,8 +135,10 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.md")) {
-      return ScopeDenied(vid, "grpc.md");
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.md");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     WAIT_BOOT;
@@ -161,8 +169,10 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.find")) {
-      return ScopeDenied(vid, "grpc.find");
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.find");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     WAIT_BOOT;
@@ -179,8 +189,10 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
 
-    if (!GrpcServer::ScopeAllowed(vid, "grpc.nsstat")) {
-      return ScopeDenied(vid, "grpc.nsstat");
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.nsstat");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
     }
 
     WAIT_BOOT;
@@ -374,42 +386,6 @@ GrpcServer::Vid(grpc::ServerContext* context,
   }
 
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
-}
-
-bool
-GrpcServer::ScopeAllowed(const eos::common::VirtualIdentity& vid,
-                         const std::string& scope)
-{
-  if (vid.token && vid.token->Valid()) {
-    const auto scopes = vid.token->Scopes();
-
-    if (!scopes.empty()) {
-      return GrpcServer::ScopeListAllows(scopes, scope);
-    }
-  }
-
-  return true;
-}
-
-bool
-GrpcServer::ScopeListAllows(const std::vector<std::string>& scopes,
-                            const std::string& requested_scope)
-{
-  for (std::string configured_scope : scopes) {
-    if ((configured_scope == "*") || (configured_scope == requested_scope)) {
-      return true;
-    }
-
-    if (configured_scope.size() > 1 && configured_scope.back() == '*') {
-      configured_scope.pop_back();
-
-      if (requested_scope.compare(0, configured_scope.size(), configured_scope) == 0) {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 #endif
