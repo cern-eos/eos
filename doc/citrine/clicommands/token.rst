@@ -14,7 +14,7 @@ token
     --owner <owner>               : identify the bearer with as user <owner>
     --group <group>               : identify the bearer with a group <group>
     --tree                        : request a subtree token granting permissions for the whole tree under <path>
-    --scope <scope>               : restrict gRPC command usage, e.g. grpc.exec.quota.get; multiple scope parameters can be provided
+    --scope <scope>               : restrict gRPC command usage by action, e.g. grpc.exec.quota.get; multiple scope parameters can be provided. gRPC scopes are not path-bound yet; --path, --permission and --tree remain normal token constraints
     --origin <origin>            : restrict token usage to <origin> - multiple origin parameters can be provided
     <origin> := <regexp:hostname>:<regex:username>:<regex:protocol>
     - described by three regular extended expressions matching the
@@ -24,7 +24,7 @@ token
     eos token --path /eos/ --permission rx --tree
     : token with browse permission for the whole /eos/ tree
     eos token --path /eos/project/ --permission rx --tree --scope grpc.exec.quota.get
-    : token limited to read-only gRPC quota lookups under /eos/project/
+    : token with normal rx tree permission for /eos/project/ and an action-only gRPC scope allowing quota get on any path
     eos token --path /eos/file --permission rwx --owner foo --group bar
     : token granting write permission for /eos/file as user foo:bar
     eos token --token zteos64:...
