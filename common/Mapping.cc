@@ -414,7 +414,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   myrole.erase(mytident.find("@"));
   // FUSE selects now the role via <uid>[:connectionid]
   // the connection id is already removed by ReduceTident
-  myrole.erase(myrole.find("."));
+  int roleDot = myrole.find(".");
+
+  if (roleDot > 0) {
+    myrole.erase(roleDot);
+  }
   XrdOucString swctident = "tident:";
   swctident += "\"";
   swctident += wildcardtident;
@@ -1886,10 +1890,39 @@ bool Mapping::IsGid(XrdOucString idstring, gid_t& id)
 //! Reduce the trace identifier information to user@host
 // -----------------------------------------------------------------------------
 
+namespace {
+
+bool
+isFuseEncodedLoginPrefix(char prefix)
+{
+  return prefix == '*' || prefix == '~' || prefix == '_' || prefix == '.' ||
+         prefix == 'A';
+}
+
+size_t
+fuseLoginProcessDotPos(std::string_view tident)
+{
+  if (tident.length() >= 9 && tident[8] == '.' &&
+      isFuseEncodedLoginPrefix(tident[0])) {
+    return 8;
+  }
+
+  return tident.find(".");
+}
+
+int
+fuseLoginProcessDotPos(XrdOucString& tident)
+{
+  return fuseLoginProcessDotPos(
+    std::string_view(tident.c_str(), tident.length()));
+}
+
+} // namespace
+
 const char* Mapping::ReduceTident(XrdOucString& tident,
                                   XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost)
 {
-  int dotpos = tident.find(".");
+  int dotpos = fuseLoginProcessDotPos(tident);
   int addpos = tident.find("@");
   wildcardtident = tident;
   mytident = tident;
@@ -1907,7 +1940,7 @@ const char* Mapping::ReduceTident(XrdOucString& tident,
 std::string Mapping::ReduceTident(std::string_view tident,
                                   std::string& wildcardtident, std::string& myhost)
 {
-  auto dotpos = tident.find(".");
+  auto dotpos = fuseLoginProcessDotPos(tident);
   auto addpos = tident.find("@");
   std::string mytident{tident};
   mytident.erase(dotpos, addpos - dotpos);
@@ -2135,13 +2168,14 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     if (name.length() == 8) {
       bool known_tident = false;
 
-      if (startsWith(name, "*") || startsWith(name, "~") || startsWith(name, "_")) {
+      if (startsWith(name, "*") || startsWith(name, "~") ||
+          startsWith(name, "_") || startsWith(name, ".")) {
         known_tident = true;
         vid.allowed_uids.clear();
         vid.allowed_gids.clear();
-        // that is a new base-64 encoded id following the format '*1234567'
-        // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
-        // 16-bit gid | 6-bit session id.
+        // Base-64 encoded id following the format '*1234567' for combined
+        // 20-bit uid | 16-bit gid | 6-bit session id, or '.1234567' / legacy
+        // '~1234567' for uid-only transport of uids above 256k.
         std::string b64name = name;
         b64name.erase(0, 1);
         // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
@@ -2169,7 +2203,19 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
             free(out);
           }
 
-          if (startsWith(name, "*") || startsWith(name, "_")) {
+          if (startsWith(name, ".") || startsWith(name, "~")) {
+            // uid-only transport for uids above 256k ('.' current, '~' legacy)
+            uid_t ruid = (bituser >> 6) & 0xfffffffff;
+            struct passwd* pwbufp = 0;
+
+            if (getpwuid_r(ruid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
+              return;
+            }
+
+            idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
+            vid.uid_string = passwdinfo.pw_name;
+            cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
+          } else if (startsWith(name, "*") || startsWith(name, "_")) {
             idp.reset(new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff));
             struct passwd* pwbufp = 0;
 
@@ -2184,18 +2230,6 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
               // add the primary group if it is not the desired one
               vid.allowed_gids.insert(passwdinfo.pw_gid);
             }
-          } else {
-            // only user id got forwarded, we retrieve the corresponding group
-            uid_t ruid = (bituser >> 6) & 0xfffffffff;
-            struct passwd* pwbufp = 0;
-
-            if (getpwuid_r(ruid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
-              return;
-            }
-
-            idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
-            vid.uid_string = passwdinfo.pw_name;
-            cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
           }
 
           eos_static_debug("using base64 mapping %s %d %d", name.c_str(), idp->uid,

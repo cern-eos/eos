@@ -36,12 +36,15 @@ TEST(LoginIdentifier, BasicSanity)
 TEST(LoginIdentifier, ExtendedUnixTransportUid)
 {
   const LoginIdentifier aboveLegacyCap(1024 * 1024, 1000, 178, 0);
-  EXPECT_EQ(aboveLegacyCap.getStringID()[0], '~');
+  EXPECT_EQ(aboveLegacyCap.getStringID()[0], '.');
   EXPECT_NE(aboveLegacyCap.getStringID(),
             LoginIdentifier(99, 99, 178, 0).getStringID());
 
   const LoginIdentifier max32BitUid(4294967295U, 1000, 178, 0);
-  EXPECT_EQ(max32BitUid.getStringID()[0], '~');
+  EXPECT_EQ(max32BitUid.getStringID()[0], '.');
   EXPECT_NE(max32BitUid.getStringID(),
             LoginIdentifier(99, 99, 178, 0).getStringID());
+
+  const LoginIdentifier belowLargeUidCap(100755, 1000, 178, 0);
+  EXPECT_EQ(belowLargeUidCap.getStringID()[0], '*');
 }

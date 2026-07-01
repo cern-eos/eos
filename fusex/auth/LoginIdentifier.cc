@@ -32,8 +32,11 @@
 #include <arpa/inet.h>
 
 namespace {
-// Unix transport via ~ encoding round-trips safely while (uid << 6) fits in 40 bits.
+// Uids above 256k use '.' uid-only login ids; combined uid+gid ids use '*'.
+constexpr uid_t kCombinedUidGidMax = 0x3ffff;
+// Unix transport via '.' encoding round-trips safely while (uid << 6) fits in 40 bits.
 constexpr uint64_t kMaxUnixTransportUid = (1ULL << 33) - 1;
+constexpr char kLargeUidLoginPrefix = '.';
 } // namespace
 
 // Logic extracted from the old AuthIdManager::mapUser.
@@ -48,7 +51,7 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
 
   bool map_only_user = false;
 
-  if (uid > 0x3ffff) {
+  if (uid > kCombinedUidGidMax) {
     eos_static_info("msg=\"unable to map uid+gid - out of range - mapping only user");
     map_only_user = true;
   }
@@ -83,7 +86,7 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
   }
 
   if (map_only_user) {
-    stringId = encode('~', bituser);
+    stringId = encode(kLargeUidLoginPrefix, bituser);
   } else {
     stringId = encode('*', bituser);
   }
