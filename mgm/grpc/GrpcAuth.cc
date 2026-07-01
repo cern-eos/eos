@@ -186,24 +186,6 @@ WncCommandName(const eos::console::RequestProto& request)
   }
 }
 
-std::string
-WncQuotaScope(const eos::console::QuotaProto& quota)
-{
-  switch (quota.subcmd_case()) {
-  case eos::console::QuotaProto::kLs:
-  case eos::console::QuotaProto::kLsuser:
-    return "grpc.exec.quota.get";
-  case eos::console::QuotaProto::kSet:
-    return "grpc.exec.quota.set";
-  case eos::console::QuotaProto::kRm:
-    return "grpc.exec.quota.rm";
-  case eos::console::QuotaProto::kRmnode:
-    return "grpc.exec.quota.rmnode";
-  default:
-    return "grpc.exec.quota.unknown";
-  }
-}
-
 } // namespace
 
 GrpcAuthDecision
@@ -310,10 +292,43 @@ GrpcAuth::ExecScope(const eos::rpc::NSRequest& request)
 }
 
 std::string
+GrpcAuth::QuotaScope(const eos::console::QuotaProto& quota)
+{
+  switch (quota.subcmd_case()) {
+  case eos::console::QuotaProto::kLs:
+  case eos::console::QuotaProto::kLsuser:
+    return "grpc.exec.quota.get";
+  case eos::console::QuotaProto::kSet:
+    return "grpc.exec.quota.set";
+  case eos::console::QuotaProto::kRm:
+    return "grpc.exec.quota.rm";
+  case eos::console::QuotaProto::kRmnode:
+    return "grpc.exec.quota.rmnode";
+  default:
+    return "grpc.exec.quota.unknown";
+  }
+}
+
+std::string
+GrpcAuth::RestScope(const std::string& request_name)
+{
+  static const std::string suffix = "Request";
+
+  if (request_name.size() <= suffix.size() ||
+      request_name.compare(request_name.size() - suffix.size(), suffix.size(), suffix) !=
+          0) {
+    return "grpc.rest.unknown";
+  }
+
+  return "grpc.rest." +
+         Lower(request_name.substr(0, request_name.size() - suffix.size()));
+}
+
+std::string
 GrpcAuth::WncScope(const eos::console::RequestProto& request)
 {
   if (request.command_case() == eos::console::RequestProto::kQuota) {
-    return WncQuotaScope(request.quota());
+    return QuotaScope(request.quota());
   }
 
   return "grpc.wnc." + Lower(WncCommandName(request));

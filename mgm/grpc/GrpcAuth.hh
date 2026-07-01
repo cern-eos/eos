@@ -31,6 +31,8 @@ public:
                                     const std::string& action);
 
   static std::string ExecScope(const eos::rpc::NSRequest& request);
+  static std::string QuotaScope(const eos::console::QuotaProto& quota);
+  static std::string RestScope(const std::string& request_name);
   static std::string WncScope(const eos::console::RequestProto& request);
 
   static void LogDenied(const eos::common::VirtualIdentity& vid,

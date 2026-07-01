@@ -24,11 +24,13 @@
 #include "GrpcRestGwServer.hh"
 #ifdef EOS_GRPC_GATEWAY
 #include "EosGrpcGateway.h"
+#include "GrpcAuth.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
 #include <XrdSec/XrdSecEntity.hh>
+#include <cerrno>
 #include <google/protobuf/util/json_util.h>
 #include <grpc++/security/credentials.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
@@ -89,6 +91,63 @@ using eos::console::WhoamiProto;
 EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC_GATEWAY
+
+namespace {
+
+std::string
+RestGatewayAuthKey(ServerContext* context)
+{
+  static const std::string hdr_authz = "client-authorization";
+  const auto& map_hdrs = context->client_metadata();
+  const auto it = map_hdrs.find(hdr_authz);
+
+  if (it == map_hdrs.end()) {
+    return "";
+  }
+
+  return std::string(it->second.data(), it->second.length());
+}
+
+void
+SetRestScopeDenied(ReplyProto* reply, const GrpcAuthDecision& decision,
+                   const eos::common::VirtualIdentity& vid)
+{
+  GrpcAuth::LogDenied(vid, decision, "eos.rest");
+  reply->set_retc(EACCES);
+  reply->set_std_err("error: grpc scope denied");
+}
+
+bool
+AuthorizeRestGateway(ServerContext* context, const std::string& action,
+                     eos::common::VirtualIdentity& vid, ReplyProto* reply)
+{
+  GrpcRestGwServer::Vid(context, vid);
+  const std::string authkey = RestGatewayAuthKey(context);
+  const auto decision = GrpcAuth::Authorize(vid, authkey, action);
+
+  if (!decision.allowed) {
+    SetRestScopeDenied(reply, decision, vid);
+    return false;
+  }
+
+  return true;
+}
+
+bool
+AuthorizeRestGateway(ServerContext* context, const std::string& action,
+                     eos::common::VirtualIdentity& vid, ServerWriter<ReplyProto>* writer)
+{
+  ReplyProto reply;
+
+  if (!AuthorizeRestGateway(context, action, vid, &reply)) {
+    writer->Write(reply);
+    return false;
+  }
+
+  return true;
+}
+
+} // namespace
 
 //------------------------------------------------------------------------------
 // Get client IP based on the context information
@@ -221,7 +280,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AclCall(vid, request, reply);
   }
@@ -230,7 +291,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AccessCall(vid, request, reply);
   }
@@ -239,7 +302,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ArchiveCall(vid, request, reply);
   }
@@ -248,7 +313,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AttrCall(vid, request, reply);
   }
@@ -257,7 +324,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.BackupCall(vid, request, reply);
   }
@@ -266,7 +335,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChmodCall(vid, request, reply);
   }
@@ -275,7 +346,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChownCall(vid, request, reply);
   }
@@ -284,7 +357,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConfigCall(vid, request, reply);
   }
@@ -293,7 +368,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConvertCall(vid, request, reply);
   }
@@ -302,7 +379,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.CpCall(vid, request, reply);
   }
@@ -311,7 +390,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.DebugCall(vid, request, reply);
   }
@@ -320,7 +401,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.EvictCall(vid, request, reply);
   }
@@ -329,7 +412,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FileCall(vid, request, reply);
   }
@@ -338,7 +423,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                          ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FileinfoCall(vid, request, reply);
   }
@@ -347,7 +434,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, writer)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FindCall(vid, request, writer);
   }
@@ -356,7 +445,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsCall(vid, request, reply);
   }
@@ -365,7 +456,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, writer)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsckCall(vid, request, writer);
   }
@@ -374,7 +467,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                          ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GeoschedCall(vid, request, reply);
   }
@@ -383,7 +478,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GroupCall(vid, request, reply);
   }
@@ -392,7 +489,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.HealthCall(vid, request, reply);
   }
@@ -401,7 +500,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.IoCall(vid, request, reply);
   }
@@ -410,7 +511,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, writer)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.LsCall(vid, request, writer);
   }
@@ -419,7 +522,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MapCall(vid, request, reply);
   }
@@ -428,7 +533,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MemberCall(vid, request, reply);
   }
@@ -437,7 +544,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MkdirCall(vid, request, reply);
   }
@@ -446,7 +555,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MvCall(vid, request, reply);
   }
@@ -455,7 +566,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NodeCall(vid, request, reply);
   }
@@ -464,7 +577,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NsCall(vid, request, reply);
   }
@@ -473,7 +588,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::QuotaScope(*request), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.QuotaCall(vid, request, reply);
   }
@@ -482,7 +599,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RecycleCall(vid, request, reply);
   }
@@ -491,7 +610,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmCall(vid, request, reply);
   }
@@ -500,7 +621,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmdirCall(vid, request, reply);
   }
@@ -509,7 +632,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RouteCall(vid, request, reply);
   }
@@ -518,7 +643,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.SpaceCall(vid, request, reply);
   }
@@ -527,7 +654,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatCall(vid, request, reply);
   }
@@ -536,7 +665,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatusCall(vid, request, reply);
   }
@@ -545,7 +676,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TokenCall(vid, request, reply);
   }
@@ -554,7 +687,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TouchCall(vid, request, reply);
   }
@@ -563,7 +698,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VersionCall(vid, request, reply);
   }
@@ -572,7 +709,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VidCall(vid, request, reply);
   }
@@ -581,7 +720,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoCall(vid, request, reply);
   }
@@ -590,7 +731,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!AuthorizeRestGateway(context, GrpcAuth::RestScope(__func__), vid, reply)) {
+      return Status::OK;
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoamiCall(vid, request, reply);
   }

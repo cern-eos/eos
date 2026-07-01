@@ -50,7 +50,11 @@ def extract_overrides(source_text, class_name):
 
     body = class_match.group("body")
     matches = list(
-        re.finditer(r"\bStatus\s+([A-Za-z0-9_]+)\s*\([^;]*?\)\s+override\s*\{", body, re.S)
+        re.finditer(
+            r"\bStatus\s+([A-Za-z0-9_]+)\s*\([^;{]*?\)\s*(?:override\s*)?\{",
+            body,
+            re.S,
+        )
     )
     methods = {}
 
@@ -160,11 +164,13 @@ def main():
     errors = []
 
     rpc_proto = read(root, "common/grpc-proto/Rpc.proto")
+    rest_gateway_proto = read(root, "proto/eos_rest_gateway/eos_rest_gateway_service.proto")
     wnc_proto = read(root, "proto/eos-protobuf-spec/EosWnc.proto")
     console_request_proto = read(root, "proto/eos-protobuf-spec/ConsoleRequest.proto")
     quota_proto = read(root, "proto/eos-protobuf-spec/Quota.proto")
     grpc_server = read(root, "mgm/grpc/GrpcServer.cc")
     grpc_ns = read(root, "mgm/grpc/GrpcNsInterface.cc")
+    grpc_rest_gateway = read(root, "mgm/grpc/GrpcRestGwServer.cc")
     grpc_wnc = read(root, "mgm/grpc/GrpcWncInterface.cc")
     grpc_auth = read(root, "mgm/grpc/GrpcAuth.cc")
 
@@ -222,6 +228,33 @@ def main():
             + ", ".join(sorted(missing_rpc_quota_ops))
         )
 
+    rest_gateway_methods = extract_service_methods(rest_gateway_proto, "EosRestGatewayService")
+    implemented_rest_gateway_methods = extract_overrides(
+        grpc_rest_gateway, "EosRestGatewayServiceImpl"
+    )
+    missing_rest_gateway_methods = rest_gateway_methods - set(implemented_rest_gateway_methods)
+
+    if missing_rest_gateway_methods:
+        errors.append(
+            "REST gateway RPC methods are not implemented: "
+            + ", ".join(sorted(missing_rest_gateway_methods))
+        )
+
+    for method_name, body in sorted(implemented_rest_gateway_methods.items()):
+        if "AuthorizeRestGateway" not in body:
+            errors.append(f"REST gateway method {method_name} does not authorize gRPC scope")
+
+        if method_name == "QuotaRequest":
+            if "GrpcAuth::QuotaScope(*request)" not in body:
+                errors.append("REST gateway QuotaRequest must use shared quota scope mapping")
+        elif "GrpcAuth::RestScope(__func__)" not in body:
+            errors.append(f"REST gateway method {method_name} does not use RestScope")
+
+    if "GrpcAuth::Authorize" not in extract_function_body(
+        grpc_rest_gateway, "AuthorizeRestGateway"
+    ):
+        errors.append("REST gateway scope helper does not call GrpcAuth::Authorize")
+
     if extract_service_methods(wnc_proto, "EosWnc") != {"ProcessSingle", "ProcessStream"}:
         errors.append("EosWnc service methods changed; update gRPC scope coverage guard")
 
@@ -262,7 +295,7 @@ def main():
     wnc_quota_cases = {field_to_case(field)
                        for field in extract_oneof_fields(quota_proto, "QuotaProto", "subcmd")}
     mapped_wnc_quota_cases = extract_cases(
-        extract_function_body(grpc_auth, "WncQuotaScope"),
+        extract_function_body(grpc_auth, "GrpcAuth::QuotaScope"),
         "eos::console::QuotaProto",
     )
     missing_wnc_quota_cases = wnc_quota_cases - mapped_wnc_quota_cases
