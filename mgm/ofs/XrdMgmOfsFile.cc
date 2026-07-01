@@ -877,11 +877,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // Proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if (gOFS->mExtAuthz &&
-        (vid.prot != "sss") &&
-        (vid.prot != "gsi") &&
-        (vid.prot != "krb5") &&
-        (vid.host != "localhost") &&
+    if (gOFS->mExtAuthz && (vid.prot != "sss") && (vid.prot != "gsi") &&
+        (vid.prot != "krb5") && (vid.prot != "oauth2") && (vid.host != "localhost") &&
         (vid.host != "localhost.localdomain")) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have"
                   " the requested permissions for that operation (1)", path);
