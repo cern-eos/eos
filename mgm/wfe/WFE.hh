@@ -21,8 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_WFE__HH__
-#define __EOSMGM_WFE__HH__
+#pragma once
 
 #include "common/AssistedThread.hh"
 #include "common/FileId.hh"
@@ -450,5 +449,3 @@ public:
 };
 
 EOSMGMNAMESPACE_END
-
-#endif
