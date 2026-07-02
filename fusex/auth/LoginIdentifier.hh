@@ -32,6 +32,8 @@
 // This class identifies them with a unique ID, which is provided in
 // the user part of an xrootd URL: root://user@host/path
 // We're only limited to 8 chars..
+// Prefix '*' encodes combined uid+gid for uids up to 256k; prefix '.'
+// encodes uid-only transport for larger uids.
 // Each object is immutable after construction, no need for locking.
 
 class LoginIdentifier
