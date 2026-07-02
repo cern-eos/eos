@@ -50,6 +50,45 @@ void FreeXrdSecEntity(XrdSecEntity* client)
   free((char*)client->tident);
 }
 
+TEST(Mapping, ReduceTidentLargeUidLoginPrefix)
+{
+  using namespace eos::common;
+  std::string wildcardtident;
+  std::string myhost;
+  const std::string tident = ".AAAPQkA.3372354:472@vl-ns-04.cern.ch";
+  const std::string mytident =
+    Mapping::ReduceTident(tident, wildcardtident, myhost);
+  ASSERT_EQ(mytident, ".AAAPQkA@vl-ns-04.cern.ch");
+  ASSERT_EQ(wildcardtident, "*@vl-ns-04.cern.ch");
+  ASSERT_EQ(myhost, "vl-ns-04.cern.ch");
+}
+
+TEST(Mapping, ReduceTidentCombinedUidLoginPrefix)
+{
+  using namespace eos::common;
+  std::string wildcardtident;
+  std::string myhost;
+  const std::string tident = "*AAPQk+g.3372354:472@vl-ns-04.cern.ch";
+  const std::string mytident =
+    Mapping::ReduceTident(tident, wildcardtident, myhost);
+  ASSERT_EQ(mytident, "*AAPQk+g@vl-ns-04.cern.ch");
+  ASSERT_EQ(wildcardtident, "*@vl-ns-04.cern.ch");
+  ASSERT_EQ(myhost, "vl-ns-04.cern.ch");
+}
+
+TEST(Mapping, ReduceTidentLegacyLoginWithEarlyDot)
+{
+  using namespace eos::common;
+  std::string wildcardtident;
+  std::string myhost;
+  const std::string tident = "foo.bar.3372354:472@vl-ns-04.cern.ch";
+  const std::string mytident =
+    Mapping::ReduceTident(tident, wildcardtident, myhost);
+  ASSERT_EQ(mytident, "foo@vl-ns-04.cern.ch");
+  ASSERT_EQ(wildcardtident, "*@vl-ns-04.cern.ch");
+  ASSERT_EQ(myhost, "vl-ns-04.cern.ch");
+}
+
 TEST(Mapping, VidAssignOperator)
 {
   using namespace eos::common;
