@@ -65,9 +65,6 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  // GRPC_JWT: insecure channel with JWT token
-  WFEGrpcClient(const WFEndpoint endpoint, const std::string& token_path_str);
-
   // GRPCS_JWT: TLS with root certs and JWT token
   WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& root_certs,
                 const std::string& token_path_str);

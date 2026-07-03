@@ -24,24 +24,6 @@
 #include "common/wfe/WFEClient.hh"
 #include "jwt-cpp/jwt.h"
 
-// GRPC_JWT: insecure channel with JWT token
-WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint, const std::string& token_path_str)
-    : endpoint(endpoint)
-    , token_path(token_path_str)
-    , cert_path(std::nullopt)
-    , key_path(std::nullopt)
-{
-  auto credentials = grpc::InsecureChannelCredentials();
-
-  eos_static_info("Connecting to endpoint %s with scheme grpc",
-                  endpoint.address().c_str());
-  eos_static_info("Using JWT. Token path=\"%s\"", token_path_str.c_str());
-
-  std::shared_ptr<grpc::Channel> channel =
-      grpc::CreateChannel(endpoint.address(), credentials);
-  client_stub = cta::xrd::CtaRpc::NewStub(channel);
-}
-
 // GRPCS_JWT: TLS with root certs and JWT token
 WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
                              const std::optional<std::string>& root_certs,
@@ -124,9 +106,7 @@ WFEGrpcClient::send(const cta::xrd::Request& request, cta::xrd::Response& respon
 
   std::string token_contents;
 
-  if ((endpoint.type == WFEndpoint::ClientType::GRPC_JWT ||
-       endpoint.type == WFEndpoint::ClientType::GRPCS_JWT) &&
-      token_path.has_value()) {
+  if (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT && token_path.has_value()) {
     // read the token from the path
     eos::common::StringConversion::LoadFileIntoString(token_path.value().c_str(),
                                                       token_contents);
@@ -225,9 +205,7 @@ WFEXrdClient::send(const cta::xrd::Request& request, cta::xrd::Response& respons
 std::unique_ptr<WFEClient>
 CreateRequestSender(const RequestSenderConfig& cf)
 {
-  if (cf.endpoint.type == WFEndpoint::ClientType::GRPC_JWT) {
-    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.token_path.value());
-  } else if (cf.endpoint.type == WFEndpoint::ClientType::GRPCS_JWT) {
+  if (cf.endpoint.type == WFEndpoint::ClientType::GRPCS_JWT) {
     return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs,
                                            cf.token_path.value());
   } else if (cf.endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS) {

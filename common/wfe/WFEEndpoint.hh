@@ -37,7 +37,7 @@ parseURI(const std::string& endpointUrl)
 }
 
 struct WFEndpoint {
-  enum class ClientType { GRPC_JWT, GRPCS_JWT, GRPCS_MTLS, XROOTD_SSI };
+  enum class ClientType { GRPCS_JWT, GRPCS_MTLS, XROOTD_SSI };
 
   static WFEndpoint
   from_config(const std::string& endpointUrl, const std::string& certPath,
@@ -75,8 +75,8 @@ struct WFEndpoint {
 
     if (scheme == "root") {
       type = ClientType::XROOTD_SSI;
-    } else if (scheme == "grpc" || scheme == "grpcs") {
-      throw std::invalid_argument("You cannot use a grpc(s) endpoint without specifying "
+    } else if (scheme == "grpcs") {
+      throw std::invalid_argument("You cannot use a GRPCS endpoint without specifying "
                                   "either JWT or mTLS authentication.");
     } else {
       throw std::invalid_argument("Invalid endpoint URL scheme: " + scheme + ".");
@@ -90,13 +90,11 @@ struct WFEndpoint {
     hostname = hostname_;
     port = port_;
 
-    if (scheme == "grpc") {
-      type = ClientType::GRPC_JWT;
-    } else if (scheme == "grpcs") {
+    if (scheme == "grpcs") {
       type = ClientType::GRPCS_JWT;
     } else {
       throw std::invalid_argument("Invalid JWT endpoint URL scheme: " + scheme +
-                                  ". Expected 'grpc' or 'grpcs'.");
+                                  ". Expected 'grpcs'.");
     }
   }
 
@@ -124,9 +122,6 @@ struct WFEndpoint {
   {
     std::string scheme;
     switch (type) {
-    case ClientType::GRPC_JWT:
-      scheme = "grpc";
-      break;
     case ClientType::GRPCS_JWT:
     case ClientType::GRPCS_MTLS:
       scheme = "grpcs";
