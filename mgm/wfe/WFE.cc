@@ -2955,11 +2955,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  eos_static_info("Connecting to endpoint %s with scheme %s", endpoint.address().c_str(),
-                  (endpoint.type == WFEndpoint::ClientType::GRPCS_JWT ||
-                   endpoint.type == WFEndpoint::ClientType::GRPCS_MTLS)
-                      ? "grpcs"
-                      : "grpc");
+  eos_static_info("Connecting to endpoint %s with scheme 'grpcs'",
+                  endpoint.address().c_str());
 
   cta::xrd::Response response;
   auto root_certs = gOFS->ConcatenatedServerRootCA;
