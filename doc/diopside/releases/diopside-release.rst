@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.8 Diopside``
+===================
+
+2026-07-09
+
+Bug
+---
+
+* FUSEX/COMMON: Extend FUSE uid transport and use '.' for large uids
+* MGM: allow 'oauth2' as protocol running proc commands
+
+
 ``v5.4.7 Diopside``
 ===================
 
