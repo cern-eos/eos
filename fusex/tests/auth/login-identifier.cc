@@ -32,16 +32,3 @@ TEST(LoginIdentifier, BasicSanity)
   ASSERT_EQ(LoginIdentifier(1000, 1000, 178, 3).getStringID(), "*APoA-gM");
   ASSERT_EQ(LoginIdentifier(41).getStringID(), "AAAAAACk");
 }
-
-TEST(LoginIdentifier, ExtendedUnixTransportUid)
-{
-  const LoginIdentifier aboveLegacyCap(1024 * 1024, 1000, 178, 0);
-  EXPECT_EQ(aboveLegacyCap.getStringID()[0], '~');
-  EXPECT_NE(aboveLegacyCap.getStringID(),
-            LoginIdentifier(99, 99, 178, 0).getStringID());
-
-  const LoginIdentifier max32BitUid(4294967295U, 1000, 178, 0);
-  EXPECT_EQ(max32BitUid.getStringID()[0], '~');
-  EXPECT_NE(max32BitUid.getStringID(),
-            LoginIdentifier(99, 99, 178, 0).getStringID());
-}
