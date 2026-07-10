@@ -1325,11 +1325,24 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     scan_xs_hex = comp_file_xs->GetHexChecksum();
 
     if (!comp_file_xs->Compare(xs_val)) {
-      auto exp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
-      exp_file_xs->SetBinChecksum(xs_val, xs_len);
+      std::unique_ptr<eos::fst::CheckSum> exp_file_xs =
+        eos::fst::ChecksumPlugins::GetXsObj(xs_type);
+
+      if (!exp_file_xs && fmd) {
+        exp_file_xs = eos::fst::ChecksumPlugins::GetChecksumObject(
+                        fmd->mProtoFmd.lid());
+      }
+
+      const char* expected_hex = "unknown";
+
+      if (exp_file_xs) {
+        exp_file_xs->SetBinChecksum(xs_val, xs_len);
+        expected_hex = exp_file_xs->GetHexChecksum();
+      }
+
       LogMsg(LOG_ERR, "msg=\"file checksum error\" expected_file_xs=%s "
              "computed_file_xs=%s scan_size=%llu path=%s",
-             exp_file_xs->GetHexChecksum(), comp_file_xs->GetHexChecksum(),
+             expected_hex, comp_file_xs->GetHexChecksum(),
              scan_size, file_path.c_str());
       ++mNumCorruptedFiles;
       filexs_err = true;

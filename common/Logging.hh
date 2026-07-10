@@ -870,6 +870,11 @@ public:
   //----------------------------------------------------------------------------
   void WriteZstd(const char* tag, const char* line);
   //----------------------------------------------------------------------------
+  //! When ZSTD logging is enabled, copy lines from a plain file into @a zstd_tag
+  //! and unlink the plain file. No-op when ZSTD logging is disabled.
+  //----------------------------------------------------------------------------
+  void ZstdMigratePlainFile(const char* zstd_tag, const char* plain_path);
+  //----------------------------------------------------------------------------
   //! Query if ZSTD logging is enabled
   //----------------------------------------------------------------------------
   bool IsZstdEnabled() const

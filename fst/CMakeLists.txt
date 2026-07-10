@@ -350,6 +350,15 @@ if(TARGET procps::libproc2)
   target_link_libraries(XrdEosFst-Objects PUBLIC procps::libproc2)
 endif()
 
+if(EOS_HAVE_CERN_NFS)
+  target_sources(XrdEosFst-Objects PRIVATE
+    nfs/EosEmbedFstFs.cc
+    nfs/CernNfsEmbedFst.cc)
+  target_link_libraries(XrdEosFst-Objects PUBLIC cernnfs::cernnfs)
+  add_dependencies(XrdEosFst-Objects cern_nfs_ep)
+  target_compile_definitions(XrdEosFst-Objects PUBLIC EOS_HAVE_CERN_NFS=1)
+endif()
+
 set_target_properties(XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -357,17 +366,31 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst-${XRDPLUGIN_SOVERSION} MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<$<BOOL:${EOS_HAVE_CERN_NFS}>:$<TARGET_OBJECTS:EosCernNfsEmbed-Objects>>)
 
 target_link_libraries(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
   XROOTD::SSI)
 
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE
+    "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE cernnfs::cernnfs)
+  target_link_options(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE "LINKER:--pop-state")
+  add_dependencies(XrdEosFst-${XRDPLUGIN_SOVERSION} cern_nfs_ep)
+  set_target_properties(XrdEosFst-${XRDPLUGIN_SOVERSION} PROPERTIES
+    BUILD_RPATH "${CERN_NFS_BINARY_DIR}/lib;${CERN_NFS_BINARY_DIR}/_deps/spdlog-build"
+    INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}")
+endif()
+
 target_compile_definitions(XrdEosFst-${XRDPLUGIN_SOVERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst-Static STATIC $<TARGET_OBJECTS:XrdEosFst-Objects>)
+add_library(XrdEosFst-Static STATIC
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<$<BOOL:${EOS_HAVE_CERN_NFS}>:$<TARGET_OBJECTS:EosCernNfsEmbed-Objects>>)
 
 target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -379,6 +402,14 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosFstIo
   EosNsCommon
   XROOTD::SSI)
+
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(XrdEosFst-Static PUBLIC "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(XrdEosFst-Static PUBLIC cernnfs::cernnfs)
+  target_link_options(XrdEosFst-Static PUBLIC "LINKER:--pop-state")
+  add_dependencies(XrdEosFst-Static cern_nfs_ep)
+  target_compile_definitions(XrdEosFst-Static PUBLIC EOS_HAVE_CERN_NFS=1)
+endif()
 
 install(TARGETS EosFstOss XrdEosFst-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -469,6 +500,13 @@ target_link_libraries(eos-fmd-tool PRIVATE
   EosCommonServer
   XrdEosFst-Static
   CLI11::CLI11)
+
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(eos-fmd-tool PRIVATE "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(eos-fmd-tool PRIVATE cernnfs::cernnfs)
+  target_link_options(eos-fmd-tool PRIVATE "LINKER:--pop-state")
+  add_dependencies(eos-fmd-tool cern_nfs_ep)
+endif()
 
 add_executable(eos-disk-measurements
   utils/DiskMeasurementsMain.cc

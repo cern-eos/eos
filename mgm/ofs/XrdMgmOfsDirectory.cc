@@ -49,6 +49,12 @@
 eos::common::LRU::Cache<std::string, std::shared_ptr<XrdMgmOfsDirectory::listing_t>, std::mutex>
     XrdMgmOfsDirectory::dirCache(1024, 0);
 
+void
+XrdMgmOfsDirectory::invalidateListingCache()
+{
+  dirCache.clear();
+}
+
 //------------------------------------------------------------------------------
 //! MGM Directory Interface
 //------------------------------------------------------------------------------
@@ -216,7 +222,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
 
       // try to get the listing from the cache
-      if (!use_cache || !dirCache.tryGet(cacheentry, dh_list)) {
+      const bool nocache = (env.Get("eos.embed.nocache") != nullptr);
+      if (nocache || !use_cache || !dirCache.tryGet(cacheentry, dh_list)) {
         dh_list = std::make_shared<listing_t>();
 
         if (!env.Get("ls.skip.files")) {
@@ -243,7 +250,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
       dh_it = dh_list->begin();
 
-      if (use_cache) {
+      if (use_cache && !nocache) {
         dirCache.insert(cacheentry, dh_list); // cache listing
       }
     }

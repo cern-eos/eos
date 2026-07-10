@@ -384,6 +384,15 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   ZMQ::ZMQ
   XXHASH::XXHASH)
 
+if(EOS_HAVE_CERN_NFS)
+  target_sources(XrdEosMgm-Objects PRIVATE
+    nfs/EosEmbedMgmFs.cc
+    nfs/CernNfsEmbedMgm.cc)
+  target_link_libraries(XrdEosMgm-Objects PUBLIC cernnfs::cernnfs)
+  add_dependencies(XrdEosMgm-Objects cern_nfs_ep)
+  target_compile_definitions(XrdEosMgm-Objects PUBLIC EOS_HAVE_CERN_NFS=1)
+endif()
+
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
@@ -391,7 +400,8 @@ set_target_properties(XrdEosMgm-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(XrdEosMgm-${XRDPLUGIN_SOVERSION} MODULE
-  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>
+  $<$<BOOL:${EOS_HAVE_CERN_NFS}>:$<TARGET_OBJECTS:EosCernNfsEmbed-Objects>>)
 
 target_compile_definitions(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -416,6 +426,17 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   XROOTD::POSIX
   EosCommon
   EosNsCommon)
+
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
+    "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC cernnfs::cernnfs)
+  target_link_options(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC "LINKER:--pop-state")
+  add_dependencies(XrdEosMgm-${XRDPLUGIN_SOVERSION} cern_nfs_ep)
+  set_target_properties(XrdEosMgm-${XRDPLUGIN_SOVERSION} PROPERTIES
+    BUILD_RPATH "${CERN_NFS_BINARY_DIR}/lib;${CERN_NFS_BINARY_DIR}/_deps/spdlog-build"
+    INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}")
+endif()
 
 install(TARGETS XrdEosMgm-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -458,7 +479,8 @@ target_link_libraries(eos-config-inspect PRIVATE
 #-------------------------------------------------------------------------------
 if(Linux)
   add_library(XrdEosMgm-Static STATIC
-    $<TARGET_OBJECTS:XrdEosMgm-Objects>)
+    $<TARGET_OBJECTS:XrdEosMgm-Objects>
+    $<$<BOOL:${EOS_HAVE_CERN_NFS}>:$<TARGET_OBJECTS:EosCernNfsEmbed-Objects>>)
 
   target_compile_definitions(XrdEosMgm-Static PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -480,6 +502,14 @@ if(Linux)
     prometheus-cpp::pull
     EosNsCommon-Static
     EosCommon-Static)
+
+  if(EOS_HAVE_CERN_NFS)
+    target_link_options(XrdEosMgm-Static PUBLIC "LINKER:--push-state,--no-as-needed")
+    target_link_libraries(XrdEosMgm-Static PUBLIC cernnfs::cernnfs)
+    target_link_options(XrdEosMgm-Static PUBLIC "LINKER:--pop-state")
+    add_dependencies(XrdEosMgm-Static cern_nfs_ep)
+    target_compile_definitions(XrdEosMgm-Static PUBLIC EOS_HAVE_CERN_NFS=1)
+  endif()
 
   install(TARGETS eos-config-inspect
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

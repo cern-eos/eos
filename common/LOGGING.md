@@ -158,6 +158,20 @@ Logging can optionally replace stdout/fan-out outputs with ZSTD-compressed, time
   - When enabled, stdout printing and fan-out FILE* writes are suppressed (compressed streams are authoritative). Stderr is redirected and its lines are written to the main compressed stream.
   - On startup in ZSTD mode, if a plain `xrdlog.<service>` exists with content (e.g., created by XRootD early), its contents are migrated into the compressed main stream and the plain file is unlinked.
   - MGM-only: the cluster-wide error-report listener (previously `/var/log/eos/mgm/error.log`) switches to a compressed, rotating stream at `<base>/error.zstd -> logs/error-YYYYmmdd-HHMMSS.zst`. When ZSTD logging is disabled the plain `error.log` behaviour is preserved.
+  - Embedded cern-nfs (when `EOS_MGM_NFSPORT` / `EOS_FST_NFSPORT` is set) writes to `<base>/nfs41.zstd -> logs/nfs41-YYYYmmdd-HHMMSS.zst` in ZSTD mode, or plain `<base>/nfs41.log` otherwise. Override the plain path with `EOS_MGM_NFS_LOG` / `EOS_FST_NFS_LOG`; verbosity via `EOS_*_NFS_LOG_LEVEL` or `LOG_LEVEL`.
+
+External ZSTD streams
+---------------------
+
+Some components outside the `eos_static_*` fan-out path write directly via
+`Logging::WriteZstd(tag, line)`. These tags are not restricted to the MGM
+fan-out allow-list:
+
+- `error` — QDB error-report listener (MGM)
+- `nfs41` — embedded cern-nfs spdlog output (MGM and FST)
+
+Use `zstdcat <base>/<tag>.zstd` to read them. When ZSTD logging is disabled,
+these components fall back to plain files (`error.log`, `nfs41.log`).
 
 Per-tag file names in ZSTD mode
 -------------------------------

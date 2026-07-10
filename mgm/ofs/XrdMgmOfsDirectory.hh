@@ -138,6 +138,9 @@ public:
   static eos::common::LRU::Cache<std::string, std::shared_ptr<listing_t>,std::mutex>
       dirCache;
 
+  //! Drop cached directory listings (e.g. after embedded NFS namespace mutations).
+  static void invalidateListingCache();
+
 private:
 
   std::string getCacheName(uint64_t id, uint64_t mtime_sec, uint64_t mtime_nsec,

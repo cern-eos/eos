@@ -725,6 +725,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   COMMONTIMING("fid::fetched", &tm);
   openOpaque = new XrdOucEnv(ininfo);
+  mEmbedOpen = (openOpaque->Get("eos.embed") != nullptr);
 
   // Handle (delegated) tpc redirection for writes
   if (isRW && RedirectTpcAccess()) {
@@ -1877,7 +1878,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   Policy::RedirectStatus rs;
 
   // do a local redirect here if there is only one replica attached and this is not an HTTPS request
-  if (vid.prot != "https" && !isRW && !isFuse && !isPio &&
+  if (!mEmbedOpen && vid.prot != "https" && !isRW && !isFuse && !isPio &&
       (fmd->getNumLocation() == 1) &&
       (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
                                   *openOpaque)) != Policy::eNever) {
@@ -2146,7 +2147,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // 0-size files can be read from the MGM if this is not FUSE access
   // atomic files are only served from here and also rain files are skipped
-  if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
+  if (!mEmbedOpen && !isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
     if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
       mIsZeroSize = true;
@@ -2163,6 +2164,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // ---------------------------------------------------------------------
       return SFS_OK;
     }
+  }
+
+  if (mEmbedOpen && !isRW) {
+    // Embedded NFS reads use pNFS to local FST. Skip xrootd scheduling and
+    // redirect setup, which can fail with ENETUNREACH when FSTs are offline
+    // to the scheduler but still have namespace replicas.
+    EXEC_TIMING_END("Open");
+    return finishEmbedOpen(path, isRW, vid, tm);
   }
 
   // @todo(esindril) the tag is wrong should actually be mgm.uid
@@ -2734,7 +2743,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!fmd->getSize()) {
         // 0-size files can be read from the MGM if this is not FUSE access and
         // also if this is not a rain file
-        if (!isFuse && !LayoutId::IsRain(layoutId)) {
+        if (!mEmbedOpen && !isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
 
           // ----------f---------------------------------------------------------
@@ -3361,6 +3370,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  // In-process embedded NFS: keep full open side-effects but return replica set.
+  if (mEmbedOpen) {
+    EXEC_TIMING_END("Open");
+    return finishEmbedOpen(path, isRW, vid, tm, &selectedfs);
+  }
+
   // Always redirect
   if ((vid.prot == "https") || (vid.prot == "http")) {
     ecode = targethttpport;
@@ -3817,6 +3832,130 @@ XrdMgmOfsFile::LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
 
     eos_debug("msg=\"scheduling info %s\"", oss.str().c_str());
   }
+}
+
+//------------------------------------------------------------------------------
+// Complete an in-process embedded NFS open
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::finishEmbedOpen(const char* path,
+                               bool is_rw,
+                               const eos::common::VirtualIdentity& vid,
+                               eos::common::Timing& tm,
+                               const std::vector<unsigned int>* selected_fs)
+{
+  static const char* epname = "open";
+  COMMONTIMING("end", &tm);
+
+  bool had_filemd_locations = false;
+
+  try {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    fmd = gOFS->eosFileService->getFileMD(mFid);
+    mEmbedReplicaFsids.clear();
+
+    for (unsigned int i = 0; i < fmd->getNumLocation(); ++i) {
+      const auto loc = fmd->getLocation(i);
+
+      if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
+        mEmbedReplicaFsids.push_back(loc);
+      }
+    }
+
+    had_filemd_locations = !mEmbedReplicaFsids.empty();
+  } catch (eos::MDException& e) {
+    return Emsg(epname, error, e.getErrno(), "open file",
+                e.getMessage().str().c_str());
+  }
+
+  if (mEmbedReplicaFsids.empty() && selected_fs) {
+    for (const auto fsid : *selected_fs) {
+      if (fsid != 0 && fsid != eos::common::TAPE_FS_ID) {
+        mEmbedReplicaFsids.push_back(fsid);
+      }
+    }
+  }
+
+  // pNFS writes go directly to the DS; FST ResyncMgm requires the scheduled
+  // replica to be registered in MGM fileMD locations.  Redirect opens commit
+  // this during creation when eos.bookingsize is present; embed opens can
+  // still advertise selected_fs in the layout without updating fileMD.
+  if (is_rw && !had_filemd_locations && selected_fs && !selected_fs->empty()) {
+    try {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      fmd = gOFS->eosFileService->getFileMD(mFid);
+      bool updated = false;
+      std::string locations;
+
+      if (fmd->hasAttribute("sys.fs.tracking")) {
+        locations = fmd->getAttribute("sys.fs.tracking");
+      }
+
+      if (fmd->getLayoutId() == 0) {
+        fmd->setLayoutId(eos::common::LayoutId::GetId(
+          eos::common::LayoutId::kPlain, eos::common::LayoutId::kAdler, 1, 0,
+          eos::common::LayoutId::kNone));
+        updated = true;
+      }
+
+      for (const auto fsid : *selected_fs) {
+        if (fsid == 0 || fsid == eos::common::TAPE_FS_ID) {
+          continue;
+        }
+
+        bool found = false;
+
+        for (unsigned int i = 0; i < fmd->getNumLocation(); ++i) {
+          if (fmd->getLocation(i) == fsid) {
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          fmd->addLocation(fsid);
+          locations += "+";
+          locations += std::to_string(fsid);
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        fmd->setAttribute("sys.fs.tracking",
+                          eos::common::StringConversion::ReduceString(locations).c_str());
+        gOFS->eosView->updateFileStore(fmd.get());
+        mEmbedReplicaFsids.clear();
+
+        for (unsigned int i = 0; i < fmd->getNumLocation(); ++i) {
+          const auto loc = fmd->getLocation(i);
+
+          if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
+            mEmbedReplicaFsids.push_back(loc);
+          }
+        }
+      }
+    } catch (eos::MDException& e) {
+      return Emsg(epname, error, e.getErrno(), "open file",
+                  e.getMessage().str().c_str());
+    }
+  }
+
+  if (mEmbedReplicaFsids.empty()) {
+    return Emsg(epname, error, ENXIO, "open - no data servers for file", path);
+  }
+
+  const char* op = is_rw ? "write" : "read";
+  eos_info("op=%s path=%s embed=pNFS replicas=%zu duration=%0.03fms timing=%s",
+           op, path, mEmbedReplicaFsids.size(), tm.RealTime(), tm.Dump().c_str());
+
+  if (!is_rw && gOFS->AllowAuditRead(path)) {
+    gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                        std::string(), nullptr, nullptr,
+                        std::string(), std::string(), std::string(),
+                        __FILE__, __LINE__, VERSION);
+  }
+
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------

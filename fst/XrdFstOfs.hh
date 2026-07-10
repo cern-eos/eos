@@ -25,6 +25,7 @@
 #define __XRDFSTOFS_FSTOFS_HH__
 
 #include "common/Fmd.hh"
+#include "common/CernNfsEmbed.hh"
 #include "common/Logging.hh"
 #include "common/ThreadPool.hh"
 #include "common/XrdConnPool.hh"
@@ -158,6 +159,13 @@ public:
   //! @return 0 if successful, otherwise -1
   //----------------------------------------------------------------------------
   int Configure(XrdSysError& error, XrdOucEnv* envP);
+
+  //----------------------------------------------------------------------------
+  //! Start embedded cern-nfs server when EOS_FST_NFSPORT is set.
+  //! @return true if NFS is disabled or started successfully; false if
+  //!         EOS_FST_NFSPORT is set but the embedded server failed to start.
+  //----------------------------------------------------------------------------
+  bool StartEmbeddedNfsServer();
 
   //----------------------------------------------------------------------------
   //! fsctl command
@@ -433,6 +441,7 @@ public:
   int mHttpdPort; ///< listening port of the http server
   //! Embedded http server if available
   std::unique_ptr<eos::fst::HttpServer> mHttpd;
+  std::unique_ptr<eos::common::CernNfsEmbed> mCernNfsEmbed;
   std::chrono::seconds mTpcKeyMinValidity {2 * 60}; ///< TPC key minimum validity
   std::chrono::seconds mTpcKeyMaxValidity {15 * 60}; ///< TPC key maximum validity
   std::string mMgmAlias; ///< MGM alias

@@ -242,6 +242,17 @@ EOS_MGM_AUDIT=off
 # MGM
 EOS_MGM_HTTP_PORT=8000
 
+# Embedded cern-nfs server (set to 0 or unset to disable)
+EOS_MGM_NFSPORT=2094
+# pNFS DS filehandle signing key (same file on every MGM and FST node)
+EOS_EMBED_NFS_KEYTAB=/etc/eos.nfs.keytab
+# pNFS DS universal-address port for embedded FST NFS (not used to start NFS on MGM)
+EOS_FST_NFSPORT=2095
+# Plain-mode NFS log override (ignored when EOS_ZSTD_LOGGING=1; use nfs41.zstd then)
+#EOS_MGM_NFS_LOG=/var/log/eos/mgm/nfs41.log
+# Log level: trace|debug|info|warn|error (default warn; falls back to LOG_LEVEL)
+#EOS_MGM_NFS_LOG_LEVEL=warn
+
 #-------------------------------------------------------------------------------
 # FUSEX Configuration
 #-------------------------------------------------------------------------------
@@ -277,3 +288,14 @@ EOS_MGM_FUSEX_MAX_CHILDREN=262144
 #-------------------------------------------------------------------------------
 
 XDG_CACHE_HOME=/var/cache/eos/
+
+# ------------------------------------------------------------ #
+[init]
+# ------------------------------------------------------------ #
+
+if [ -n "${EOS_MGM_NFSPORT}" ] && [ "${EOS_MGM_NFSPORT}" != "0" ]; then
+  test -f ${EOS_EMBED_NFS_KEYTAB} || \
+    printf '%s %s\n' 1 "$(head -c 32 /dev/urandom | xxd -p -c 64)" > ${EOS_EMBED_NFS_KEYTAB}
+  chown daemon ${EOS_EMBED_NFS_KEYTAB}
+  chmod 600 ${EOS_EMBED_NFS_KEYTAB}
+fi

@@ -1284,4 +1284,60 @@ void Logging::zstdMigratePlainMain()
 }
 #endif
 
+void
+Logging::ZstdMigratePlainFile(const char* zstd_tag, const char* plain_path)
+{
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+
+  if (!gZstdEnable || !zstd_tag || !*zstd_tag || !plain_path || !*plain_path) {
+    return;
+  }
+
+  struct stat st {};
+
+  if (::stat(plain_path, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0) {
+    return;
+  }
+
+  int fd = ::open(plain_path, O_RDONLY | O_CLOEXEC);
+
+  if (fd < 0) {
+    return;
+  }
+
+  std::string buf;
+  buf.reserve(1 << 16);
+  char tmp[8192];
+  ssize_t n;
+
+  while ((n = ::read(fd, tmp, sizeof(tmp))) > 0) {
+    for (ssize_t i = 0; i < n; ++i) {
+      char c = tmp[i];
+
+      if (c == '\n') {
+        if (!buf.empty()) {
+          WriteZstd(zstd_tag, buf.c_str());
+          buf.clear();
+        } else {
+          WriteZstd(zstd_tag, "");
+        }
+      } else {
+        buf.push_back(c);
+      }
+    }
+  }
+
+  if (!buf.empty()) {
+    WriteZstd(zstd_tag, buf.c_str());
+    buf.clear();
+  }
+
+  ::close(fd);
+  ::unlink(plain_path);
+#else
+  (void)zstd_tag;
+  (void)plain_path;
+#endif
+}
+
 EOSCOMMONNAMESPACE_END

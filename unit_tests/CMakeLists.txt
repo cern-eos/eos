@@ -203,6 +203,13 @@ target_link_libraries(eos-unit-tests PRIVATE
   RestAnnot-Objects
   XrdEosMgm-Static)
 
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(eos-unit-tests PRIVATE "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(eos-unit-tests PRIVATE cernnfs::cernnfs)
+  target_link_options(eos-unit-tests PRIVATE "LINKER:--pop-state")
+  add_dependencies(eos-unit-tests cern_nfs_ep)
+endif()
+
 #-------------------------------------------------------------------------------
 # eos-unit-tests-fst executable
 #-------------------------------------------------------------------------------
@@ -218,6 +225,13 @@ target_link_libraries(eos-unit-tests-fst PRIVATE
   XrdEosFst-Static
   XXHASH::XXHASH)
 
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(eos-unit-tests-fst PRIVATE "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(eos-unit-tests-fst PRIVATE cernnfs::cernnfs)
+  target_link_options(eos-unit-tests-fst PRIVATE "LINKER:--pop-state")
+  add_dependencies(eos-unit-tests-fst cern_nfs_ep)
+endif()
+
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-instance executable
 #-------------------------------------------------------------------------------
@@ -232,6 +246,14 @@ target_link_libraries(eos-unit-tests-with-instance PRIVATE
   GTest::GTest
   XrdEosFst-Static)
 
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(eos-unit-tests-with-instance PRIVATE
+    "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(eos-unit-tests-with-instance PRIVATE cernnfs::cernnfs)
+  target_link_options(eos-unit-tests-with-instance PRIVATE "LINKER:--pop-state")
+  add_dependencies(eos-unit-tests-with-instance cern_nfs_ep)
+endif()
+
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-qdb executable
 #-------------------------------------------------------------------------------
@@ -240,7 +262,7 @@ add_executable(eos-unit-tests-with-qdb
   with_qdb/configuration.cc
   with_qdb/TestUtils.cc)
 
-target_link_libraries(eos-unit-tests-with-qdb
+target_link_libraries(eos-unit-tests-with-qdb PRIVATE
   GTest::Main
   GTest::gmock
   qclient
@@ -248,6 +270,13 @@ target_link_libraries(eos-unit-tests-with-qdb
   XrdEosMgm-Static
   READLINE::READLINE
   JSONCPP::JSONCPP)
+
+if(EOS_HAVE_CERN_NFS)
+  target_link_options(eos-unit-tests-with-qdb PRIVATE "LINKER:--push-state,--no-as-needed")
+  target_link_libraries(eos-unit-tests-with-qdb PRIVATE cernnfs::cernnfs)
+  target_link_options(eos-unit-tests-with-qdb PRIVATE "LINKER:--pop-state")
+  add_dependencies(eos-unit-tests-with-qdb cern_nfs_ep)
+endif()
 
 install(TARGETS
   eos-unit-tests eos-unit-tests-with-instance eos-unit-tests-fst

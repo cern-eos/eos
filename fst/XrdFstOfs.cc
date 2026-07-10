@@ -27,6 +27,7 @@
 #include "fst/filemd/FmdAttr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/http/HttpServer.hh"
+#include "common/CernNfsEmbed.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/Deletion.hh"
@@ -133,6 +134,12 @@ extern "C"
     fprintf(stderr, "pcrctl= %d\n", prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0));
 
     if (eos::fst::gOFS.Configure(OfsEroute, envP)) {
+      return 0;
+    }
+
+    if (!eos::fst::gOFS.StartEmbeddedNfsServer()) {
+      OfsEroute.Emsg("Startup",
+                     "embedded cern-nfs server failed — see log above");
       return 0;
     }
 
@@ -449,6 +456,10 @@ XrdFstOfs::XrdFstOfs() :
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
+  if (mCernNfsEmbed) {
+    mCernNfsEmbed->Stop();
+  }
+
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
@@ -458,6 +469,50 @@ XrdFstOfs::~XrdFstOfs()
     free(ConfigFN);
     ConfigFN = nullptr;
   }
+}
+
+//------------------------------------------------------------------------------
+// Start embedded cern-nfs server when EOS_FST_NFSPORT is configured
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::StartEmbeddedNfsServer()
+{
+  const char* nfs_port_env = getenv("EOS_FST_NFSPORT");
+
+  if (!nfs_port_env || !*nfs_port_env) {
+    return true;
+  }
+
+  const int nfs_port = eos::common::CernNfsEmbed::PortFromEnv(nfs_port_env);
+
+  if (nfs_port <= 0) {
+    eos_static_err("msg=\"invalid EOS_FST_NFSPORT, refusing to start FST\""
+                   " value=\"%s\"", nfs_port_env);
+    return false;
+  }
+
+  if (!mCernNfsEmbed) {
+    mCernNfsEmbed = std::make_unique<eos::common::CernNfsEmbed>();
+  }
+
+  const char* bind_host = (mHostName && *mHostName) ? mHostName : "0.0.0.0";
+  std::string err;
+  const bool started = mCernNfsEmbed->StartFst(this, nfs_port, bind_host,
+                                                 "/", &err);
+
+  if (!started) {
+    eos_static_crit("msg=\"refusing FST startup: embedded cern-nfs failed\""
+                    " port=%d err=\"%s\"", nfs_port, err.c_str());
+    return false;
+  }
+
+  const std::string nfs_log =
+    eos::common::CernNfsEmbed::LogPathFromEnv("EOS_FST_NFS_LOG",
+                                              "/var/log/eos/fst");
+  eos_static_notice("msg=\"embedded FST cern-nfs server started\" port=%d"
+                    " bind=\"%s:%d\" backend=\"EosEmbedFstFS\" log=\"%s\"",
+                    nfs_port, bind_host, nfs_port, nfs_log.c_str());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -937,6 +992,27 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              keytab_xs.c_str());
+
+  {
+    const char* nfs_port_env = getenv("EOS_FST_NFSPORT");
+
+    if (nfs_port_env && *nfs_port_env) {
+      Eroute.Say("=====> fstofs.embeddednfs port : ", nfs_port_env, "");
+
+      if (eos::common::CernNfsEmbed::PortFromEnv(nfs_port_env) > 0) {
+        Eroute.Say("=====> fstofs.embeddednfs backend : EosEmbedFstFS");
+        const std::string nfs_log =
+          eos::common::CernNfsEmbed::LogPathFromEnv("EOS_FST_NFS_LOG",
+                                                    "/var/log/eos/fst");
+        Eroute.Say("=====> fstofs.embeddednfs log : ", nfs_log.c_str(), "");
+      } else {
+        Eroute.Say("=====> fstofs.embeddednfs : invalid port, will not start");
+      }
+    } else {
+      Eroute.Say("=====> fstofs.embeddednfs : disabled (EOS_FST_NFSPORT unset)");
+    }
+  }
+
   return NoGo;
 }
 

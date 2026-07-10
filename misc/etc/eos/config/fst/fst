@@ -8,6 +8,16 @@ EOS_GEOTAG=local::geo
 QDB_HOST=${SERVER_HOST}
 QDB_PORT=7777
 
+# Embedded cern-nfs server (set to 0 or unset to disable).
+# Use a port different from EOS_MGM_NFSPORT (2094) when MGM and FST share a host.
+EOS_FST_NFSPORT=2095
+# Required when EOS_*_NFSPORT is set (same file on MGM + FST):
+#EOS_EMBED_NFS_KEYTAB=/etc/eos.nfs.keytab
+# Plain-mode NFS log override (ignored when EOS_ZSTD_LOGGING=1; use nfs41.zstd then)
+#EOS_FST_NFS_LOG=/var/log/eos/fst/nfs41.log
+# Log level: trace|debug|info|warn|error (default warn; falls back to LOG_LEVEL)
+#EOS_FST_NFS_LOG_LEVEL=warn
+
 #-------------------------------------------------------------------------------
 # LOGGING
 #-------------------------------------------------------------------------------

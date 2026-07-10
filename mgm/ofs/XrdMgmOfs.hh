@@ -107,6 +107,7 @@
 #include "common/Mapping.hh"
 #include "common/MutexLatencyWatcher.hh"
 #include "common/XrdConnPool.hh"
+#include "common/CernNfsEmbed.hh"
 #include "common/Audit.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
@@ -1423,6 +1424,13 @@ public:
   virtual int Configure(XrdSysError&);
 
   //----------------------------------------------------------------------------
+  //! Start embedded cern-nfs server when EOS_MGM_NFSPORT is set.
+  //! @return true if NFS is disabled or started successfully; false if
+  //!         EOS_MGM_NFSPORT is set but the embedded server failed to start.
+  //----------------------------------------------------------------------------
+  bool StartEmbeddedNfsServer();
+
+  //----------------------------------------------------------------------------
   //! Apply monitoring endpoint configuration.
   //----------------------------------------------------------------------------
   bool ApplyMonitoringConfig(std::string* err = nullptr);
@@ -2087,6 +2095,7 @@ public:
   Drainer mDrainEngine; ///< Draining engine
   std::unique_ptr<ConverterEngine> mConverterEngine; ///< Converter engine
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
+  std::unique_ptr<eos::common::CernNfsEmbed> mCernNfsEmbed;
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
   std::unique_ptr<GrpcWncServer> WNCd; ///< GRPC server for EOS Wnc

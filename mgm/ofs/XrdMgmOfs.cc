@@ -23,6 +23,7 @@
 
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/BehaviourConfig.hh"
+#include "common/CernNfsEmbed.hh"
 #include "common/BufferManager.hh"
 #include "common/CommentLog.hh"
 #include "common/Constants.hh"
@@ -245,6 +246,12 @@ extern "C" {
       return nullptr;
     }
 
+    if (!myFS.StartEmbeddedNfsServer()) {
+      gMgmOfsEroute.Emsg("Startup",
+                         "embedded cern-nfs server failed — see log above");
+      return nullptr;
+    }
+
     // Initialize authorization plugin XrdMgmAuthz
     gOFS->mMgmAuthz = (XrdMgmAuthz*) XrdAccAuthorizeObject(lp, configfn,
                       nullptr);
@@ -386,6 +393,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
   }
 
   mRestApiManager = std::make_unique<rest::RestApiManager>();
+  mCernNfsEmbed = std::make_unique<eos::common::CernNfsEmbed>();
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   mIoStats.reset(new eos::mgm::Iostat());
@@ -663,6 +671,62 @@ XrdMgmOfs::~XrdMgmOfs()
 }
 
 //------------------------------------------------------------------------------
+// Start embedded cern-nfs server when EOS_MGM_NFSPORT is configured
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::StartEmbeddedNfsServer()
+{
+  const char* nfs_port_env = getenv("EOS_MGM_NFSPORT");
+
+  if (!nfs_port_env || !*nfs_port_env) {
+    return true;
+  }
+
+  const int nfs_port = eos::common::CernNfsEmbed::PortFromEnv(nfs_port_env);
+
+  if (nfs_port <= 0) {
+    eos_static_err("msg=\"invalid EOS_MGM_NFSPORT, refusing to start MGM\""
+                   " value=\"%s\"", nfs_port_env);
+    return false;
+  }
+
+  if (!mCernNfsEmbed) {
+    mCernNfsEmbed = std::make_unique<eos::common::CernNfsEmbed>();
+  }
+
+  XrdOucString mount_path = "/eos/";
+  XrdOucString subpath = MgmOfsInstanceName;
+
+  if (subpath.beginswith("eos")) {
+    subpath.erase(0, 3);
+  }
+
+  mount_path += subpath;
+
+  const char* bind_host = (HostName && *HostName) ? HostName : "0.0.0.0";
+  std::string err;
+  const bool started = mCernNfsEmbed->StartMgm(this, nfs_port, bind_host,
+                                               mount_path.c_str(), &err);
+
+  if (!started) {
+    eos_static_crit("msg=\"refusing MGM startup: embedded cern-nfs failed\""
+                    " port=%d mount=\"%s\" err=\"%s\"", nfs_port,
+                    mount_path.c_str(), err.c_str());
+    return false;
+  }
+
+  const std::string nfs_log =
+    eos::common::CernNfsEmbed::LogPathFromEnv("EOS_MGM_NFS_LOG",
+                                              "/var/log/eos/mgm");
+  eos_static_notice("msg=\"embedded MGM cern-nfs server started\" port=%d"
+                    " bind=\"%s:%d\" mount=\"%s\" backend=\"EosEmbedMgmFS\""
+                    " log=\"%s\"",
+                    nfs_port, bind_host, nfs_port, mount_path.c_str(),
+                    nfs_log.c_str());
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Destroy member objects and clean up threads
 //------------------------------------------------------------------------------
 void
@@ -675,6 +739,12 @@ XrdMgmOfs::OrderlyShutdown()
 
   auto start_ts = std::chrono::steady_clock::now();
   mDoneOrderlyShutdown = true;
+
+  if (mCernNfsEmbed) {
+    eos_warning("%s", "msg=\"stopping embedded cern-nfs server\"");
+    mCernNfsEmbed->Stop();
+  }
+
   {
     eos_warning("%s", "msg=\"set stall rule of all ns operations\"");
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);

@@ -53,8 +53,15 @@
 #include "mgm/proc/IProcCommand.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
+#include <vector>
 
 USE_EOSMGMNAMESPACE
+
+namespace eos {
+namespace common {
+class Timing;
+}
+}
 
 //! Forward declaration
 class XrdSfsAio;
@@ -114,6 +121,33 @@ public:
            const char* opaque = 0)
   {
     return open(0, fileName, openMode, createMode, client, opaque);
+  }
+
+  //----------------------------------------------------------------------------
+  //! True when open() was requested with eos.embed=1 (embedded NFS MGM path).
+  //----------------------------------------------------------------------------
+  bool
+  isEmbedOpen() const
+  {
+    return mEmbedOpen;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Disk replica FSIDs selected during an embed open (all mirrors for pNFS).
+  //----------------------------------------------------------------------------
+  const std::vector<unsigned int>&
+  embedReplicaFsids() const
+  {
+    return mEmbedReplicaFsids;
+  }
+
+  //----------------------------------------------------------------------------
+  //! File metadata after a successful embed open.
+  //----------------------------------------------------------------------------
+  const std::shared_ptr<eos::IFileMD>&
+  embedFileMd() const
+  {
+    return fmd;
   }
 
   //----------------------------------------------------------------------------
@@ -443,6 +477,16 @@ private:
   GetExcludedFsids() const;
 
   //----------------------------------------------------------------------------
+  //! Complete an in-process embedded NFS open: collect replica FSIDs and return
+  //! without xrootd redirect.
+  //----------------------------------------------------------------------------
+  int finishEmbedOpen(const char* path,
+                      bool is_rw,
+                      const eos::common::VirtualIdentity& vid,
+                      eos::common::Timing& tm,
+                      const std::vector<unsigned int>* selected_fs = nullptr);
+
+  //----------------------------------------------------------------------------
   //! Get the application name if specified
   //!
   //! @param open_opaque open opaque information
@@ -484,6 +528,9 @@ private:
   //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
   int mEosObfuscate { -1};
   bool mIsZeroSize {false}; //< Mark if file is zero size
+  //! In-process cern-nfs embed: run full open but return replica set, no redirect
+  bool mEmbedOpen {false};
+  std::vector<unsigned int> mEmbedReplicaFsids;
 };
 
 #endif

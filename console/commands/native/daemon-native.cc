@@ -13,12 +13,15 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <fcntl.h>
+#include <fstream>
+#include <pwd.h>
 #include <sched.h>
 #include <sys/mount.h>
 #include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 // Ptrace macros compatibility
 #ifdef __APPLE__
@@ -30,6 +33,80 @@
 #define EOS_PTRACE_ATTACH PTRACE_ATTACH
 #define EOS_PTRACE_DETACH PTRACE_DETACH
 #endif //__APPLE__
+
+namespace {
+
+std::string
+NfsEmbedKeytabPath()
+{
+  const char* env = getenv("EOS_EMBED_NFS_KEYTAB");
+
+  if (env && *env) {
+    return env;
+  }
+
+  return "/etc/eos.nfs.keytab";
+}
+
+bool
+WriteNfsEmbedKeytab(const std::string& path, std::string* err)
+{
+  unsigned char key[32];
+  const int urandom = open("/dev/urandom", O_RDONLY);
+
+  if (urandom < 0) {
+    if (err) {
+      *err = "failed to open /dev/urandom";
+    }
+
+    return false;
+  }
+
+  const ssize_t nread = read(urandom, key, sizeof(key));
+  close(urandom);
+
+  if (nread != static_cast<ssize_t>(sizeof(key))) {
+    if (err) {
+      *err = "failed to read 32 random bytes from /dev/urandom";
+    }
+
+    return false;
+  }
+
+  static const char hex[] = "0123456789abcdef";
+  std::string line = "1 ";
+
+  for (unsigned char byte : key) {
+    line.push_back(hex[byte >> 4]);
+    line.push_back(hex[byte & 0x0f]);
+  }
+
+  line.push_back('\n');
+
+  std::ofstream out(path, std::ios::trunc);
+
+  if (!out) {
+    if (err) {
+      *err = "failed to open " + path + " for writing";
+    }
+
+    return false;
+  }
+
+  out << line;
+
+  if (!out.good()) {
+    if (err) {
+      *err = "failed to write " + path;
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+} // namespace
 
 // Native port of legacy com_daemon
 static int
@@ -131,6 +208,84 @@ native_com_daemon(char* arg)
 
       return (0);
     }
+  }
+
+  if (option == "nfs") {
+    subcmd = subtokenizer.GetToken();
+
+    if (!subcmd.length()) {
+      goto com_daemon_usage;
+    }
+
+    if (subcmd == "recreate") {
+      if (geteuid()) {
+        std::cerr << "error: you have to run this command as root!"
+                  << std::endl;
+        global_retc = EPERM;
+        return (0);
+      }
+
+      const std::string keytab = NfsEmbedKeytabPath();
+      struct stat buf {};
+
+      std::cerr << "info: you are going to (re-)create the embedded NFS pNFS "
+                   "DS signing keytab at "
+                << keytab
+                << ". A previous key will be moved to "
+                << keytab << ".<unixtimestamp>" << std::endl;
+      std::cerr << "info: install the same keytab on every MGM and FST node, "
+                   "then restart embedded NFS (MGM and FST)"
+                << std::endl;
+
+      if (!::stat(keytab.c_str(), &buf)) {
+        const std::string oldkeytab = keytab + "." + std::to_string(time(NULL));
+
+        if (::rename(keytab.c_str(), oldkeytab.c_str())) {
+          std::cerr << "error: renaming existing keytab file " << keytab
+                    << " failed!" << std::endl;
+          global_retc = errno;
+          return (0);
+        }
+      }
+
+      bool interactive = false;
+
+      if (isatty(STDOUT_FILENO)) {
+        interactive = true;
+      }
+
+      if (!interactive || ICmdHelper::ConfirmOperation()) {
+        std::string err;
+
+        if (!WriteNfsEmbedKeytab(keytab, &err)) {
+          std::cerr << "error: " << err << std::endl;
+          global_retc = EIO;
+          return (0);
+        }
+
+        struct passwd* pw = getpwnam("daemon");
+
+        if (pw) {
+          if (::chown(keytab.c_str(), pw->pw_uid, pw->pw_gid)) {
+            std::cerr << "warning: failed to chown " << keytab
+                      << " to daemon" << std::endl;
+          }
+        }
+
+        if (::chmod(keytab.c_str(), 0600)) {
+          std::cerr << "warning: failed to chmod 600 " << keytab << std::endl;
+        }
+
+        std::cerr << "info: recreated " << keytab << std::endl;
+      } else {
+        global_retc = EINVAL;
+        return (0);
+      }
+
+      return (0);
+    }
+
+    goto com_daemon_usage;
   }
 
   if (option == "seal") {
@@ -736,7 +891,7 @@ native_com_daemon(char* arg)
 com_daemon_usage:
   fprintf(
       stderr,
-      "Usage: daemon config|sss|kill|run|stack|stop|jwk|module-init <service> "
+      "Usage: daemon config|sss|nfs|kill|run|stack|stop|jwk|module-init <service> "
       "[name] [subcmd]                                     :  \n");
   fprintf(stderr, "                <service> := mq | mgm | fst | qdb\n");
   fprintf(stderr, "                config                                      "
@@ -750,6 +905,11 @@ com_daemon_usage:
           "                sss recreate                                        "
           "  -  re-create an instance sss key and the eosnobody keys "
           "(/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n");
+  fprintf(stderr,
+          "                nfs recreate                                        "
+          "  -  re-create the embedded NFS pNFS DS signing keytab "
+          "(/etc/eos.nfs.keytab, or EOS_EMBED_NFS_KEYTAB); copy the same "
+          "file to every MGM and FST node, then restart\n");
   fprintf(stderr, "                stack                                       "
                   "          -  print an 'eu-stack'\n");
   fprintf(stderr, "                stop                                        "
@@ -784,6 +944,9 @@ com_daemon_usage:
                   "          -  take an 'eu-stack' of the MGM service\n");
   fprintf(stderr, "                eos daemon run fst fst.1                    "
                   "          -  run the fst.1 subservice FST\n");
+  fprintf(stderr,
+          "                eos daemon nfs recreate                         "
+          "          -  re-create /etc/eos.nfs.keytab for embedded pNFS\n");
   global_retc = EINVAL;
   return (0);
 #endif

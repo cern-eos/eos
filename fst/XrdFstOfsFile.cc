@@ -3157,6 +3157,13 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       (mTpcFlag == kTpcSrcSetup) ||
       (mTpcFlag == kTpcSrcCanDo)) {
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
+
+    // In-process cern-nfs embed passes a plain capability (no cap.msg / SymKey).
+    if (mOpenOpaque->Get("eos.embed")) {
+      mCapOpaque.reset(new XrdOucEnv(opaque.c_str()));
+      return SFS_OK;
+    }
+
     XrdOucEnv* ptr_opaque {nullptr};
     int caprc = eos::common::SymKey::ExtractCapability(mOpenOpaque.get(),
                 ptr_opaque);

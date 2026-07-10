@@ -41,3 +41,4 @@
 [submodule "cern-nfs"]
 	path = cern-nfs
 	url = https://gitlab.cern.ch/eos/cern-nfs.git
+	branch = eos-nfs

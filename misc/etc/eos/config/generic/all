@@ -33,3 +33,6 @@ EOS_USE_MQ_ON_QDB=1
 EOS_XROOTD=/opt/eos/xrootd/
 LD_LIBRARY_PATH=${EOS_XROOTD}/lib64:/opt/eos/grpc/lib64
 LD_PRELOAD=/usr/lib64/libjemalloc.so
+
+EOS_MGM_NFS_LOG_LEVEL=debug
+EOS_FST_NFS_LOG_LEVEL=debug

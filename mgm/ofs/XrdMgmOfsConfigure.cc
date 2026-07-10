@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "common/Audit.hh"
+#include "common/CernNfsEmbed.hh"
 #include "common/CommentLog.hh"
 #include "common/InstanceName.hh"
 #include "common/JeMallocHandler.hh"
@@ -2320,6 +2321,25 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mGeoTreeEngine->forceRefresh();
   mGeoTreeEngine->StartUpdater();
   mFsScheduler->updateClusterData();
+  {
+    const char* nfs_port_env = getenv("EOS_MGM_NFSPORT");
+
+    if (nfs_port_env && *nfs_port_env) {
+      Eroute.Say("=====> mgmofs.embeddednfs port : ", nfs_port_env, "");
+
+      if (eos::common::CernNfsEmbed::PortFromEnv(nfs_port_env) > 0) {
+        Eroute.Say("=====> mgmofs.embeddednfs backend : EosEmbedMgmFS");
+        const std::string nfs_log =
+          eos::common::CernNfsEmbed::LogPathFromEnv("EOS_MGM_NFS_LOG",
+                                                    "/var/log/eos/mgm");
+        Eroute.Say("=====> mgmofs.embeddednfs log : ", nfs_log.c_str(), "");
+      } else {
+        Eroute.Say("=====> mgmofs.embeddednfs : invalid port, will not start");
+      }
+    } else {
+      Eroute.Say("=====> mgmofs.embeddednfs : disabled (EOS_MGM_NFSPORT unset)");
+    }
+  }
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
