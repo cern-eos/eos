@@ -17,25 +17,30 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
-#include <iostream>
+#include <algorithm>
 #include <chrono>
+#include <iostream>
 
 EOSNSNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 // Constructor
+//
+// The update interval is clamped to at least one second: a null one would
+// leave the update queue without a consumer, hence counters never updated and
+// a Flush() barrier never acknowledged. The accounting is always asynchronous,
+// a caller needing the counters up to date calls Flush().
 //----------------------------------------------------------------------------
-QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc, int32_t update_interval)
-  : mAccumulateIndx(0), mCommitIndx(1),
-    mUpdateIntervalSec(update_interval), mContainerMDSvc(svc)
+QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc,
+                                                   uint32_t update_interval)
+    : mAccumulateIndx(0)
+    , mCommitIndx(1)
+    , mUpdateIntervalSec(std::max<uint32_t>(1, update_interval))
+    , mContainerMDSvc(svc)
 {
   mBatch.resize(2);
-
-  // If update interval is 0 then we disable async updates
-  if (mUpdateIntervalSec) {
-    mThread.reset(&QuarkContainerAccounting::AssistedPropagateUpdates, this);
-    mQueueForUpdateThread.reset(&QuarkContainerAccounting::AssistedQueueForUpdate,this);
-  }
+  mThread.reset(&QuarkContainerAccounting::AssistedPropagateUpdates, this);
+  mQueueForUpdateThread.reset(&QuarkContainerAccounting::AssistedQueueForUpdate, this);
 }
 
 //----------------------------------------------------------------------------
@@ -43,12 +48,10 @@ QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc, int32_t
 //----------------------------------------------------------------------------
 QuarkContainerAccounting::~QuarkContainerAccounting()
 {
-  // Stop the AsyncQueueUpdate thread by queuing containerID = 0
+  // Stop the queueing thread by queuing containerID = 0
   mIdTreeInfosToUpdateQueue.emplace(0,TreeInfos{0,0,0});
-  if (mUpdateIntervalSec) {
-    mThread.join();
-    mQueueForUpdateThread.join();
-  }
+  mThread.join();
+  mQueueForUpdateThread.join();
 }
 
 //----------------------------------------------------------------------------
@@ -101,12 +104,113 @@ QuarkContainerAccounting::RemoveTree(IContainerMD* obj, TreeInfos treeAccounting
 void
 QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, TreeInfos treeAccounting)
 {
-  if(id) {
-    // The condition to stop the queueing thread is that the id = 0. The minimum container id is 1 and
-    // corresponds to "/"
-    // We therefore prevent users to queue the container id = 0 for update (which should not happen!)
+  if (id && (id != sFlushBarrierId)) {
+    // The condition to stop the queueing thread is that the id = 0. The minimum container
+    // id is 1 and corresponds to "/" We therefore prevent users to queue the container id
+    // = 0 for update (which should not happen!) The id = sFlushBarrierId is reserved as
+    // the Flush() barrier sentinel.
     mIdTreeInfosToUpdateQueue.emplace(id,treeAccounting);
   }
+}
+
+//------------------------------------------------------------------------------
+// Synchronously apply all tree info updates queued so far
+//------------------------------------------------------------------------------
+bool
+QuarkContainerAccounting::Flush()
+{
+  // Only one flusher at a time: the barrier state below is a single slot
+  std::lock_guard<std::mutex> drain_lock(mDrainMutex);
+
+  if (!WaitForBarrier()) {
+    // The queueing thread is gone (shutting down): whatever is still in the
+    // queue will never be accumulated, so those deltas are lost. Persisting
+    // the batch on top of that would write values missing them, which nothing
+    // would ever repair. Drop the batch instead, as the destructor does.
+    return false;
+  }
+
+  PropagateUpdatesOnce();
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Push a barrier sentinel and wait for the queueing thread to acknowledge it
+//------------------------------------------------------------------------------
+bool
+QuarkContainerAccounting::WaitForBarrier()
+{
+  std::unique_lock<std::mutex> barrier_lock(mBarrierMutex);
+
+  if (mQueueThreadStopped) {
+    return false;
+  }
+
+  // The queue is a strict FIFO with the AssistedQueueForUpdate thread as only
+  // consumer: once the barrier is acknowledged, everything enqueued before it
+  // has been accumulated into the batch
+  mBarrierReached = false;
+  mIdTreeInfosToUpdateQueue.emplace(sFlushBarrierId, TreeInfos{0, 0, 0});
+  mBarrierCv.wait(barrier_lock,
+                  [this]() { return mBarrierReached || mQueueThreadStopped; });
+  return mBarrierReached;
+}
+
+//------------------------------------------------------------------------------
+// Mark the queueing thread as stopped and release a Flush() waiting for a
+// barrier that will never be acknowledged
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::MarkQueueThreadStopped()
+{
+  {
+    std::lock_guard<std::mutex> barrier_lock(mBarrierMutex);
+    mQueueThreadStopped = true;
+  }
+  mBarrierCv.notify_all();
+}
+
+//------------------------------------------------------------------------------
+// Start recording the ids of the containers under recompute tree info deltas
+// get applied to
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::StartRecordingUpdatedContIds(ContIdSet cont_ids_under_recompute)
+{
+  // Taking mFlushMutex guarantees no propagation cycle is mid-apply while the
+  // containers under recompute change: cycles starting after this returns see
+  // the new set, so every delta they apply to one of them is recorded
+  std::lock_guard<std::mutex> flush_lock(mFlushMutex);
+  mContIdsUnderRecompute = std::move(cont_ids_under_recompute);
+  // Move-assigning an empty set releases the buckets, unlike clear()
+  mUpdatedContIds = {};
+}
+
+//------------------------------------------------------------------------------
+// Stop recording updated container ids and drop the recorded set
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::StopRecordingUpdatedContIds()
+{
+  std::lock_guard<std::mutex> flush_lock(mFlushMutex);
+  // An empty set of containers under recompute means recording is off
+  mContIdsUnderRecompute = {};
+  mUpdatedContIds = {};
+}
+
+//------------------------------------------------------------------------------
+// Return the set of container ids deltas were applied to since recording
+// started (or since the previous call) and clear it
+//------------------------------------------------------------------------------
+QuarkContainerAccounting::ContIdSet
+QuarkContainerAccounting::TakeUpdatedContIds()
+{
+  // Blocks until any propagation cycle in flight is done, so the returned set
+  // never cuts one in half. Only the recompute calls this, once per pass.
+  std::lock_guard<std::mutex> flush_lock(mFlushMutex);
+  // Moves the set out (bucket storage is stolen, no element copy) and leaves
+  // the member empty
+  return std::exchange(mUpdatedContIds, {});
 }
 
 //------------------------------------------------------------------------------
@@ -117,77 +221,74 @@ void
 QuarkContainerAccounting::AssistedPropagateUpdates(ThreadAssistant& assistant)
 noexcept
 {
-  PropagateUpdates(&assistant);
+  while (!assistant.terminationRequested()) {
+    PropagateUpdatesOnce();
+    // Returns as soon as the thread is asked to stop, so the destructor never
+    // waits for a full interval
+    assistant.wait_for(std::chrono::seconds(mUpdateIntervalSec));
+  }
 }
 
 //------------------------------------------------------------------------------
-// Submits container and size changes in order to propagate them to the hierarchical structure later on.
-// Method ran by an asynchronous thread.
-//------------------------------------------------------------------------------
-void QuarkContainerAccounting::AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept
-{
-  AsyncQueueForUpdate(&assistant);
-}
-
-//------------------------------------------------------------------------------
-// Propagate updates in the hierarchical structure
+// Perform one propagation cycle: swap the batches and apply the committed
+// deltas to the containers
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
+QuarkContainerAccounting::PropagateUpdatesOnce()
 {
-  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
-    {
-      // Update the indexes to have the async thread working on the batch to
-      // commit and the incoming updates to go to the batch to update
-      std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-      std::swap(mAccumulateIndx, mCommitIndx);
+  std::lock_guard<std::mutex> flush_lock(mFlushMutex);
+  {
+    // Update the indexes to have the async thread working on the batch to
+    // commit and the incoming updates to go to the batch to update
+    std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+    std::swap(mAccumulateIndx, mCommitIndx);
+  }
+
+  auto& batch = mBatch[mCommitIndx];
+
+  // mContIdsUnderRecompute and mUpdatedContIds are both guarded by mFlushMutex,
+  // held for the whole cycle, so the recording cannot be reconfigured mid-apply
+  const bool recording = !mContIdsUnderRecompute.empty();
+
+  for (auto const& elem : batch.mMap) {
+    try {
+      auto cont = mContainerMDSvc->getContainerMD(elem.first);
+      eos::MDLocking::ContainerWriteLock contLock(cont.get());
+      cont->updateTreeSize(elem.second.dsize);
+      cont->updateTreeFiles(elem.second.dtreefiles);
+      cont->updateTreeContainers(elem.second.dtreecontainers);
+      mContainerMDSvc->updateStore(cont.get());
+    } catch (const MDException& e) {
+      // TODO: (esindril) error message using default logging
+      continue;
     }
 
-    auto& batch = mBatch[mCommitIndx];
-
-    if(!batch.mMap.empty()){
-      for (auto const& elem : batch.mMap) {
-        try {
-          auto cont = mContainerMDSvc->getContainerMD(elem.first);
-          eos::MDLocking::ContainerWriteLock contLock(cont.get());
-          cont->updateTreeSize(elem.second.dsize);
-          cont->updateTreeFiles(elem.second.dtreefiles);
-          cont->updateTreeContainers(elem.second.dtreecontainers);
-          mContainerMDSvc->updateStore(cont.get());
-        } catch (const MDException& e) {
-          // TODO: (esindril) error message using default logging
-          continue;
-        }
-      }
-    }
-
-    batch.mMap.clear();
-
-    if (mUpdateIntervalSec) {
-      if (assistant) {
-        assistant->wait_for(std::chrono::seconds(mUpdateIntervalSec));
-      } else {
-        std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
-      }
-    } else {
-      break;
+    // This batch holds deltas originating from the whole namespace, while only
+    // a container the recompute rewrites with an absolute value can be
+    // corrupted by one: the others are dropped here rather than collected and
+    // discarded by the caller. Recorded only once durably applied: an id must
+    // not be visible to TakeUpdatedContIds() before its delta is reflected in
+    // the namespace.
+    if (recording && mContIdsUnderRecompute.count(elem.first)) {
+      mUpdatedContIds.insert(elem.first);
     }
   }
+
+  batch.mMap.clear();
 }
 
 //------------------------------------------------------------------------------
 // For each containerId and its associated size modified, this function
 // will go up the tree from container to '/' and submit the entire tree for
-// modification in the PropagateUpdate thread
+// modification in the PropagateUpdate thread. Method ran by an asynchronous
+// thread.
 //------------------------------------------------------------------------------
-void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
+void
+QuarkContainerAccounting::AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept
 {
   std::pair<eos::IContainerMD::id_t,TreeInfos> contIdTreeInfos;
-  std::vector<IContainerMD::id_t> idsToUpdate;
 
-  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
-    uint16_t deepness = 0;
-
+  while (!assistant.terminationRequested()) {
     mIdTreeInfosToUpdateQueue.wait_pop(contIdTreeInfos);
     if(!contIdTreeInfos.first) {
       // Container ID = 0 (see ~QuarkContainerAccounting()), we
@@ -195,36 +296,61 @@ void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
       break;
     }
 
-    IContainerMD::id_t id = contIdTreeInfos.first;
-    // Go up the tree and give the ids to update to the batch that will
-    // be taken by the PropagateUpdate thread
-    while ((id > 1) && (deepness < 255)) {
-      try {
-        idsToUpdate.push_back(id);
-        auto cont = mContainerMDSvc->getContainerMD(id);
-        // One operation, no need to lock the container
-        id = cont->getParentId();
-        ++deepness;
-      } catch (const MDException& e) {
-        // TODO (esindril): error message using default logging
-        break;
+    if (contIdTreeInfos.first == sFlushBarrierId) {
+      // Flush() barrier: everything enqueued before it has been accumulated
+      {
+        std::lock_guard<std::mutex> barrier_lock(mBarrierMutex);
+        mBarrierReached = true;
       }
+      mBarrierCv.notify_all();
+      continue;
     }
 
-    std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-    auto& batch = mBatch[mAccumulateIndx];
+    AccumulateUpdate(contIdTreeInfos.first, contIdTreeInfos.second);
+  }
 
-    for (auto idToUpdate : idsToUpdate) {
-      auto it_map = batch.mMap.find(idToUpdate);
+  // No consumer left on the queue from now on, so a barrier would never be
+  // acknowledged: unblock any Flush() waiting for one
+  MarkQueueThreadStopped();
+}
 
-      if (it_map != batch.mMap.end()) {
-        it_map->second += contIdTreeInfos.second;
-      } else {
-        batch.mMap.emplace(idToUpdate, contIdTreeInfos.second);
-      }
+//------------------------------------------------------------------------------
+// Walk up the parent chain of the given container and accumulate the tree
+// info delta into the batch for the container and all its ancestors
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::AccumulateUpdate(IContainerMD::id_t id,
+                                           const TreeInfos& treeInfos)
+{
+  std::vector<IContainerMD::id_t> idsToUpdate;
+  uint16_t deepness = 0;
+
+  // Go up the tree and give the ids to update to the batch that will
+  // be taken by the PropagateUpdate thread
+  while ((id > 1) && (deepness < 255)) {
+    try {
+      idsToUpdate.push_back(id);
+      auto cont = mContainerMDSvc->getContainerMD(id);
+      // One operation, no need to lock the container
+      id = cont->getParentId();
+      ++deepness;
+    } catch (const MDException& e) {
+      // TODO (esindril): error message using default logging
+      break;
     }
+  }
 
-    idsToUpdate.clear();
+  std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+  auto& batch = mBatch[mAccumulateIndx];
+
+  for (auto idToUpdate : idsToUpdate) {
+    auto it_map = batch.mMap.find(idToUpdate);
+
+    if (it_map != batch.mMap.end()) {
+      it_map->second += treeInfos;
+    } else {
+      batch.mMap.emplace(idToUpdate, treeInfos);
+    }
   }
 }
 

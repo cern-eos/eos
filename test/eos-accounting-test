@@ -173,6 +173,71 @@ echo "Testing the accounting of $EOS_ACCOUNTING_DIR/source"
 test_accounting $EOS_ACCOUNTING_DIR/source $(((nDirs+(nFiles*nDirs))/2+1)) $((totalNbFiles/2)) $((totalTreeSize/2))
 echo "Done"
 
+# Regression test for the race between recompute_tree_size and the container
+# accounting thread: perform a burst of writes and immediately recompute, so
+# that the tree size deltas of the burst are still pending in the accounting
+# pipeline when the recompute runs. The recomputed values must be correct
+# immediately AND still be correct after the accounting propagation interval:
+# without the recompute flushing the pipeline and retrying the containers it
+# raced with (validate-and-retry), the stale deltas would be applied on top
+# of the recomputed absolute values (double counting).
+nBurstFiles=10
+echo "Performing a burst of $nBurstFiles writes immediately followed by a recompute_tree_size..."
+for (( j=0; j<$nBurstFiles; j++ ));
+do
+  eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/source/destination/1/burst$j &
+done
+wait
+eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/
+
+expectedTreeCont=$(((nDirs+(nFiles*nDirs))/2+1))
+expectedTreeFiles=$((totalNbFiles/2+nBurstFiles))
+expectedTreeSize=$((totalTreeSize/2+nBurstFiles*passwdFileSize))
+echo "Testing the accounting of $EOS_ACCOUNTING_DIR/source right after the recompute..."
+test_accounting $EOS_ACCOUNTING_DIR/source $expectedTreeCont $expectedTreeFiles $expectedTreeSize
+echo "Waiting 10 seconds and testing again: the recomputed values must not drift..."
+sleep 10
+test_accounting $EOS_ACCOUNTING_DIR/source $expectedTreeCont $expectedTreeFiles $expectedTreeSize
+test_accounting $EOS_ACCOUNTING_DIR $((expectedTreeCont+1)) $expectedTreeFiles $expectedTreeSize
+echo "Done"
+
+# Robustness test: recompute_tree_size racing live activity must not hang nor
+# prevent the accounting from converging once the activity stops
+echo "Running recompute_tree_size concurrently with live activity..."
+start_time=$(date +%s)
+(
+  for (( j=0; j<$nBurstFiles; j++ ));
+  do
+    eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/source/destination/1/race$j
+    eos mv $EOS_ACCOUNTING_DIR/source/destination/1/race$j $EOS_ACCOUNTING_DIR/source/destination/3/race$j
+    eos rm -F --no-confirmation $EOS_ACCOUNTING_DIR/source/destination/3/race$j
+  done
+) &
+trafficPid=$!
+while kill -0 $trafficPid 2>/dev/null;
+do
+  eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/ || exit 1
+done
+wait $trafficPid
+end_time=$(date +%s)
+elapsed=$((end_time - start_time))
+echo "Elapsed time = $elapsed seconds"
+echo "Waiting 10 seconds for the accounting to settle, then recomputing on the quiet tree..."
+sleep 10
+recomputeOut=$(eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/ 2>&1) || exit 1
+echo "$recomputeOut"
+# On a quiet tree the recompute must converge cleanly, without reporting
+# containers it could not settle
+if echo "$recomputeOut" | grep -q "warning";
+then
+  echo "Unexpected warning from recompute_tree_size on a quiet tree"
+  exit 1
+fi
+# The traffic is net zero (every file created is deleted), values must be unchanged
+test_accounting $EOS_ACCOUNTING_DIR/source $expectedTreeCont $expectedTreeFiles $expectedTreeSize
+test_accounting $EOS_ACCOUNTING_DIR $((expectedTreeCont+1)) $expectedTreeFiles $expectedTreeSize
+echo "Done"
+
 cleanup
 
 test_end_time=$(date +%s)

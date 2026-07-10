@@ -30,6 +30,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_executable(
   eos-ns-quarkdb-tests
+  ContainerAccountingTest.cc
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
   FileSystemViewTest.cc
