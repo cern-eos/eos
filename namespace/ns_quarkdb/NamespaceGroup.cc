@@ -255,6 +255,19 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView()
 }
 
 //------------------------------------------------------------------------------
+// Provide the container accounting as its concrete type
+//------------------------------------------------------------------------------
+QuarkContainerAccounting*
+QuarkNamespaceGroup::getQuarkContainerAccounting()
+{
+  // Contrary to getContainerAccountingView(), don't lazy-initialize: whether
+  // the accounting is enabled is decided by the component wiring the
+  // listeners (e.g. only on the master MGM)
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  return mContainerAccounting.get();
+}
+
+//------------------------------------------------------------------------------
 // Provide sync time accounting view
 //------------------------------------------------------------------------------
 IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
@@ -364,4 +377,3 @@ QuarkNamespaceGroup::getPerformanceMonitor()
 }
 
 EOSNSNAMESPACE_END
-
