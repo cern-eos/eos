@@ -103,6 +103,18 @@ public:
   virtual IFileMDChangeListener* getContainerAccountingView() override final;
 
   //----------------------------------------------------------------------------
+  //! Provide the container accounting as its concrete type, giving access to
+  //! functionality not exposed through IFileMDChangeListener e.g. Flush().
+  //! Contrary to getContainerAccountingView() this does not lazy-initialize,
+  //! so it is only usable once the namespace has been booted: BootNamespace()
+  //! creates the accounting and fails the boot if it could not be created.
+  //!
+  //! @return the container accounting, or nullptr before the namespace boot
+  //!         created it and after the shutdown released it
+  //----------------------------------------------------------------------------
+  QuarkContainerAccounting* getQuarkContainerAccounting();
+
+  //----------------------------------------------------------------------------
   //! Provide sync time accounting view
   //----------------------------------------------------------------------------
   virtual IContainerMDChangeListener* getSyncTimeAccountingView() override final;

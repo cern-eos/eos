@@ -22,17 +22,19 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/AssistedThread.hh"
+#include <condition_variable>
+#include <limits>
 #include <mutex>
 #include <thread>
-#include <vector>
-#include <utility>
 #include <unordered_map>
-#include <atomic>
-#include "common/ConcurrentQueue.hh"
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -130,7 +132,73 @@ public:
   //----------------------------------------------------------------------------
   void AsyncQueueForUpdate(ThreadAssistant * assistant = nullptr);
 
+  //----------------------------------------------------------------------------
+  //! Synchronously apply all tree info updates queued so far: wait until
+  //! everything already in the queue has been accumulated into the batch
+  //! (FIFO barrier) and then propagate the accumulated deltas to the
+  //! containers. When this returns true, every update queued before the call
+  //! is reflected in the namespace.
+  //!
+  //! @note Must not be called while holding an MD lock on a container that
+  //!       may have pending updates, otherwise it can deadlock against the
+  //!       propagation applying those updates.
+  //!
+  //! @return true if the barrier was acknowledged, i.e. the full guarantee
+  //!         above holds. False if the queueing thread has already exited
+  //!         (shutting down): nothing is propagated in that case, since the
+  //!         deltas still sitting in the queue can no longer be consumed and
+  //!         persisting the batch without them would write values that no
+  //!         later update would repair. Callers must give up, not carry on.
+  //----------------------------------------------------------------------------
+  bool Flush();
+
+  //----------------------------------------------------------------------------
+  //! Start recording the ids of the containers tree info deltas get applied
+  //! to (see PropagateUpdatesOnce). Clears any previously recorded ids.
+  //! Serialized with the propagation cycles: every delta applied after this
+  //! method returns is guaranteed to be recorded. Used by the tree size
+  //! recompute to detect the containers it raced with.
+  //----------------------------------------------------------------------------
+  void StartRecordingUpdatedContIds();
+
+  //----------------------------------------------------------------------------
+  //! Stop recording updated container ids and drop the recorded set
+  //----------------------------------------------------------------------------
+  void StopRecordingUpdatedContIds();
+
+  //----------------------------------------------------------------------------
+  //! Return the set of container ids deltas were applied to since recording
+  //! started (or since the previous call) and clear it. Empty when not
+  //! recording.
+  //----------------------------------------------------------------------------
+  std::unordered_set<IContainerMD::id_t> TakeUpdatedContIds();
+
+  //----------------------------------------------------------------------------
+  //! RAII scope starting/stopping the recording of updated container ids
+  //----------------------------------------------------------------------------
+  class UpdatedContIdsRecordingScope {
+  public:
+    explicit UpdatedContIdsRecordingScope(QuarkContainerAccounting& acc)
+        : mAcc(acc)
+    {
+      mAcc.StartRecordingUpdatedContIds();
+    }
+
+    ~UpdatedContIdsRecordingScope() { mAcc.StopRecordingUpdatedContIds(); }
+
+    UpdatedContIdsRecordingScope(const UpdatedContIdsRecordingScope&) = delete;
+    UpdatedContIdsRecordingScope& operator=(const UpdatedContIdsRecordingScope&) = delete;
+
+  private:
+    QuarkContainerAccounting& mAcc;
+  };
+
 private:
+  //! Queue sentinel used by Flush() as a FIFO barrier: once popped by the
+  //! queueing thread, everything enqueued before it has been accumulated.
+  //! Note: id 0 is already used as the stop-thread sentinel.
+  static constexpr IContainerMD::id_t sFlushBarrierId =
+      std::numeric_limits<IContainerMD::id_t>::max();
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure. Method ran by the
@@ -148,6 +216,41 @@ private:
   //----------------------------------------------------------------------------
   void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  //! Walk up the parent chain of the given container and accumulate the
+  //! tree info delta into the batch for the container and all its ancestors
+  //!
+  //! @param id container id where the change originated
+  //! @param treeInfos tree info delta to accumulate
+  //----------------------------------------------------------------------------
+  void AccumulateUpdate(IContainerMD::id_t id, const TreeInfos& treeInfos);
+
+  //----------------------------------------------------------------------------
+  //! Perform one propagation cycle: swap the accumulate/commit batches and
+  //! apply the committed deltas to the containers. Serialized with mFlushMutex
+  //! so the periodic thread and Flush() never apply concurrently; outside of
+  //! this method the commit batch is always empty, hence a single call
+  //! applies everything accumulated so far.
+  //----------------------------------------------------------------------------
+  void PropagateUpdatesOnce();
+
+  //----------------------------------------------------------------------------
+  //! Push a barrier sentinel onto the update queue and wait until the queueing
+  //! thread acknowledges it, i.e. until everything enqueued before the barrier
+  //! has been accumulated into the batch. Called by Flush(), which holds
+  //! mDrainMutex, so at most one barrier is ever in flight.
+  //!
+  //! @return true if the barrier was acknowledged, false if the queueing
+  //!         thread has exited and no consumer can acknowledge it
+  //----------------------------------------------------------------------------
+  bool WaitForBarrier();
+
+  //----------------------------------------------------------------------------
+  //! Mark the queueing thread as stopped and release any Flush() blocked on a
+  //! barrier that will now never be acknowledged
+  //----------------------------------------------------------------------------
+  void MarkQueueThreadStopped();
+
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
@@ -160,6 +263,22 @@ private:
   //! the asynchronous thread
   std::vector<UpdateT> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
+  std::mutex mFlushMutex; ///< Serializes batch propagation (thread vs Flush)
+  std::mutex mDrainMutex; ///< Serializes concurrent Flush() callers
+  std::mutex mBarrierMutex;           ///< Protects the two barrier flags below
+  std::condition_variable mBarrierCv; ///< Signals a barrier acknowledgement
+  //! Set by the queueing thread when it pops the sentinel of the Flush() in
+  //! progress. A single slot is enough: Flush() callers hold mDrainMutex.
+  bool mBarrierReached{false};
+  //! Set when the queueing thread exits. No consumer is left to acknowledge a
+  //! barrier, so a Flush() waiting for one (or arriving later) must not block.
+  bool mQueueThreadStopped{false};
+  //! Recording of updated container ids enabled. Guarded by mFlushMutex, which
+  //! a propagation cycle holds throughout, so it stays constant for a cycle.
+  bool mRecordUpdatedContIds{false};
+  //! Ids of the containers deltas were applied to while recording. Guarded by
+  //! mFlushMutex: written by a propagation cycle, taken by the recompute.
+  std::unordered_set<IContainerMD::id_t> mUpdatedContIds;
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
   AssistedThread mThread; ///< Thread updating the namespace

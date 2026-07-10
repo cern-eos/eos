@@ -49,11 +49,13 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include <algorithm>
 #include <exception>
 #include <memory>
+#include <mutex>
 #include <qclient/QClient.hh>
 #include <sstream>
 #include <vector>
@@ -1083,21 +1085,119 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return;
   }
 
-  std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
-  std::list< std::list<eos::IContainerMD::id_t> > bfs =
-    BreadthFirstSearchContainers(cont.get(), tree.depth());
+  // Concurrent recomputes would consume each other's updated-ids recording
+  // below (TakeUpdatedContIds is destructive), so only one runs at a time.
+  // Reject rather than queue up: a recompute can run for a long time and the
+  // caller would otherwise block a proc thread for its whole duration.
+  static std::mutex recompute_mutex;
+  std::unique_lock<std::mutex> recompute_lock(recompute_mutex, std::try_to_lock);
 
-  for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
-    for (const auto& id : *it_level) {
-      try {
-        tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
-      } catch (const eos::MDException& e) {
-        eos_err("error=\"%s\"", e.what());
-        continue;
+  if (!recompute_lock.owns_lock()) {
+    reply.set_std_err("error: another tree size recompute is already running");
+    reply.set_retc(EBUSY);
+    return;
+  }
+
+  using ContIdList = std::list<std::list<eos::IContainerMD::id_t>>;
+  ContIdList work = BreadthFirstSearchContainers(cont.get(), tree.depth());
+  auto* accounting = static_cast<eos::QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())
+                         ->getQuarkContainerAccounting();
+  // Recompute one pass bottom-up over a level-ordered work list
+  auto recompute_pass = [this](const ContIdList& levels) {
+    for (auto it_level = levels.crbegin(); it_level != levels.crend(); ++it_level) {
+      for (const auto& id : *it_level) {
+        std::shared_ptr<eos::IContainerMD> tmp_cont;
+
+        try {
+          tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
+        } catch (const eos::MDException& e) {
+          eos_err("error=\"%s\"", e.what());
+          continue;
+        }
+
+        UpdateTreeSize(tmp_cont);
+      }
+    }
+  };
+
+  // Flush the pre-existing backlog before recording starts, so that stale
+  // deltas from before the recompute don't falsely dirty the first pass
+  if (!accounting->Flush()) {
+    reply.set_std_err("error: container accounting is shutting down, "
+                      "tree size recompute aborted");
+    reply.set_retc(EIO);
+    return;
+  }
+
+  // The accounting applies relative deltas to the very tree sizes we are about
+  // to overwrite with absolute values, so a delta landing after a container's
+  // recompute write corrupts it. Rather than ordering the deltas, detect the
+  // collision and retry: recompute, then re-recompute whatever the accounting
+  // touched meanwhile, until a pass comes back clean. See accounting.md for
+  // why this converges and what it does not cover.
+  eos::QuarkContainerAccounting::UpdatedContIdsRecordingScope recording(*accounting);
+  // One initial pass plus at most 2 retries on the containers we raced with
+  constexpr int max_passes = 3;
+
+  for (int pass = 1; pass <= max_passes; ++pass) {
+    recompute_pass(work);
+
+    // Validate: apply every delta enqueued so far and check whether any
+    // landed on a container recomputed in this pass. A failed flush means the
+    // accounting stopped consuming its queue: the deltas left in it are lost,
+    // so the values just written can no longer be trusted or repaired. Give
+    // up rather than keep writing on the way down.
+    if (!accounting->Flush()) {
+      reply.set_std_err("error: container accounting is shutting down, "
+                        "tree size recompute aborted");
+      reply.set_retc(EIO);
+      return;
+    }
+
+    const auto updated = accounting->TakeUpdatedContIds();
+    // dirty = updated ∩ work, built by iterating work (level-ordered) and only
+    // probing the unordered updated set, so dirty inherits work's BFS level
+    // order and the next pass can recompute bottom-up directly. Ids updated
+    // outside the recomputed tree are discarded.
+    ContIdList dirty;
+    uint64_t num_dirty = 0;
+
+    for (const auto& level : work) {
+      std::list<eos::IContainerMD::id_t> dirty_level;
+
+      for (const auto& id : level) {
+        if (updated.count(id)) {
+          dirty_level.push_back(id);
+          ++num_dirty;
+        }
       }
 
-      UpdateTreeSize(tmp_cont);
+      if (!dirty_level.empty()) {
+        dirty.push_back(std::move(dirty_level));
+      }
     }
+
+    if (num_dirty == 0) {
+      eos_info("msg=\"tree size recompute converged\" cxid=%08llx passes=%d",
+               cont->getId(), pass);
+      break;
+    }
+
+    if (pass == max_passes) {
+      // Retry budget exhausted: the values stay as recomputed and the
+      // accounting keeps applying deltas consistently on top of them
+      eos_warning("msg=\"tree size recompute left dirty containers\" "
+                  "cxid=%08llx dirty=%llu",
+                  cont->getId(), static_cast<unsigned long long>(num_dirty));
+      reply.set_std_err(
+          SSTR("warning: " << num_dirty
+                           << " container(s) were still being modified while "
+                              "their tree size was recomputed, their values "
+                              "are approximate"));
+      break;
+    }
+
+    work = std::move(dirty);
   }
 }
 
