@@ -856,27 +856,42 @@ EosEmbedMgmFS::configure_mgm(void* mgm_ofs)
   return true;
 }
 
-EosEmbedMgmFS::IdentityScope::IdentityScope(uid_t uid, gid_t gid,
-                                            const std::string& client_host)
+EosEmbedMgmFS::IdentityScope::IdentityScope(const Subject& subject)
 {
-  g_nfs_auth_uid = uid;
-  g_nfs_auth_gid = gid;
+  const gid_t pgid = subject.gids.empty()
+                       ? 0
+                       : static_cast<gid_t>(subject.gids.back());
+  g_nfs_auth_uid = static_cast<uid_t>(subject.uid);
+  g_nfs_auth_gid = pgid;
 
-  int errc = 0;
-  std::string username = eos::common::Mapping::UidToUserName(uid, errc);
-
-  if (errc || username.empty()) {
-    username = eos::common::Mapping::UidAsString(uid);
-  }
-
-  std::string host = normalize_nfs_client_host(client_host);
-  const std::string tident = nfs_embed_tident(username, host);
+  std::string host = normalize_nfs_client_host(subject.client_host());
+  const bool krb5 =
+    (subject.auth_prot == "krb5") && !subject.auth_principal.empty();
 
   static thread_local char name_buf[256];
   static thread_local char host_buf[256];
   static thread_local char tident_buf[512];
 
-  std::strncpy(name_buf, username.c_str(), sizeof(name_buf) - 1);
+  const char* prot = "unix";
+  std::string name;
+  std::string tident;
+
+  if (krb5) {
+    prot = "krb5";
+    name = subject.auth_principal;
+    tident = subject.auth_principal + "@" + host;
+  } else {
+    int errc = 0;
+    name = eos::common::Mapping::UidToUserName(subject.uid, errc);
+
+    if (errc || name.empty()) {
+      name = eos::common::Mapping::UidAsString(subject.uid);
+    }
+
+    tident = nfs_embed_tident(name, host);
+  }
+
+  std::strncpy(name_buf, name.c_str(), sizeof(name_buf) - 1);
   name_buf[sizeof(name_buf) - 1] = '\0';
   std::strncpy(host_buf, host.c_str(), sizeof(host_buf) - 1);
   host_buf[sizeof(host_buf) - 1] = '\0';
@@ -884,7 +899,7 @@ EosEmbedMgmFS::IdentityScope::IdentityScope(uid_t uid, gid_t gid,
   tident_buf[sizeof(tident_buf) - 1] = '\0';
 
   XrdSecEntity client{};
-  std::strncpy(client.prot, "unix", sizeof(client.prot) - 1);
+  std::strncpy(client.prot, prot, sizeof(client.prot) - 1);
   client.prot[sizeof(client.prot) - 1] = '\0';
   client.name = name_buf;
   client.host = host_buf;
@@ -969,10 +984,9 @@ EosEmbedMgmFS::nfs_to_export_relative(const std::string& vfs_path) const
 }
 
 std::unique_ptr<VfsPath::NfsRequestIdentityScope>
-EosEmbedMgmFS::nfs_push_request_identity(uid_t uid, gid_t gid,
-                                         const std::string& client_host) const
+EosEmbedMgmFS::nfs_push_request_identity(const Subject& subject) const
 {
-  return std::make_unique<IdentityScope>(uid, gid, client_host);
+  return std::make_unique<IdentityScope>(subject);
 }
 
 std::optional<FlexFileLayout>

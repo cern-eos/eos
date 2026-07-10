@@ -40,6 +40,12 @@ CernNfsEmbed::StartMgm(void* mgm_ofs,
     return false;
   }
 
+  cernnfs::AuthConfig auth_cfg;
+
+  if (!detail::ParseEmbedNfsAuthConfig(&auth_cfg, err)) {
+    return false;
+  }
+
   if (!cernnfs::EosEmbedMgmFS::configure_mgm(mgm_ofs)) {
     if (err) {
       *err = "EosEmbedMgmFS::configure_mgm failed";
@@ -66,6 +72,7 @@ CernNfsEmbed::StartMgm(void* mgm_ofs,
                       .nfs_minor(1)
                       .server_id("eos-mgm-nfs")
                       .pnfs_exchange_role(cernnfs::PnfsExchangeRole::Mds)
+                      .auth(std::move(auth_cfg))
                       .build();
 
   if (!mImpl->server) {

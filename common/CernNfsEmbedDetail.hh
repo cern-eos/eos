@@ -32,6 +32,10 @@ bool ConfigureSpdlogLogging(const char* log_env_var,
 //! Validate the pNFS DS signing keytab before starting embedded NFS.
 //! Sets @a err to a provisioning hint when missing or invalid.
 bool ValidateEmbedNfsKeytab(std::string* err = nullptr);
+
+//! Parse EOS_MGM_NFS_AUTH_FLAVORS and related GSS env vars into AuthConfig.
+//! Returns false and sets @a err when the flavor list is invalid.
+bool ParseEmbedNfsAuthConfig(cernnfs::AuthConfig* auth, std::string* err = nullptr);
 #endif
 
 } // namespace detail

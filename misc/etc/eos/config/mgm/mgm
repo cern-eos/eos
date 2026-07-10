@@ -242,16 +242,27 @@ EOS_MGM_AUDIT=off
 # MGM
 EOS_MGM_HTTP_PORT=8000
 
-# Embedded cern-nfs server (set to 0 or unset to disable)
+#-------------------------------------------------------------------------------
+# Embedded cern-nfs (MGM namespace / pNFS MDS)
+#-------------------------------------------------------------------------------
+
+# NFSv4.1 server port on the MGM (set to 0 or unset to disable).
 EOS_MGM_NFSPORT=2094
-# pNFS DS filehandle signing key (same file on every MGM and FST node)
+# pNFS DS filehandle signing key — required on every MGM and FST node:
 EOS_EMBED_NFS_KEYTAB=/etc/eos.nfs.keytab
-# pNFS DS universal-address port for embedded FST NFS (not used to start NFS on MGM)
+# pNFS DS universal-address port advertised in layouts (must match FST nodes).
 EOS_FST_NFSPORT=2095
 # Plain-mode NFS log override (ignored when EOS_ZSTD_LOGGING=1; use nfs41.zstd then)
 #EOS_MGM_NFS_LOG=/var/log/eos/mgm/nfs41.log
 # Log level: trace|debug|info|warn|error (default warn; falls back to LOG_LEVEL)
 #EOS_MGM_NFS_LOG_LEVEL=warn
+# RPC auth flavors on the MGM (default sys). Use sys,krb5 or krb5 for Kerberos
+# mounts (mount -o sec=krb5). Kerberos/RPCSEC_GSS is MGM-only; FST DS nodes do
+# not authenticate NFS clients — identity comes from the pNFS layout.
+#EOS_MGM_NFS_AUTH_FLAVORS=sys,krb5
+# RPCSEC_GSS acceptor keytab/principal — separate from EOS_EMBED_NFS_KEYTAB:
+#EOS_MGM_NFS_GSS_KEYTAB=/etc/krb5.keytab
+#EOS_MGM_NFS_GSS_PRINCIPAL=nfs/eos-mgm.example.cern.ch@CERN.CH
 
 #-------------------------------------------------------------------------------
 # FUSEX Configuration

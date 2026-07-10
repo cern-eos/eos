@@ -19,8 +19,11 @@
 #include <cernnfs/logging.hpp>
 #include <cernnfs/nfs_server.hpp>
 #include <cernnfs/vfs.hpp>
+#include <cernnfs_proto/rpc_proto.hpp>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
+
+#include <cctype>
 #endif
 
 namespace eos::common {
@@ -210,6 +213,97 @@ ConfigureSpdlogLogging(const char* log_env_var,
 
     return false;
   }
+}
+
+bool
+ParseEmbedNfsAuthConfig(cernnfs::AuthConfig* auth, std::string* err)
+{
+  if (!auth) {
+    if (err) {
+      *err = "ParseEmbedNfsAuthConfig: null auth config";
+    }
+
+    return false;
+  }
+
+  auth->flavors.clear();
+
+  const char* flavors_env = std::getenv("EOS_MGM_NFS_AUTH_FLAVORS");
+  std::string csv =
+    (flavors_env && *flavors_env) ? flavors_env : std::string("sys");
+
+  auto append_token = [&](std::string token) -> bool {
+    while (!token.empty() &&
+           std::isspace(static_cast<unsigned char>(token.front()))) {
+      token.erase(token.begin());
+    }
+
+    while (!token.empty() &&
+           std::isspace(static_cast<unsigned char>(token.back()))) {
+      token.pop_back();
+    }
+
+    if (token.empty()) {
+      return true;
+    }
+
+    for (auto& c : token) {
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    if (token == "sys" || token == "auth_sys") {
+      auth->flavors.push_back(cernnfs_proto::AuthFlavor::AuthSys);
+      return true;
+    }
+
+    if (token == "krb5" || token == "rpcsec_gss" || token == "gss") {
+      auth->flavors.push_back(cernnfs_proto::AuthFlavor::AuthGss);
+      return true;
+    }
+
+    if (err) {
+      *err = "EOS_MGM_NFS_AUTH_FLAVORS: unknown token '" + token +
+             "' (supported: sys, krb5)";
+    }
+
+    return false;
+  };
+
+  std::string token;
+
+  for (char c : csv) {
+    if (c == ',') {
+      if (!append_token(token)) {
+        return false;
+      }
+
+      token.clear();
+    } else {
+      token.push_back(c);
+    }
+  }
+
+  if (!append_token(token)) {
+    return false;
+  }
+
+  if (auth->flavors.empty()) {
+    if (err) {
+      *err = "EOS_MGM_NFS_AUTH_FLAVORS must list at least one flavor";
+    }
+
+    return false;
+  }
+
+  if (const char* kt = std::getenv("EOS_MGM_NFS_GSS_KEYTAB")) {
+    auth->gss_keytab = kt;
+  }
+
+  if (const char* princ = std::getenv("EOS_MGM_NFS_GSS_PRINCIPAL")) {
+    auth->gss_principal = princ;
+  }
+
+  return true;
 }
 
 } // namespace detail

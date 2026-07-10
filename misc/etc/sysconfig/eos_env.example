@@ -198,8 +198,13 @@ EOS_AUDIT_ROTATION=3600
 # FST Configuration
 #-------------------------------------------------------------------------------
 
+# Embedded cern-nfs (FST pNFS data server)
+# Client Kerberos/RPCSEC_GSS auth is enforced on the MGM only; the FST serves
+# bytes from pNFS layouts and does not run an RPCSEC_GSS acceptor.
 # Embedded cern-nfs server port on the FST (set to 0 or unset to disable).
 # Default 2095 avoids clashing with EOS_MGM_NFSPORT (2094) on the same host.
+# The FST serves pNFS data-server I/O only; client Kerberos/RPCSEC_GSS auth is
+# enforced on the MGM. The FST does not accept krb5 mounts directly.
 EOS_FST_NFSPORT=2095
 # Required when EOS_*_NFSPORT is set — pNFS DS filehandle signing (MGM + FST):
 #EOS_EMBED_NFS_KEYTAB=/etc/eos.nfs.keytab
@@ -347,14 +352,29 @@ EOS_FST_NFSPORT=2095
 # Default value is 500054.
 # EOS_MGM_REST_GRPC_PORT=50054
 
-# Embedded cern-nfs server port on the MGM (set to 0 or unset to disable)
+#-------------------------------------------------------------------------------
+# Embedded cern-nfs (MGM namespace / pNFS MDS)
+#-------------------------------------------------------------------------------
+
+# NFSv4.1 server port on the MGM (set to 0 or unset to disable).
 EOS_MGM_NFSPORT=2094
-# Required when EOS_*_NFSPORT is set — pNFS DS filehandle signing (MGM + FST):
+# pNFS DS filehandle signing key — required on every MGM and FST node when
+# embedded NFS is enabled (distinct from the Kerberos service keytab below):
 #EOS_EMBED_NFS_KEYTAB=/etc/eos.nfs.keytab
+# pNFS DS universal-address port advertised in layouts (FST embedded NFS).
+# Not used to start NFS on the MGM itself; must match EOS_FST_NFSPORT on FSTs.
+#EOS_FST_NFSPORT=2095
 # Plain-mode NFS log override (ignored when EOS_ZSTD_LOGGING=1; use nfs41.zstd then)
 #EOS_MGM_NFS_LOG=/var/log/eos/mgm/nfs41.log
 # Log level: trace|debug|info|warn|error (default warn; falls back to LOG_LEVEL)
 #EOS_MGM_NFS_LOG_LEVEL=warn
+# RPC auth flavors advertised/accepted on the MGM (default sys). Use sys,krb5 or
+# krb5 to enable Kerberos mounts (mount -o sec=krb5). Kerberos is MGM-only;
+# FST embedded NFS does not run an RPCSEC_GSS acceptor.
+#EOS_MGM_NFS_AUTH_FLAVORS=sys,krb5
+# RPCSEC_GSS acceptor keytab/principal — separate from EOS_EMBED_NFS_KEYTAB:
+#EOS_MGM_NFS_GSS_KEYTAB=/etc/krb5.keytab
+#EOS_MGM_NFS_GSS_PRINCIPAL=nfs/eos-mgm.example.cern.ch@CERN.CH
 
 #-------------------------------------------------------------------------------
 # FUSEX Configuration
