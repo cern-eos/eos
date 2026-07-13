@@ -103,6 +103,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mFusex(false), mFusexIsUnlinked(false), mClosed(false), mCloseRc(0),
   mOpened(false), mHasWrite(false), mHasWriteErr(false), mHasReadErr(false),
   mIsRW(false), mIsDevNull(false), mIsCreation(false), mIsReplication(false),
+  mMirageValue(""),
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
   mRepairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
@@ -544,6 +545,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // cannot be done in the OSS
       mSyncOnClose = true;
     }
+  }
+
+  if (!mMirageValue.empty()) {
+    oss_opaque += "&eos.mirage=";
+    oss_opaque += mMirageValue.c_str();
   }
 
   // Open layout implementation
@@ -2574,6 +2580,10 @@ XrdFstOfsFile::ProcessOpenOpaque()
 
   if ((val = mOpenOpaque->Get("eos.injection"))) {
     mIsInjection = true;
+  }
+
+  if ((val = mOpenOpaque->Get("eos.mirage"))) {
+    mMirageValue = val;
   }
 
   // enable round-robin scheduling per application/fsid on request

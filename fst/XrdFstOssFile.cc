@@ -25,6 +25,7 @@
 #include "fst/XrdFstOssFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/BufferManager.hh"
+#include "common/Mirage.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -128,7 +129,17 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     mIsRW = true;
   }
 
-  if ((eos::common::LayoutId::GetBlockChecksum(lid) !=
+  if ((val = env.Get("eos.mirage"))) {
+    auto spec = eos::common::parse_mirage(val);
+    if (spec) {
+      mMirageSpec = *spec;
+    } else {
+      eos_err("error=invalid eos.mirage value: %s", val);
+      return -EINVAL;
+    }
+  }
+
+  if (!mMirageSpec && (eos::common::LayoutId::GetBlockChecksum(lid) !=
        eos::common::LayoutId::kNone) && (mPath[0] == '/')) {
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
     pair_value = XrdFstSS->GetXsObj(path, mIsRW);
@@ -228,6 +239,37 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 ssize_t
 XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 {
+  if (mMirageSpec) {
+    if (fd < 0) {
+      return static_cast<ssize_t>(-EBADF);
+    }
+
+    if (eos::common::mirage_sequential_only(*mMirageSpec) &&
+        static_cast<std::uint64_t>(offset) != mMirageSeqOffset) {
+      eos_err("error=non-sequential mirage read offset=%ji expected=%llu",
+              offset, mMirageSeqOffset);
+      return static_cast<ssize_t>(-ESPIPE);
+    }
+
+    struct stat statinfo;
+    if (fstat(fd, &statinfo)) {
+      return static_cast<ssize_t>(-errno);
+    }
+
+    if (offset >= statinfo.st_size) {
+      return 0;
+    }
+
+    std::size_t to_read = static_cast<std::size_t>(
+        std::min<off_t>(static_cast<off_t>(length), statinfo.st_size - offset));
+    eos::common::mirage_fill(*mMirageSpec, static_cast<std::uint64_t>(offset),
+                             static_cast<char*>(buffer), to_read);
+    if (eos::common::mirage_sequential_only(*mMirageSpec)) {
+      mMirageSeqOffset = static_cast<std::uint64_t>(offset) + to_read;
+    }
+    return static_cast<ssize_t>(to_read);
+  }
+
   ssize_t retval = 0;
   ssize_t nread;
   std::vector<XrdOucIOVec> pieces;
@@ -518,6 +560,27 @@ XrdFstOssFile::WriteV(XrdOucIOVec* writeV, int n)
 ssize_t
 XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
 {
+  if (mMirageSpec && mIsRW) {
+    if (fd < 0) {
+      return static_cast<ssize_t>(-EBADF);
+    }
+
+    off_t end = offset + static_cast<off_t>(length);
+    struct stat statinfo;
+    off_t current_size = 0;
+    if (!fstat(fd, &statinfo)) {
+      current_size = statinfo.st_size;
+    }
+
+    if (end > current_size) {
+      if (Ftruncate(static_cast<unsigned long long>(end))) {
+        return static_cast<ssize_t>(-errno);
+      }
+    }
+
+    return static_cast<ssize_t>(length);
+  }
+
   ssize_t retval;
 
   if (fd < 0) {

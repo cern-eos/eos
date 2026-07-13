@@ -27,8 +27,10 @@
 
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/Mirage.hh"
 #include <XrdOss/XrdOss.hh>
 #include <map>
+#include <optional>
 #include <string>
 
 //! Forward declarations
@@ -179,6 +181,8 @@ private:
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
   int fdDirect; ///< fd for direct IO
+  std::optional<eos::common::MirageSpec> mMirageSpec; ///< synthetic data spec
+  std::uint64_t mMirageSeqOffset = 0; ///< next expected offset for streaming reads
 
 #ifdef IN_TEST_HARNESS
 public:

@@ -41,6 +41,7 @@
  * "eos.app" - set the application name reported by monitoring
  * "eos.targetsize" - expected size of a file to be uploaded
  * "eos.blockchecksum=ignore" - disable block checksum verification
+ * "eos.mirage" - create a mirage object with synthetic read data
  *
  */
 /*----------------------------------------------------------------------------*/

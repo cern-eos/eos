@@ -329,6 +329,7 @@ public:
   XrdOucString mSecString; ///< string containing security summary
   std::map<std::string, std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
+  std::string mMirageValue; ///< Mirage algorithm/pattern for synthetic data
   unsigned long long mFileId; //! file id
   eos::common::FileSystem::fsid_t mFsId; //! file system id
   unsigned long mLid; //! layout id
