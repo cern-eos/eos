@@ -31,6 +31,7 @@
 
 using eos::common::MirageSpec;
 using eos::common::mirage_canonical_value;
+using eos::common::mirage_disabled;
 using eos::common::mirage_etag;
 using eos::common::mirage_fill;
 using eos::common::mirage_sequential_only;
@@ -73,6 +74,16 @@ TEST(Mirage, NormalizeCgiAliases) {
   EXPECT_EQ(normalize_mirage_cgi("1"), "algorithm:deterministic");
   EXPECT_EQ(normalize_mirage_cgi("on"), "algorithm:deterministic");
   EXPECT_EQ(normalize_mirage_cgi("pattern:abc"), "pattern:abc");
+}
+
+TEST(Mirage, DisableSentinels) {
+  for (const char* value : {"disable", "off", "0", "false"}) {
+    EXPECT_TRUE(mirage_disabled(value)) << value;
+    EXPECT_FALSE(parse_mirage(value).has_value()) << value;
+  }
+  EXPECT_FALSE(mirage_disabled("algorithm:deterministic"));
+  EXPECT_FALSE(mirage_disabled("pattern:abc"));
+  EXPECT_FALSE(mirage_disabled(""));
 }
 
 TEST(Mirage, ParsePattern) {

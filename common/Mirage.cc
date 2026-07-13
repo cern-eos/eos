@@ -122,6 +122,11 @@ std::string normalize_mirage_cgi(std::string_view cgi) {
   return std::string(cgi);
 }
 
+bool mirage_disabled(std::string_view value) {
+  return value == "disable" || value == "off" || value == "0" ||
+         value == "false";
+}
+
 std::optional<MirageSpec> parse_mirage(std::string_view value) {
   MirageSpec spec;
   spec.value = std::string(value);

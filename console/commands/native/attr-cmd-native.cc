@@ -87,7 +87,8 @@ std::string MakeAttrHelp()
          "number of bytes a file to be stored can have\n";
   oss << "         sys.forced.mirage=<value>             : enforce mirage "
          "objects for newly created files [<value>=algorithm:deterministic|"
-         "algorithm:xoshiro256pp[:<seed>]|pattern:<text>|true|1|on]\n";
+         "algorithm:xoshiro256pp[:<seed>]|pattern:<text>|true|1|on|disable|"
+         "off|0|false]\n";
   oss << "         sys.forced.atomic=1                   : if present enforce "
          "atomic uploads e.g. files appear only when their upload is complete - "
          "during the upload they have the name <dirname>/.<basename>.<uuid>\n";

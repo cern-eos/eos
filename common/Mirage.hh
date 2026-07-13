@@ -39,6 +39,8 @@
 //!       The pattern repeated forever, anchored at offset 0.
 //!
 //! CGI aliases "true", "1", and "on" map to "algorithm:deterministic".
+//! Disable sentinels "disable", "off", "0", and "false" forbid mirage
+//! when set as a forced directory or space policy.
 //-----------------------------------------------------------------------------
 #pragma once
 
@@ -63,6 +65,9 @@ struct MirageSpec {
 
 // Map CGI aliases (true/1/on) to a canonical mirage value.
 std::string normalize_mirage_cgi(std::string_view cgi);
+
+// True for disable sentinels (disable/off/0/false).
+bool mirage_disabled(std::string_view value);
 
 // Parses a mirage value; nullopt when malformed or the algorithm is unknown.
 std::optional<MirageSpec> parse_mirage(std::string_view value);

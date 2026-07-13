@@ -98,7 +98,7 @@ std::string MakeSpaceHelp()
       << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|mirage|bw|schedule|iopriority|iotype]=<value>      \n"
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << "                                                                        space.policy.mirage=<value> enforces mirage objects in directories referencing this space\n"
-      << "                                                                        [<value>=algorithm:deterministic|algorithm:xoshiro256pp[:<seed>]|pattern:<text>|true|1|on]\n"
+      << "                                                                        [<value>=algorithm:deterministic|algorithm:xoshiro256pp[:<seed>]|pattern:<text>|true|1|on|disable|off|0|false]\n"
       << std::endl
       << "space config <space-name> space.altxs=on|off                          : enable/disable the alternative checksums computation when the file is uploaded\n"
       << std::endl

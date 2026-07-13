@@ -1986,12 +1986,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::map<std::string, std::string> ext_xattr_map;
 
   if (isCreation) {
-    std::string mirage_source;
-    if (!attr::getValue(attrmap, SYS_FORCED_MIRAGE, mirage_source)) {
-      if (!attr::getValue(attrmap, "user.forced.mirage", mirage_source)) {
-        mirage_source = XrdUtils::GetEnv(*openOpaque, "eos.mirage");
-      }
+    std::string forced_mirage;
+    if (!attr::getValue(attrmap, SYS_FORCED_MIRAGE, forced_mirage)) {
+      attr::getValue(attrmap, "user.forced.mirage", forced_mirage);
     }
+
+    std::string cgi_mirage = XrdUtils::GetEnv(*openOpaque, "eos.mirage");
+    std::string mirage_source;
+
+    if (!forced_mirage.empty()) {
+      if (eos::common::mirage_disabled(forced_mirage)) {
+        if (!cgi_mirage.empty() &&
+            !eos::common::mirage_disabled(cgi_mirage)) {
+          return Emsg(epname, error, EINVAL, "open - mirage disabled by policy",
+                      path);
+        }
+      } else {
+        mirage_source = forced_mirage;
+      }
+    } else if (!cgi_mirage.empty() &&
+               !eos::common::mirage_disabled(cgi_mirage)) {
+      mirage_source = cgi_mirage;
+    }
+
     if (!mirage_source.empty()) {
       auto spec = eos::common::parse_mirage_with_seed(
           eos::common::normalize_mirage_cgi(mirage_source), mFid);

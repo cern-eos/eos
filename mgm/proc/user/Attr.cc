@@ -48,7 +48,8 @@ bool SanitizeXattr(const std::string& key, const std::string& value)
   }
 
   if ((key == SYS_FORCED_MIRAGE) || (key == "user.forced.mirage")) {
-    return eos::common::parse_mirage(
+    return eos::common::mirage_disabled(value) ||
+           eos::common::parse_mirage(
                eos::common::normalize_mirage_cgi(value)).has_value();
   }
 

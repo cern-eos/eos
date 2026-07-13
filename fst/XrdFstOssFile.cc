@@ -129,7 +129,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     mIsRW = true;
   }
 
-  if ((val = env.Get("eos.mirage"))) {
+  if ((val = env.Get("eos.mirage")) && !eos::common::mirage_disabled(val)) {
     auto spec = eos::common::parse_mirage(val);
     if (spec) {
       mMirageSpec = *spec;

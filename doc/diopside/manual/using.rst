@@ -2328,13 +2328,19 @@ reading file contents from disk.
 Configuration
 ^^^^^^^^^^^^^
 
-Mirage behaviour can be enforced for all newly created files in a
-subtree using directory extended attributes or space policies. The
-directory attribute takes precedence over a client CGI when both are
-present. If no explicit seed is given in the mirage value, the file
-inode is used as seed for algorithm-based mirages.
+Mirage behaviour can be controlled at the **directory** level with
+extended attributes or at the **space** level with space policies.
+Directory attributes take precedence over space policies and over client
+CGI parameters. If no explicit seed is given in the mirage value, the
+file inode is used as seed for algorithm-based mirages.
+
+Enabling mirage
+"""""""""""""""
 
 **Directory policy (extended attribute)**
+
+Set ``sys.forced.mirage`` on a directory to enforce mirage objects for
+all newly created files in that subtree:
 
 .. code-block:: bash
 
@@ -2347,15 +2353,79 @@ non-administrator directory policies.
 
 **Space policy**
 
-Space policies inject ``sys.forced.mirage`` into directories
-referencing the configured space (unless the directory already defines
-the attribute locally). Use ``remove`` to delete the policy entry.
+Space policies inject ``sys.forced.mirage`` into directories that
+reference the configured space, unless the directory already defines the
+attribute locally:
 
 .. code-block:: bash
 
    eos space config default space.policy.mirage=algorithm:deterministic
    eos space config default space.policy.mirage=pattern:abcdef
+
+Disabling mirage
+""""""""""""""""
+
+Administrators can forbid mirage objects so that users **cannot** create
+them, even when passing the ``eos.mirage`` CGI on file creation. Set any
+of the disable sentinels ``disable``, ``off``, ``0``, or ``false`` as a
+forced policy. New files are created as normal (non-mirage) objects. If a
+client still supplies ``eos.mirage`` with an enabling value, the MGM
+rejects the open with ``EINVAL``.
+
+**Directory level**
+
+Apply the disable sentinel on the directory subtree that should not
+allow mirage:
+
+.. code-block:: bash
+
+   eos attr set sys.forced.mirage=off /eos/production/
+   eos attr set sys.forced.mirage=disable /eos/user/data/
+   eos attr set sys.forced.mirage=0 /eos/secure/
+   eos attr set sys.forced.mirage=false /eos/secure/
+
+The same disable values work with ``user.forced.mirage``. A directory
+attribute overrides a space policy, so a local ``sys.forced.mirage=off``
+on ``/eos/user/`` blocks mirage there even if the space policy would
+otherwise allow it.
+
+To lift a directory-level block, remove the attribute:
+
+.. code-block:: bash
+
+   eos attr rm sys.forced.mirage /eos/production/
+
+**Space level**
+
+Block mirage for all directories in a space that do not define their own
+``sys.forced.mirage`` locally:
+
+.. code-block:: bash
+
+   eos space config default space.policy.mirage=off
+   eos space config default space.policy.mirage=disable
+   eos space config default space.policy.mirage=0
+   eos space config default space.policy.mirage=false
+
+To remove the space policy and fall back to per-directory settings (or
+client CGI where no directory policy exists), use ``remove``:
+
+.. code-block:: bash
+
    eos space config default space.policy.mirage=remove
+
+**What users cannot do when mirage is disabled**
+
+With a disable policy active on the directory or space, the following
+client request is rejected:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/production/file?eos.mirage=algorithm:deterministic' /dev/null
+
+Normal uploads without ``eos.mirage`` continue to work. Passing
+``eos.mirage=off`` (or another disable sentinel) as CGI is treated as a
+no-op and also creates a normal file.
 
 Supported mirage values
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -2379,12 +2449,17 @@ Supported mirage values
    * - ``pattern:<text>``
      - Repeats ``<text>`` from offset 0: byte at offset *i* is
        ``text[i % len(text)]``.
+   * - ``disable``, ``off``, ``0``, ``false``
+     - **Disable only** (directory or space policy): forbid mirage
+       objects and reject client ``eos.mirage`` CGI on create. Files
+       are stored normally. Not valid as an enabling mirage algorithm.
 
 Client CGI and file attributes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When no directory or space policy applies, a client can request mirage
-behaviour explicitly when creating a file:
+When **no** directory or space policy applies (and mirage is not
+explicitly disabled), a client can request mirage behaviour when
+creating a file:
 
 .. code-block:: bash
 
