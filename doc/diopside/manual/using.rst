@@ -2312,6 +2312,108 @@ The syntax in the FUSE configuration file is as shown:
 .. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` extended attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
 
 
+Mirage Objects
+--------------
+
+Mirage objects are synthetic files for load and network testing. On **PUT**
+the client still sends a real body so the network path is fully
+exercised, but the FST discards the payload and only extends a sparse
+on-disk file to the transferred size. On **GET** the server synthesizes
+bytes from a deterministic algorithm or repeating pattern instead of
+reading file contents from disk.
+
+.. index::
+   pair: Mirage; Synthetic data
+
+Configuration
+^^^^^^^^^^^^^
+
+Mirage behaviour can be enforced for all newly created files in a
+subtree using directory extended attributes or space policies. The
+directory attribute takes precedence over a client CGI when both are
+present. If no explicit seed is given in the mirage value, the file
+inode is used as seed for algorithm-based mirages.
+
+**Directory policy (extended attribute)**
+
+.. code-block:: bash
+
+   eos attr set sys.forced.mirage=algorithm:deterministic /eos/loadtest/
+   eos attr set sys.forced.mirage=pattern:1234567890 /eos/loadtest/
+   eos attr set sys.forced.mirage=true /eos/loadtest/
+
+The same settings are available as ``user.forced.mirage`` for
+non-administrator directory policies.
+
+**Space policy**
+
+Space policies inject ``sys.forced.mirage`` into directories
+referencing the configured space (unless the directory already defines
+the attribute locally). Use ``remove`` to delete the policy entry.
+
+.. code-block:: bash
+
+   eos space config default space.policy.mirage=algorithm:deterministic
+   eos space config default space.policy.mirage=pattern:abcdef
+   eos space config default space.policy.mirage=remove
+
+Supported mirage values
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Value
+     - Description
+   * - ``algorithm:deterministic``
+     - Offset-addressable pseudo-random stream. Supports random-access
+       reads. Shorthand aliases: ``true``, ``1``, ``on``.
+   * - ``algorithm:deterministic:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``algorithm:xoshiro256pp``
+     - Pseudo-random stream using xoshiro256++. **Only sequential
+       streaming reads are allowed.**
+   * - ``algorithm:xoshiro256pp:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``pattern:<text>``
+     - Repeats ``<text>`` from offset 0: byte at offset *i* is
+       ``text[i % len(text)]``.
+
+Client CGI and file attributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When no directory or space policy applies, a client can request mirage
+behaviour explicitly when creating a file:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.mirage=algorithm:xoshiro256pp:42' /dev/null
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.mirage=pattern:1234567890' /dev/null
+
+On creation the MGM stores the resolved mirage definition as a file
+extended attribute:
+
+.. code-block:: bash
+
+   sys.mirage=algorithm:deterministic:<inode>
+
+The mirage value is forwarded to the FST in the open capability as
+``eos.mirage``. A mirage-specific etag is stored temporarily as
+``sys.tmp.etag`` until the file is committed.
+
+Behaviour summary
+^^^^^^^^^^^^^^^^^
+
+* **Write:** client data is transferred over the network but not
+  persisted; the sparse file size follows the highest written offset.
+* **Read:** payload is generated from ``sys.mirage`` using the
+  configured algorithm or pattern.
+* **Checksums:** content checksums of the sparse on-disk file are not
+  meaningful for mirage objects; the etag is derived from the mirage
+  definition.
+
+
 Running Authentication Front-ends
 ---------------------------------
 

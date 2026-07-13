@@ -51,6 +51,7 @@ static const std::string SYS_FORCED_CHECKSUM = "sys.forced.checksum";
 static const std::string SYS_FORCED_BLOCKSIZE = "sys.forced.blocksize";
 static const std::string SYS_FORCED_BLOCKCHECKSUM = "sys.forced.blockchecksum";
 static const std::string SYS_FORCED_NSTRIPES = "sys.forced.nstripes";
+static const std::string SYS_FORCED_MIRAGE = "sys.forced.mirage";
 static const std::string SYS_MIRAGE = "sys.mirage";
 
 static const std::string USER_VERSIONING = "user.versioning";

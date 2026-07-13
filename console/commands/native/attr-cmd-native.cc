@@ -85,6 +85,9 @@ std::string MakeAttrHelp()
          "number of bytes a file to be stored must have\n";
   oss << "         sys.forced.maxsize=<bytes>            : set's the maximum "
          "number of bytes a file to be stored can have\n";
+  oss << "         sys.forced.mirage=<value>             : enforce mirage "
+         "objects for newly created files [<value>=algorithm:deterministic|"
+         "algorithm:xoshiro256pp[:<seed>]|pattern:<text>|true|1|on]\n";
   oss << "         sys.forced.atomic=1                   : if present enforce "
          "atomic uploads e.g. files appear only when their upload is complete - "
          "during the upload they have the name <dirname>/.<basename>.<uuid>\n";
@@ -155,6 +158,7 @@ std::string MakeAttrHelp()
   oss << "  attr set sys.forced.nstripes=10 /eos/instance/archive\n";
   oss << "  attr set sys.acl=g:xx::!d!u /eos/instance/no-update-deletion\n";
   oss << "  attr set sys.forced.atomic=1 /eos/dev/instance/atomic/\n";
+  oss << "  attr set sys.forced.mirage=algorithm:deterministic /eos/loadtest/\n";
   oss << "  attr set sys.attr.link=/eos/dev/origin-attr/ "
          "/eos/dev/instance/attr-linked/\n";
   return oss.str();

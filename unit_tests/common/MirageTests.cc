@@ -202,3 +202,13 @@ TEST(Mirage, NormalizeCgiWithSeedResolution) {
   EXPECT_EQ(spec->kind, MirageSpec::Kind::Deterministic);
   EXPECT_EQ(spec->seed, inode);
 }
+
+TEST(Mirage, ForcedPolicyValuesParseWithoutSeed) {
+  for (const char* value : {"algorithm:deterministic",
+                            "algorithm:xoshiro256pp",
+                            "pattern:loadtest"}) {
+    auto spec = parse_mirage(value);
+    ASSERT_TRUE(spec.has_value()) << value;
+    EXPECT_FALSE(spec->explicit_seed) << value;
+  }
+}

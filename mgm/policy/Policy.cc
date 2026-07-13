@@ -41,7 +41,7 @@ const std::vector<std::string> Policy::gBasePolicyKeys = {
   "policy.space",         "policy.layout",           "policy.nstripes",
   "policy.checksum",      "policy.blocksize",        "policy.blockchecksum",
   "policy.localredirect", "policy.updateconversion", "policy.readconversion",
-  "policy.altspaces"
+  "policy.altspaces",     "policy.mirage"
 };
 
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {

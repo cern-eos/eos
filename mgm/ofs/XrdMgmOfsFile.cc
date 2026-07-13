@@ -1986,12 +1986,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::map<std::string, std::string> ext_xattr_map;
 
   if (isCreation) {
-    if (auto mirage_cgi = XrdUtils::GetEnv(*openOpaque, "eos.mirage");
-        !mirage_cgi.empty()) {
+    std::string mirage_source;
+    if (!attr::getValue(attrmap, SYS_FORCED_MIRAGE, mirage_source)) {
+      if (!attr::getValue(attrmap, "user.forced.mirage", mirage_source)) {
+        mirage_source = XrdUtils::GetEnv(*openOpaque, "eos.mirage");
+      }
+    }
+    if (!mirage_source.empty()) {
       auto spec = eos::common::parse_mirage_with_seed(
-          eos::common::normalize_mirage_cgi(mirage_cgi), mFid);
+          eos::common::normalize_mirage_cgi(mirage_source), mFid);
       if (!spec) {
-        return Emsg(epname, error, EINVAL, "open - invalid eos.mirage value", path);
+        return Emsg(epname, error, EINVAL, "open - invalid mirage value", path);
       }
       mirage_value = spec->value;
     }

@@ -25,8 +25,10 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
+#include "mgm/misc/Constants.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
+#include "common/Mirage.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Resolver.hh"
 
@@ -43,6 +45,11 @@ bool SanitizeXattr(const std::string& key, const std::string& value)
     std::string out_val;
     (void)eos::common::SymKey::DeBase64(value, out_val);
     return eos::common::LayoutId::IsValidBlocksize(out_val);
+  }
+
+  if ((key == SYS_FORCED_MIRAGE) || (key == "user.forced.mirage")) {
+    return eos::common::parse_mirage(
+               eos::common::normalize_mirage_cgi(value)).has_value();
   }
 
   return true;
