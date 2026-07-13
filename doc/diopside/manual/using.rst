@@ -2503,6 +2503,9 @@ Behaviour summary
 
 * **Write:** client data is transferred over the network but not
   persisted; the sparse file size follows the highest written offset.
+  For replication, RAIN parity, stripe checksums, and file checksums the
+  FST substitutes the client payload with bytes from the mirage
+  algorithm before those paths run.
 * **Read:** payload is generated from ``sys.mirage`` using the
   configured algorithm or pattern.
 * **Checksums:** content checksums of the sparse on-disk file are not

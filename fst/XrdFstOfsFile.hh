@@ -30,12 +30,14 @@
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
+#include "common/Mirage.hh"
 #include "common/SymKeys.hh"
 #include <XrdVersion.hh>
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOfs/XrdOfsTPCInfo.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <numeric>
+#include <vector>
 
 namespace eos
 {
@@ -330,6 +332,8 @@ public:
   std::map<std::string, std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
   std::string mMirageValue; ///< Mirage algorithm/pattern for synthetic data
+  std::optional<eos::common::MirageSpec> mMirageSpec; ///< parsed mirage spec
+  std::vector<char> mMirageWriteBuf; ///< scratch buffer for mirage writes
   unsigned long long mFileId; //! file id
   eos::common::FileSystem::fsid_t mFsId; //! file system id
   unsigned long mLid; //! layout id

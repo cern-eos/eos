@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <vector>
 
 namespace
 {
@@ -139,7 +140,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     }
   }
 
-  if (!mMirageSpec && XrdFstSS &&
+  if (XrdFstSS &&
       (eos::common::LayoutId::GetBlockChecksum(lid) !=
        eos::common::LayoutId::kNone) && (mPath[0] == '/')) {
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
@@ -573,6 +574,15 @@ XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
       if (Ftruncate(static_cast<unsigned long long>(end))) {
         return static_cast<ssize_t>(-errno);
       }
+    }
+
+    if (mBlockXs) {
+      XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+      std::vector<char> mirage_buf(length);
+      eos::common::mirage_fill(*mMirageSpec,
+                               static_cast<std::uint64_t>(offset),
+                               mirage_buf.data(), length);
+      mBlockXs->AddBlockSum(offset, mirage_buf.data(), length);
     }
 
     return static_cast<ssize_t>(length);
