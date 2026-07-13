@@ -139,7 +139,8 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     }
   }
 
-  if (!mMirageSpec && (eos::common::LayoutId::GetBlockChecksum(lid) !=
+  if (!mMirageSpec && XrdFstSS &&
+      (eos::common::LayoutId::GetBlockChecksum(lid) !=
        eos::common::LayoutId::kNone) && (mPath[0] == '/')) {
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
     pair_value = XrdFstSS->GetXsObj(path, mIsRW);
@@ -191,8 +192,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     } while ((fdDirect < 0) && (errno == EINTR));
   }
 
-  if (fd >= 0) {
-    if (fd < XrdFstSS->mFdFence) {
+  if (fd >= 0 && XrdFstSS && fd < XrdFstSS->mFdFence) {
 #if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 
       // Relocate the file descriptor if need be and make sure file is closed
@@ -207,11 +207,9 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         close(fd);
         fd = newfd;
       }
-    }
   }
 
-  if (fdDirect >= 0) {
-    if (fdDirect < XrdFstSS->mFdFence) {
+  if (fdDirect >= 0 && XrdFstSS && fdDirect < XrdFstSS->mFdFence) {
 #if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 
       // Relocate the file descriptor if need be and make sure file is closed
@@ -226,7 +224,6 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         close(fdDirect);
         fdDirect = newfd;
       }
-    }
   }
 
   eos_debug("fd=%d fdDirect=%d flags=%x", fd, fdDirect, flags);
@@ -454,7 +451,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
   int nPR = n;
 
   // Indicate we are in preread state and see if we have exceeded the limit
-  if ((fdDirect == -1) && XrdFstSS->mPrDepth
+  if ((fdDirect == -1) && XrdFstSS && XrdFstSS->mPrDepth
       && ((XrdFstSS->mPrActive++) < XrdFstSS->mPrQSize)
       && (n > 2)) {
     int faBytes = 0;
@@ -516,7 +513,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
 // All done, return bytes read.
 #if defined(__linux__)
 
-  if (XrdFstSS->mPrDepth) {
+  if (XrdFstSS && XrdFstSS->mPrDepth) {
     XrdFstSS->mPrActive--;
   }
 
@@ -692,7 +689,7 @@ XrdFstOssFile::Close(long long* retsz)
   //............................................................................
   // Code dealing with block checksums
   //............................................................................
-  if (mBlockXs) {
+  if (mBlockXs && XrdFstSS) {
     struct stat statinfo;
 
     if ((XrdFstSS->Stat(mPath.c_str(), &statinfo))) {
@@ -750,7 +747,7 @@ XrdFstOssFile::Close(long long* retsz)
   }
 
   //............................................................................
-  if (delete_mapping) {
+  if (delete_mapping && XrdFstSS) {
     eos_debug("Delete entry from oss map for file %s", mPath.c_str());
     XrdFstSS->DropXs(mPath.c_str());
   } else {

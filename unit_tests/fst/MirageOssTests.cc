@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #define IN_TEST_HARNESS
+#include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
 #undef IN_TEST_HARNESS
 
@@ -37,13 +38,34 @@
 #include <string>
 #include <vector>
 
+using eos::fst::XrdFstOss;
 using eos::fst::XrdFstOssFile;
 
 namespace {
 
+XrdFstOss& GetTestOss()
+{
+  static XrdFstOss* oss = []() {
+    auto* instance = new XrdFstOss();
+    instance->Init(nullptr, nullptr);
+    return instance;
+  }();
+  return *oss;
+}
+
+struct MirageOssTestInit {
+  MirageOssTestInit()
+  {
+    (void)GetTestOss();
+  }
+};
+
+const MirageOssTestInit g_mirage_oss_test_init;
+
 class MirageOssTest : public ::testing::Test {
 protected:
   void SetUp() override {
+    (void)GetTestOss();
     char tmpl[] = "/tmp/eos-mirage-oss-XXXXXX";
     mFd = mkstemp(tmpl);
     ASSERT_GE(mFd, 0);
@@ -53,8 +75,11 @@ protected:
   }
 
   void TearDown() override {
-    delete mOss;
-    mOss = nullptr;
+    if (mOss) {
+      mOss->Close();
+      delete mOss;
+      mOss = nullptr;
+    }
     if (mFd >= 0) {
       close(mFd);
       mFd = -1;
@@ -65,7 +90,11 @@ protected:
   }
 
   int openMirage(const char* mirage_value, int flags) {
-    delete mOss;
+    if (mOss) {
+      mOss->Close();
+      delete mOss;
+      mOss = nullptr;
+    }
     mOss = new XrdFstOssFile("mirage-test");
     std::string opaque = "&eos.mirage=";
     opaque += mirage_value;
@@ -87,15 +116,16 @@ TEST_F(MirageOssTest, RejectsInvalidMirageValue) {
 }
 
 TEST_F(MirageOssTest, PatternWriteDiscardsAndReadSynthesizes) {
-  ASSERT_EQ(openMirage("pattern:abc", O_RDWR | O_CREAT), 0);
+  ASSERT_EQ(openMirage("pattern:abc", O_RDWR | O_CREAT), XrdOssOK);
 
   const char garbage[] = "XXXXXXXXX";
-  EXPECT_EQ(mOss->Write(garbage, 0, sizeof(garbage) - 1),
-            static_cast<ssize_t>(sizeof(garbage) - 1));
+  const std::size_t payload_len = sizeof(garbage) - 1;
+  EXPECT_EQ(mOss->Write(garbage, 0, payload_len),
+            static_cast<ssize_t>(payload_len));
 
   struct stat statinfo {};
   ASSERT_EQ(mOss->Fstat(&statinfo), 0);
-  EXPECT_EQ(statinfo.st_size, static_cast<off_t>(sizeof(garbage) - 1));
+  EXPECT_EQ(statinfo.st_size, static_cast<off_t>(payload_len));
 
   std::vector<char> disk_buf(statinfo.st_size, '\1');
   ASSERT_EQ(pread(mOss->getFD(), disk_buf.data(), disk_buf.size(), 0),
@@ -106,12 +136,12 @@ TEST_F(MirageOssTest, PatternWriteDiscardsAndReadSynthesizes) {
 
   char read_buf[10] = {};
   EXPECT_EQ(mOss->Read(read_buf, 0, sizeof(read_buf)),
-            static_cast<ssize_t>(sizeof(read_buf)));
-  EXPECT_EQ(std::string(read_buf, sizeof(read_buf)), "abcabcabca");
+            static_cast<ssize_t>(payload_len));
+  EXPECT_EQ(std::string(read_buf, payload_len), "abcabcabc");
 }
 
 TEST_F(MirageOssTest, DeterministicSupportsRandomAccess) {
-  ASSERT_EQ(openMirage("algorithm:deterministic:1", O_RDWR | O_CREAT), 0);
+  ASSERT_EQ(openMirage("algorithm:deterministic:1", O_RDWR | O_CREAT), XrdOssOK);
 
   const char payload[128] = {};
   ASSERT_EQ(mOss->Write(payload, 0, sizeof(payload)),
@@ -133,7 +163,7 @@ TEST_F(MirageOssTest, DeterministicSupportsRandomAccess) {
 }
 
 TEST_F(MirageOssTest, XoshiroRequiresSequentialReads) {
-  ASSERT_EQ(openMirage("algorithm:xoshiro256pp:0", O_RDWR | O_CREAT), 0);
+  ASSERT_EQ(openMirage("algorithm:xoshiro256pp:0", O_RDWR | O_CREAT), XrdOssOK);
 
   std::vector<char> payload(2048, 'z');
   ASSERT_EQ(mOss->Write(payload.data(), 0, payload.size()),
@@ -146,7 +176,7 @@ TEST_F(MirageOssTest, XoshiroRequiresSequentialReads) {
 }
 
 TEST_F(MirageOssTest, WriteExtendsSparseFile) {
-  ASSERT_EQ(openMirage("pattern:x", O_RDWR | O_CREAT), 0);
+  ASSERT_EQ(openMirage("pattern:x", O_RDWR | O_CREAT), XrdOssOK);
 
   EXPECT_EQ(mOss->Write("a", 0, 1), 1);
 
