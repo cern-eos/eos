@@ -29,6 +29,7 @@
 #include "common/Mirage.hh"
 #include "gtest/gtest.h"
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSys/XrdSysLogger.hh>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -45,22 +46,14 @@ namespace {
 
 XrdFstOss& GetTestOss()
 {
+  static XrdSysLogger logger(fileno(stderr), 0);
   static XrdFstOss* oss = []() {
     auto* instance = new XrdFstOss();
-    instance->Init(nullptr, nullptr);
+    instance->Init(&logger, nullptr);
     return instance;
   }();
   return *oss;
 }
-
-struct MirageOssTestInit {
-  MirageOssTestInit()
-  {
-    (void)GetTestOss();
-  }
-};
-
-const MirageOssTestInit g_mirage_oss_test_init;
 
 class MirageOssTest : public ::testing::Test {
 protected:

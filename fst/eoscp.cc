@@ -1881,6 +1881,10 @@ main(int argc, char* argv[])
         case CONSOLE_ACCESS:
           readlink_size = 0;
           break;
+
+        case MIRAGE_ACCESS:
+          readlink_size = 0;
+          break;
         }
 
         if (readlink_size < 0) {
@@ -2054,6 +2058,9 @@ main(int argc, char* argv[])
           break;
 
         case CONSOLE_ACCESS:
+          break;
+
+        case MIRAGE_ACCESS:
           break;
         }
 
@@ -2524,6 +2531,9 @@ main(int argc, char* argv[])
       dst_handler.push_back(std::make_pair(fileno(stdout),
                                            static_cast<eos::fst::XrdIo*>(NULL)));
       break;
+
+    case MIRAGE_ACCESS:
+      break;
     }
 
     if ((!isRaidTransfer) &&
@@ -2570,6 +2580,9 @@ main(int argc, char* argv[])
       case CONSOLE_ACCESS:
         // Not supported
         break;
+
+      case MIRAGE_ACCESS:
+        break;
       }
 
       if (startwritebyte < 0) {
@@ -2615,6 +2628,7 @@ main(int argc, char* argv[])
     case XRD_ACCESS:
     case RIO_ACCESS:
     case CONSOLE_ACCESS:
+    case MIRAGE_ACCESS:
       //........................................................................
       // Not supported, no such functionality in the standard xroot or console
       //........................................................................
@@ -2848,6 +2862,9 @@ main(int argc, char* argv[])
         }
       }
       break;
+
+      case MIRAGE_ACCESS:
+        break;
       }
 
       if (nwrite != nread) {
@@ -3023,6 +3040,9 @@ main(int argc, char* argv[])
       // Nothing to do
       //........................................................................
       break;
+
+    case MIRAGE_ACCESS:
+      break;
     }
   }
 
@@ -3055,6 +3075,7 @@ main(int argc, char* argv[])
     case XRD_ACCESS:
     case RIO_ACCESS:
     case CONSOLE_ACCESS:
+    case MIRAGE_ACCESS:
       //........................................................................
       // Noting to do, xrootd has no symlink support in posix
       //........................................................................
