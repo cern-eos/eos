@@ -2477,6 +2477,27 @@ The mirage value is forwarded to the FST in the open capability as
 ``eos.mirage``. A mirage-specific etag is stored temporarily as
 ``sys.tmp.etag`` until the file is committed.
 
+Synthetic source with ``eoscp``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``eoscp`` can use a mirage definition as a **source** instead of reading
+from a file or URL. The source argument has the form
+``mirage:<value>`` where ``<value>`` uses the same syntax as server-side
+mirage (``algorithm:deterministic``, ``algorithm:xoshiro256pp[:<seed>]``,
+``pattern:<text>``, or the aliases ``true`` / ``1`` / ``on``). Specify
+how many bytes to generate with ``-T <size>`` or copy a sub-range with
+``-r <start>:<stop>``.
+
+.. code-block:: bash
+
+   eoscp -T 1073741824 mirage:algorithm:deterministic root://mgm//eos/loadtest/file
+   eoscp -r 0:104857600 mirage:pattern:1234567890 root://mgm//eos/loadtest/pattern.dat
+   eoscp -T 1073741824 -t 100 mirage:true /dev/null
+
+This is useful for load tests: ``eoscp`` synthesizes the payload locally
+and still exercises the full client-to-server write path on the
+destination.
+
 Behaviour summary
 ^^^^^^^^^^^^^^^^^
 
