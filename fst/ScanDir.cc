@@ -1309,7 +1309,7 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
           mFstLoad, mDirPath.c_str(),
           mRateBandwidth.load());
     }
-  } while (nread == mBufferSize);
+  } while (nread != 0);
 
   scan_size = (unsigned long long) offset;
   const auto close_ts = std::chrono::system_clock().now();
