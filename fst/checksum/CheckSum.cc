@@ -234,7 +234,7 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
       eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
           fstload, dirpath.c_str(), max_rate);
     }
-  } while (nread == buffersize);
+  } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();
   scantime = std::chrono::duration_cast<std::chrono::milliseconds>
@@ -299,7 +299,7 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
     eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
         fstload, dirpath.c_str(),
         max_rate);
-  } while (nread == buffersize);
+  } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();
   scantime = std::chrono::duration_cast<std::chrono::milliseconds>
