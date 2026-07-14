@@ -293,12 +293,16 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
       return false;
     }
 
-    Add(buffer, nread, offset);
-    offset += nread;
-    // Regulate the verification rate
-    eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
-        fstload, dirpath.c_str(),
-        max_rate);
+    if (nread > 0) {
+      Add(buffer, nread, offset);
+      offset += nread;
+    }
+
+    if (rate) {
+      // Regulate the verification rate
+      eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate, fstload,
+                                                dirpath.c_str(), max_rate);
+    }
   } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();
