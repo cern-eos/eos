@@ -176,6 +176,7 @@ Major Change
   Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
 * **MQ removal**: The MQ support has been dropped.
   Upgrading from an EOS version with MQ support to EOS 5.4.0 is disruptive as it requires a full instance restart.
+* **Upgrade procedure**: When upgrading from a 5.3.* version the FSTs need to be upgraded first. This constraint is introduced by a change of the encryption/encoding of the opaque infromation. Only after all the FSTs are running 5.4 can the MGM be upgraded.
 
 Bug
 ---
