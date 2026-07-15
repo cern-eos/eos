@@ -707,8 +707,8 @@ Contains an example keytab file and create the eosnobody ans eosdev users
 
 %post -n eos-testkeytab
 
-getent passwd eosnobody || useradd eosnobody
-getent passwd eosdev || useradd eosdev
+getent passwd eosnobody >/dev/null 2>&1 || useradd eosnobody 2>/dev/null || :
+getent passwd eosdev >/dev/null 2>&1 || useradd eosdev 2>/dev/null || :
 
 #-------------------------------------------------------------------------------
 # Package eos-archive only for >= CC7
@@ -762,8 +762,10 @@ The EOS archive daemon.
 
 %pre -n eos-archive
 echo "Make sure eosarchi user and c3 group exist"
-getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3
-getent passwd eosarchi >/dev/null 2>&1 || useradd -r -u 72811 eosarchi
+getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3 2>/dev/null || groupadd -r c3
+getent passwd eosarchi >/dev/null 2>&1 || \
+  useradd -r -u 72811 -g c3 eosarchi 2>/dev/null || \
+  useradd -r -g c3 eosarchi
 
 %post -n eos-archive
 case "$1" in
@@ -837,6 +839,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-instance-test-ci
 %{_sbindir}/eos-accounting-test
+%{_sbindir}/eos-archive-setup-test
 %{_sbindir}/eos-file-cont-detached-test
 %{_sbindir}/eos-lru-test
 %{_sbindir}/eos-rain-test

@@ -1,0 +1,375 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-archive-setup-test
+# Author: Elvin Sindrilaru - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+################################################################################
+# Usage:
+#
+#   bash> eos-archive-setup-test <BASEPATH> [MGM_HOST]
+#
+# Arguments:
+#   BASEPATH   - EOS namespace path used as the base for the test tree, e.g.
+#                /eos/dockertest/archivetest
+#   MGM_HOST   - (optional) MGM hostname to contact, defaults to 'localhost'
+#
+# What the script does:
+#   1. Installs the 'eos-archive' package if it is not already present.
+#   2. Points the XrdSecSSSKT entry in /etc/sysconfig/eosarchived_env at the
+#      eos.client.keytab file.
+#   3. (Re)starts and enables the 'eosarchived' systemd service.
+#   4. Creates the following tree under BASEPATH:
+#          BASEPATH/archive/
+#          BASEPATH/archive/dir1/file11.dat
+#          BASEPATH/archive/dir1/file12.dat
+#          BASEPATH/archive/dir2/file21.dat
+#          BASEPATH/archive/dir2/file22.dat
+#   5. Sets the ctime and mtime of every directory and file above to
+#      14th of June 2026 00:00:00 using the MGM 'utimes' Fsctl command,
+#      triggered through 'xrdfs query opaquefile'.
+################################################################################
+
+set -o pipefail
+
+#-------------------------------------------------------------------------------
+# Configuration
+#-------------------------------------------------------------------------------
+BASEPATH="${1}"
+REF_INIT="${2}"
+MGM_HOST="${3:-localhost}"
+PACKAGE="eos-archive"
+SYSCONFIG="/etc/sysconfig/eosarchived_env"
+KEYTAB="/etc/eos.client.keytab"
+SERVICE="eosarchived"
+ARCH_INIT_NAME=".archive.init"
+
+# Temporary files created by the script, removed on exit
+TMP_FILES=()
+
+# All directories and files get this common ctime/mtime:
+# 14th of June 2026 at 12:00am (midnight, 00:00:00) UTC.
+UTS_HUMAN="2026-06-14 00:00:00"
+
+# Each data file is exactly this many bytes, filled with a deterministic,
+# repeating byte pattern (see PATTERN_UNIT below).
+FILE_SIZE=2048
+PATTERN_UNIT="0123456789ABCDEF"   # 16 bytes, repeated to reach FILE_SIZE
+
+# Use the archive keytab for SSS authentication of the client commands issued
+# from this script, so that they match the identity the daemon runs with.
+export XrdSecPROTOCOL=sss,unix
+export XrdSecSSSKT="${KEYTAB}"
+export EOS_MGM_URL="root://${MGM_HOST}"
+
+#-------------------------------------------------------------------------------
+# Helpers
+#-------------------------------------------------------------------------------
+log()  { echo "[$(date '+%H:%M:%S')] $*"; }
+fail() { echo "[ERROR] $*" >&2; exit 1; }
+
+# Remove all temporary files registered in TMP_FILES on exit
+cleanup() {
+  if [[ ${#TMP_FILES[@]} -gt 0 ]]; then
+    rm -f "${TMP_FILES[@]}"
+  fi
+}
+trap cleanup EXIT
+
+print_usage() {
+  cat <<EOF
+Usage: $(basename "$0") <BASEPATH> <REF_INIT> [MGM_HOST]
+       $(basename "$0") --help | -h
+
+Set up the eosarchived service and populate a test tree in EOS.
+
+Arguments:
+  BASEPATH   EOS namespace path used as the base for the test tree, e.g.
+             /eos/dockertest/archivetest
+  REF_INIT   Local path to a reference '.archive.init' file. The newly
+             produced archive init file is compared against it; the two must
+             match except for the 'timestamp' field of the first JSON object.
+  MGM_HOST   (optional) MGM hostname to contact, defaults to 'localhost'
+
+Options:
+  -h, --help Display this help message and exit
+
+Actions performed:
+  1. Installs the 'eos-archive' package if it is not already present.
+  2. Points the XrdSecSSSKT entry in /etc/sysconfig/eosarchived_env at the
+     eos.client.keytab file.
+  3. (Re)starts and enables the 'eosarchived' systemd service.
+  4. Creates BASEPATH/archive with dir1 and dir2, each holding two 2 KB
+     data files filled with a deterministic byte pattern.
+  5. Sets the ctime and mtime of every directory and file above to
+     14th of June 2026 00:00:00 UTC using the MGM 'utimes' Fsctl command,
+     triggered through 'xrdfs query opaquefile', and aligns the
+     'sys.eos.btime' attribute of the directories with the same timestamp.
+  6. Runs 'eos archive create' on BASEPATH/archive, copies the resulting
+     '.archive.init' file to a local temporary location and compares it
+     against REF_INIT.
+EOF
+}
+
+# Print usage to stderr and exit with an error (invalid invocation)
+usage() {
+  print_usage >&2
+  exit 1
+}
+
+#-------------------------------------------------------------------------------
+# Set the ctime (tv1) and mtime (tv2) of an EOS path to the common timestamp
+# using the MGM 'utimes' Fsctl command triggered via 'xrdfs query opaquefile'.
+#-------------------------------------------------------------------------------
+set_utime() {
+  local path="${1}"
+  local opaque="${path}?mgm.pcmd=utimes"
+  opaque+="&tv1_sec=${UTS_EPOCH}&tv1_nsec=0"   # ctime
+  opaque+="&tv2_sec=${UTS_EPOCH}&tv2_nsec=0"   # mtime
+
+  local out
+  out="$(xrdfs "${MGM_HOST}" query opaquefile "${opaque}" 2>&1)"
+
+  if [[ $? -ne 0 ]]; then
+    fail "utimes query failed for '${path}': ${out}"
+  fi
+
+  # The MGM answers with a string of the form 'utimes: retc=<N>'
+  if [[ "${out}" != *"retc=0"* ]]; then
+    fail "utimes returned an error for '${path}': ${out}"
+  fi
+
+  log "  set ctime/mtime on ${path}"
+}
+
+#-------------------------------------------------------------------------------
+# Set the 'sys.eos.btime' extended attribute of an EOS directory to the common
+# timestamp. The attribute is stored as '<sec>.<nsec>'.
+#-------------------------------------------------------------------------------
+set_btime() {
+  local path="${1}"
+
+  eos -r 0 0 attr set "sys.eos.btime=${UTS_EPOCH}.0" "${path}" \
+    || fail "failed to set sys.eos.btime on '${path}'"
+
+  log "  set sys.eos.btime on ${path}"
+}
+
+#-------------------------------------------------------------------------------
+# Compare a produced '.archive.init' file against a reference one. Everything
+# must match except the 'timestamp', 'src' and 'dst' fields of the first JSON
+# object (the header on the first line). The 'timestamp' is set to the
+# wall-clock time when the archive is created, while 'src' and 'dst' depend on
+# the MGM instance and archive destination, so all three are expected to differ.
+#-------------------------------------------------------------------------------
+compare_init() {
+  local produced="${1}"
+  local reference="${2}"
+
+  # Neutralize the header 'timestamp', 'src' and 'dst' values (first line only)
+  # in both files
+  local norm_prod norm_ref
+  norm_prod="$(mktemp)"
+  norm_ref="$(mktemp)"
+  TMP_FILES+=("${norm_prod}" "${norm_ref}")
+
+  local sed_expr='1s/"timestamp":[[:space:]]*[0-9]*/"timestamp": <IGNORED>/'
+  sed_expr+=';1s/"src":[[:space:]]*"[^"]*"/"src": <IGNORED>/'
+  sed_expr+=';1s/"dst":[[:space:]]*"[^"]*"/"dst": <IGNORED>/'
+  sed "${sed_expr}" "${produced}"  > "${norm_prod}"
+  sed "${sed_expr}" "${reference}" > "${norm_ref}"
+
+  if diff -u "${norm_ref}" "${norm_prod}"; then
+    log "Archive init file matches the reference (ignoring header timestamp)"
+  else
+    fail "produced archive init file differs from reference '${reference}'"
+  fi
+}
+
+#-------------------------------------------------------------------------------
+# Argument and environment checks
+#-------------------------------------------------------------------------------
+if [[ "${BASEPATH}" == "-h" || "${BASEPATH}" == "--help" ]]; then
+  print_usage
+  exit 0
+fi
+
+[[ -n "${BASEPATH}" ]] || usage
+[[ -n "${REF_INIT}" ]] || usage
+
+command -v eos   >/dev/null 2>&1 || fail "'eos' client not found in PATH"
+command -v xrdfs >/dev/null 2>&1 || fail "'xrdfs' client not found in PATH"
+command -v xrdcp >/dev/null 2>&1 || fail "'xrdcp' client not found in PATH"
+
+[[ -r "${KEYTAB}" ]]   || fail "keytab '${KEYTAB}' not found or not readable"
+[[ -r "${REF_INIT}" ]] || fail "reference init file '${REF_INIT}' not found or not readable"
+
+# Normalize base path (strip a possible trailing slash)
+BASEPATH="${BASEPATH%/}"
+ARCHIVE_DIR="${BASEPATH}/archive"
+
+# Pick the available package manager
+if command -v dnf >/dev/null 2>&1; then
+  PKG_MGR="dnf"
+elif command -v yum >/dev/null 2>&1; then
+  PKG_MGR="yum"
+else
+  fail "neither 'dnf' nor 'yum' package manager is available"
+fi
+
+# Resolve the common timestamp to an epoch value (interpreted as UTC)
+UTS_EPOCH="$(date -u -d "${UTS_HUMAN}" +%s 2>/dev/null)"
+[[ -n "${UTS_EPOCH}" ]] || fail "could not convert '${UTS_HUMAN}' to an epoch"
+
+#-------------------------------------------------------------------------------
+# 1. Install the eos-archive package if needed
+#-------------------------------------------------------------------------------
+if rpm -q "${PACKAGE}" >/dev/null 2>&1; then
+  log "Package '${PACKAGE}' is already installed"
+else
+  log "Installing package '${PACKAGE}' via ${PKG_MGR}"
+  ${PKG_MGR} install -y "${PACKAGE}" || fail "failed to install '${PACKAGE}'"
+fi
+
+#-------------------------------------------------------------------------------
+# 2. Point XrdSecSSSKT in the eosarchived env file at the eos.client.keytab
+#-------------------------------------------------------------------------------
+[[ -f "${SYSCONFIG}" ]] || fail "sysconfig file '${SYSCONFIG}' not found"
+
+log "Configuring XrdSecSSSKT=${KEYTAB} in ${SYSCONFIG}"
+cp -a "${SYSCONFIG}" "${SYSCONFIG}.bak.$(date +%Y%m%d%H%M%S)"
+
+if grep -qE '^[[:space:]]*XrdSecSSSKT=' "${SYSCONFIG}"; then
+  # Replace an existing (possibly commented) definition
+  sed -i -E "s|^[[:space:]]*#?[[:space:]]*XrdSecSSSKT=.*|XrdSecSSSKT=${KEYTAB}|" "${SYSCONFIG}"
+elif grep -qE '^[[:space:]]*#[[:space:]]*XrdSecSSSKT=' "${SYSCONFIG}"; then
+  sed -i -E "s|^[[:space:]]*#[[:space:]]*XrdSecSSSKT=.*|XrdSecSSSKT=${KEYTAB}|" "${SYSCONFIG}"
+else
+  # No entry at all - append one
+  echo "XrdSecSSSKT=${KEYTAB}" >> "${SYSCONFIG}"
+fi
+
+grep -qE "^XrdSecSSSKT=${KEYTAB//\//\\/}$" "${SYSCONFIG}" \
+  || fail "failed to set XrdSecSSSKT in ${SYSCONFIG}"
+
+#-------------------------------------------------------------------------------
+# 3. (Re)start and enable the eosarchived service
+#-------------------------------------------------------------------------------
+log "Starting the '${SERVICE}' service"
+systemctl enable "${SERVICE}"  || fail "failed to enable '${SERVICE}'"
+systemctl restart "${SERVICE}" || fail "failed to (re)start '${SERVICE}'"
+
+# Give systemd a moment and confirm the daemon is running
+sleep 2
+systemctl is-active --quiet "${SERVICE}" \
+  || fail "service '${SERVICE}' is not active after start"
+log "Service '${SERVICE}' is active"
+
+#-------------------------------------------------------------------------------
+# 4. Create the directory structure and the data files
+#-------------------------------------------------------------------------------
+log "Creating directory tree under ${ARCHIVE_DIR}"
+eos -r 0 0 mkdir -p "${ARCHIVE_DIR}"      || fail "failed to create ${ARCHIVE_DIR}/dir1"
+eos -r 0 0 chown daemon:daemon "${ARCHIVE_DIR}" || fail "failed to chown ${ARCHIVE_DIR}/dir1"
+eos -r 2 2 chmod 775 "${ARCHIVE_DIR}"     || fail "failed to chmod ${ARCHIVE_DIR}/dir1"
+eos -r 2 2 mkdir -p "${ARCHIVE_DIR}/dir1" || fail "failed to create ${ARCHIVE_DIR}/dir1"
+eos -r 2 2 mkdir -p "${ARCHIVE_DIR}/dir2" || fail "failed to create ${ARCHIVE_DIR}/dir2"
+
+FILES=(
+  "${ARCHIVE_DIR}/dir1/file11.dat"
+  "${ARCHIVE_DIR}/dir1/file12.dat"
+  "${ARCHIVE_DIR}/dir2/file21.dat"
+  "${ARCHIVE_DIR}/dir2/file22.dat"
+)
+
+# Build a local source file of exactly FILE_SIZE bytes filled with the
+# deterministic pattern, then upload the same content to every destination.
+PATTERN_FILE="$(mktemp)"
+TMP_FILES+=("${PATTERN_FILE}")
+
+reps=$(( FILE_SIZE / ${#PATTERN_UNIT} ))
+for ((i = 0; i < reps; i++)); do
+  printf '%s' "${PATTERN_UNIT}"
+done > "${PATTERN_FILE}"
+
+actual_size="$(stat -c %s "${PATTERN_FILE}")"
+[[ "${actual_size}" -eq "${FILE_SIZE}" ]] \
+  || fail "generated pattern file is ${actual_size} bytes, expected ${FILE_SIZE}"
+
+for f in "${FILES[@]}"; do
+  log "Uploading ${FILE_SIZE}-byte file ${f}"
+  xrdcp -f -s "${PATTERN_FILE}" "root://${MGM_HOST}/${f}" \
+    || fail "failed to upload file ${f}"
+done
+
+#-------------------------------------------------------------------------------
+# 5. Set a common ctime/mtime on every file and directory.
+#
+# Files are updated first, then their parent directories, and finally the
+# top-level 'archive' directory. Creating/touching entries bumps the parent
+# directory mtime, so the directories must be stamped *after* their contents.
+#-------------------------------------------------------------------------------
+log "Setting common ctime/mtime (${UTS_HUMAN} -> epoch ${UTS_EPOCH})"
+
+for f in "${FILES[@]}"; do
+  set_utime "${f}"
+done
+
+set_utime "${ARCHIVE_DIR}/dir1"
+set_utime "${ARCHIVE_DIR}/dir2"
+set_utime "${ARCHIVE_DIR}"
+
+#-------------------------------------------------------------------------------
+# 6. Align the 'sys.eos.btime' (birth time) extended attribute of the
+#    directories - starting with 'archive' - with the common timestamp.
+#-------------------------------------------------------------------------------
+log "Setting sys.eos.btime on directories (${UTS_HUMAN} -> epoch ${UTS_EPOCH})"
+
+set_btime "${ARCHIVE_DIR}"
+set_btime "${ARCHIVE_DIR}/dir1"
+set_btime "${ARCHIVE_DIR}/dir2"
+
+#-------------------------------------------------------------------------------
+# 7. Create the archive and validate the produced '.archive.init' file.
+#
+# 'eos archive create' walks the sub-tree and writes a '.archive.init' file
+# inside the archive directory. That file is then copied locally and compared
+# against the provided reference.
+#-------------------------------------------------------------------------------
+log "Creating archive in ${ARCHIVE_DIR}"
+eos -r 0 0 archive create "${ARCHIVE_DIR}" \
+  || fail "failed to create archive in ${ARCHIVE_DIR}"
+
+ARCH_INIT_PATH="${ARCHIVE_DIR}/${ARCH_INIT_NAME}"
+LOCAL_INIT="$(mktemp)"
+TMP_FILES+=("${LOCAL_INIT}")
+
+log "Copying ${ARCH_INIT_PATH} to ${LOCAL_INIT}"
+# Read as the root role so the copy works regardless of the init file ownership
+xrdcp -f -s "root://${MGM_HOST}/${ARCH_INIT_PATH}?eos.ruid=0&eos.rgid=0" \
+  "${LOCAL_INIT}" \
+  || fail "failed to copy ${ARCH_INIT_PATH}"
+
+log "Comparing produced archive init file against reference '${REF_INIT}'"
+compare_init "${LOCAL_INIT}" "${REF_INIT}"
+
+log "Done. Archive test tree ready and validated under ${ARCHIVE_DIR}"
+exit 0
