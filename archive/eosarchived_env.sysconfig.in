@@ -21,5 +21,6 @@ EOS_ARCHIVE_CONF=/etc/eosarchived.conf
 # have full access to the EOS.
 XrdSecSSSKT=/etc/archive.keytab
 
-# Make eos-xrootd python bindings higher priority
-PYTHONPATH=/opt/eos/xrootd/lib64/python3.6/site-packages/
+# Make eos-xrootd python bindings higher priority. The Python version is set
+# at build time to match the interpreter used when building EOS.
+PYTHONPATH=/opt/eos/xrootd/lib64/python@Python3_VERSION_MAJOR@.@Python3_VERSION_MINOR@/site-packages/
