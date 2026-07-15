@@ -49,7 +49,13 @@ if(PYTHONSITEPKG_FOUND)
 set(SYSTEMD_DIR /usr/lib/systemd/)
 
 if(EXISTS ${SYSTEMD_DIR})
-  install(FILES eosarchived_env.sysconfig
+  # Substitute the build-time Python version into the PYTHONPATH
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/eosarchived_env.sysconfig.in
+    ${CMAKE_CURRENT_BINARY_DIR}/eosarchived_env.sysconfig
+    @ONLY)
+
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/eosarchived_env.sysconfig
     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
     RENAME eosarchived_env)
 
