@@ -763,9 +763,21 @@ The EOS archive daemon.
 %pre -n eos-archive
 echo "Make sure eosarchi user and c3 group exist"
 getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3 2>/dev/null || groupadd -r c3
-getent passwd eosarchi >/dev/null 2>&1 || \
-  useradd -r -u 72811 -g c3 eosarchi 2>/dev/null || \
-  useradd -r -g c3 eosarchi
+
+if ! getent passwd eosarchi >/dev/null 2>&1; then
+  # RPM chowns the packaged files to 'eosarchi' by name, so the account only
+  # needs a uid usable in THIS environment. Prefer the reserved uid 72811, but
+  # if it cannot own files here - e.g. inside a rootless user namespace whose
+  # sub-uid range doesn't map it - fall back to a system-assigned uid so the
+  # install doesn't fail with 'cpio: chown failed'.
+  eosarchi_probe=$(mktemp)
+  if chown 72811 "${eosarchi_probe}" 2>/dev/null; then
+    useradd -r -u 72811 -g c3 eosarchi 2>/dev/null || useradd -r -g c3 eosarchi
+  else
+    useradd -r -g c3 eosarchi
+  fi
+  rm -f "${eosarchi_probe}"
+fi
 
 %post -n eos-archive
 case "$1" in
