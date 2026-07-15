@@ -1,0 +1,8 @@
+{"src": "dummy", "dst": "dummy/", "svc_class": "archive", "dir_meta": ["uid", "gid", "mode", "attr"], "file_meta": ["size", "mtime", "ctime", "uid", "gid", "mode", "xstype", "xs"], "uid": "0", "gid": "0", "timestamp": 1784131888, "num_dirs":          2, "num_files":          4}
+["d", "./", "2", "2", "40775", {"sys.acl": "z:i", "sys.eos.btime": "1781395200.0", "sys.forced.blocksize": "4k", "sys.forced.checksum": "adler", "sys.forced.layout": "replica", "sys.forced.nstripes": "2", "sys.forced.space": "default"}]
+["d", "dir1/", "2", "2", "40775", {"sys.acl": "z:i", "sys.eos.btime": "1781395200.0", "sys.forced.blocksize": "4k", "sys.forced.checksum": "adler", "sys.forced.layout": "replica", "sys.forced.nstripes": "2", "sys.forced.space": "default"}]
+["d", "dir2/", "2", "2", "40775", {"sys.acl": "z:i", "sys.eos.btime": "1781395200.0", "sys.forced.blocksize": "4k", "sys.forced.checksum": "adler", "sys.forced.layout": "replica", "sys.forced.nstripes": "2", "sys.forced.space": "default"}]
+["f", "dir1/file11.dat", "2048", "1781395200.0", "1781395200.0", "2", "2", "0644", "adler", "4a7cd110"]
+["f", "dir1/file12.dat", "2048", "1781395200.0", "1781395200.0", "2", "2", "0644", "adler", "4a7cd110"]
+["f", "dir2/file21.dat", "2048", "1781395200.0", "1781395200.0", "2", "2", "0644", "adler", "4a7cd110"]
+["f", "dir2/file22.dat", "2048", "1781395200.0", "1781395200.0", "2", "2", "0644", "adler", "4a7cd110"]
