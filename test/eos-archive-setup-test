@@ -141,7 +141,7 @@ usage() {
 #-------------------------------------------------------------------------------
 set_utime() {
   local path="${1}"
-  local opaque="${path}?mgm.pcmd=utimes"
+  local opaque="${path}?mgm.pcmd=utimes&eos.ruid=0&eos.rgid=0"
   opaque+="&tv1_sec=${UTS_EPOCH}&tv1_nsec=0"   # ctime
   opaque+="&tv2_sec=${UTS_EPOCH}&tv2_nsec=0"   # mtime
 
@@ -288,11 +288,14 @@ log "Daemon '${SERVICE}' is running"
 # 4. Create the directory structure and the data files
 #-------------------------------------------------------------------------------
 log "Creating directory tree under ${ARCHIVE_DIR}"
-eos -r 0 0 mkdir -p "${ARCHIVE_DIR}"      || fail "failed to create ${ARCHIVE_DIR}/dir1"
-eos -r 0 0 chown daemon:daemon "${ARCHIVE_DIR}" || fail "failed to chown ${ARCHIVE_DIR}/dir1"
-eos -r 2 2 chmod 775 "${ARCHIVE_DIR}"     || fail "failed to chmod ${ARCHIVE_DIR}/dir1"
-eos -r 2 2 mkdir -p "${ARCHIVE_DIR}/dir1" || fail "failed to create ${ARCHIVE_DIR}/dir1"
-eos -r 2 2 mkdir -p "${ARCHIVE_DIR}/dir2" || fail "failed to create ${ARCHIVE_DIR}/dir2"
+DAEMON_UID=$(id -u daemon)
+DAEMON_GID=$(id -g daemon)
+eos -r 0 0 mkdir -p "${ARCHIVE_DIR}"      || fail "failed to create ${ARCHIVE_DIR}"
+eos -r 0 0 chown daemon:daemon "${ARCHIVE_DIR}" || fail "failed to chown ${ARCHIVE_DIR}"
+eos -r 0 0 attr set default=replica "${ARCHIVE_DIR}" || fail "failed to set layout ${ARCHIVE_DIR}"
+eos -r ${DAEMON_UID} ${DAEMON_GID} chmod 775 "${ARCHIVE_DIR}"     || fail "failed to chmod ${ARCHIVE_DIR}"
+eos -r ${DAEMON_UID} ${DAEMON_GID} mkdir -p "${ARCHIVE_DIR}/dir1" || fail "failed to create ${ARCHIVE_DIR}/dir1"
+eos -r ${DAEMON_UID} ${DAEMON_GID} mkdir -p "${ARCHIVE_DIR}/dir2" || fail "failed to create ${ARCHIVE_DIR}/dir2"
 
 FILES=(
   "${ARCHIVE_DIR}/dir1/file11.dat"
@@ -317,7 +320,7 @@ actual_size="$(stat -c %s "${PATTERN_FILE}")"
 
 for f in "${FILES[@]}"; do
   log "Uploading ${FILE_SIZE}-byte file ${f}"
-  xrdcp -f -s "${PATTERN_FILE}" "root://${MGM_HOST}/${f}" \
+  xrdcp -f -s "${PATTERN_FILE}" "root://${MGM_HOST}/${f}?eos.ruid=${DAEMON_UID}&eos.rgid=${DAEMON_GID}" \
     || fail "failed to upload file ${f}"
 done
 
