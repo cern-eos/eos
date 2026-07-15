@@ -908,6 +908,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-make-flamegraph
 %{_sbindir}/eos-util-flamegraph
 %{_sbindir}/eos-util-stackcollapse
+%{_localstatedir}/eos/test/eos.archive.init.ref
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/untar.tgz
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/xrootd.tgz
 %if %{with asan}
