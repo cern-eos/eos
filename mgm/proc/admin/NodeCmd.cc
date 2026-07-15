@@ -202,6 +202,14 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_err("error: no such node '" + nodename + "'");
     reply.set_retc(ENOENT);
+
+    common::SharedHashLocator nodeLocator =
+        common::SharedHashLocator::makeForNode(nodename);
+    eos_info("msg=\"delete from configuration\" node_name=%s",
+             nodeLocator.getConfigQueue().c_str());
+    gOFS->mConfigEngine->DeleteConfigValueByMatch("global",
+                                                  nodeLocator.getConfigQueue().c_str());
+    gOFS->mConfigEngine->AutoSave();
     return;
   }
 
