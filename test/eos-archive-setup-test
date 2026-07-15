@@ -36,7 +36,7 @@
 #   1. Installs the 'eos-archive' package if it is not already present.
 #   2. Points the XrdSecSSSKT entry in /etc/sysconfig/eosarchived_env at the
 #      eos.client.keytab file.
-#   3. (Re)starts and enables the 'eosarchived' systemd service.
+#   3. Checks that an 'eosarchived' daemon is running and fails otherwise.
 #   4. Creates the following tree under BASEPATH:
 #          BASEPATH/archive/
 #          BASEPATH/archive/dir1/file11.dat
@@ -116,7 +116,7 @@ Actions performed:
   1. Installs the 'eos-archive' package if it is not already present.
   2. Points the XrdSecSSSKT entry in /etc/sysconfig/eosarchived_env at the
      eos.client.keytab file.
-  3. (Re)starts and enables the 'eosarchived' systemd service.
+  3. Checks that an 'eosarchived' daemon is running and fails otherwise.
   4. Creates BASEPATH/archive with dir1 and dir2, each holding two 2 KB
      data files filled with a deterministic byte pattern.
   5. Sets the ctime and mtime of every directory and file above to
@@ -271,17 +271,18 @@ grep -qE "^XrdSecSSSKT=${KEYTAB//\//\\/}$" "${SYSCONFIG}" \
   || fail "failed to set XrdSecSSSKT in ${SYSCONFIG}"
 
 #-------------------------------------------------------------------------------
-# 3. (Re)start and enable the eosarchived service
+# 3. Verify the eosarchived daemon is running
+#
+# The daemon is expected to be already started by the environment - either
+# through the systemd 'eosarchived' service or launched directly where systemd
+# is not available (e.g. the docker test containers). This test does not manage
+# the service, it only checks that an eosarchived process is present and fails
+# otherwise.
 #-------------------------------------------------------------------------------
-log "Starting the '${SERVICE}' service"
-systemctl enable "${SERVICE}"  || fail "failed to enable '${SERVICE}'"
-systemctl restart "${SERVICE}" || fail "failed to (re)start '${SERVICE}'"
-
-# Give systemd a moment and confirm the daemon is running
-sleep 2
-systemctl is-active --quiet "${SERVICE}" \
-  || fail "service '${SERVICE}' is not active after start"
-log "Service '${SERVICE}' is active"
+log "Checking that the '${SERVICE}' daemon is running"
+pgrep -f "eosarchived.py" >/dev/null 2>&1 \
+  || fail "no '${SERVICE}' process running - start it before running this test"
+log "Daemon '${SERVICE}' is running"
 
 #-------------------------------------------------------------------------------
 # 4. Create the directory structure and the data files

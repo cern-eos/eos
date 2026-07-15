@@ -68,5 +68,13 @@ eos ns stat
 HTTPS_DIR="/eos/dockertest/test/https/"
 run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
 
+#-------------------------------------------------------------------------------
+# Archive setup test - validate the format of the produced '.archive.init' file
+# against a reference one.
+#-------------------------------------------------------------------------------
+ARCHIVE_BASEPATH="/eos/dockertest/archivetest"
+ARCHIVE_REF_INIT="/var/eos/test/eos.archive.init.ref"
+run_test_script "archive setup" eos-archive-setup-test "${ARCHIVE_BASEPATH}" "${ARCHIVE_REF_INIT}" localhost
+
 eos space quota default off
 exit 0
