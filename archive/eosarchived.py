@@ -39,6 +39,30 @@ import logging.handlers
 from eosarch import ProcessInfo, Configuration
 
 
+def clean_env():
+    """ Return a copy of the current environment with the AddressSanitizer
+    preload variables removed.
+
+    When eos is built with ASan the daemon is started with LD_PRELOAD pointing
+    at libasan so that the instrumented eos python bindings load the runtime
+    first. That environment is otherwise inherited by every child process,
+    including plain helper utilities such as 'ps', 'grep', 'awk' and 'kill'.
+    Pulling libasan into these uninstrumented binaries makes each of them
+    reserve ~20 TB of shadow memory and can hang them under a container's
+    seccomp/ptrace restrictions, wedging the daemon that waits on them. Use
+    this scrubbed environment for such helpers; the actual transfer workers
+    (eosarch_run.py) must keep the preload and are spawned with the inherited
+    environment.
+
+    Returns:
+        dict: environment without LD_PRELOAD/ASAN_OPTIONS/LSAN_OPTIONS
+    """
+    env = os.environ.copy()
+    for var in ("LD_PRELOAD", "ASAN_OPTIONS", "LSAN_OPTIONS"):
+        env.pop(var, None)
+    return env
+
+
 class Dispatcher(object):
     """ Dispatcher daemon responsible for receiving requests from the clients
     and then spawning the proper executing process for archiving operations
@@ -173,7 +197,8 @@ class Dispatcher(object):
                                      "awk '{{print $1}}'").format(exec_fname)],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
-                                   shell=True)
+                                   shell=True,
+                                   env=clean_env())
         ps_out, __ = ps_proc.communicate()
 
         if len(ps_out) == 0:
@@ -343,7 +368,8 @@ class Dispatcher(object):
             self.logger.debug("Kill uuid={0} pid={1}".format(job_uuid, proc.pid))
             kill_proc = subprocess.Popen(['kill', '-SIGTERM', str(proc.pid)],
                                          stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE)
+                                         stderr=subprocess.PIPE,
+                                         env=clean_env())
             _, err = kill_proc.communicate()
 
             if kill_proc.returncode:
