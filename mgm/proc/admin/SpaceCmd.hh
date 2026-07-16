@@ -57,6 +57,13 @@ public:
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
 private:
+  void TapeRestApiStatusSubcmd(const std::string& space_name, const std::string& value,
+                               FsSpace* space, int& ret_c, std::ostringstream& std_out,
+                               std::ostringstream& std_err);
+
+  void TapeRestApiStageSubcmd(const std::string& space_name, const std::string& value,
+                              FsSpace* space, int& ret_c, std::ostringstream& std_out,
+                              std::ostringstream& std_err);
 
   //----------------------------------------------------------------------------
   //! Execute ls subcommand

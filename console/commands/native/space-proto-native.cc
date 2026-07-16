@@ -99,12 +99,16 @@ std::string MakeSpaceHelp()
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << std::endl
       << "space config <space-name> space.altxs=on|off                          : enable/disable the alternative checksums computation when the file is uploaded\n"
+      << "space config <space-name> space.groupsize=<#>                         : configure how many filesystems can end up in one scheduling group\n"
+      << "space config <space-name> space.groupmod=<#>                          : configure the maximum number of groups in the space\n"
+      << "space config <space-name> space.quota=on|off                          : enable/disable quota for this space\n"
       << std::endl
       << "TAPE REST API specific parameters:\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF
-      << "=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"
+      << "=on|off                         : enable/disable the tape REST API handler [ default=off ]\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF
       << "=on|off                         : enable/disable the tape REST API STAGE resource [ default=off ]\n"
+      << "                                => both keys above also accept the 'space.' prefix, e.g. space." << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF << "=on|off\n"
       << std::endl
       << "Tape specific configuration parameters:\n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS

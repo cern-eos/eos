@@ -22,29 +22,31 @@
  ************************************************************************/
 
 #include "SpaceCmd.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/tgc/Constants.hh"
-#include "mgm/http/rest-api/Constants.hh"
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/lru/LRU.hh"
-#include "mgm/acl/Acl.hh"
-#include "common/Path.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/inspector/FileInspector.hh"
-#include "mgm/egroup/Egroup.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/groupbalancer/GroupBalancer.hh"
-#include "mgm/groupdrainer/GroupDrainer.hh"
-#include "mgm/balancer/FsBalancer.hh"
-#include "mgm/placement/FsScheduler.hh"
-#include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/interface/IView.hh"
 #include "common/Constants.hh"
+#include "common/Path.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/token/EosTok.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/balancer/FsBalancer.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/egroup/Egroup.hh"
+#include "mgm/groupbalancer/GroupBalancer.hh"
+#include "mgm/groupdrainer/GroupDrainer.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/inspector/FileInspector.hh"
+#include "mgm/lru/LRU.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/tgc/Constants.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
+#include <algorithm>
+#include <cctype>
 
 EOSMGMNAMESPACE_BEGIN
 static const std::string BALANCER_KEY_PREFIX = "balancer";
@@ -615,81 +617,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
   if (!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
     applied = true;
-
-    //REST API activation
-    if ((value != "on") && (value != "off")) {
-      ret_c = EINVAL;
-      std_err.str("error: value has to either on or off");
-    } else {
-      if (space_name != "default") {
-        ret_c = EIO;
-        std_err.str("error: the tape REST API can only be enabled or disabled on the default space");
-      } else {
-        if (!space->SetConfigMember(key, value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
-
-          if (value == "on") {
-            if (!config->isActivated()) {
-              // Stage should be deactivated by default
-              if (!space->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
-                ret_c = EIO;
-                std_err.str("error: cannot set space config value");
-              } else {
-                config->setActivated(true);
-                config->setStageEnabled(false);
-                std_out << "success: Tape REST API enabled";
-              }
-            } else {
-              std_out << "The tape REST API is already enabled";
-            }
-          } else {
-            //Switch off the tape REST API
-            //Also switch off the STAGE resource
-            if (!space->SetConfigMember(
-                  rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
-              ret_c = EIO;
-              std_err.str("error: cannot set space config value");
-            } else {
-              config->setActivated(false);
-              config->setStageEnabled(false);
-              std_out << "success: Tape REST API disabled";
-            }
-          }
-        }
-      }
-    }
+    TapeRestApiStatusSubcmd(space_name, value, space, ret_c, std_out, std_err);
   }
 
   if (!strcmp(mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, key.c_str())) {
     applied = true;
-
-    //REST API activation
-    if ((value != "on") && (value != "off")) {
-      ret_c = EINVAL;
-      std_err.str("error: value has to either on or off");
-    } else {
-      if (space_name != "default") {
-        ret_c = EIO;
-        std_err.str("error: the tape REST API STAGE resource can only be enabled or disabled on the default space");
-      } else {
-        if (!space
-            ->SetConfigMember(key, value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          if (value == "on") {
-            gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
-            std_out << "success: Tape REST API STAGE resource enabled";
-          } else {
-            gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
-            std_out << "success: Tape REST API STAGE resource disabled";
-          }
-        }
-      }
-    }
+    TapeRestApiStageSubcmd(space_name, value, space, ret_c, std_out, std_err);
   }
 
   // set a space related parameter
@@ -801,65 +734,44 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     value);
       }
     } else {
-      if ((key == "nominalsize") ||
-          (key == "headroom") ||
-          (key == "graceperiod") ||
-          (key == "drainperiod") ||
-          (key == "balancer") ||
-          (key == "balancer.threshold") ||
-          (key == "balancer.node.rate") ||
-          (key == "balancer.node.ntx") ||
-          (key == "balancer.max-queue-jobs") ||
+      if ((key == "nominalsize") || (key == "headroom") || (key == "graceperiod") ||
+          (key == "drainperiod") || (key == "balancer") ||
+          (key == "balancer.threshold") || (key == "balancer.node.rate") ||
+          (key == "balancer.node.ntx") || (key == "balancer.max-queue-jobs") ||
           (key == "balancer.max-thread-pool-size") ||
-          (key == "balancer.update.interval") ||
-          (key == "drainer.tx.minrate") ||
-          (key == "drainer.retries") ||
-          (key == "drainer.fs.ntx") ||
-          (key == "tracker") ||
-          (key == "inspector") ||
-          (key == "inspector.interval") ||
+          (key == "balancer.update.interval") || (key == "drainer.tx.minrate") ||
+          (key == "drainer.retries") || (key == "drainer.fs.ntx") || (key == "tracker") ||
+          (key == "inspector") || (key == "inspector.interval") ||
           (key == "inspector.price.disk.tbyear") ||
-          (key == "inspector.price.tape.tbyear") ||
-          (key == "inspector.price.currency") ||
-          (key == "lru") ||
-          (key == "lru.interval") ||
-          (key == "wfe") ||
-          (key == "wfe.interval") ||
-          (key == "wfe.ntx") ||
-          (key == "groupbalancer") ||
-          (key == "groupbalancer.ntx") ||
-          (key == "groupbalancer.threshold") ||
+          (key == "inspector.price.tape.tbyear") || (key == "inspector.price.currency") ||
+          (key == "lru") || (key == "lru.interval") || (key == "wfe") ||
+          (key == "wfe.interval") || (key == "wfe.ntx") || (key == "groupbalancer") ||
+          (key == "groupbalancer.ntx") || (key == "groupbalancer.threshold") ||
           (key == "groupbalancer.min_threshold") ||
           (key == "groupbalancer.max_threshold") ||
           (key == "groupbalancer.min_file_size") ||
           (key == "groupbalancer.max_file_size") ||
-          (key == "groupbalancer.file_attempts") ||
-          (key == "geobalancer") ||
-          (key == "geobalancer.ntx") ||
-          (key == "geobalancer.threshold") ||
-          (key == "groupdrainer") ||
-          (key == "groupdrainer.threshold") ||
+          (key == "groupbalancer.file_attempts") || (key == "geobalancer") ||
+          (key == "geobalancer.ntx") || (key == "geobalancer.threshold") ||
+          (key == "groupdrainer") || (key == "groupdrainer.threshold") ||
           (key == "groupdrainer.group_refresh_interval") ||
-          (key == "groupdrainer.retry_interval") ||
-          (key == "groupdrainer.retry_count") ||
-          (key == "groupdrainer.ntx") ||
-          (key == "geo.access.policy.read.exact") ||
-          (key == "geo.access.policy.write.exact") ||
-          (key == "filearchivedgc") ||
-          (key == "max.ropen") ||
-          (key == "max.wopen") ||
-          (key == "altxs") ||
+          (key == "groupdrainer.retry_interval") || (key == "groupdrainer.retry_count") ||
+          (key == "groupdrainer.ntx") || (key == "geo.access.policy.read.exact") ||
+          (key == "geo.access.policy.write.exact") || (key == "filearchivedgc") ||
+          (key == "max.ropen") || (key == "max.wopen") || (key == "altxs") ||
           (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
           (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
-          (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
-          (key == "token.generation") ||
+          (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) || (key == "token.generation") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_RATE_NAME) ||
-          (key.substr(0, 9) == std::string("attr.sys."))) {
+          (key.substr(0, 9) == std::string("attr.sys.")) ||
+          (key == eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF) ||
+          (key == eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF) ||
+          (key == "groupsize") || (key == "groupmod") || (key == "quota")) {
         if ((key == "balancer") ||
             (key == "tracker") ||
             (key == "inspector") ||
@@ -875,7 +787,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
           if ((value != "on") && (value != "off")) {
             ret_c = EINVAL;
-            std_err.str("error: value has to either on or off");
+            std_err.str("error: value has to be either on or off");
           } else {
             if (!space->SetConfigMember(key, value)) {
               ret_c = EIO;
@@ -1007,6 +919,36 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                             "success: LRU is disabled");
                 gOFS->mLRUEngine->RefreshOptions();
               }
+            }
+          }
+        } else if (key == eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF) {
+          applied = true;
+          TapeRestApiStatusSubcmd(space_name, value, space, ret_c, std_out, std_err);
+        } else if (key == eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF) {
+          applied = true;
+          TapeRestApiStageSubcmd(space_name, value, space, ret_c, std_out, std_err);
+        } else if (key == "groupsize" || key == "groupmod") {
+          applied = true;
+          if (value.empty() || !std::all_of(value.begin(), value.end(), ::isdigit)) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to be a non-negative integer");
+          } else if (!space->SetConfigMember(key, value)) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            std_out.str("success: setting " + key + "=" + value);
+          }
+        } else if (key == "quota") {
+          applied = true;
+          if ((value != "on") && (value != "off")) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to be either on or off");
+          } else {
+            if (!space->SetConfigMember(key, value)) {
+              ret_c = EIO;
+              std_err.str("error: cannot set space config value");
+            } else {
+              std_out.str("success: setting quota=" + value);
             }
           }
         } else if (key == "wfe") {
@@ -1528,6 +1470,95 @@ SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto&
   }
 
   reply.set_retc(0);
+}
+
+//----------------------------------------------------------------------------
+// Execute tape REST API status subcommand
+//----------------------------------------------------------------------------
+void
+SpaceCmd::TapeRestApiStatusSubcmd(const std::string& space_name, const std::string& value,
+                                  FsSpace* space, int& ret_c, std::ostringstream& std_out,
+                                  std::ostringstream& std_err)
+{
+  // REST API activation
+  if ((value != "on") && (value != "off")) {
+    ret_c = EINVAL;
+    std_err.str("error: value has to be either on or off");
+  } else {
+    if (space_name != "default") {
+      ret_c = EIO;
+      std_err.str("error: the tape REST API can only be enabled or disabled on the "
+                  "default space");
+    } else {
+      if (!space->SetConfigMember(rest::TAPE_REST_API_SWITCH_ON_OFF, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
+
+        if (value == "on") {
+          if (!config->isActivated()) {
+            // Stage should be deactivated by default
+            if (!space->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+              ret_c = EIO;
+              std_err.str("error: cannot set space config value");
+            } else {
+              config->setActivated(true);
+              config->setStageEnabled(false);
+              std_out << "success: Tape REST API enabled";
+            }
+          } else {
+            std_out << "The tape REST API is already enabled";
+          }
+        } else {
+          // Switch off the tape REST API
+          // Also switch off the STAGE resource
+          if (!space->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            config->setActivated(false);
+            config->setStageEnabled(false);
+            std_out << "success: Tape REST API disabled";
+          }
+        }
+      }
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+// Execute tape REST API stage subcommand
+//----------------------------------------------------------------------------
+void
+SpaceCmd::TapeRestApiStageSubcmd(const std::string& space_name, const std::string& value,
+                                 FsSpace* space, int& ret_c, std::ostringstream& std_out,
+                                 std::ostringstream& std_err)
+{
+  // REST API activation
+  if ((value != "on") && (value != "off")) {
+    ret_c = EINVAL;
+    std_err.str("error: value has to be either on or off");
+  } else {
+    if (space_name != "default") {
+      ret_c = EIO;
+      std_err.str("error: the tape REST API STAGE resource can only be enabled or "
+                  "disabled on the default space");
+    } else {
+      if (!space->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        if (value == "on") {
+          gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
+          std_out << "success: Tape REST API STAGE resource enabled";
+        } else {
+          gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
+          std_out << "success: Tape REST API STAGE resource disabled";
+        }
+      }
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END
