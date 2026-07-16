@@ -923,8 +923,10 @@ Run(int argc, char* argv[])
           } else {
             cmdline += " ";
             std::string arg = argv[i];
-            // Only wrap in quotes if necessary; escape only internal double-quotes
-            bool needs_quoting = (arg.find(' ') != std::string::npos ||
+            // Only wrap in quotes if necessary; escape only internal double-quotes.
+            // An empty argument must also be quoted, otherwise it collapses into
+            // the surrounding whitespace and is lost during re-tokenization.
+            bool needs_quoting = (arg.empty() || arg.find(' ') != std::string::npos ||
                                   arg.find('"') != std::string::npos);
             if (needs_quoting) {
               std::string quoted;
@@ -1148,6 +1150,10 @@ execute_line(char* line)
   std::vector<std::string> argsVec;
   {
     bool inD = false, inS = false;
+    // Track whether the current token contained an explicit quote so that a
+    // deliberately quoted empty argument ("" or '') is preserved as an empty
+    // token instead of being silently dropped.
+    bool quoted = false;
     std::string cur;
     for (size_t i = 0; i < rest.size(); ++i) {
       char c = rest[i];
@@ -1163,22 +1169,25 @@ execute_line(char* line)
       }
       if (c == '"' && !inS) {
         inD = !inD;
+        quoted = true;
         continue;
       }
       if (c == '\'' && !inD) {
         inS = !inS;
+        quoted = true;
         continue;
       }
       if (c == ' ' && !inD && !inS) {
-        if (!cur.empty()) {
+        if (!cur.empty() || quoted) {
           argsVec.push_back(cur);
           cur.clear();
+          quoted = false;
         }
         continue;
       }
       cur.push_back(c);
     }
-    if (!cur.empty()) {
+    if (!cur.empty() || quoted) {
       argsVec.push_back(cur);
     }
   }

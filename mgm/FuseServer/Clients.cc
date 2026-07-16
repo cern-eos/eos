@@ -1111,6 +1111,7 @@ void
 FuseServer::Clients::SetBroadCastMaxAudience(int size)
 /*----------------------------------------------------------------------------*/
 {
+  std::lock_guard<std::mutex> lock(mBcastCfgMutex);
   mMaxBroadCastAudience = size;
 }
 
@@ -1118,6 +1119,7 @@ FuseServer::Clients::SetBroadCastMaxAudience(int size)
 void
 FuseServer::Clients::SetBroadCastAudienceSuppressMatch(const std::string& match)
 {
+  std::lock_guard<std::mutex> lock(mBcastCfgMutex);
   mMaxbroadCastAudienceMatch = match;
 }
 

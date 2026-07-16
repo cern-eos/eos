@@ -23,7 +23,9 @@
 #include "mgm/FuseServer/Clients.hh"
 #include "mgm/fsview/FsView.hh"
 #include "gtest/gtest.h"
+#include <atomic>
 #include <map>
+#include <thread>
 
 using namespace eos::mgm::FuseServer;
 using eos::mgm::FsView;
@@ -109,6 +111,42 @@ TEST_F(ClientsTest, UnknownKeyRejected)
   std::string msg;
   ASSERT_FALSE(clients.Config("bogus", "1", msg));
   ASSERT_FALSE(msg.empty());
+}
+
+TEST_F(ClientsTest, DefaultBroadcastAudienceIsZero)
+{
+  ASSERT_EQ(0, clients.BroadCastMaxAudience());
+}
+
+TEST_F(ClientsTest, BcaMatchCanBeCleared)
+{
+  std::string msg;
+  ASSERT_TRUE(clients.Config(Clients::sBcaMatchKey, "somehost.*", msg));
+  ASSERT_EQ("somehost.*", clients.BroadCastAudienceSuppressMatch());
+  ASSERT_TRUE(clients.Config(Clients::sBcaMatchKey, "", msg));
+  ASSERT_EQ("", clients.BroadCastAudienceSuppressMatch());
+}
+
+TEST_F(ClientsTest, ConcurrentBroadcastConfigAccessIsSafe)
+{
+  std::atomic<bool> stop{false};
+  std::thread reader([&] {
+    while (!stop.load()) {
+      volatile int a = clients.BroadCastMaxAudience();
+      std::string m = clients.BroadCastAudienceSuppressMatch();
+      (void)a;
+      (void)m;
+    }
+  });
+
+  for (int i = 0; i < 20000; ++i) {
+    clients.SetBroadCastMaxAudience(i % 100);
+    clients.SetBroadCastAudienceSuppressMatch("match-" + std::to_string(i % 50));
+  }
+
+  stop.store(true);
+  reader.join();
+  SUCCEED();
 }
 
 TEST_F(ClientsTest, StoreConfigProducesExpectedBlob)
