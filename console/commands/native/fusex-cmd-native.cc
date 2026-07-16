@@ -124,8 +124,14 @@ public:
       return 0;
     }
 
+    // Note: unlike other native commands using this reverse-parse idiom,
+    // fusex has a required "subcmd" positional consumed ahead of the
+    // extras. Once that positional is consumed out of the reversed
+    // cli_args, app.remaining() already yields the leftover tokens in
+    // original command-line order - reversing them again here would
+    // scramble multi-argument subcommands like "conf <hb> <qc> <bc.max>
+    // <bc.match>" (first/last arguments end up swapped).
     std::vector<std::string> remaining = app.remaining();
-    std::reverse(remaining.begin(), remaining.end());
 
     XrdOucString in = "mgm.cmd=fusex";
     if (subcmd == "ls") {

@@ -38,6 +38,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/routeendpoint/RouteEndpoint.hh"
 #include "mgm/vid/Vid.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -284,6 +285,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   Access::EnforceConfig(apply_stall_redirect);
   gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
   gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
+  gOFS->zMQ->gFuseServer.Client().ApplyConfig(&FsView::gFsView);
   gOFS->mDrainEngine.ApplyConfig();
   gOFS->mTrafficShapingEngine.ApplyConfig();
   gOFS->ApplyMonitoringConfig();
