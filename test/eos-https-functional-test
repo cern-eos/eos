@@ -114,8 +114,8 @@ macaroon() {
 
     # Use the eos-macaroon-init tool to request a macaroon
     eos-macaroon-init -h >/dev/null 2>&1 || { echo -e >&2 "I require eos-macaroon-init but it's not installed.  Aborting.\n"
-    "yum install https://repo.opensciencegrid.org/osg/3.4/osg-3.4-el$(uname -r | awk -F '.' '$0=$(NF-1)')-release-latest.rpm\n"
-    "yum install --enablerepo=osg-development -y x509-scitokens-issuer-client";
+    "dnf install https://repo.opensciencegrid.org/osg/3.6/osg-3.6-el$(uname -r | awk -F '.' '$0=$(NF-1)')-release-latest.rpm\n"
+    "dnf install --enablerepo=osg-development -y x509-scitokens-issuer-client";
     exit 256;
     }
 
