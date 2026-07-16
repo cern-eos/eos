@@ -60,6 +60,7 @@ set(MGM_UT_SRCS
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
+  mgm/FuseServerClientsTests.cc
   mgm/CapsTests.cc
   mgm/CommitHelperTests.cc
   mgm/QuarkDBConfigTests.cc

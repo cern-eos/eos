@@ -28,13 +28,20 @@
 #include "common/BuildVersion.hh"
 #include "common/CommentLog.hh"
 #include "common/Logging.hh"
+#include "common/StringTokenizer.hh"
 #include "mgm/FuseServer/Clients.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/zmq/ZMQ.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
+const std::string FuseServer::Clients::sFusexKey{"fusex"};
+const std::string FuseServer::Clients::sHbiKey{"hbi"};
+const std::string FuseServer::Clients::sQtiKey{"qti"};
+const std::string FuseServer::Clients::sBcaKey{"bca"};
+const std::string FuseServer::Clients::sBcaMatchKey{"bca_match"};
 
 //------------------------------------------------------------------------------
 // Retrieve global eosxd client statistics
@@ -1114,8 +1121,133 @@ FuseServer::Clients::SetBroadCastAudienceSuppressMatch(const std::string& match)
   mMaxbroadCastAudienceMatch = match;
 }
 
+//------------------------------------------------------------------------------
+// Apply a single configuration option to the fusex client mechanism
+//------------------------------------------------------------------------------
+bool
+FuseServer::Clients::Config(const std::string& key, const std::string& value,
+                            std::string& msg)
+{
+  if (key == sHbiKey) {
+    int interval = atoi(value.c_str());
 
+    if ((interval <= 0) || (interval > 15)) {
+      msg = "error: hearbeat interval must be [1..15] seconds";
+      return false;
+    }
 
+    SetHeartbeatInterval(interval);
+  } else if (key == sQtiKey) {
+    int interval = atoi(value.c_str());
 
+    if ((interval <= 0) || (interval > 60)) {
+      msg = "error: quota check interval must be [1..60] seconds";
+      return false;
+    }
+
+    SetQuotaCheckInterval(interval);
+  } else if (key == sBcaKey) {
+    SetBroadCastMaxAudience(atoi(value.c_str()));
+  } else if (key == sBcaMatchKey) {
+    SetBroadCastAudienceSuppressMatch(value);
+  } else {
+    msg = "error: unknown fusex configuration key";
+    return false;
+  }
+
+  return StoreConfig(&FsView::gFsView);
+}
+
+//------------------------------------------------------------------------------
+// Apply the fusex configuration stored in the configuration engine
+//------------------------------------------------------------------------------
+void
+FuseServer::Clients::ApplyConfig(eos::mgm::FsView* fsview)
+{
+  using eos::common::StringTokenizer;
+  // Parse config of the form: key1=val1 key2=val2 etc.
+  std::string config = fsview->GetGlobalConfig(sFusexKey);
+
+  if (!config.empty()) {
+    eos_static_info("msg=\"apply fusex configuration\" data=\"%s\"", config.c_str());
+    std::map<std::string, std::string> kv_map;
+    auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
+
+    for (const auto& pair : pairs) {
+      auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
+
+      if (kv.empty()) {
+        eos_static_err("msg=\"unknown fusex config data\" data=\"%s\"", config.c_str());
+        continue;
+      }
+
+      if (kv.size() == 1) {
+        kv.emplace_back("");
+      }
+
+      kv_map.emplace(kv[0], kv[1]);
+    }
+
+    std::string msg;
+
+    for (const auto& [key, value] : kv_map) {
+      Config(key, value, msg);
+    }
+
+    return;
+  }
+
+  // Legacy fallback: instance was configured before the individual fusex
+  // keys got consolidated into a single "fusex" config key. Apply the old
+  // per-key settings (stored on the "default" space) and migrate the
+  // configuration to the new format.
+  auto it = fsview->mSpaceView.find("default");
+
+  if ((it == fsview->mSpaceView.end()) || !it->second) {
+    return;
+  }
+
+  FsSpace* default_space = it->second;
+  std::string msg;
+  std::string hbi = default_space->GetConfigMember("fusex.hbi");
+
+  if (!hbi.empty()) {
+    Config(sHbiKey, hbi, msg);
+  }
+
+  std::string qti = default_space->GetConfigMember("fusex.qti");
+
+  if (!qti.empty()) {
+    Config(sQtiKey, qti, msg);
+  }
+
+  std::string bca = default_space->GetConfigMember("fusex.bca");
+
+  if (!bca.empty()) {
+    Config(sBcaKey, bca, msg);
+  }
+
+  std::string bca_match = default_space->GetConfigMember("fusex.bca_match");
+
+  if (!bca_match.empty()) {
+    Config(sBcaMatchKey, bca_match, msg);
+  }
+
+  // Persist the migrated configuration under the new consolidated key
+  StoreConfig(fsview);
+}
+
+//------------------------------------------------------------------------------
+// Store the current fusex configuration in the configuration engine
+//------------------------------------------------------------------------------
+bool
+FuseServer::Clients::StoreConfig(eos::mgm::FsView* fsview)
+{
+  std::ostringstream oss;
+  oss << sHbiKey << "=" << HeartbeatInterval() << " " << sQtiKey << "="
+      << QuotaCheckInterval() << " " << sBcaKey << "=" << BroadCastMaxAudience() << " "
+      << sBcaMatchKey << "=" << BroadCastAudienceSuppressMatch();
+  return fsview->SetGlobalConfig(sFusexKey, oss.str());
+}
 
 EOSMGMNAMESPACE_END
