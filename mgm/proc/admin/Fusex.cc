@@ -47,6 +47,12 @@ ProcCommand::Fusex()
       std::string bc = pOpaque->Get("mgm.fusex.bc.max") ?
                        pOpaque->Get("mgm.fusex.bc.max") :
                        "";
+      // The broadcast suppress match can legitimately be set to the empty
+      // string to clear it. XrdOucEnv drops empty opaque values, so an empty
+      // 'mgm.fusex.bc.match' is indistinguishable from an absent one - the
+      // client sends an explicit 'mgm.fusex.bc.match.set' sentinel to signal
+      // that the argument was supplied (whatever its value).
+      bool has_bc_match = (pOpaque->Get("mgm.fusex.bc.match.set") != nullptr);
       std::string bc_match = pOpaque->Get("mgm.fusex.bc.match") ?
                              pOpaque->Get("mgm.fusex.bc.match") :
                              "";
@@ -63,11 +69,17 @@ ProcCommand::Fusex()
         retc = 0;
       }
 
-      if (bc_match.length()) {
+      if (has_bc_match) {
         gOFS->zMQ->gFuseServer.Client().Config(Clients::sBcaMatchKey, bc_match, msg);
-        stdOut += "info: configure FUSEX broadcast audience to suppress match to ";
-        stdOut += bc_match.c_str();
-        stdOut += "\n";
+
+        if (bc_match.empty()) {
+          stdOut += "info: cleared FUSEX broadcast audience suppress match\n";
+        } else {
+          stdOut += "info: configure FUSEX broadcast audience to suppress match to ";
+          stdOut += bc_match.c_str();
+          stdOut += "\n";
+        }
+
         retc = 0;
       }
 
@@ -80,7 +92,7 @@ ProcCommand::Fusex()
         retc = 0;
       }
 
-      if (!bc_match.length()) {
+      if (!has_bc_match) {
         bc_match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
         stdOut += "info: configured FUSEX broadcast audience to suppress match is '";
         stdOut += bc_match.c_str();

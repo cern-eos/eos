@@ -23,9 +23,9 @@
 
 #pragma once
 
-
-#include <thread>
 #include <map>
+#include <mutex>
+#include <thread>
 
 #include "mgm/Namespace.hh"
 #include "mgm/FuseServer/Caps.hh"
@@ -60,10 +60,14 @@ public:
   //! Key used to store the broadcast audience suppress match in the config
   static const std::string sBcaMatchKey;
 
-  Clients(): eos::common::RWMutex(),
-    mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
-    mHeartBeatRemoveWindow(120), mHeartBeatInterval(10),
-    mQuotaCheckInterval(10)
+  Clients()
+      : eos::common::RWMutex()
+      , mHeartBeatWindow(15)
+      , mHeartBeatOfflineWindow(30)
+      , mHeartBeatRemoveWindow(120)
+      , mHeartBeatInterval(10)
+      , mQuotaCheckInterval(10)
+      , mMaxBroadCastAudience(0)
   {
     mBlocking = true;
   }
@@ -264,12 +268,14 @@ public:
   // get broadcast max audience
   int BroadCastMaxAudience() const
   {
+    std::lock_guard<std::mutex> lock(mBcastCfgMutex);
     return mMaxBroadCastAudience;
   }
 
   // get broadcast audience match
   std::string BroadCastAudienceSuppressMatch() const
   {
+    std::lock_guard<std::mutex> lock(mBcastCfgMutex);
     return mMaxbroadCastAudienceMatch;
   }
 
@@ -334,6 +340,9 @@ private:
 
   // match string for hosts which get suppressed
   std::string mMaxbroadCastAudienceMatch;
+
+  // guards mMaxBroadCastAudience and mMaxbroadCastAudienceMatch
+  mutable std::mutex mBcastCfgMutex;
 
   std::atomic<bool> terminate_;
 };
