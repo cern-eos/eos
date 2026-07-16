@@ -250,28 +250,7 @@ else
 fi
 
 #-------------------------------------------------------------------------------
-# 2. Point XrdSecSSSKT in the eosarchived env file at the eos.client.keytab
-#-------------------------------------------------------------------------------
-[[ -f "${SYSCONFIG}" ]] || fail "sysconfig file '${SYSCONFIG}' not found"
-
-log "Configuring XrdSecSSSKT=${KEYTAB} in ${SYSCONFIG}"
-cp -a "${SYSCONFIG}" "${SYSCONFIG}.bak.$(date +%Y%m%d%H%M%S)"
-
-if grep -qE '^[[:space:]]*XrdSecSSSKT=' "${SYSCONFIG}"; then
-  # Replace an existing (possibly commented) definition
-  sed -i -E "s|^[[:space:]]*#?[[:space:]]*XrdSecSSSKT=.*|XrdSecSSSKT=${KEYTAB}|" "${SYSCONFIG}"
-elif grep -qE '^[[:space:]]*#[[:space:]]*XrdSecSSSKT=' "${SYSCONFIG}"; then
-  sed -i -E "s|^[[:space:]]*#[[:space:]]*XrdSecSSSKT=.*|XrdSecSSSKT=${KEYTAB}|" "${SYSCONFIG}"
-else
-  # No entry at all - append one
-  echo "XrdSecSSSKT=${KEYTAB}" >> "${SYSCONFIG}"
-fi
-
-grep -qE "^XrdSecSSSKT=${KEYTAB//\//\\/}$" "${SYSCONFIG}" \
-  || fail "failed to set XrdSecSSSKT in ${SYSCONFIG}"
-
-#-------------------------------------------------------------------------------
-# 3. Verify the eosarchived daemon is running
+# 2. Verify the eosarchived daemon is running
 #
 # The daemon is expected to be already started by the environment - either
 # through the systemd 'eosarchived' service or launched directly where systemd
@@ -285,7 +264,7 @@ pgrep -f "eosarchived.py" >/dev/null 2>&1 \
 log "Daemon '${SERVICE}' is running"
 
 #-------------------------------------------------------------------------------
-# 4. Create the directory structure and the data files
+# 3. Create the directory structure and the data files
 #-------------------------------------------------------------------------------
 log "Creating directory tree under ${ARCHIVE_DIR}"
 DAEMON_UID=$(id -u daemon)
@@ -325,7 +304,7 @@ for f in "${FILES[@]}"; do
 done
 
 #-------------------------------------------------------------------------------
-# 5. Set a common ctime/mtime on every file and directory.
+# 4. Set a common ctime/mtime on every file and directory.
 #
 # Files are updated first, then their parent directories, and finally the
 # top-level 'archive' directory. Creating/touching entries bumps the parent
