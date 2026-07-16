@@ -33,8 +33,10 @@
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 
-
-
+//! Forward declaration
+EOSMGMNAMESPACE_BEGIN
+class FsView;
+EOSMGMNAMESPACE_END
 
 EOSFUSESERVERNAMESPACE_BEGIN
 
@@ -45,6 +47,19 @@ EOSFUSESERVERNAMESPACE_BEGIN
 class Clients : public eos::common::RWMutex
 {
 public:
+  //! Key used in the configuration engine to store the consolidated fusex
+  //! config, following the same "key1=val1 key2=val2 ..." blob format used
+  //! by the fsck config (see Fsck::sFsckKey)
+  static const std::string sFusexKey;
+  //! Key used to store the client heartbeat interval in the config
+  static const std::string sHbiKey;
+  //! Key used to store the quota check interval in the config
+  static const std::string sQtiKey;
+  //! Key used to store the broadcast max audience in the config
+  static const std::string sBcaKey;
+  //! Key used to store the broadcast audience suppress match in the config
+  static const std::string sBcaMatchKey;
+
   Clients(): eos::common::RWMutex(),
     mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
     mHeartBeatRemoveWindow(120), mHeartBeatInterval(10),
@@ -266,6 +281,34 @@ public:
 
   // set max audience client match to be suppressed
   void SetBroadCastAudienceSuppressMatch(const std::string& match);
+
+  //----------------------------------------------------------------------------
+  //! Apply a single configuration option to the fusex client mechanism
+  //!
+  //! @param key key to be modified
+  //! @param value value
+  //! @param msg optional message in case of failure
+  //!
+  //! @return true if configuration change applied successfully, otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool Config(const std::string& key, const std::string& value, std::string& msg);
+
+  //----------------------------------------------------------------------------
+  //! Apply the fusex configuration stored in the configuration engine
+  //!
+  //! @param fsview pointer to FsView object
+  //----------------------------------------------------------------------------
+  void ApplyConfig(eos::mgm::FsView* fsview);
+
+  //----------------------------------------------------------------------------
+  //! Store the current fusex configuration in the configuration engine
+  //!
+  //! @param fsview pointer to FsView object
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StoreConfig(eos::mgm::FsView* fsview);
 
 private:
   // lookup client full id to heart beat

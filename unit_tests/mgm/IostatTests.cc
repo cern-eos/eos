@@ -54,16 +54,16 @@ protected:
 class MockFsView: public FsView
 {
 public:
-  std::map<std::string, std::string> kvdict = {
-    {"iostat::collect", ""},
-    {"iostat::report", ""},
-    {"iostat::reportnamespace", ""},
-    {"iostat::popularity", ""},
-    {"iostat::udptargets", ""}
-  };
+  std::map<std::string, std::string> kvdict = {{"iostat", ""},
+                                               {"iostat::collect", ""},
+                                               {"iostat::report", ""},
+                                               {"iostat::reportnamespace", ""},
+                                               {"iostat::popularity", ""},
+                                               {"iostat::udptargets", ""}};
   std::string GetGlobalConfig(const std::string& key) override
   {
-    return kvdict.find(key)->second;
+    auto it = kvdict.find(key);
+    return (it == kvdict.end()) ? "" : it->second;
   };
   bool SetGlobalConfig(const std::string& key, const std::string& value) override
   {
@@ -104,42 +104,160 @@ TEST_F(IostatTest, StartStop)
 TEST_F(IostatTest, StoreApplyConfig)
 {
   MockFsView mock_fsview;
-  std::string udplist = mock_fsview.GetGlobalConfig(iostat.gIostatUdpTargetList);
-  std::string iocollect = mock_fsview.GetGlobalConfig(iostat.gIostatCollect);
-  std::string ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReportSave);
-  std::string ioreportns = mock_fsview.GetGlobalConfig(
-                             iostat.gIostatReportNamespace);
-  std::string iopopularity = mock_fsview.GetGlobalConfig(
-                               iostat.gIostatPopularity);
-  ASSERT_EQ("", udplist);
-  ASSERT_EQ("", iocollect);
-  ASSERT_EQ("", ioreport);
-  ASSERT_EQ("", ioreportns);
-  ASSERT_EQ("", iopopularity);
+  std::string config = mock_fsview.GetGlobalConfig(Iostat::sIostatKey);
+  ASSERT_EQ("", config);
   iostat.StoreIostatConfig(&mock_fsview);
-  // we check that all the remaining global config values were saved as expected
-  udplist = mock_fsview.GetGlobalConfig(iostat.gIostatUdpTargetList);
-  iocollect = mock_fsview.GetGlobalConfig(iostat.gIostatCollect);
-  ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReportSave);
-  ioreportns = mock_fsview.GetGlobalConfig(
-                 iostat.gIostatReportNamespace);
-  iopopularity = mock_fsview.GetGlobalConfig(
-                   iostat.gIostatPopularity);
-  ASSERT_EQ("", udplist);
-  ASSERT_EQ("false", iocollect);
-  ASSERT_EQ("true", ioreport);
-  ASSERT_EQ("false", ioreportns);
-  ASSERT_EQ("true", iopopularity);
-  mock_fsview.kvdict["iostat::udptargets"] = "udptarget1";
+  // The whole configuration now lives under a single consolidated key,
+  // mirroring how Fsck::StoreConfig persists its "fsck" blob
+  config = mock_fsview.GetGlobalConfig(Iostat::sIostatKey);
+  ASSERT_EQ("collect=off popularity=on report=on reportnamespace=off", config);
+  mock_fsview.kvdict[Iostat::sIostatKey] =
+      "collect=off popularity=on report=on reportnamespace=off "
+      "udptargets=udptarget1";
   std::string out = iostat.EncodeUdpPopularityTargets();
   ASSERT_EQ("", out);
-  //EXPECT_CALL(mock_fsview, mock_fsview::GetGlobalConfig).Times(AtLeast(5));
   iostat.ApplyConfig(&mock_fsview);
-  // Start collection should not get called
+  // collect=off in the stored config, so collection should not get started
   ASSERT_EQ(false, iostat.mRunning);
   // AddUdpTarget gets called
   out = iostat.EncodeUdpPopularityTargets();
   ASSERT_EQ("udptarget1", out);
+}
+
+TEST_F(IostatTest, ApplyConfigLegacyMigration)
+{
+  // Instance configured before the individual iostat::* keys got
+  // consolidated into a single "iostat" key - ApplyConfig must still honor
+  // them and migrate the configuration to the new format
+  MockFsView mock_fsview;
+  mock_fsview.kvdict["iostat::collect"] = "true";
+  mock_fsview.kvdict["iostat::popularity"] = "true";
+  mock_fsview.kvdict["iostat::report"] = "false";
+  mock_fsview.kvdict["iostat::reportnamespace"] = "true";
+  ASSERT_EQ("", mock_fsview.GetGlobalConfig(Iostat::sIostatKey));
+  iostat.ApplyConfig(&mock_fsview);
+  ASSERT_EQ(true, iostat.mRunning);
+  ASSERT_EQ(true, iostat.mReportPopularity);
+  ASSERT_EQ(false, iostat.mReportSave);
+  ASSERT_EQ(true, iostat.mReportNamespace);
+  // the legacy settings must have been migrated to the consolidated key
+  ASSERT_NE("", mock_fsview.GetGlobalConfig(Iostat::sIostatKey));
+  iostat.StopCollection();
+}
+
+TEST_F(IostatTest, ConsolidatedKeyTakesPrecedenceOverLegacyKeys)
+{
+  // Both formats present at once (e.g. a rollback/roll-forward, or a
+  // partial migration) - the consolidated key must win outright and the
+  // legacy keys must be ignored entirely
+  MockFsView mock_fsview;
+  mock_fsview.kvdict["iostat::collect"] = "true";
+  mock_fsview.kvdict["iostat::popularity"] = "true";
+  mock_fsview.kvdict["iostat::report"] = "true";
+  mock_fsview.kvdict["iostat::reportnamespace"] = "true";
+  mock_fsview.kvdict[Iostat::sIostatKey] =
+      "collect=off popularity=off report=off reportnamespace=off";
+  iostat.ApplyConfig(&mock_fsview);
+  ASSERT_EQ(false, iostat.mRunning);
+  ASSERT_EQ(false, iostat.mReportPopularity);
+  ASSERT_EQ(false, iostat.mReportSave);
+  ASSERT_EQ(false, iostat.mReportNamespace);
+}
+
+TEST_F(IostatTest, ApplyConfigFreshInstanceEagerlyWritesDefaults)
+{
+  // Finding: on a completely fresh instance (no consolidated key, no
+  // legacy keys at all) the legacy-fallback branch still unconditionally
+  // calls StoreIostatConfig() at the end, so the very first config load
+  // silently materializes a "iostat" key full of defaults - unlike Fsck,
+  // which never writes anything until an admin runs "fsck config ...".
+  // This is intentional/harmless (values are correct defaults) but is
+  // documented here so it doesn't surprise anyone diffing config dumps
+  // across an upgrade.
+  MockFsView mock_fsview;
+  mock_fsview.kvdict.clear();
+  ASSERT_EQ("", mock_fsview.GetGlobalConfig(Iostat::sIostatKey));
+  iostat.ApplyConfig(&mock_fsview);
+  ASSERT_NE("", mock_fsview.GetGlobalConfig(Iostat::sIostatKey));
+  iostat.StopCollection();
+}
+
+TEST_F(IostatTest, ConfigInvalidValueRejected)
+{
+  std::string msg;
+  ASSERT_FALSE(iostat.Config(Iostat::sCollectKey, "maybe", msg));
+  ASSERT_FALSE(msg.empty());
+  // live state must be untouched by the rejected change
+  ASSERT_EQ(false, iostat.mRunning);
+  msg.clear();
+  ASSERT_FALSE(iostat.Config(Iostat::sPopularityKey, "", msg));
+  ASSERT_FALSE(msg.empty());
+  msg.clear();
+  ASSERT_FALSE(iostat.Config(Iostat::sReportKey, "1", msg));
+  ASSERT_FALSE(msg.empty());
+}
+
+TEST_F(IostatTest, ConfigUnknownKeyRejected)
+{
+  std::string msg;
+  ASSERT_FALSE(iostat.Config("bogus", "on", msg));
+  ASSERT_FALSE(msg.empty());
+}
+
+TEST_F(IostatTest, ConfigUdpTargetsEmptyValueClearsList)
+{
+  std::string msg;
+  iostat.AddUdpTarget("target_1", false);
+  ASSERT_EQ("target_1", iostat.EncodeUdpPopularityTargets());
+  ASSERT_TRUE(iostat.Config(Iostat::sUdpTargetsKey, "", msg));
+  ASSERT_EQ("", iostat.EncodeUdpPopularityTargets());
+}
+
+TEST_F(IostatTest, StoreApplyConfigRoundTripIsIdempotent)
+{
+  // Bring the source instance into a non-default state (Config() persists
+  // through the real FsView::gFsView singleton, same as Start*/Stop*, so we
+  // explicitly persist to the mock afterwards to capture the blob) and
+  // verify a fresh instance applying that blob reaches the same state
+  MockFsView mock_fsview;
+  iostat.StartCollection();
+  iostat.StopPopularity();
+  iostat.StopReport();
+  iostat.StartReportNamespace();
+  iostat.AddUdpTarget("host1", false);
+  iostat.AddUdpTarget("host2", false);
+  iostat.StoreIostatConfig(&mock_fsview);
+  std::string stored = mock_fsview.GetGlobalConfig(Iostat::sIostatKey);
+  ASSERT_NE("", stored);
+  // A fresh instance applying that exact blob must reach the same state
+  Iostat replay;
+  replay.ApplyConfig(&mock_fsview);
+  ASSERT_EQ(iostat.mRunning.load(), replay.mRunning.load());
+  ASSERT_EQ(iostat.mReportPopularity.load(), replay.mReportPopularity.load());
+  ASSERT_EQ(iostat.mReportSave.load(), replay.mReportSave.load());
+  ASSERT_EQ(iostat.mReportNamespace.load(), replay.mReportNamespace.load());
+  ASSERT_EQ(iostat.EncodeUdpPopularityTargets(), replay.EncodeUdpPopularityTargets());
+  // Re-serializing the replayed state must produce the exact same blob
+  // (no drift through a store/apply/store round trip)
+  replay.StoreIostatConfig(&mock_fsview);
+  ASSERT_EQ(stored, mock_fsview.GetGlobalConfig(Iostat::sIostatKey));
+  replay.StopCollection();
+  iostat.StopCollection();
+}
+
+TEST_F(IostatTest, ApplyConfigMalformedBlobDoesNotCrash)
+{
+  MockFsView mock_fsview;
+  // missing '=' token, duplicate key (first occurrence wins - kv_map is
+  // built with emplace, same as Fsck::ApplyConfig), trailing space, unknown
+  // key mixed in - none of this should crash or throw
+  mock_fsview.kvdict[Iostat::sIostatKey] =
+      "collect popularity=on popularity=off bogus=1 report=on ";
+  ASSERT_NO_THROW(iostat.ApplyConfig(&mock_fsview));
+  // first "popularity=on" wins - "popularity=off" is silently ignored
+  ASSERT_EQ(true, iostat.mReportPopularity);
+  ASSERT_EQ(true, iostat.mReportSave);
+  iostat.StopCollection();
 }
 
 TEST_F(IostatTest, AddRemoveUdpTargets)

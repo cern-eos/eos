@@ -61,6 +61,12 @@ const char* Iostat::gIostatReportSave = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";
 const char* Iostat::gIostatUdpTargetList = "iostat::udptargets";
+const std::string Iostat::sIostatKey{"iostat"};
+const std::string Iostat::sCollectKey{"collect"};
+const std::string Iostat::sPopularityKey{"popularity"};
+const std::string Iostat::sReportKey{"report"};
+const std::string Iostat::sReportNamespaceKey{"reportnamespace"};
+const std::string Iostat::sUdpTargetsKey{"udptargets"};
 FILE* Iostat::gOpenReportFD = 0;
 Period LAST_DAY = Period::DAY;
 Period LAST_HOUR = Period::HOUR;
@@ -492,11 +498,92 @@ Iostat::OneOffQdbMigration(const std::string& legacy_file)
 }
 
 //------------------------------------------------------------------------------
+// Apply a single configuration option to the iostat mechanism
+//------------------------------------------------------------------------------
+bool
+Iostat::Config(const std::string& key, const std::string& value, std::string& msg)
+{
+  if (key == sUdpTargetsKey) {
+    std::vector<std::string> hostlist;
+    std::string delimiter = "|";
+    eos::common::StringConversion::Tokenize(value, hostlist, delimiter);
+    {
+      std::unique_lock<std::mutex> scope_lock(mBcastMutex);
+      mUdpPopularityTarget.clear();
+    }
+
+    for (const auto& host : hostlist) {
+      AddUdpTarget(host, false);
+    }
+
+    return StoreIostatConfig(&FsView::gFsView);
+  }
+
+  if ((value != "on") && (value != "off")) {
+    msg = "error: unknown configuration value";
+    return false;
+  }
+
+  bool enable = (value == "on");
+
+  if (key == sCollectKey) {
+    enable ? StartCollection() : StopCollection();
+  } else if (key == sPopularityKey) {
+    enable ? StartPopularity() : StopPopularity();
+  } else if (key == sReportKey) {
+    enable ? StartReport() : StopReport();
+  } else if (key == sReportNamespaceKey) {
+    enable ? StartReportNamespace() : StopReportNamespace();
+  } else {
+    msg = "error: unknown iostat configuration key";
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Apply instance level configuration concerning IoStats
 //------------------------------------------------------------------------------
 void
 Iostat::ApplyConfig(FsView* fsview)
 {
+  using eos::common::StringTokenizer;
+  // Parse config of the form: key1=val1 key2=val2 etc.
+  std::string config = fsview->GetGlobalConfig(sIostatKey);
+
+  if (!config.empty()) {
+    eos_info("msg=\"apply iostat configuration\" data=\"%s\"", config.c_str());
+    std::map<std::string, std::string> kv_map;
+    auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
+
+    for (const auto& pair : pairs) {
+      auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
+
+      if (kv.empty()) {
+        eos_err("msg=\"unknown iostat config data\" data=\"%s\"", config.c_str());
+        continue;
+      }
+
+      if (kv.size() == 1) {
+        kv.emplace_back("");
+      }
+
+      kv_map.emplace(kv[0], kv[1]);
+    }
+
+    std::string msg;
+
+    for (const auto& [key, value] : kv_map) {
+      Config(key, value, msg);
+    }
+
+    return;
+  }
+
+  // Legacy fallback: instance was configured before the individual iostat
+  // keys got consolidated into a single "iostat" config key. Apply the old
+  // keys and migrate the configuration to the new format.
   std::string iocollect = fsview->GetGlobalConfig(gIostatCollect);
 
   if ((iocollect == "true") || (iocollect.empty())) {
@@ -511,12 +598,17 @@ Iostat::ApplyConfig(FsView* fsview)
   std::string delimiter = "|";
   std::vector<std::string> hostlist;
   eos::common::StringConversion::Tokenize(udplist, hostlist, delimiter);
-  std::unique_lock<std::mutex> scope_lock(mBcastMutex);
-  mUdpPopularityTarget.clear();
+  {
+    std::unique_lock<std::mutex> scope_lock(mBcastMutex);
+    mUdpPopularityTarget.clear();
+  }
 
   for (size_t i = 0; i < hostlist.size(); ++i) {
     AddUdpTarget(hostlist[i], false);
   }
+
+  // Persist the migrated configuration under the new consolidated key
+  StoreIostatConfig(fsview);
 }
 
 //------------------------------------------------------------------------------
@@ -528,15 +620,18 @@ Iostat::StoreIostatConfig(FsView* fsview) const
   bool ok = true;
 
   if ((gOFS && gOFS->mMaster->IsMaster()) || !gOFS) {
-    ok = fsview->SetGlobalConfig(gIostatPopularity, mReportPopularity) &
-         fsview->SetGlobalConfig(gIostatReportSave, mReportSave) &
-         fsview->SetGlobalConfig(gIostatReportNamespace, mReportNamespace) &
-         fsview->SetGlobalConfig(gIostatCollect, mRunning);
+    std::ostringstream oss;
+    oss << sCollectKey << "=" << (mRunning ? "on" : "off") << " " << sPopularityKey << "="
+        << (mReportPopularity ? "on" : "off") << " " << sReportKey << "="
+        << (mReportSave ? "on" : "off") << " " << sReportNamespaceKey << "="
+        << (mReportNamespace ? "on" : "off");
     std::string udp_popularity_targets = EncodeUdpPopularityTargets();
 
     if (!udp_popularity_targets.empty()) {
-      ok &= fsview->SetGlobalConfig(gIostatUdpTargetList, udp_popularity_targets);
+      oss << " " << sUdpTargetsKey << "=" << udp_popularity_targets;
     }
+
+    ok = fsview->SetGlobalConfig(sIostatKey, oss.str());
   }
 
   return ok;

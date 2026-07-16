@@ -214,13 +214,30 @@ public:
 class Iostat: public eos::common::LogId
 {
 public:
-  //! Configuration keys used in config key-val store
+  //! Legacy configuration keys used in the config key-val store, kept only
+  //! to migrate instances that haven't yet been switched to the
+  //! consolidated "iostat" config key below
   static const char* gIostatCollect;
   static const char* gIostatReportSave;
   static const char* gIostatReportNamespace;
   static const char* gIostatPopularity;
   static const char* gIostatUdpTargetList;
   static FILE* gOpenReportFD;
+
+  //! Key used in the configuration engine to store the consolidated iostat
+  //! config, following the same "key1=val1 key2=val2 ..." blob format used
+  //! by the fsck config (see Fsck::sFsckKey)
+  static const std::string sIostatKey;
+  //! Key used to store the collection thread status in the config
+  static const std::string sCollectKey;
+  //! Key used to store the popularity reporting status in the config
+  static const std::string sPopularityKey;
+  //! Key used to store the daily report saving status in the config
+  static const std::string sReportKey;
+  //! Key used to store the namespace report status in the config
+  static const std::string sReportNamespaceKey;
+  //! Key used to store the UDP popularity target list in the config
+  static const std::string sUdpTargetsKey;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -243,6 +260,18 @@ public:
   //----------------------------------------------------------------------------
   bool Init(const std::string& instance_name, int port,
             const std::string& legacy_file);
+
+  //----------------------------------------------------------------------------
+  //! Apply a single configuration option to the iostat mechanism
+  //!
+  //! @param key key to be modified
+  //! @param value value
+  //! @param msg optional message in case of failure
+  //!
+  //! @return true if configuration change applied successfully, otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool Config(const std::string& key, const std::string& value, std::string& msg);
 
   //----------------------------------------------------------------------------
   //! Apply instance level configuration concerning IoStats

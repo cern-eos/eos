@@ -3317,14 +3317,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   if (tokens[1] == "token.generation") {
     eos_static_info("token-generation := %s", val.c_str());
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
-  } else if (tokens[1] == "fusex.hbi") {
-    gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(atoi(val.c_str()));
-  } else if (tokens[1] == "fusex.qti") {
-    gOFS->zMQ->gFuseServer.Client().SetQuotaCheckInterval(atoi(val.c_str()));
-  } else if (tokens[1] == "fusex.bca") {
-    gOFS->zMQ->gFuseServer.Client().SetBroadCastMaxAudience(atoi(val.c_str()));
-  } else if (tokens[1] == "fusex.bca_match") {
-    gOFS->zMQ->gFuseServer.Client().SetBroadCastAudienceSuppressMatch(val.c_str());
   } else if (tokens[1].substr(0, 9) == "attr.sys.") {
     std::string key = tokens[1].substr(5);
     eos_static_info("Setting global attribute space:%s %s=%s\n", space.c_str(),
