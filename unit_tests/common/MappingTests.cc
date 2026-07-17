@@ -29,12 +29,70 @@
 #include "common/Mapping.hh"
 #undef IN_TEST_HARNESS
 
+#include "common/UnixGroupsFetcher.hh"
 #include <XrdSec/XrdSecEntity.hh>
 #include <memory>
-#include "common/UnixGroupsFetcher.hh"
-
+#include <pthread.h>
+#include <unistd.h>
 
 EOSCOMMONTESTING_BEGIN
+
+namespace {
+struct IdentityLookupResult {
+  bool success{false};
+};
+
+void*
+RunIdentityLookups(void* opaque)
+{
+  using namespace eos::common;
+  auto* result = static_cast<IdentityLookupResult*>(opaque);
+  int errc = 0;
+  const std::string username = Mapping::UidToUserName(getuid(), errc);
+
+  if (errc || username.empty()) {
+    return nullptr;
+  }
+
+  const std::string groupname = Mapping::GidToGroupName(getgid(), errc);
+
+  if (errc || groupname.empty()) {
+    return nullptr;
+  }
+
+  const std::string missing_user = "eos-mapping-stack-regression-user";
+
+  if (Mapping::UserNameToUid(missing_user, errc) != VirtualIdentity::kNobodyUid ||
+      errc != EINVAL) {
+    return nullptr;
+  }
+
+  const std::string missing_group = "eos-mapping-stack-regression-group";
+
+  if (Mapping::GroupNameToGid(missing_group, errc) != VirtualIdentity::kNobodyGid ||
+      errc != EINVAL) {
+    return nullptr;
+  }
+
+  result->success = true;
+  return nullptr;
+}
+} // namespace
+
+TEST(Mapping, IdentityLookupsFitWorkerStack)
+{
+  using namespace eos::common;
+  Mapping::Reset();
+  pthread_attr_t attributes;
+  ASSERT_EQ(0, pthread_attr_init(&attributes));
+  ASSERT_EQ(0, pthread_attr_setstacksize(&attributes, 256 * 1024));
+  pthread_t thread;
+  IdentityLookupResult result;
+  ASSERT_EQ(0, pthread_create(&thread, &attributes, RunIdentityLookups, &result));
+  ASSERT_EQ(0, pthread_attr_destroy(&attributes));
+  ASSERT_EQ(0, pthread_join(thread, nullptr));
+  EXPECT_TRUE(result.success);
+}
 
 void FreeXrdSecEntity(XrdSecEntity* client)
 {

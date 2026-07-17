@@ -25,6 +25,7 @@
 #include "common/Logging.hh"
 #include "common/Macros.hh"
 #include "common/Namespace.hh"
+#include "common/NssLookup.hh"
 #include "common/SecEntity.hh"
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
@@ -38,6 +39,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <vector>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -1488,40 +1490,19 @@ Mapping::UidToUserName(uid_t uid, int& errc)
     return *user_ptr;
   }
 
-  char buffer[131072];
-  int buflen = sizeof(buffer);
-  std::string uid_string = "";
-  struct passwd pwbuf;
-  struct passwd* pwbufp = 0;
-  (void) getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp);
+  std::vector<char> buffer;
+  struct passwd pwbuf{};
+  struct passwd* pwbufp = nullptr;
+  const int lookup_errc = LookupNssRecord(buffer, pwbuf, pwbufp, getpwuid_r, uid);
 
-  if (pwbufp == NULL) {
-    char buffer[131072];
-    int buflen = sizeof(buffer);
-    std::string uid_string = "";
-    struct passwd pwbuf;
-    struct passwd* pwbufp = 0;
-    {
-      if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp)) {
-        char suid[1024];
-        snprintf(suid, sizeof(suid) - 1, "%u", uid);
-        uid_string = suid;
-        errc = EINVAL;
-        gShardedNegativeUserNameCache.store(uid,
-                                            std::make_unique<std::string>(uid_string));
-        return uid_string;
-      } else {
-        uid_string = pwbuf.pw_name;
-        errc = 0;
-      }
-    }
-    cacheUserIds(uid, uid_string);
+  if (lookup_errc || !pwbufp) {
+    std::string uid_string = std::to_string(uid);
+    errc = EINVAL;
+    gShardedNegativeUserNameCache.store(uid, std::make_unique<std::string>(uid_string));
     return uid_string;
-  } else {
-    uid_string = pwbuf.pw_name;
-    errc = 0;
   }
 
+  std::string uid_string = pwbufp->pw_name;
   cacheUserIds(uid, uid_string);
   return uid_string;
 }
@@ -1538,7 +1519,7 @@ Mapping::UidToUserName(uid_t uid, int& errc)
 
 /*----------------------------------------------------------------------------*/
 std::string
-Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
+Mapping::GidToGroupName(gid_t gid, int& errc)
 {
   errc = 0;
   {
@@ -1554,39 +1535,21 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
     return *group_ptr;
   }
 
-  {
-    char buffer[buffersize];
-    int buflen = sizeof(buffer);
-    struct group grbuf;
-    struct group* grbufp = 0;
-    std::string gid_string = "";
+  std::vector<char> buffer;
+  struct group grbuf{};
+  struct group* grbufp = nullptr;
+  const int lookup_errc = LookupNssRecord(buffer, grbuf, grbufp, getgrgid_r, gid);
 
-    if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp) || (!grbufp)) {
-      if (errno == ERANGE) {
-        if (buffersize < (16 * 1024 * 1024)) {
-          // try doubling the buffer
-          return GidToGroupName(gid, errc, 2 * buffersize);
-        }
-
-        // just give up here
-      }
-
-      // cannot translate this name
-      char sgid[1024];
-      snprintf(sgid, sizeof(sgid) - 1, "%u", gid);
-      gid_string = sgid;
-      errc = EINVAL;
-      gShardedNegativeGroupNameCache.store(gid,
-                                           std::make_unique<std::string>(gid_string));
-      return gid_string;
-    } else {
-      gid_string = grbuf.gr_name;
-      errc = 0;
-    }
-
-    cacheGroupIds(gid, gid_string);
+  if (lookup_errc || !grbufp) {
+    std::string gid_string = std::to_string(gid);
+    errc = EINVAL;
+    gShardedNegativeGroupNameCache.store(gid, std::make_unique<std::string>(gid_string));
     return gid_string;
   }
+
+  std::string gid_string = grbufp->gr_name;
+  cacheGroupIds(gid, gid_string);
+  return gid_string;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1611,13 +1574,12 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
       return kv->second;
     }
   }
-  char buffer[131072];
-  int buflen = sizeof(buffer);
+  std::vector<char> buffer;
   uid_t uid = VirtualIdentity::kNobodyUid;
-  struct passwd pwbuf;
-  struct passwd* pwbufp = 0;
+  struct passwd pwbuf{};
+  struct passwd* pwbufp = nullptr;
   errc = 0;
-  (void) getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
+  (void)LookupNssRecord(buffer, pwbuf, pwbufp, getpwnam_r, username.c_str());
 
   if (pwbufp == NULL) {
     bool is_number = true;
@@ -1673,13 +1635,12 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
       return kv->second;
     }
   }
-  char buffer[131072];
-  int buflen = sizeof(buffer);
-  struct group grbuf;
-  struct group* grbufp = 0;
+  std::vector<char> buffer;
+  struct group grbuf{};
+  struct group* grbufp = nullptr;
   gid_t gid = VirtualIdentity::kNobodyGid;
   errc = 0;
-  (void) getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
+  (void)LookupNssRecord(buffer, grbuf, grbufp, getgrnam_r, groupname.c_str());
 
   if (!grbufp) {
     bool is_number = true;
@@ -2158,9 +2119,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
 
   struct passwd passwdinfo;
 
-  char buffer[131072];
-
-  size_t buflen = sizeof(buffer);
+  std::vector<char> buffer;
 
   memset(&passwdinfo, 0, sizeof(passwdinfo));
 
@@ -2225,7 +2184,8 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
             uid_t ruid = (bituser >> 6) & 0xfffffffff;
             struct passwd* pwbufp = 0;
 
-            if (getpwuid_r(ruid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
+            if (LookupNssRecord(buffer, passwdinfo, pwbufp, getpwuid_r, ruid) ||
+                (!pwbufp)) {
               return;
             }
 
@@ -2236,7 +2196,8 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
             idp.reset(new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff));
             struct passwd* pwbufp = 0;
 
-            if (getpwuid_r(idp->uid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
+            if (LookupNssRecord(buffer, passwdinfo, pwbufp, getpwuid_r, idp->uid) ||
+                (!pwbufp)) {
               return;
             }
 
@@ -2303,7 +2264,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
       struct passwd* pwbufp = 0;
 
       {
-        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, buflen, &pwbufp) ||
+        if (LookupNssRecord(buffer, passwdinfo, pwbufp, getpwnam_r, name.c_str()) ||
             (!pwbufp)) {
           gShardedNegativePhysicalUidCache.store(name, std::make_unique<bool>(true));
           return;
