@@ -31,18 +31,20 @@ std::vector<gid_t> UnixGrentFetcher::getGroups(const std::string &username, gid_
     group *gr {nullptr};
 
     while ((gr = getgrent())) {
-        int cnt = 0;
         if (gr->gr_gid == gid) {
             groups.emplace_back(gr->gr_gid);
+            continue;
         }
 
-        while (gr->gr_mem[cnt] != nullptr) {
-            if (!strcmp(gr->gr_mem[cnt], username.c_str())) {
-                groups.emplace_back(gr->gr_gid);
-            }
+        for (int cnt = 0; gr->gr_mem[cnt] != nullptr; ++cnt) {
+          if (!strcmp(gr->gr_mem[cnt], username.c_str())) {
+            groups.emplace_back(gr->gr_gid);
+            break;
+          }
         }
     }
 
+    endgrent();
     return groups;
 }
 
