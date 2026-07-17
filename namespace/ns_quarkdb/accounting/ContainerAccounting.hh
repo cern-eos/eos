@@ -44,6 +44,9 @@ EOSNSNAMESPACE_BEGIN
 class QuarkContainerAccounting : public IFileMDChangeListener
 {
 public:
+  //! Set of container ids
+  using ContIdSet = std::unordered_set<IContainerMD::id_t>;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -154,34 +157,57 @@ public:
 
   //----------------------------------------------------------------------------
   //! Start recording the ids of the containers tree info deltas get applied
-  //! to (see PropagateUpdatesOnce). Clears any previously recorded ids.
-  //! Serialized with the propagation cycles: every delta applied after this
-  //! method returns is guaranteed to be recorded. Used by the tree size
-  //! recompute to detect the containers it raced with.
+  //! to (see PropagateUpdatesOnce). Clears any previously recorded ids and
+  //! replaces the containers under recompute. Serialized with the propagation
+  //! cycles: every delta applied after this method returns is guaranteed to be
+  //! recorded. Used by the tree size recompute to detect the containers it
+  //! raced with.
+  //!
+  //! @param cont_ids_under_recompute ids of the containers the caller is
+  //!        recomputing. Only deltas applied to those are recorded: a
+  //!        propagation cycle applies deltas originating from the whole
+  //!        namespace, while only a container whose absolute value the caller
+  //!        overwrites can be corrupted by a racing delta. Recording the rest
+  //!        would size the recorded set by the instance-wide activity during
+  //!        the recompute instead of by the recompute's own work. An empty set
+  //!        therefore records nothing.
   //----------------------------------------------------------------------------
-  void StartRecordingUpdatedContIds();
+  void StartRecordingUpdatedContIds(ContIdSet cont_ids_under_recompute);
 
   //----------------------------------------------------------------------------
-  //! Stop recording updated container ids and drop the recorded set
+  //! Stop recording updated container ids and drop both the recorded set and
+  //! the containers under recompute
   //----------------------------------------------------------------------------
   void StopRecordingUpdatedContIds();
 
   //----------------------------------------------------------------------------
   //! Return the set of container ids deltas were applied to since recording
-  //! started (or since the previous call) and clear it. Empty when not
+  //! started (or since the previous call) and clear it. Always a subset of the
+  //! containers under recompute passed to StartRecordingUpdatedContIds(), so
+  //! the caller does not have to intersect it back with them. Empty when not
   //! recording.
   //----------------------------------------------------------------------------
-  std::unordered_set<IContainerMD::id_t> TakeUpdatedContIds();
+  ContIdSet TakeUpdatedContIds();
 
   //----------------------------------------------------------------------------
   //! RAII scope starting/stopping the recording of updated container ids
   //----------------------------------------------------------------------------
   class UpdatedContIdsRecordingScope {
   public:
-    explicit UpdatedContIdsRecordingScope(QuarkContainerAccounting& acc)
+    UpdatedContIdsRecordingScope(QuarkContainerAccounting& acc,
+                                 ContIdSet cont_ids_under_recompute)
         : mAcc(acc)
     {
-      mAcc.StartRecordingUpdatedContIds();
+      mAcc.StartRecordingUpdatedContIds(std::move(cont_ids_under_recompute));
+    }
+
+    //--------------------------------------------------------------------------
+    //! Restart the recording with a new set of containers under recompute
+    //--------------------------------------------------------------------------
+    void
+    Restart(ContIdSet cont_ids_under_recompute)
+    {
+      mAcc.StartRecordingUpdatedContIds(std::move(cont_ids_under_recompute));
     }
 
     ~UpdatedContIdsRecordingScope() { mAcc.StopRecordingUpdatedContIds(); }
@@ -273,12 +299,16 @@ private:
   //! Set when the queueing thread exits. No consumer is left to acknowledge a
   //! barrier, so a Flush() waiting for one (or arriving later) must not block.
   bool mQueueThreadStopped{false};
-  //! Recording of updated container ids enabled. Guarded by mFlushMutex, which
+  //! Ids of the containers the recompute is currently rewriting with absolute
+  //! values. Deltas applied to any other container cannot corrupt it and are
+  //! not recorded. Empty means recording is off. Guarded by mFlushMutex, which
   //! a propagation cycle holds throughout, so it stays constant for a cycle.
-  bool mRecordUpdatedContIds{false};
-  //! Ids of the containers deltas were applied to while recording. Guarded by
-  //! mFlushMutex: written by a propagation cycle, taken by the recompute.
-  std::unordered_set<IContainerMD::id_t> mUpdatedContIds;
+  ContIdSet mContIdsUnderRecompute;
+  //! Ids of the containers under recompute deltas were applied to while
+  //! recording, i.e. the ones the recompute raced with. Subset of
+  //! mContIdsUnderRecompute. Guarded by mFlushMutex: written by a propagation
+  //! cycle, taken by the recompute.
+  ContIdSet mUpdatedContIds;
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
   AssistedThread mThread; ///< Thread updating the namespace

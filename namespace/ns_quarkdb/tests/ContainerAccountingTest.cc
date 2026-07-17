@@ -134,8 +134,9 @@ TEST_F(ContainerAccountingF, FlushConcurrentWithUpdates)
 //------------------------------------------------------------------------------
 // Recording of updated container ids: nothing is recorded while disabled;
 // while enabled, applying a delta records the origin container and all its
-// ancestors (excluding the root, which the accounting never updates); taking
-// the set clears it; stopping drops and disables the recording
+// ancestors (excluding the root, which the accounting never updates), as long
+// as they belong to the containers under recompute; taking the set clears it;
+// stopping drops and disables the recording
 //------------------------------------------------------------------------------
 TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithAsyncUpdatesDisabled)
 {
@@ -149,7 +150,7 @@ TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithAsyncUpdatesDisabled)
   accounting.Flush();
   ASSERT_TRUE(accounting.TakeUpdatedContIds().empty());
   // Recording: the origin container and its ancestors are collected
-  accounting.StartRecordingUpdatedContIds();
+  accounting.StartRecordingUpdatedContIds({d1Id, testId});
   accounting.QueueForUpdate(d1Id, eos::TreeInfos{100, 0, 0});
   accounting.Flush();
   auto updated = accounting.TakeUpdatedContIds();
@@ -166,18 +167,55 @@ TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithAsyncUpdatesDisabled)
 }
 
 //------------------------------------------------------------------------------
-// Starting a recording clears any residue from a previous one
+// Only the containers under recompute are recorded. A propagation cycle
+// applies deltas coming from the whole namespace, but the recompute only ever
+// looks at the containers it recomputes: the others must not even be collected
 //------------------------------------------------------------------------------
-TEST_F(ContainerAccountingF, StartRecordingUpdatedContIdsClearsResidue)
+TEST_F(ContainerAccountingF, RecordingOnlyCollectsContIdsUnderRecompute)
 {
-  auto d1 = view()->createContainer("/test/d1", true);
+  const auto d1Id = view()->createContainer("/test/d1", true)->getId();
+  const auto d2Id = view()->createContainer("/test/d2", true)->getId();
+  const auto testId = view()->getContainer("/test")->getId();
   eos::QuarkContainerAccounting accounting(containerSvc(), 0);
-  accounting.StartRecordingUpdatedContIds();
-  accounting.QueueForUpdate(d1->getId(), eos::TreeInfos{100, 0, 0});
+  // Only d1 is under recompute: neither the sibling d2 nor the common ancestor
+  // /test are
+  accounting.StartRecordingUpdatedContIds({d1Id});
+  // A delta on d2 updates d2 and its ancestor /test, none of them recorded
+  accounting.QueueForUpdate(d2Id, eos::TreeInfos{100, 0, 0});
+  accounting.Flush();
+  ASSERT_TRUE(accounting.TakeUpdatedContIds().empty());
+  // A delta on d1 updates d1 and its ancestor /test, only d1 is recorded
+  accounting.QueueForUpdate(d1Id, eos::TreeInfos{100, 0, 0});
+  accounting.Flush();
+  auto updated = accounting.TakeUpdatedContIds();
+  ASSERT_EQ(1, updated.size());
+  ASSERT_EQ(1, updated.count(d1Id));
+  ASSERT_EQ(0, updated.count(testId));
+}
+
+//------------------------------------------------------------------------------
+// Starting a recording clears any residue from a previous one and replaces
+// its containers under recompute
+//------------------------------------------------------------------------------
+TEST_F(ContainerAccountingF, StartRecordingUpdatedContIdsReplacesPreviousOne)
+{
+  const auto d1Id = view()->createContainer("/test/d1", true)->getId();
+  const auto testId = view()->getContainer("/test")->getId();
+  eos::QuarkContainerAccounting accounting(containerSvc(), 0);
+  accounting.StartRecordingUpdatedContIds({d1Id, testId});
+  accounting.QueueForUpdate(d1Id, eos::TreeInfos{100, 0, 0});
   accounting.Flush();
   // Not taken: a new recording must not inherit the previously recorded ids
-  accounting.StartRecordingUpdatedContIds();
+  accounting.StartRecordingUpdatedContIds({d1Id});
   ASSERT_TRUE(accounting.TakeUpdatedContIds().empty());
+  // Narrowed to d1: /test is not under recompute anymore. This is what the
+  // recompute does between two passes, when only the dirty containers are
+  // recomputed again
+  accounting.QueueForUpdate(d1Id, eos::TreeInfos{100, 0, 0});
+  accounting.Flush();
+  auto updated = accounting.TakeUpdatedContIds();
+  ASSERT_EQ(1, updated.size());
+  ASSERT_EQ(1, updated.count(d1Id));
 }
 
 //------------------------------------------------------------------------------
@@ -192,7 +230,8 @@ TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithLiveThreads)
   const auto d1Id = view()->getContainer("/test/d1")->getId();
   const auto testId = view()->getContainer("/test")->getId();
   {
-    eos::QuarkContainerAccounting::UpdatedContIdsRecordingScope recording(*accounting);
+    eos::QuarkContainerAccounting::UpdatedContIdsRecordingScope recording(*accounting,
+                                                                          {d1Id, testId});
     auto fmd = view()->createFile("/test/d1/f1");
     fmd->setSize(1000);
     view()->updateFileStore(fmd.get());
@@ -200,9 +239,19 @@ TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithLiveThreads)
     auto updated = accounting->TakeUpdatedContIds();
     ASSERT_EQ(1, updated.count(d1Id));
     ASSERT_EQ(1, updated.count(testId));
+    // Restarting narrows the containers under recompute, as the recompute does
+    // before a retry pass
+    recording.Restart({d1Id});
+    fmd = view()->createFile("/test/d1/f2");
+    fmd->setSize(1000);
+    view()->updateFileStore(fmd.get());
+    accounting->Flush();
+    updated = accounting->TakeUpdatedContIds();
+    ASSERT_EQ(1, updated.size());
+    ASSERT_EQ(1, updated.count(d1Id));
   }
   // Scope exited: activity is not recorded anymore
-  auto fmd = view()->createFile("/test/d1/f2");
+  auto fmd = view()->createFile("/test/d1/f3");
   fmd->setSize(1000);
   view()->updateFileStore(fmd.get());
   accounting->Flush();

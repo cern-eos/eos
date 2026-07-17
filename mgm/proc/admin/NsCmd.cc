@@ -1102,6 +1102,17 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   ContIdList work = BreadthFirstSearchContainers(cont.get(), tree.depth());
   auto* accounting = static_cast<eos::QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())
                          ->getQuarkContainerAccounting();
+  // Flatten a level-ordered work list into a lookup set, to tell the
+  // accounting which containers this pass rewrites
+  auto flatten = [](const ContIdList& levels) {
+    eos::QuarkContainerAccounting::ContIdSet ids;
+
+    for (const auto& level : levels) {
+      ids.insert(level.begin(), level.end());
+    }
+
+    return ids;
+  };
   // Recompute one pass bottom-up over a level-ordered work list
   auto recompute_pass = [this](const ContIdList& levels) {
     for (auto it_level = levels.crbegin(); it_level != levels.crend(); ++it_level) {
@@ -1135,7 +1146,13 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   // collision and retry: recompute, then re-recompute whatever the accounting
   // touched meanwhile, until a pass comes back clean. See accounting.md for
   // why this converges and what it does not cover.
-  eos::QuarkContainerAccounting::UpdatedContIdsRecordingScope recording(*accounting);
+  //
+  // The accounting is told which containers this pass rewrites, so it records
+  // the deltas landing on those and only those. A propagation cycle applies
+  // deltas originating from the whole namespace, of which we would keep just
+  // the ones falling inside the recomputed tree anyway.
+  eos::QuarkContainerAccounting::UpdatedContIdsRecordingScope recording(*accounting,
+                                                                        flatten(work));
   // One initial pass plus at most 2 retries on the containers we raced with
   constexpr int max_passes = 3;
 
@@ -1154,30 +1171,11 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
       return;
     }
 
-    const auto updated = accounting->TakeUpdatedContIds();
-    // dirty = updated ∩ work, built by iterating work (level-ordered) and only
-    // probing the unordered updated set, so dirty inherits work's BFS level
-    // order and the next pass can recompute bottom-up directly. Ids updated
-    // outside the recomputed tree are discarded.
-    ContIdList dirty;
-    uint64_t num_dirty = 0;
+    // The dirty containers: already restricted to the ones recomputed in this
+    // pass, no intersection needed here
+    auto dirty_ids = accounting->TakeUpdatedContIds();
 
-    for (const auto& level : work) {
-      std::list<eos::IContainerMD::id_t> dirty_level;
-
-      for (const auto& id : level) {
-        if (updated.count(id)) {
-          dirty_level.push_back(id);
-          ++num_dirty;
-        }
-      }
-
-      if (!dirty_level.empty()) {
-        dirty.push_back(std::move(dirty_level));
-      }
-    }
-
-    if (num_dirty == 0) {
+    if (dirty_ids.empty()) {
       eos_info("msg=\"tree size recompute converged\" cxid=%08llx passes=%d",
                cont->getId(), pass);
       break;
@@ -1188,16 +1186,39 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
       // accounting keeps applying deltas consistently on top of them
       eos_warning("msg=\"tree size recompute left dirty containers\" "
                   "cxid=%08llx dirty=%llu",
-                  cont->getId(), static_cast<unsigned long long>(num_dirty));
+                  cont->getId(), static_cast<unsigned long long>(dirty_ids.size()));
       reply.set_std_err(
-          SSTR("warning: " << num_dirty
+          SSTR("warning: " << dirty_ids.size()
                            << " container(s) were still being modified while "
                               "their tree size was recomputed, their values "
                               "are approximate"));
       break;
     }
 
+    // Give the dirty ids back their BFS level order by iterating work (which
+    // is level-ordered) and probing the unordered dirty set, so that the next
+    // pass can recompute them bottom-up directly
+    ContIdList dirty;
+
+    for (const auto& level : work) {
+      std::list<eos::IContainerMD::id_t> dirty_level;
+
+      for (const auto& id : level) {
+        if (dirty_ids.count(id)) {
+          dirty_level.push_back(id);
+        }
+      }
+
+      if (!dirty_level.empty()) {
+        dirty.push_back(std::move(dirty_level));
+      }
+    }
+
     work = std::move(dirty);
+    // The next pass only rewrites the dirty containers, so only those can be
+    // corrupted by a racing delta: narrow the recording accordingly. The set
+    // is handed over as is, no extra allocation.
+    recording.Restart(std::move(dirty_ids));
   }
 }
 

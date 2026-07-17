@@ -178,17 +178,19 @@ QuarkContainerAccounting::MarkQueueThreadStopped()
 }
 
 //------------------------------------------------------------------------------
-// Start recording the ids of the containers tree info deltas get applied to
+// Start recording the ids of the containers under recompute tree info deltas
+// get applied to
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::StartRecordingUpdatedContIds()
+QuarkContainerAccounting::StartRecordingUpdatedContIds(ContIdSet cont_ids_under_recompute)
 {
   // Taking mFlushMutex guarantees no propagation cycle is mid-apply while the
-  // flag flips: cycles starting after this returns see the flag, so every
-  // delta they apply is recorded
+  // containers under recompute change: cycles starting after this returns see
+  // the new set, so every delta they apply to one of them is recorded
   std::lock_guard<std::mutex> flush_lock(mFlushMutex);
-  mUpdatedContIds.clear();
-  mRecordUpdatedContIds = true;
+  mContIdsUnderRecompute = std::move(cont_ids_under_recompute);
+  // Move-assigning an empty set releases the buckets, unlike clear()
+  mUpdatedContIds = {};
 }
 
 //------------------------------------------------------------------------------
@@ -198,15 +200,16 @@ void
 QuarkContainerAccounting::StopRecordingUpdatedContIds()
 {
   std::lock_guard<std::mutex> flush_lock(mFlushMutex);
-  mRecordUpdatedContIds = false;
-  mUpdatedContIds.clear();
+  // An empty set of containers under recompute means recording is off
+  mContIdsUnderRecompute = {};
+  mUpdatedContIds = {};
 }
 
 //------------------------------------------------------------------------------
 // Return the set of container ids deltas were applied to since recording
 // started (or since the previous call) and clear it
 //------------------------------------------------------------------------------
-std::unordered_set<IContainerMD::id_t>
+QuarkContainerAccounting::ContIdSet
 QuarkContainerAccounting::TakeUpdatedContIds()
 {
   // Blocks until any propagation cycle in flight is done, so the returned set
@@ -275,8 +278,10 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
 
   auto& batch = mBatch[mCommitIndx];
 
-  // mRecordUpdatedContIds and mUpdatedContIds are both guarded by mFlushMutex,
-  // held for the whole cycle, so the flag cannot flip mid-apply
+  // mContIdsUnderRecompute and mUpdatedContIds are both guarded by mFlushMutex,
+  // held for the whole cycle, so the recording cannot be reconfigured mid-apply
+  const bool recording = !mContIdsUnderRecompute.empty();
+
   for (auto const& elem : batch.mMap) {
     try {
       auto cont = mContainerMDSvc->getContainerMD(elem.first);
@@ -290,9 +295,13 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
       continue;
     }
 
-    if (mRecordUpdatedContIds) {
-      // Recorded only once durably applied: an id must not be visible to
-      // TakeUpdatedContIds() before its delta is reflected in the namespace
+    // This batch holds deltas originating from the whole namespace, while only
+    // a container the recompute rewrites with an absolute value can be
+    // corrupted by one: the others are dropped here rather than collected and
+    // discarded by the caller. Recorded only once durably applied: an id must
+    // not be visible to TakeUpdatedContIds() before its delta is reflected in
+    // the namespace.
+    if (recording && mContIdsUnderRecompute.count(elem.first)) {
       mUpdatedContIds.insert(elem.first);
     }
   }

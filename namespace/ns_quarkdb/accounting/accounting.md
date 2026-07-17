@@ -109,21 +109,33 @@ recompute, it detects the collision after the fact and repairs it.
    containers the accounting applies deltas to
    (`StartRecordingUpdatedContIds` / `PropagateUpdatesOnce`; a transient
    in-memory set, no sequence numbers, no persistence, no change to the
-   accounting write path). The flag and the set are guarded by `mFlushMutex`,
-   which a propagation cycle holds throughout, so the flag cannot flip
-   mid-cycle and the taken set never cuts a cycle in half. User traffic never
-   touches that mutex — it only reaches the queue.
+   accounting write path). Both sets are guarded by `mFlushMutex`, which a
+   propagation cycle holds throughout, so the recording cannot be
+   reconfigured mid-cycle and the taken set never cuts a cycle in half. User
+   traffic never touches that mutex — it only reaches the queue.
 2. Recompute the whole subtree bottom-up (as before, without any mid-pass
    flush — the periodic propagation keeps running independently).
-3. Validate: `Flush()`, take the recorded set (`TakeUpdatedContIds`) and
-   intersect it with the containers recomputed in this pass. An empty
-   intersection is a clean pass: every recomputed value is exact. Otherwise
-   the intersection is the *dirty* set — containers whose value may have been
-   corrupted by a delta applied after their absolute write — and only those
-   are recomputed again, bottom-up, before validating again. At most 3 passes
-   (the initial one plus 2 retries); leftovers are reported to the caller
-   (count, `retc` 0) and keep their last recomputed value, on top of which the
-   accounting continues to apply deltas consistently.
+3. Validate: `Flush()` and take the recorded set (`TakeUpdatedContIds`). An
+   empty set is a clean pass: every recomputed value is exact. Otherwise it is
+   the *dirty* set — containers whose value may have been corrupted by a delta
+   applied after their absolute write — and only those are recomputed again,
+   bottom-up, before validating again. At most 3 passes (the initial one plus
+   2 retries); leftovers are reported to the caller (count, `retc` 0) and keep
+   their last recomputed value, on top of which the accounting continues to
+   apply deltas consistently.
+
+The recording is **scoped to the containers under recompute**: the recompute
+hands `StartRecordingUpdatedContIds` the ids it is about to rewrite (the
+current pass's BFS list, narrowed to the dirty set before each retry) and the
+propagation cycle only records deltas landing on those. This is not just an
+optimisation of the intersection in step 3: a propagation cycle applies deltas
+originating from the *whole namespace*, so recording everything would size the
+set by the instance-wide activity for the duration of a pass — unbounded, and
+unrelated to the command's own work — only to discard all of it but the part
+falling inside the recomputed subtree. Scoping it bounds the set by the size of
+the recomputed tree instead. It also makes the accounting write path marginally
+cheaper: a hash lookup in the (empty, hence skipped) set of containers under
+recompute, instead of a hash insert per applied delta.
 
 A second concurrent `recompute_tree_size` is rejected with `EBUSY` rather than
 queued: the recorded set is a single destructive-read buffer, and a caller
@@ -135,17 +147,44 @@ container during the round marks it dirty, even if it landed harmlessly
 before the container's absolute write (the write overwrote it). False
 positives only cost a cheap re-recompute of the affected containers.
 Detection is also **complete**: any corruption requires a delta applied to
-the container between the recording mark and the validation flush, so the
-container necessarily appears in the recorded set.
+the container between the recording mark and the validation flush, and a
+corruptible container is by definition one this pass rewrites, hence one of
+the containers under recompute — so it necessarily appears in the recorded
+set. Scoping the recording to them therefore loses nothing.
 
 Re-recomputing only the dirty set bottom-up is sound because the dirty set is
 **upward-closed** within the recomputed tree: `AccumulateUpdate` applies a
-delta to the origin container and all its ancestors alike, so if a child was
-dirtied, its parent was too. A dirty container's children are therefore
-either clean (their value is exact) or dirty and re-recomputed first (deeper
-BFS level). Containers created or moved during the pass are not in the BFS
-list, but they dirty their ancestors, whose re-recompute reads the live
-children maps; deleted containers are simply skipped.
+delta to the origin container and all its ancestors alike, in the same
+propagation cycle, so if a child was dirtied, its parent was too. A dirty
+container's children are therefore either clean (their value is exact) or
+dirty and re-recomputed first (deeper BFS level). Containers created or moved
+during the pass are not in the BFS list, but they dirty their ancestors, whose
+re-recompute reads the live children maps; deleted containers are simply
+skipped.
+
+Upward-closure is also what makes the **corrections propagate back up** the
+tree. `NsCmd::UpdateTreeSize` derives a container's absolute value from its own
+files plus the `treeSize` of its direct children, so a parent picks up a
+corrected child simply by being recomputed after it — which the bottom-up walk
+guarantees. Because the dirty set contains, for every dirty container, its
+whole ancestor chain up to the recompute root, a retry pass does not just fix
+the containers that were raced: it carries their corrected values all the way
+back up to the root of the recomputed subtree. (Any delta inside the subtree
+passes through that root on its way to `/`, so the root is dirty whenever
+anything below it is.)
+
+Narrowing the containers under recompute to the dirty set before a retry
+(`UpdatedContIdsRecordingScope::Restart`) preserves all of this, because the
+recorded set is scoped to exactly the ids the *next* pass rewrites:
+
+- a delta landing on a container the retry pass rewrites also dirties that
+  container's ancestors, which — by upward-closure — were dirtied together in
+  the previous pass and are therefore under recompute too, hence recorded. The
+  dirty set stays upward-closed from one pass to the next;
+- a delta landing on a container that was clean in the previous pass and is not
+  rewritten by the retry pass has nothing to corrupt: it applies on top of an
+  exact value. Its ancestors that *are* being rewritten receive the same delta
+  and are recorded, so the pass above it is still flagged.
 
 Concurrent `recompute_tree_size` commands are serialized (they would consume
 each other's recorded set, which is a single destructive-read buffer).
