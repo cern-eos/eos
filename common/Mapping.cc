@@ -1498,7 +1498,13 @@ Mapping::UidToUserName(uid_t uid, int& errc)
   if (lookup_errc || !pwbufp) {
     std::string uid_string = std::to_string(uid);
     errc = EINVAL;
-    gShardedNegativeUserNameCache.store(uid, std::make_unique<std::string>(uid_string));
+
+    // only an authoritative "no such user" is cacheable; a failing NSS
+    // backend must not pin an otherwise resolvable uid to its numeric form
+    if (!lookup_errc) {
+      gShardedNegativeUserNameCache.store(uid, std::make_unique<std::string>(uid_string));
+    }
+
     return uid_string;
   }
 
@@ -1543,7 +1549,14 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
   if (lookup_errc || !grbufp) {
     std::string gid_string = std::to_string(gid);
     errc = EINVAL;
-    gShardedNegativeGroupNameCache.store(gid, std::make_unique<std::string>(gid_string));
+
+    // only an authoritative "no such group" is cacheable; a failing NSS
+    // backend must not pin an otherwise resolvable gid to its numeric form
+    if (!lookup_errc) {
+      gShardedNegativeGroupNameCache.store(gid,
+                                           std::make_unique<std::string>(gid_string));
+    }
+
     return gid_string;
   }
 
