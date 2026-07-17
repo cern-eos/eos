@@ -22,11 +22,12 @@
  ************************************************************************/
 
 #include "common/VirtualIdentity.hh"
+#include "common/NssLookup.hh"
 #include "common/Timing.hh"
-#include <iostream>
-#include <sstream>
 #include <cstring>
+#include <iostream>
 #include <pwd.h>
+#include <sstream>
 
 namespace
 {
@@ -35,12 +36,11 @@ std::pair<uid_t, gid_t> GetNobodyUidGid()
 {
   struct passwd pw_info;
   memset(&pw_info, 0, sizeof(pw_info));
-  char buffer[131072];
-  size_t buflen = sizeof(buffer);
+  std::vector<char> buffer;
   struct passwd* pw_prt = 0;
   const std::string name = "nobody";
 
-  if (getpwnam_r(name.c_str(), &pw_info, buffer, buflen, &pw_prt) ||
+  if (eos::common::LookupNssRecord(buffer, pw_info, pw_prt, getpwnam_r, name.c_str()) ||
       (!pw_prt)) {
     std::terminate();
   }
