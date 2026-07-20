@@ -107,6 +107,7 @@ set(MGM_UT_SRCS
   mgm/placement/PlacementStrategyTests.cc)
 
 set(COMMON_UT_SRCS
+  common/AssistedThreadTests.cc
   common/UtilsTests.cc
   common/FileIdTests.cc
   common/FileMapTests.cc
