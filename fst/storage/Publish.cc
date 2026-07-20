@@ -40,6 +40,8 @@
 #include "qclient/Formatting.hh"
 
 #include <XrdVersion.hh>
+#include <algorithm>
+#include <atomic>
 #include <google/protobuf/util/json_util.h>
 #include <optional>
 #include <sys/sysinfo.h>
@@ -53,6 +55,21 @@
 XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
+
+namespace {
+
+size_t
+ProtobufVarintSize(size_t value) noexcept
+{
+  size_t bytes = 1;
+  while (value >= 0x80) {
+    value >>= 7;
+    ++bytes;
+  }
+  return bytes;
+}
+
+} // namespace
 
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
@@ -705,7 +722,7 @@ void Storage::Publish(ThreadAssistant& assistant) noexcept {
 
 void
 Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
-{
+try {
   eos_static_info("%s", "msg=\"Starting Traffic Shaping stats publishing thread\"");
 
   const std::string configQueue = "TrafficShapingStats";
@@ -720,135 +737,220 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
   // FstHostPort is set once at startup, so the FsView node queue is stable for
   // the lifetime of this thread; capture it once to avoid touching gConfig per loop.
   const std::string node_id = SSTR("/eos/" << gConfig.FstHostPort << "/fst");
+  static const int64_t node_start_time_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
 
   while (!assistant.terminationRequested()) {
-    std::chrono::milliseconds reportInterval =
-        std::chrono::milliseconds(traffic_shaping::IoStatsCollector::
-                                      fst_io_stats_reporting_thread_period_milliseconds);
-    common::IntervalStopwatch stopwatch(reportInterval);
-
-    eos::traffic_shaping::FstIoReport report;
-    report.set_node_id(node_id);
-
-    const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                               std::chrono::system_clock::now().time_since_epoch())
-                               .count();
-    report.set_timestamp_ms(now_ms);
-
-    struct PendingUpdate {
-      eos::fst::traffic_shaping::IoStatsKey key;
-      uint64_t new_iops;
-      uint64_t new_generation;
-    };
-    std::vector<PendingUpdate> pending_updates;
-    std::vector<eos::fst::traffic_shaping::IoStatsKey> active_keys;
-
-    gOFS.mIoStatsCollector.VisitEntries(
-        [&](const eos::fst::traffic_shaping::IoStatsKey& key,
-            const eos::fst::traffic_shaping::IoStatsEntry& entry) {
-          active_keys.push_back(key);
-
-          uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
-          uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
-          uint64_t cur_total_iops = cur_r_ops + cur_w_ops;
-          uint64_t cur_gen = entry.generation_id;
-
-          // Check against persistent cache
-          auto& last_state = last_sent_cache[key];
-
-          // If IOPS changed OR Generation changed (Restart)
-          if (cur_total_iops != last_state.first || cur_gen != last_state.second) {
-            auto* proto = report.add_entries();
-            proto->set_app_name(key.app);
-            proto->set_uid(key.uid);
-            proto->set_gid(key.gid);
-            proto->set_generation_id(cur_gen);
-            proto->set_fsid(key.fsid);
-
-            proto->set_total_read_ops(cur_r_ops);
-            proto->set_total_write_ops(cur_w_ops);
-            proto->set_total_bytes_read(entry.bytes_read.load(std::memory_order_relaxed));
-            proto->set_total_bytes_written(
-                entry.bytes_written.load(std::memory_order_relaxed));
-
-            // Queue update (don't commit yet)
-            pending_updates.push_back({key, cur_total_iops, cur_gen});
-          }
-        });
-
-    if (report.entries_size() > 0) {
-      for (const auto& update : pending_updates) {
-        auto& [iops, generation] = last_sent_cache[update.key];
-        iops = update.new_iops;
-        generation = update.new_generation;
+    try {
+      uint32_t configured_period =
+          traffic_shaping::IoStatsCollector::
+              fst_io_stats_reporting_thread_period_milliseconds.load(
+                  std::memory_order_relaxed);
+      const uint32_t safe_period =
+          traffic_shaping::SanitizeFstIoStatsReportingPeriodMilliseconds(
+              configured_period);
+      if (safe_period != configured_period &&
+          traffic_shaping::IoStatsCollector::
+              fst_io_stats_reporting_thread_period_milliseconds.compare_exchange_strong(
+                  configured_period, safe_period, std::memory_order_relaxed)) {
+        eos_static_err("msg=\"reset invalid Traffic Shaping FST IO stats reporting "
+                       "thread period\" invalid_period_ms=%u default_period_ms=%u",
+                       configured_period, safe_period);
       }
-    }
+      const std::chrono::milliseconds reportInterval(safe_period);
+      common::IntervalStopwatch stopwatch(reportInterval);
 
-    // Run roughly every 60 seconds
-    loop_counter++;
-    if (loop_counter >= (60000 / reportInterval.count())) {
-      eos_static_info("msg=\"FST Traffic Shaping Stats - Garbage Collection loop "
-                      "checkpoint\" active_streams=%zu",
-                      active_keys.size());
-      loop_counter = 0;
+      eos::traffic_shaping::FstIoReport report;
+      report.set_node_id(node_id);
+      report.set_node_start_time_ms(node_start_time_ms);
 
-      // Remove idle streams
-      size_t pruned_count = gOFS.mIoStatsCollector.PruneStaleEntries(90);
+      const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                 std::chrono::system_clock::now().time_since_epoch())
+                                 .count();
+      report.set_timestamp_ms(now_ms);
+      size_t report_wire_bytes = report.ByteSizeLong();
+      size_t deferred_entries = 0;
 
-      // Cleanup our local cache to prevent unbounded growth
-      if (last_sent_cache.size() > active_keys.size()) {
-        std::unordered_set<eos::fst::traffic_shaping::IoStatsKey,
-                           eos::fst::traffic_shaping::IoStatsKeyHash>
-            active_set(active_keys.begin(), active_keys.end());
-        for (auto it = last_sent_cache.begin(); it != last_sent_cache.end();) {
-          if (active_set.find(it->first) == active_set.end()) {
-            it = last_sent_cache.erase(it);
-          } else {
-            ++it;
+      struct PendingUpdate {
+        eos::fst::traffic_shaping::IoStatsKey key;
+        uint64_t new_iops;
+        uint64_t new_generation;
+      };
+      std::vector<PendingUpdate> pending_updates;
+      std::vector<eos::fst::traffic_shaping::IoStatsKey> active_keys;
+
+      gOFS.mIoStatsCollector.VisitEntries(
+          [&](const eos::fst::traffic_shaping::IoStatsKey& key,
+              const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+            active_keys.push_back(key);
+
+            uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
+            uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
+            uint64_t cur_total_iops = cur_r_ops + cur_w_ops;
+            uint64_t cur_gen = entry.generation_id;
+
+            // Check against persistent cache
+            auto& last_state = last_sent_cache[key];
+
+            // If IOPS changed OR Generation changed (Restart)
+            if (cur_total_iops != last_state.first || cur_gen != last_state.second) {
+              eos::traffic_shaping::IoStatEntry proto;
+              proto.set_app_name(key.app);
+              proto.set_uid(key.uid);
+              proto.set_gid(key.gid);
+              proto.set_generation_id(cur_gen);
+              proto.set_fsid(key.fsid);
+
+              proto.set_total_read_ops(cur_r_ops);
+              proto.set_total_write_ops(cur_w_ops);
+              proto.set_total_bytes_read(
+                  entry.bytes_read.load(std::memory_order_relaxed));
+              proto.set_total_bytes_written(
+                  entry.bytes_written.load(std::memory_order_relaxed));
+
+              const size_t entry_bytes = proto.ByteSizeLong();
+              const size_t entry_wire_bytes =
+                  1 + ProtobufVarintSize(entry_bytes) + entry_bytes;
+              const size_t max_report_bytes =
+                  eos::common::TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES;
+              if (report_wire_bytes > max_report_bytes ||
+                  entry_wire_bytes > max_report_bytes - report_wire_bytes) {
+                ++deferred_entries;
+                return;
+              }
+              report_wire_bytes += entry_wire_bytes;
+              report.add_entries()->Swap(&proto);
+
+              // Queue update (don't commit yet)
+              pending_updates.push_back({key, cur_total_iops, cur_gen});
+            }
+          });
+
+      if (deferred_entries != 0) {
+        eos_static_debug(
+            "msg=\"Traffic Shaping FST IO report reached wire-size bound; "
+            "deferring streams\" deferred_streams=%zu report_bytes=%zu max_bytes=%zu",
+            deferred_entries, report_wire_bytes,
+            eos::common::TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES);
+      }
+
+      // Run roughly every 60 seconds
+      loop_counter++;
+      const int64_t garbage_collection_cycles =
+          std::max<int64_t>(1, 60000 / reportInterval.count());
+      if (loop_counter >= garbage_collection_cycles) {
+        eos_static_info("msg=\"FST Traffic Shaping Stats - Garbage Collection loop "
+                        "checkpoint\" active_streams=%zu rejected_streams_total=%llu",
+                        active_keys.size(),
+                        static_cast<unsigned long long>(
+                            gOFS.mIoStatsCollector.GetRejectedEntryCount()));
+        loop_counter = 0;
+
+        // Remove idle streams
+        size_t pruned_count = gOFS.mIoStatsCollector.PruneStaleEntries(90);
+
+        // Cleanup our local cache to prevent unbounded growth
+        if (last_sent_cache.size() > active_keys.size()) {
+          std::unordered_set<eos::fst::traffic_shaping::IoStatsKey,
+                             eos::fst::traffic_shaping::IoStatsKeyHash>
+              active_set(active_keys.begin(), active_keys.end());
+          for (auto it = last_sent_cache.begin(); it != last_sent_cache.end();) {
+            if (active_set.find(it->first) == active_set.end()) {
+              it = last_sent_cache.erase(it);
+            } else {
+              ++it;
+            }
           }
+        }
+
+        if (pruned_count > 0) {
+          eos_static_info("msg=\"FST Traffic Shaping Garbage Collection completed\" "
+                          "pruned_streams=%zu",
+                          pruned_count);
         }
       }
 
-      if (pruned_count > 0) {
-        eos_static_info(
-            "msg=\"FST Traffic Shaping Garbage Collection completed\" pruned_streams=%zu",
-            pruned_count);
-      }
-    }
+      bool report_published = false;
+      if (common::SharedHashLocator locator = gConfig.getNodeHashLocator(configQueue);
+          !locator.empty()) {
+        mq::SharedHashWrapper::Batch batch;
+        std::string serialized_report = report.SerializeAsString();
+        std::string encoded_report;
 
-    if (common::SharedHashLocator locator = gConfig.getNodeHashLocator(configQueue);
-        !locator.empty()) {
-      mq::SharedHashWrapper::Batch batch;
-      std::string serialized_report = report.SerializeAsString();
-      std::string encoded_report;
+        if (serialized_report.size() >
+            eos::common::TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES) {
+          eos_static_err("msg=\"refusing oversized Traffic Shaping FST IO report\" "
+                         "report_bytes=%zu max_bytes=%zu",
+                         serialized_report.size(),
+                         eos::common::TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES);
+        } else if (!eos::common::SymKey::Base64(serialized_report, encoded_report)) {
+          eos_static_warning("%s", "msg=\"failed to base64-encode FST IO report\"");
+        } else {
+          batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT, encoded_report);
 
-      if (!eos::common::SymKey::Base64(serialized_report, encoded_report)) {
-        eos_static_warning("%s", "msg=\"failed to base64-encode FST IO report\"");
+          mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+          report_published = hash.set(batch);
+        }
       } else {
-        batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT, encoded_report);
-
-        mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
-        hash.set(batch);
+        eos_static_warning(
+            "msg=\"no locator for Traffic Shaping stats publishing - skipping\" "
+            "config_queue=\"%s\"",
+            configQueue.c_str());
       }
-    } else {
-      eos_static_warning(
-          "msg=\"no locator for Traffic Shaping stats publishing - skipping\" "
-          "config_queue=\"%s\"",
-          configQueue.c_str());
-    }
 
-    if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
-        sleepTime == std::chrono::milliseconds(0)) {
-      eos_static_warning(
-          "msg=\"send Traffic Shaping stats cycle exceeded %d ms - took %d "
-          "ms",
-          reportInterval.count(), stopwatch.timeIntoCycle());
-    } else {
-      assistant.wait_for(sleepTime);
+      if (report_published) {
+        for (const auto& update : pending_updates) {
+          auto& [iops, generation] = last_sent_cache[update.key];
+          iops = update.new_iops;
+          generation = update.new_generation;
+        }
+      }
+
+      if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+          sleepTime == std::chrono::milliseconds(0)) {
+        eos_static_warning(
+            "msg=\"send Traffic Shaping stats cycle exceeded %d ms - took %d "
+            "ms",
+            reportInterval.count(), stopwatch.timeIntoCycle());
+      } else {
+        assistant.wait_for(sleepTime);
+      }
+    } catch (const std::exception& error) {
+      try {
+        eos_static_err("msg=\"Traffic Shaping stats publish iteration aborted by "
+                       "exception; continuing\" error=\"%s\"",
+                       error.what());
+      } catch (...) {
+      }
+      assistant.wait_for(std::chrono::milliseconds(
+          eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS));
+    } catch (...) {
+      try {
+        eos_static_err("%s", "msg=\"Traffic Shaping stats publish iteration aborted "
+                             "by unknown exception; continuing\"");
+      } catch (...) {
+      }
+      assistant.wait_for(std::chrono::milliseconds(
+          eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS));
     }
   }
 
   eos_static_info("%s", "msg=\"Traffic Shaping stats publishing thread terminated\"");
+} catch (const std::exception& error) {
+  try {
+    eos_static_err("msg=\"Traffic Shaping stats publishing thread exited after "
+                   "exception\" error=\"%s\"",
+                   error.what());
+  } catch (...) {
+  }
+} catch (...) {
+  try {
+    eos_static_err("%s", "msg=\"Traffic Shaping stats publishing thread exited after "
+                         "unknown exception\"");
+  } catch (...) {
+  }
 }
 
 EOSFSTNAMESPACE_END

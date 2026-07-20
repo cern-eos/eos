@@ -441,7 +441,9 @@ Storage::ShutdownThreads()
   mQdbCommunicatorThread.join();
   mPublisherThread.join();
   mErrorReportThread.join();
-  mTrafficShapingThread.join();
+  if (!StopTrafficShapingThread()) {
+    eos_static_err("%s", "msg=\"Traffic Shaping thread shutdown was incomplete\"");
+  }
   mFsUpdQueue.emplace(0, "ACTION", "EXIT");
   mFsConfigThread.join();
   XrdSysMutexHelper scope_lock(mThreadsMutex);
@@ -452,33 +454,100 @@ Storage::ShutdownThreads()
   }
 }
 
-void
-Storage::StartTrafficShapingThread()
-{
-  if (mTrafficShapingThreadRunning) {
-    return;
+bool
+Storage::StartTrafficShapingThread() noexcept
+try {
+  std::lock_guard lock(mTrafficShapingThreadMutex);
+  if (mTrafficShapingThread != nullptr) {
+    return true;
   }
 
-  mTrafficShapingThreadRunning = true;
+  auto traffic_shaping_thread =
+      std::make_unique<AssistedThread>(&Storage::SendTrafficShapingStats, this);
   gOFS.mIoStatsCollector.SetEnabled(true);
   gOFS.mIoDelayConfig.SetEnabled(true);
 
-  mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
-  mTrafficShapingThread.setName("Traffic Shaping Thread");
+  try {
+    traffic_shaping_thread->setName("Traffic Shaping Thread");
+  } catch (...) {
+    // Naming is diagnostic only; the publisher is already running.
+  }
+  mTrafficShapingThread = std::move(traffic_shaping_thread);
+  return true;
+} catch (const std::exception& error) {
+  try {
+    gOFS.mIoStatsCollector.SetEnabled(false);
+  } catch (...) {
+  }
+  try {
+    gOFS.mIoDelayConfig.SetEnabled(false);
+  } catch (...) {
+  }
+  try {
+    eos_static_err("msg=\"Traffic Shaping thread failed to start\" error=\"%s\"",
+                   error.what());
+  } catch (...) {
+  }
+  return false;
+} catch (...) {
+  try {
+    gOFS.mIoStatsCollector.SetEnabled(false);
+  } catch (...) {
+  }
+  try {
+    gOFS.mIoDelayConfig.SetEnabled(false);
+  } catch (...) {
+  }
+  try {
+    eos_static_err("%s", "msg=\"Traffic Shaping thread failed to start due to "
+                         "unknown exception\"");
+  } catch (...) {
+  }
+  return false;
 }
 
-void
-Storage::StopTrafficShapingThread()
-{
-  if (!mTrafficShapingThreadRunning) {
-    return;
+bool
+Storage::StopTrafficShapingThread() noexcept
+try {
+  std::lock_guard lock(mTrafficShapingThreadMutex);
+  if (mTrafficShapingThread == nullptr) {
+    return true;
   }
 
-  mTrafficShapingThread.join();
-
-  mTrafficShapingThreadRunning = false;
-  gOFS.mIoStatsCollector.SetEnabled(false);
-  gOFS.mIoDelayConfig.SetEnabled(false);
+  bool disabled = true;
+  try {
+    gOFS.mIoStatsCollector.SetEnabled(false);
+  } catch (...) {
+    disabled = false;
+  }
+  try {
+    gOFS.mIoDelayConfig.SetEnabled(false);
+  } catch (...) {
+    disabled = false;
+  }
+  try {
+    if (mTrafficShapingThread != nullptr) {
+      mTrafficShapingThread->join();
+      mTrafficShapingThread.reset();
+    }
+  } catch (...) {
+    return false;
+  }
+  return disabled;
+} catch (const std::exception& error) {
+  try {
+    eos_static_err("msg=\"Traffic Shaping thread failed to stop\" error=\"%s\"",
+                   error.what());
+  } catch (...) {
+  }
+  return false;
+} catch (...) {
+  try {
+    eos_static_err("%s", "msg=\"Traffic Shaping thread failed to stop due to "
+                         "unknown exception\"");
+  } catch (...) {
+  }
+  return false;
 }
 
 //------------------------------------------------------------------------------

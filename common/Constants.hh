@@ -24,6 +24,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <cstddef>
 #include <cstdint>
 #include <sys/types.h>
 
@@ -103,7 +104,17 @@ static constexpr auto FST_TRAFFIC_SHAPING_DETAIL_LEVEL = "stat.ts.detail_level";
 static constexpr auto TRAFFIC_SHAPING_POLICIES_CONFIG = "traffic_shaping::policies";
 static constexpr auto TRAFFIC_SHAPING_ENABLE_CONFIG = "traffic_shaping::is_enabled";
 static constexpr auto TRAFFIC_SHAPING_THREAD_PERIODS = "traffic_shaping::thread_periods";
+static constexpr uint32_t TRAFFIC_SHAPING_THREAD_PERIOD_MIN_MS = 50;
+static constexpr uint32_t TRAFFIC_SHAPING_THREAD_PERIOD_MAX_MS = 3000;
 static constexpr uint32_t TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS = 200;
+static constexpr size_t TRAFFIC_SHAPING_FST_IDENTITY_MAX_BYTES = 1024;
+static constexpr size_t TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES = 4 * 1024 * 1024;
+static constexpr size_t TRAFFIC_SHAPING_FST_CONFIG_MAX_ENCODED_BYTES = 8 * 1024 * 1024;
+static constexpr size_t TRAFFIC_SHAPING_FST_CONFIG_MAX_DECODED_BYTES = 6 * 1024 * 1024;
+static constexpr size_t TRAFFIC_SHAPING_FST_CONFIG_MAX_ENTRIES = 32768;
+static constexpr size_t TRAFFIC_SHAPING_FST_CONFIG_VALUE_MAX_BYTES = 4096;
+static constexpr size_t TRAFFIC_SHAPING_POLICY_CONFIG_MAX_BYTES = 4 * 1024 * 1024;
+static constexpr size_t TRAFFIC_SHAPING_POLICY_MAX_ENTITIES = 2048;
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG =
     "traffic_shaping::detail_level";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE = "aggregate";

@@ -38,6 +38,8 @@
 #include <atomic>
 #include <list>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <queue>
 #include <vector>
 
@@ -248,9 +250,9 @@ public:
   //----------------------------------------------------------------------------
   void ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key, const std::string& value);
 
-  void StartTrafficShapingThread();
+  bool StartTrafficShapingThread() noexcept;
 
-  void StopTrafficShapingThread();
+  bool StopTrafficShapingThread() noexcept;
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
@@ -293,8 +295,9 @@ private:
   AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
-  AssistedThread mTrafficShapingThread; ///< Thread sending traffic shaping stats
-  std::atomic<bool> mTrafficShapingThreadRunning{false};
+  std::unique_ptr<AssistedThread>
+      mTrafficShapingThread; ///< Thread sending traffic shaping stats
+  std::mutex mTrafficShapingThreadMutex;
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
@@ -439,7 +442,7 @@ private:
   //! @param key configuration key
   //! @param value configuration value
   //----------------------------------------------------------------------------
-  void ProcessFstConfigChange(const std::string& key, const std::string& value);
+  void ProcessFstConfigChange(const std::string& key, const std::string& value) noexcept;
 
   //----------------------------------------------------------------------------
   //! Process file system configuration change
