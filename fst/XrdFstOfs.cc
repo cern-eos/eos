@@ -23,6 +23,7 @@
 
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
+#include "fst/cache/CacheLru.hh"
 #include "fst/Config.hh"
 #include "fst/filemd/FmdAttr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -1534,6 +1535,37 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
     if (execmd == "drop") {
       return HandleDropFile(env, error);
+    }
+
+    if (execmd == "cachetruncate") {
+      XrdOucEnv* cap_env = nullptr;
+      int caprc = eos::common::SymKey::ExtractCapability(&env, cap_env);
+
+      if (caprc || !cap_env) {
+        delete cap_env;
+        return Emsg(epname, error, EINVAL, "extract cachetruncate capability", "");
+      }
+
+      const char* sfid = cap_env->Get("mgm.fid");
+      const char* sfsid = cap_env->Get("mgm.fsid");
+      int rc = 0;
+
+      if (sfid && sfsid) {
+        rc = eos::fst::CacheLruRegistry::Instance().TruncateJournal(
+               atoi(sfsid), eos::common::FileId::Hex2Fid(sfid));
+      } else {
+        rc = EINVAL;
+      }
+
+      delete cap_env;
+
+      if (rc) {
+        return Emsg(epname, error, rc, "truncate cache journal", "");
+      }
+
+      const char* okmsg = "OK";
+      error.setErrInfo(strlen(okmsg) + 1, okmsg);
+      return SFS_DATA;
     }
 
     if (execmd == "clean_orphans") {

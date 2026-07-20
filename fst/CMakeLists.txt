@@ -146,6 +146,7 @@ add_library(EosFstIo-Objects OBJECT
   layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
   layout/Layout.cc               layout/Layout.hh
   layout/PlainLayout.cc          layout/PlainLayout.hh
+  layout/CacheLayout.cc          layout/CacheLayout.hh
   layout/HeaderCRC.cc            layout/HeaderCRC.hh
   layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
   layout/RainBlock.cc            layout/RainBlock.hh
@@ -153,6 +154,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh
+  cache/SparseJournal.cc         cache/SparseJournal.hh
+  cache/CacheLru.cc              cache/CacheLru.hh
   utils/FSPathHandler.cc
   utils/IoPriority.cc
   utils/ScanRate.cc)

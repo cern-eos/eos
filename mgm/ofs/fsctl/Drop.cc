@@ -33,6 +33,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/iostat/Iostat.hh"
 #include <XrdOuc/XrdOucEnv.hh>
@@ -164,6 +165,8 @@ XrdMgmOfs::Drop(const char* path,
             // there was indeed a replica to be dropped, otherwise we get
             // unlinked files if the secondary replica fails to write but
             // the machine can call the MGM
+            ReadThroughCache::TruncateOnMutation(fmd);
+
             if (ns_quota) {
               // If we were still attached to a container, we can now detach
               // and count the file as removed

@@ -54,6 +54,7 @@
 #include "mgm/xattr/XattrLock.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1466,6 +1467,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
+      if (fmd) {
+        ReadThroughCache::TruncateOnMutation(fmd);
+      }
+
       if (!ocUploadUuid.length()) {
         fmd.reset();
       } else {
@@ -1496,6 +1501,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+
+        if (fmd) {
+          ReadThroughCache::TruncateOnMutation(fmd);
+        }
 
         // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
         if (gOFS->mAudit) {
@@ -3203,6 +3212,64 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += eos::common::StringConversion::Join(altChecksums, ",").c_str();
     capability += "&mgm.altxs.compute=";
     capability += computeAltXs ? "1" : "0";
+  }
+
+  // ---------------------------------------------------------------------------
+  // Optionally redirect reads through a configured cache space. Keep the
+  // backend fsid/host in the capability so the cache FST can fetch/bridge.
+  // ---------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t cache_fsid = 0;
+
+  if (!isRW && !isCreation && !isPio && !isPioReconstruct && !isInjection &&
+      !mIsZeroSize && fmd) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    cache_fsid = ReadThroughCache::SelectCacheFs(space, fmd);
+
+    if (cache_fsid) {
+      auto* cache_fs = FsView::gFsView.mIdView.lookupByID(cache_fsid);
+
+      if (cache_fs) {
+        const std::string cache_host = cache_fs->GetString("host");
+        const int cache_port = atoi(cache_fs->GetString("port").c_str());
+        const int cache_http_port =
+          atoi(cache_fs->GetString("stat.http.port").c_str());
+        capability += "&mgm.cache=1";
+        capability += "&mgm.cache.fsid=";
+        capability += (int) cache_fsid;
+        capability += "&mgm.cache.backend.host=";
+        capability += targethost.c_str();
+        capability += "&mgm.cache.backend.port=";
+        capability += (int) targetport;
+        capability += "&mgm.cache.backend.fsid=";
+        capability += (int) fs_id;
+        capability += "&mgm.size=";
+        capability += std::to_string(fmd->getSize()).c_str();
+        // Switch client redirect target to the cache FST
+        targethost = cache_host.c_str();
+        targetport = cache_port;
+        targethttpport = cache_http_port;
+        // Rebuild redirection host prefix; opaque is appended after encrypt
+        redirectionhost = targethost.c_str();
+        redirectionhost += "?";
+        eos_info("msg=\"read-through cache redirect\" fxid=%08llx "
+                 "cache_fsid=%u backend_fsid=%u", mFid, cache_fsid, fs_id);
+        const bool need_persist = (fmd->getCacheLocation() != cache_fsid);
+        fs_rd_lock.Release();
+
+        if (need_persist) {
+          try {
+            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+            fmd->setCacheLocation(cache_fsid);
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& e) {
+            eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
+                        "errno=%d", mFid, e.getErrno());
+          }
+        }
+      } else {
+        cache_fsid = 0;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

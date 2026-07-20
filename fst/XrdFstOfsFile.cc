@@ -314,8 +314,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation,
       mFsId, mFileId);
   COMMONTIMING("layout::exists", &tm);
+  const bool is_cache_open = (mCapOpaque && mCapOpaque->Get("mgm.cache") &&
+                              mCapOpaque->Get("mgm.cache.fsid") &&
+                              (mFsId == (eos::common::FileSystem::fsid_t)
+                               atoi(mCapOpaque->Get("mgm.cache.fsid"))));
 
-  if ((retc = mLayout->GetFileIo()->fileExists())) {
+  // Read-through cache serves from a sparse journal, not the normal FST path
+  if (is_cache_open) {
+    eos_info("msg=\"skip local exists check for cache open\" fxid=%08llx "
+             "fsid=%u", mFileId, mFsId);
+  } else if ((retc = mLayout->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or returns ENOENT,
     // otherwise we might trigger an automatic clean-up of a file!!!
     if (errno != ENOENT) {
@@ -2846,7 +2854,20 @@ XrdFstOfsFile::ProcessMixedOpaque()
                      "open - no file system id in capability", mNsPath.c_str());
   }
 
-  if (mOpenOpaque->Get("mgm.replicaindex")) {
+  // Read-through cache: only the FST that hosts the cache fsid remaps the
+  // local path. Backend FSTs keep mgm.fsid from the capability.
+  if (mCapOpaque->Get("mgm.cache") && mCapOpaque->Get("mgm.cache.fsid")) {
+    const auto cache_fsid = atoi(mCapOpaque->Get("mgm.cache.fsid"));
+
+    if (!gOFS.Storage->GetStoragePath(cache_fsid).empty()) {
+      sfsid = mCapOpaque->Get("mgm.cache.fsid");
+    }
+  }
+
+  if (mOpenOpaque->Get("mgm.replicaindex") &&
+      !(mCapOpaque->Get("mgm.cache") &&
+        mCapOpaque->Get("mgm.cache.fsid") &&
+        (sfsid == mCapOpaque->Get("mgm.cache.fsid")))) {
     XrdOucString replicafsidtag = "mgm.fsid";
     replicafsidtag += (int) atoi(mOpenOpaque->Get("mgm.replicaindex"));
 

@@ -723,6 +723,92 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     space_name + "' as " + value + "\n");
         ret_c = 0;
       }
+    } else if (key == eos::common::SPACE_CACHE_SPACE_NAME) {
+      applied = true;
+
+      if (value == "remove" || value.empty()) {
+        if (!space->DeleteConfigMember(key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: removed cachespace binding from space='" +
+                      space_name + "'\n");
+          ret_c = 0;
+        }
+      } else if (FsView::gFsView.mSpaceView.find(value) ==
+                 FsView::gFsView.mSpaceView.end()) {
+        ret_c = EINVAL;
+        std_err.str("error: cache space '" + value + "' does not exist");
+      } else if (value == space_name) {
+        ret_c = EINVAL;
+        std_err.str("error: cachespace cannot point to the same space");
+      } else if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        // Push already-configured watermarks from this backend space onto the
+        // cache filesystems so FSTs pick them up without environment variables.
+        auto push_wm = [&](const char* wm_key) {
+          const std::string wm = space->GetConfigMember(wm_key);
+
+          if (wm.empty()) {
+            return;
+          }
+
+          auto* cspace = FsView::gFsView.mSpaceView[value];
+
+          for (auto cit = cspace->begin(); cit != cspace->end(); ++cit) {
+            if (auto* cfs = FsView::gFsView.mIdView.lookupByID(*cit)) {
+              cfs->SetLongLong(wm_key, std::strtoll(wm.c_str(), nullptr, 10));
+              FsView::gFsView.StoreFsConfig(cfs, false);
+            }
+          }
+        };
+        push_wm(eos::common::SPACE_CACHE_LOW_WATERMARK_NAME);
+        push_wm(eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME);
+        std_out.str("success: configured cachespace in space='" + space_name +
+                    "' as '" + value + "'\n");
+        ret_c = 0;
+      }
+    } else if ((key == eos::common::SPACE_CACHE_LOW_WATERMARK_NAME) ||
+               (key == eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME)) {
+      applied = true;
+      char* end = nullptr;
+      const long watermark = std::strtol(value.c_str(), &end, 10);
+
+      if ((end == value.c_str()) || (*end != '\0') || (watermark < 0) ||
+          (watermark > 100)) {
+        ret_c = EINVAL;
+        std_err.str("error: watermark must be an integer between 0 and 100");
+      } else if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        // Prefer pushing to the linked cache space when set on the backend;
+        // otherwise apply to filesystems of this space.
+        std::string target_space = space->GetConfigMember(
+                                       eos::common::SPACE_CACHE_SPACE_NAME);
+
+        if (target_space.empty()) {
+          target_space = space_name;
+        }
+
+        auto tit = FsView::gFsView.mSpaceView.find(target_space);
+
+        if (tit != FsView::gFsView.mSpaceView.end() && tit->second) {
+          for (auto cit = tit->second->begin(); cit != tit->second->end();
+               ++cit) {
+            if (auto* cfs = FsView::gFsView.mIdView.lookupByID(*cit)) {
+              cfs->SetLongLong(key.c_str(), watermark);
+              FsView::gFsView.StoreFsConfig(cfs, false);
+            }
+          }
+        }
+
+        std_out.str("success: configured " + key + " in space='" + space_name +
+                    "' as '" + value + "'\n");
+        ret_c = 0;
+      }
     } else if (!key.compare(0, 5, "atime")) {
       applied = true;
 
