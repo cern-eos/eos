@@ -154,6 +154,7 @@ std::string MakeIoHelp()
       << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
       << "\t       [parameters] : --limit-read <rate> | --limit-write <rate> | "
          "--reservation-read <rate> | --reservation-write <rate>\n"
+      << "\t                      (reservations are supported for applications only)\n"
       << "\t                      | --controller-limit-read <rate> | "
          "--controller-limit-write <rate>\n"
       << "\t                      (rate can use suffixes, e.g., 10M, 500K, or 0 to "
@@ -419,7 +420,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   tgrp->add_option("--app", "Application name")->type_name("NAME");
   tgrp->add_option("--uid", "User ID")->type_name("ID");
   tgrp->add_option("--gid", "Group ID")->type_name("ID");
-  auto* pgrp = policy_set->add_option_group("Params")->require_option(1, 6);
+  auto* pgrp = policy_set->add_option_group("Params")->require_option(1, 8);
   pgrp->add_option("--limit-read", "Read limit rate; use 0 to remove")->type_name("RATE");
   pgrp->add_option("--limit-write", "Write limit rate; use 0 to remove")
       ->type_name("RATE");
@@ -442,29 +443,35 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
       a->set_uid(policy_set->get_option("--uid")->as<uint32_t>());
     if (policy_set->count("--gid"))
       a->set_gid(policy_set->get_option("--gid")->as<uint32_t>());
-    auto parse_rate = [](const std::string& s) -> uint64_t {
+    auto parse_rate = [](const std::string& s, const char* option) -> uint64_t {
       uint64_t n = 0;
-      eos::common::StringConversion::GetSizeFromString(s, n);
+      if (!eos::common::StringConversion::GetSizeFromString(s, n)) {
+        throw CLI::ValidationError(option, "invalid rate");
+      }
       return n;
     };
     if (policy_set->count("--limit-read"))
-      a->set_limit_read_bytes_per_sec(
-          parse_rate(policy_set->get_option("--limit-read")->as<std::string>()));
+      a->set_limit_read_bytes_per_sec(parse_rate(
+          policy_set->get_option("--limit-read")->as<std::string>(), "--limit-read"));
     if (policy_set->count("--limit-write"))
-      a->set_limit_write_bytes_per_sec(
-          parse_rate(policy_set->get_option("--limit-write")->as<std::string>()));
+      a->set_limit_write_bytes_per_sec(parse_rate(
+          policy_set->get_option("--limit-write")->as<std::string>(), "--limit-write"));
     if (policy_set->count("--reservation-read"))
       a->set_reservation_read_bytes_per_sec(
-          parse_rate(policy_set->get_option("--reservation-read")->as<std::string>()));
+          parse_rate(policy_set->get_option("--reservation-read")->as<std::string>(),
+                     "--reservation-read"));
     if (policy_set->count("--reservation-write"))
       a->set_reservation_write_bytes_per_sec(
-          parse_rate(policy_set->get_option("--reservation-write")->as<std::string>()));
+          parse_rate(policy_set->get_option("--reservation-write")->as<std::string>(),
+                     "--reservation-write"));
     if (policy_set->count("--controller-limit-read"))
       a->set_controller_limit_read_bytes_per_sec(
-          parse_rate(policy_set->get_option("--controller-limit-read")->as<std::string>()));
+          parse_rate(policy_set->get_option("--controller-limit-read")->as<std::string>(),
+                     "--controller-limit-read"));
     if (policy_set->count("--controller-limit-write"))
-      a->set_controller_limit_write_bytes_per_sec(
-          parse_rate(policy_set->get_option("--controller-limit-write")->as<std::string>()));
+      a->set_controller_limit_write_bytes_per_sec(parse_rate(
+          policy_set->get_option("--controller-limit-write")->as<std::string>(),
+          "--controller-limit-write"));
     if (policy_set->count("--enable"))
       a->set_is_enabled(true);
     else if (policy_set->count("--disable"))
@@ -496,7 +503,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 12);
+  config_set->require_option(1, 14);
   config_set->add_option("--estimators-period", "Estimator update period")
       ->type_name("MS");
   config_set->add_option("--policy-period", "Policy enforcement update period")
@@ -541,9 +548,11 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
       ->check(CLI::Range(1, 86400));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
-    auto parse_rate = [](const std::string& s) -> uint64_t {
+    auto parse_rate = [](const std::string& s, const char* option) -> uint64_t {
       uint64_t n = 0;
-      eos::common::StringConversion::GetSizeFromString(s, n);
+      if (!eos::common::StringConversion::GetSizeFromString(s, n)) {
+        throw CLI::ValidationError(option, "invalid rate");
+      }
       return n;
     };
     if (config_set->count("--estimators-period"))
@@ -598,12 +607,14 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
           config_set->get_option("--reservations")->as<std::string>()));
     }
     if (config_set->count("--controller-min-limit")) {
-      a->set_controller_min_limit_bytes_per_sec(parse_rate(
-          config_set->get_option("--controller-min-limit")->as<std::string>()));
+      a->set_controller_min_limit_bytes_per_sec(
+          parse_rate(config_set->get_option("--controller-min-limit")->as<std::string>(),
+                     "--controller-min-limit"));
     }
     if (config_set->count("--active-node-rate-threshold")) {
       a->set_active_node_rate_threshold_bytes_per_sec(parse_rate(
-          config_set->get_option("--active-node-rate-threshold")->as<std::string>()));
+          config_set->get_option("--active-node-rate-threshold")->as<std::string>(),
+          "--active-node-rate-threshold"));
     }
     if (config_set->count("--io-pressure-threshold")) {
       a->set_io_pressure_threshold(
