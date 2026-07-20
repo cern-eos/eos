@@ -153,6 +153,7 @@ set(COMMON_UT_SRCS
   common/RandTests.cc
   common/SciTokensTests.cc
   common/WebNotifyTests.cc
+  common/CrashHandlerTests.cc
 )
 
 set(FUSEX_UT_SRCS

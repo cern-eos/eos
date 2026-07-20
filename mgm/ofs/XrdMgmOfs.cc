@@ -923,7 +923,6 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "ofs/cmds/ShouldRoute.inc"
 #include "ofs/cmds/ShouldStall.inc"
 #include "ofs/cmds/Shutdown.inc"
-#include "ofs/cmds/Stacktrace.inc"
 #include "ofs/cmds/Stat.inc"
 #include "ofs/cmds/Stripes.inc"
 #include "ofs/cmds/Touch.inc"

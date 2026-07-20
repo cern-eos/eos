@@ -28,8 +28,9 @@
 #define __EOSCOMMON__STACKTRACE__HH
 
 #include "common/ShellCmd.hh"
-#include "common/Timing.hh"
 #include "common/StringConversion.hh"
+#include "common/Timing.hh"
+#include <sys/stat.h>
 #include <unistd.h>
 
 EOSCOMMONNAMESPACE_BEGIN

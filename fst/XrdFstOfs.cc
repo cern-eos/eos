@@ -40,6 +40,7 @@
 #include "common/BufferManager.hh"
 #include "common/BuildVersion.hh"
 #include "common/Constants.hh"
+#include "common/CrashHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/PasswordHandler.hh"
@@ -187,35 +188,6 @@ XrdFstOfs::GetSimulationDelay(const std::string& input)
   }
 
   return delay;
-}
-
-//------------------------------------------------------------------------------
-// Get stacktrace from crashing process
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::xrdfstofs_stacktrace(int sig)
-{
-  (void) signal(SIGINT, SIG_IGN);
-  (void) signal(SIGTERM, SIG_IGN);
-  (void) signal(SIGQUIT, SIG_IGN);
-  void* array[10];
-  size_t size;
-  // Get void*'s for all entries on the stack
-  size = backtrace(array, 10);
-  // Print out all the frames to stderr
-  fprintf(stderr, "error: received signal %d:\n", sig);
-  backtrace_symbols_fd(array, size, 2);
-  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
-
-  if (getenv("EOS_CORE_DUMP")) {
-    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
-  }
-
-  // Now we put back the initial handler and send the signal again
-  signal(sig, SIG_DFL);
-  kill(getpid(), sig);
-  int wstatus = 0;
-  wait(&wstatus);
 }
 
 //------------------------------------------------------------------------------
@@ -387,11 +359,10 @@ XrdFstOfs::XrdFstOfs() :
   }
 
   if (getenv("EOS_FST_ENABLE_STACKTRACE")) {
-    // Add stacktrace handler - this is useful for crashes inside containers
-    // where abrtd is not configured
-    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
-    (void) signal(SIGABRT, xrdfstofs_stacktrace);
-    (void) signal(SIGBUS, xrdfstofs_stacktrace);
+    // Add async-signal-safe handler for fatal signals - this is useful for
+    // crashes inside containers where abrtd is not configured. The FST
+    // re-raises the signal, so the kernel core-dump policy applies.
+    eos::common::CrashHandler::Install(true);
   }
 
   if (getenv("EOS_MGM_ALIAS")) {

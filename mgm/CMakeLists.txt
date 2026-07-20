@@ -103,7 +103,7 @@ set_source_files_properties(
   ofs/cmds/Rm.inc
   ofs/cmds/SharedPath.inc ofs/cmds/ShouldRedirect.inc
   ofs/cmds/ShouldRoute.inc ofs/cmds/ShouldStall.inc
-  ofs/cmds/Shutdown.inc ofs/cmds/Stacktrace.inc
+  ofs/cmds/Shutdown.inc
   ofs/cmds/Stat.inc ofs/cmds/Stripes.inc
   ofs/cmds/Touch.inc ofs/cmds/Utimes.inc
   ofs/cmds/Version.inc

@@ -25,6 +25,7 @@
 #include "common/Audit.hh"
 #include "common/BuildVersion.hh"
 #include "common/CommentLog.hh"
+#include "common/CrashHandler.hh"
 #include "common/InstanceName.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/Logging.hh"
@@ -93,7 +94,6 @@
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
-extern void xrdmgmofs_stacktrace(int sig);
 extern void xrdmgmofs_coverage(int sig);
 
 namespace
@@ -2270,11 +2270,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
 
-    // add SEGV handler
+    // Add async-signal-safe handler for fatal signals. The MGM terminates
+    // without a core file by default (multi-GB namespace caches) unless
+    // EOS_CORE_DUMP or EOS_RAISE_SIGNAL_AFTER_SIGV is set.
     if (!getenv("EOS_NO_STACKTRACE")) {
-      (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-      (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-      (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+      eos::common::CrashHandler::Install(false);
     }
   }
 

@@ -274,6 +274,7 @@ if (NOT CLIENT AND Linux)
   add_library(EosCommonServer-Objects OBJECT
     ShellExecutor.cc
     ShellCmd.cc
+    CrashHandler.cc
     FileSystem.cc
     WebNotify.cc
     http/HttpServer.cc
