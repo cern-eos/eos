@@ -25,6 +25,7 @@
 #include "common/Audit.hh"
 #include "common/BuildVersion.hh"
 #include "common/CommentLog.hh"
+#include "common/CrashHandler.hh"
 #include "common/InstanceName.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/Logging.hh"
@@ -93,7 +94,6 @@
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
-extern void xrdmgmofs_stacktrace(int sig);
 extern void xrdmgmofs_coverage(int sig);
 
 namespace
@@ -201,6 +201,27 @@ void XrdMgmOfs::DumpHeapProfile(int sig)
 int
 XrdMgmOfs::Configure(XrdSysError& Eroute)
 {
+  // Install the async-signal-safe handler for fatal signals before anything
+  // else is set up. It has to come first for two reasons: a crash during the
+  // configuration or the namespace boot - a prime suspect for crashes - has to
+  // be reported like any other, and the gdb crash dumper that Install() may
+  // fork is only cheap while the process is still small and single threaded.
+  // Forking it once the namespace is loaded would leave the dumper holding a
+  // copy-on-write twin of a multi-GB address space, and could fail outright
+  // under vm.overcommit_memory=2.
+  //
+  // The MGM terminates without a core file by default (multi-GB namespace
+  // caches) unless EOS_CORE_DUMP or EOS_RAISE_SIGNAL_AFTER_SIGV is set. The
+  // faulting thread's backtrace always goes to the log; EOS_STACKTRACE_GDB
+  // additionally dumps all threads with gdb, at the price of keeping the
+  // crashed MGM around until gdb is through with it. EOS_NO_SHUTDOWN, which
+  // disables the shutdown handlers installed further down, also disables this
+  // one so that the daemon can be debugged with the signals left at their
+  // default disposition.
+  if (!getenv("EOS_NO_SHUTDOWN") && !getenv("EOS_NO_STACKTRACE")) {
+    eos::common::CrashHandler::Install(false);
+  }
+
   // the process run's as root, but acts on the filesystem as daemon
   char* var;
   const char* val;
@@ -2269,13 +2290,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     (void) signal(SIGINT, xrdmgmofs_shutdown);
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
-
-    // add SEGV handler
-    if (!getenv("EOS_NO_STACKTRACE")) {
-      (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-      (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-      (void) signal(SIGBUS, xrdmgmofs_stacktrace);
-    }
+    // Note: the handler for the fatal signals is installed at the very top of
+    // this method, see the comment there
   }
 
   if (getenv("EOS_COVERAGE_REPORT")) {

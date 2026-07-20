@@ -98,13 +98,6 @@ public:
   static void xrdfstofs_shutdown(int sig);
 
   //----------------------------------------------------------------------------
-  //! Get stacktrace from crashing process
-  //!
-  //! @param sig
-  //----------------------------------------------------------------------------
-  static void xrdfstofs_stacktrace(int sig);
-
-  //----------------------------------------------------------------------------
   //! Print coverage data
   //!
   //! @param sig

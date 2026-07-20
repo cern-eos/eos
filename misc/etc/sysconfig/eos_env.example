@@ -234,7 +234,10 @@ EOS_AUDIT_ROTATION=3600
 # EOS_FST_ASYNC_CLOSE_MIN_SIZE_BYTES=0
 
 # Enable internal stacktrace printing in the logs - this is useful especially
-# for container environments where abrtd is not running
+# for container environments where abrtd is not running. The FST always
+# terminates by re-raising the fatal signal, so whether a core file is written
+# is decided by the kernel core dump policy - see the crash handler section
+# under "Common configuration for MGM and FST" below.
 # EOS_FST_ENABLE_STACKTRACE=1
 
 # Enable async writes between replicas - this can improve the performance for
@@ -367,8 +370,54 @@ EOS_AUDIT_ROTATION=3600
 # Common configuration for MGM and FST
 #-------------------------------------------------------------------------------
 
-# Enable core dumps initiated internally (the value is not considered)
+# Crash handler (SIGSEGV/SIGABRT/SIGBUS)
+#
+# On a fatal signal the daemon writes the faulting thread's backtrace to the
+# daemon log (xrdlog.mgm/xrdlog.fst) and terminates. The handler is
+# async-signal-safe and never forks, so it can no longer run gdb itself: a full
+# multi-thread post-mortem now comes either from the kernel core dump or from
+# the opt-in crash dumper below.
+#
+# Disable the handler entirely, leaving the signals at their default
+# disposition - MGM only (the value is not considered)
+# EOS_NO_STACKTRACE=1
+
+# Terminate by re-raising the fatal signal instead of exiting quietly with
+# 128+signal, so that the kernel core dump policy applies - MGM only, the FST
+# always re-raises (the value is not considered)
+#
+# NOTE: this no longer writes a core file by itself. The handler used to run
+# gdb 'generate-core-file', which produced a core whatever the process limits
+# were. A core is now only written if the kernel is configured to write one,
+# i.e. RLIMIT_CORE (LimitCORE= in the systemd unit, ulimit -c) is non-zero and
+# kernel.core_pattern accepts the dump. With the usual 'ulimit -c 0' this
+# setting yields no core at all - raise the limit, or use EOS_STACKTRACE_GDB
+# below to get the all-thread backtrace instead.
 # EOS_CORE_DUMP=1
+
+# Same as EOS_CORE_DUMP, kept for backwards compatibility
+# EOS_RAISE_SIGNAL_AFTER_SIGV=1
+
+# Dump the stack of *all* threads with gdb ('thread apply all bt') when the
+# daemon crashes, the way the handler used to do unconditionally. A dedicated
+# crash dumper process is forked at startup, while the daemon is still healthy,
+# and drives gdb from outside the crashing process. Requires gdb to be
+# installed and allowed to attach (kernel.yama.ptrace_scope, CAP_SYS_PTRACE in
+# containers).
+#
+# NOTE: this is opt-in because the crashed daemon stays alive - and therefore
+# unavailable - until gdb has walked all its threads, which on a large MGM can
+# take a long time. That wait is not bounded: the dump is only worth having if
+# it is complete, so the crash dumper waits for gdb instead of killing it on a
+# deadline the way the previous gdb based handler did after 120 seconds. A gdb
+# that never finishes therefore keeps the daemon up and unavailable - kill the
+# gdb process to release it.
+# EOS_STACKTRACE_GDB=1
+
+# Where the gdb dump enabled above is written. The crash timestamp is appended,
+# giving <path>-<ISO8601>, and the dump is also mirrored into the daemon log.
+# Defaults to /var/eos/md/stacktrace
+# EOS_STACKTRACE_PATH=/var/eos/md/stacktrace
 
 # Disable shutdown/signal handlers for debugging (the value is not considered)
 # EOS_NO_SHUTDOWN=1
