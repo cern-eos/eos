@@ -774,6 +774,12 @@ public:
     return {mFstStreamStateCount, mFstStreamStateEstimatedBytes};
   }
 
+  std::unique_lock<std::shared_mutex>
+  LockStateForTest()
+  {
+    return std::unique_lock<std::shared_mutex>(mMutex);
+  }
+
   std::vector<AppNodeIoPressureSnapshot>
   GetReservedAppNodeIoPressureForTest(
       const std::unordered_map<std::string, double>& node_io_pressure,
@@ -1114,7 +1120,6 @@ private:
   std::deque<QueuedFstIoReport> mReportQueue{};
   size_t mReportQueueEstimatedBytes = 0;
   std::mutex mReportQueueMutex{};
-  std::atomic<bool> mReportProcessingInProgress{false};
   std::atomic<uint64_t> mLastReportQueueWarningMonotonicNs{0};
 };
 

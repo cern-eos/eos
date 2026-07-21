@@ -54,7 +54,7 @@ constexpr int64_t kFilesystemPressureMaxAgeMs = 45'000;
 constexpr int64_t kFilesystemPressureMaxFutureSkewMs = 5'000;
 constexpr int64_t kFstReportMaxFutureSkewMs = 5'000;
 constexpr auto kReportQueueWarningInterval = std::chrono::seconds(1);
-constexpr std::size_t kMaxQueuedReports = 500;
+constexpr std::size_t kMaxQueuedReports = 2000;
 constexpr std::size_t kMaxFstReportEntries = 8192;
 constexpr std::size_t kMaxFstReportIdentityBytes =
     eos::common::TRAFFIC_SHAPING_FST_IDENTITY_MAX_BYTES;
@@ -4943,7 +4943,6 @@ TrafficShapingEngine::StopRuntime() noexcept
       mReportQueue.clear();
       mReportQueueEstimatedBytes = 0;
     }
-    mReportProcessingInProgress.store(false, std::memory_order_relaxed);
     mLastReportQueueWarningMonotonicNs.store(0, std::memory_order_relaxed);
 
     if (mManager != nullptr) {
@@ -5000,15 +4999,14 @@ try {
     return;
   }
 
-  if (mReportProcessingInProgress.load(std::memory_order_acquire) ||
-      (mManager != nullptr &&
-       (mManager->GetFstReportQueueDepth() >= kReportQueueHighWater ||
-        mManager->GetFstReportQueueEstimatedBytes() >=
-            kReportQueueEstimatedBytesHighWater))) {
+  if (mManager != nullptr &&
+      (mManager->GetFstReportQueueDepth() >= kReportQueueHighWater ||
+       mManager->GetFstReportQueueEstimatedBytes() >=
+           kReportQueueEstimatedBytesHighWater)) {
     RecordRejectedFstReport();
     if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
       eos_static_warning("%s", "msg=\"Dropping Traffic Shaping FST report before "
-                               "parse while report processing is overloaded\"");
+                               "parse while report queue is overloaded\"");
     }
     return;
   }
@@ -5079,8 +5077,7 @@ TrafficShapingEngine::RecordRejectedFstReport() noexcept
                                           1);
     }
   } catch (...) {
-    // Queue accounting is atomic and best effort if even mutex acquisition
-    // fails.
+    // Queue accounting is atomic and best effort if even mutex acquisition fails.
     if (mManager != nullptr) {
       mManager->UpdateFstReportQueueStats(0, 0, 1);
     }
@@ -5117,8 +5114,7 @@ try {
     // StopRuntime clears the queue under this same lock. Recheck the runtime
     // state here so a report parsed concurrently with shutdown cannot enqueue
     // after that clear and leave stale work or queue metrics behind.
-    if (!mRunning.load(std::memory_order_acquire) ||
-        mReportProcessingInProgress.load(std::memory_order_acquire)) {
+    if (!mRunning.load(std::memory_order_acquire)) {
       report_valid = false;
     }
     if (!report_valid) {
@@ -5143,7 +5139,7 @@ try {
     if (dropped > 0) {
       uint64_t previous_warning_ns =
           mLastReportQueueWarningMonotonicNs.load(std::memory_order_relaxed);
-      const uint64_t warning_interval_ns =
+      constexpr uint64_t warning_interval_ns =
           static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                     kReportQueueWarningInterval)
                                     .count());
@@ -5197,39 +5193,12 @@ TrafficShapingEngine::ProcessAllQueuedReports()
     std::lock_guard lock(mReportQueueMutex);
     std::swap(mReportQueue, local_queue);
     mReportQueueEstimatedBytes = 0;
-    if (local_queue.empty()) {
-      if (mManager != nullptr) {
-        mManager->UpdateFstReportQueueStats(0, 0, 0);
-      }
-      return;
-    }
-    mReportProcessingInProgress.store(true, std::memory_order_release);
     if (mManager != nullptr) {
       mManager->UpdateFstReportQueueStats(0, 0, 0);
     }
   }
 
-  struct ProcessingGuard {
-    std::shared_ptr<TrafficShapingManager> manager;
-    std::mutex* queue_mutex;
-    std::deque<QueuedFstIoReport>* queue;
-    size_t* queue_estimated_bytes;
-    std::atomic<bool>* processing;
-    ~ProcessingGuard() noexcept
-    {
-      try {
-        std::lock_guard lock(*queue_mutex);
-        if (manager != nullptr) {
-          manager->UpdateFstReportQueueStats(queue->size(), *queue_estimated_bytes, 0);
-        }
-      } catch (...) {
-      }
-      processing->store(false, std::memory_order_release);
-    }
-  } processing_guard{mManager, &mReportQueueMutex, &mReportQueue,
-                     &mReportQueueEstimatedBytes, &mReportProcessingInProgress};
-
-  if (mManager == nullptr) {
+  if (local_queue.empty() || mManager == nullptr) {
     return;
   }
 

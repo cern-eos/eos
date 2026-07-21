@@ -497,12 +497,12 @@ TEST(TrafficShapingEngine, ReportQueueOverflowHonorsCountBound)
   engine.mRunning.store(true, std::memory_order_release);
   eos::traffic_shaping::FstIoReport report;
   report.set_node_id("queue-count-node");
-  for (size_t i = 0; i < 501; ++i) {
+  for (size_t i = 0; i < 2001; ++i) {
     engine.AddReportToQueue(report);
   }
 
   const auto manager = engine.GetManager();
-  EXPECT_EQ(500u, manager->GetFstReportQueueDepth());
+  EXPECT_EQ(2000u, manager->GetFstReportQueueDepth());
   EXPECT_EQ(1u, manager->GetFstReportsDroppedTotal());
   EXPECT_GT(manager->GetFstReportQueueEstimatedBytes(), 0u);
 
@@ -518,12 +518,12 @@ TEST(TrafficShapingEngine, ReportQueueHighWaterShedsSerializedReports)
   engine.mRunning.store(true, std::memory_order_release);
   eos::traffic_shaping::FstIoReport report;
   report.set_node_id("queue-below-bound-node");
-  for (size_t i = 0; i < 400; ++i) {
+  for (size_t i = 0; i < 1600; ++i) {
     engine.AddReportToQueue(report);
   }
 
   const auto manager = engine.GetManager();
-  EXPECT_EQ(400u, manager->GetFstReportQueueDepth());
+  EXPECT_EQ(1600u, manager->GetFstReportQueueDepth());
   EXPECT_EQ(0u, manager->GetFstReportsDroppedTotal());
   EXPECT_GT(manager->GetFstReportQueueEstimatedBytes(), 0u);
 
@@ -531,7 +531,7 @@ TEST(TrafficShapingEngine, ReportQueueHighWaterShedsSerializedReports)
   serialized_report.set_node_id("queue-shed-node");
   engine.ProcessSerializedFstIoReportNonBlocking(serialized_report.SerializeAsString());
 
-  EXPECT_EQ(400u, manager->GetFstReportQueueDepth());
+  EXPECT_EQ(1600u, manager->GetFstReportQueueDepth());
   EXPECT_EQ(1u, manager->GetFstReportsDroppedTotal());
 
   engine.ProcessAllQueuedReports();
@@ -669,19 +669,37 @@ TEST(TrafficShapingEngine, PredecodeRejectionIsAccounted)
   EXPECT_EQ(0u, engine.GetManager()->GetFstReportQueueDepth());
 }
 
-TEST(TrafficShapingEngine, SerializedReportIsShedDuringQueueProcessing)
+TEST(TrafficShapingEngine, SerializedReportQueuesDuringConcurrentBatchProcessing)
 {
   eos::mgm::traffic_shaping::TrafficShapingEngine engine;
   engine.mRunning.store(true, std::memory_order_release);
-  engine.mReportProcessingInProgress.store(true, std::memory_order_release);
-  eos::traffic_shaping::FstIoReport report;
-  report.set_node_id("/eos/fst-a.example:1095/fst");
+  const auto manager = engine.GetManager();
+  eos::traffic_shaping::FstIoReport first_report;
+  first_report.set_node_id("/eos/fst-a.example:1095/fst");
+  first_report.set_timestamp_ms(1);
+  engine.AddReportToQueue(std::move(first_report));
 
-  engine.ProcessSerializedFstIoReportNonBlocking(report.SerializeAsString());
+  auto state_lock = manager->LockStateForTest();
+  std::thread processor([&engine]() { engine.ProcessAllQueuedReports(); });
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  while (manager->GetFstReportQueueDepth() != 0 &&
+         std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::yield();
+  }
+  EXPECT_EQ(0u, manager->GetFstReportQueueDepth());
 
-  EXPECT_EQ(0u, engine.GetManager()->GetFstReportQueueDepth());
-  EXPECT_EQ(1u, engine.GetManager()->GetFstReportsDroppedTotal());
-  engine.mReportProcessingInProgress.store(false, std::memory_order_release);
+  eos::traffic_shaping::FstIoReport next_report;
+  next_report.set_node_id("/eos/fst-b.example:1095/fst");
+  next_report.set_timestamp_ms(2);
+  engine.ProcessSerializedFstIoReportNonBlocking(next_report.SerializeAsString());
+
+  EXPECT_EQ(1u, manager->GetFstReportQueueDepth());
+  EXPECT_EQ(0u, manager->GetFstReportsDroppedTotal());
+
+  state_lock.unlock();
+  processor.join();
+
+  EXPECT_EQ(1u, manager->GetFstReportQueueDepth());
   engine.mRunning.store(false, std::memory_order_release);
 }
 
