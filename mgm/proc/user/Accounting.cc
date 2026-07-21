@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/StringTokenizer.hh"
+#include "common/BuildVersion.hh"
 #include "common/ExpiryCache.hh"
 #include "common/Logging.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/proc/ProcCommand.hh"
+#include "common/StringTokenizer.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/quota/Quota.hh"
 #include "json/json.h"
 
@@ -99,7 +100,7 @@ ProcCommand::Accounting()
 
     root["storageservice"]["name"] = gOFS->MgmOfsInstanceName.c_str();
     std::ostringstream version;
-    version << VERSION << "-" << RELEASE;
+    version << VERSION << "-" << eos::common::kBuildRelease;
     root["storageservice"]["implementation"] = "EOS";
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};

@@ -25,9 +25,10 @@
 #include <cstdlib>
 #include <thread>
 
-#include "mgm/FuseServer/Clients.hh"
-#include "common/Logging.hh"
+#include "common/BuildVersion.hh"
 #include "common/CommentLog.hh"
+#include "common/Logging.hh"
+#include "mgm/FuseServer/Clients.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/zmq/ZMQ.hh"
@@ -264,8 +265,8 @@ FuseServer::Clients::Dispatch(const std::string identity,
     cfg.set_appname(true);
     cfg.set_mdquery(true);
     cfg.set_hideversion(true);
-    cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
-                            RELEASE));
+    cfg.set_serverversion(std::string(VERSION) + std::string("::") +
+                          eos::common::kBuildRelease);
     BroadcastConfig(identity, cfg);
   } else {
     if (caps_to_revoke.size()) {
@@ -1035,8 +1036,8 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
       cfg.set_appname(true);
       cfg.set_mdquery(true);
       cfg.set_hideversion(true);
-      cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
-                              RELEASE));
+      cfg.set_serverversion(std::string(VERSION) + std::string("::") +
+                            eos::common::kBuildRelease);
       BroadcastConfig(id, cfg);
     }
   }

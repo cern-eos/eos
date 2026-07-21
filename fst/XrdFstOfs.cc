@@ -37,59 +37,59 @@
 #ifdef HAVE_NFS
 #include "fst/io/nfs/NfsIo.hh"
 #endif
-#include "common/Utils.hh"
-#include "common/PasswordHandler.hh"
+#include "common/BufferManager.hh"
+#include "common/BuildVersion.hh"
+#include "common/Constants.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/PasswordHandler.hh"
 #include "common/Path.hh"
-#include "common/Statfs.hh"
-#include "common/SyncAll.hh"
+#include "common/ShellCmd.hh"
 #include "common/StackTrace.hh"
-#include "common/Timing.hh"
-#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
-#include "common/Constants.hh"
+#include "common/Statfs.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
+#include "common/SyncAll.hh"
+#include "common/Timing.hh"
+#include "common/Utils.hh"
 #include "common/XattrCompat.hh"
-#include "common/ShellCmd.hh"
-#include "common/BufferManager.hh"
 #include "common/async/ExecutorMgr.hh"
+#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "private/XrdSfs/XrdSfsFAttr.hh"
+#include "proto/Delete.pb.h"
+#include "qclient/Members.hh"
+#include "qclient/QClient.hh"
+#include "qclient/shared/SharedManager.hh"
+#include <Xrd/XrdScheduler.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdNet/XrdNetOpts.hh>
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucTrace.hh>
 #include <XrdSfs/XrdSfsAio.hh>
-#include <Xrd/XrdScheduler.hh>
-#include <XrdCl/XrdClFileSystem.hh>
-#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdVersion.hh>
-#include "qclient/Members.hh"
-#include "qclient/QClient.hh"
-#include "qclient/shared/SharedManager.hh"
-#include "proto/Delete.pb.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <math.h>
-#include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <sstream>
-#include <thread>
-#include <cctype>
 #include <algorithm>
+#include <cctype>
+#include <errno.h>
+#include <execinfo.h>
+#include <math.h>
+#include <signal.h>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -944,7 +944,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
-             "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
+             "KEYTABADLER=%s",
+             mHostName, myPort, mHttpdPort, VERSION, eos::common::kBuildRelease,
              keytab_xs.c_str());
   return NoGo;
 }

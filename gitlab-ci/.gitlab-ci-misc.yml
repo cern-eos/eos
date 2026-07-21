@@ -86,6 +86,7 @@ pre_commit:
   needs: [ ]
   variables:
     PIP_NO_CACHE_DIR: "1"
+    GIT_SUBMODULE_STRATEGY: none
   before_script:
     - dnf install -y git python python-pip clang-tools-extra
     - python -m pip install --upgrade pip

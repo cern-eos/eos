@@ -21,27 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <cstdio>
-#include <sstream>
-#include <fcntl.h>
-#include <syscall.h>
-#include <sys/time.h>
-#include <zlib.h>
 #include "EosAuthOfs.hh"
-#include "ProtoUtils.hh"
 #include "EosAuthOfsDirectory.hh"
 #include "EosAuthOfsFile.hh"
+#include "ProtoUtils.hh"
+#include "common/BuildVersion.hh"
 #include "common/SymKeys.hh"
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOss/XrdOssApi.hh>
-#include <XrdSec/XrdSecEntity.hh>
+#include <XProtocol/XProtocol.hh>
+#include <XrdNet/XrdNetAddr.hh>
 #include <XrdNet/XrdNetIF.hh>
 #include <XrdNet/XrdNetUtils.hh>
-#include <XrdNet/XrdNetAddr.hh>
-#include <XProtocol/XProtocol.hh>
+#include <XrdOss/XrdOssApi.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSec/XrdSecEntity.hh>
 #include <XrdVersion.hh>
+#include <cstdio>
+#include <fcntl.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <sstream>
+#include <sys/time.h>
+#include <syscall.h>
+#include <zlib.h>
 
 // The global OFS handle
 eos::auth::EosAuthOfs* eos::auth::gOFS = nullptr;
@@ -404,7 +405,8 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
   }
 
   eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s",
-             mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str());
+             mManagerIp.c_str(), myPort, VERSION, eos::common::kBuildRelease,
+             keytabcks.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
     eos_crit("unable to store the created symmetric key %s", symkey.c_str());

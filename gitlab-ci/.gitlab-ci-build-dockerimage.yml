@@ -21,6 +21,8 @@
 
 clone_docker:
   stage: build:rpm
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   script:
     - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git

@@ -2,6 +2,7 @@
 // File: version-native.cc
 // ----------------------------------------------------------------------
 
+#include "common/BuildVersion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
@@ -94,7 +95,7 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     if (opts.find('m') == std::string::npos && !ctx.json) {
       fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION,
-              RELEASE);
+              eos::common::kBuildRelease);
     }
     return 0;
   }

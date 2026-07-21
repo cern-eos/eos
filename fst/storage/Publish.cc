@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "Constants.hh"
+#include "common/BuildVersion.hh"
 #include "common/IntervalStopwatch.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
@@ -146,7 +147,8 @@ static std::string GetXrootdVersion() {
 // Retrieve eos version
 //------------------------------------------------------------------------------
 static std::string GetEosVersion() {
-  static std::string s_eos_version = SSTR(VERSION << "-" << RELEASE).c_str();
+  static std::string s_eos_version =
+      SSTR(VERSION << "-" << eos::common::kBuildRelease).c_str();
   return s_eos_version;
 }
 

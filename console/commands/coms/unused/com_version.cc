@@ -22,8 +22,9 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "console/ConsoleMain.hh"
+#include "common/BuildVersion.hh"
 #include "common/StringTokenizer.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Get the server version*/
@@ -64,7 +65,7 @@ com_version(char* arg)
   global_retc = output_result(client_command(in));
   if ( (option.find("m") == STR_NPOS) && !json ) {
     fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION,
-          RELEASE);
+            eos::common::kBuildRelease);
   }
   return (0);
 com_version_usage:
