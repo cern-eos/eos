@@ -34,6 +34,15 @@ variables:
   CODENAME: "diopside"
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 1
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8
+  CCACHE_POLICY: pull-push
+  FF_USE_FASTZIP: "true"
+  CACHE_COMPRESSION_LEVEL: fastest
+  ARTIFACT_COMPRESSION_LEVEL: fastest
+  # RPM payload codec for dev builds: zstd-3 is much faster than the default xz
+  # for a marginally larger package. Cleared for tag builds (see workflow rules)
+  # so published release RPMs keep the smaller default compression.
+  RPM_BINARY_PAYLOAD: "w3.zstdio"
 
 default:
   interruptible: true
@@ -57,6 +66,8 @@ workflow:
     - if: '$CI_COMMIT_TAG'
       variables:
         KOJI_SCRATCH: ""
+        CCACHE_POLICY: push
+        RPM_BINARY_PAYLOAD: ""
     # Merge request pipelines
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       variables:
@@ -91,6 +102,19 @@ workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_COMMIT_TAG'
+
+# build_el9 is the primary platform: unlike el8/el10 (schedule + tag only) it
+# runs on every pipeline, starts without waiting on earlier stages (needs: []),
+# and only pulls the ccache on scheduled runs so it does not repopulate it.
+.rules-build-el9:
+  rules:
+    - if: '$PREBUILD_TRIGGER'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      variables:
+        CCACHE_POLICY: pull
+      needs: []
+    - when: on_success
+      needs: []
 
 .rules-schedules-and-triggers:
   rules:

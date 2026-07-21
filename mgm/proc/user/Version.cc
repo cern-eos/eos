@@ -21,9 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/BuildVersion.hh"
 #include "mgm/features/Features.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/stat/Stat.hh"
 #include <XrdVersion.hh>
 
@@ -52,7 +53,7 @@ ProcCommand::Version()
     stdOut += " eos.instance.version=";
     stdOut += VERSION;
     stdOut += " eos.instance.release=";
-    stdOut += RELEASE;
+    stdOut += eos::common::kBuildRelease;
     stdOut += " xrootd.version=";
     stdOut += XrdVersion.c_str();
     stdOut += " ";
@@ -69,7 +70,7 @@ ProcCommand::Version()
     stdOut += "\nEOS_SERVER_VERSION=";
     stdOut += VERSION;
     stdOut += " EOS_SERVER_RELEASE=";
-    stdOut += RELEASE;
+    stdOut += eos::common::kBuildRelease;
 
     if (option.find("f") != STR_NPOS) {
       stdOut += "\nEOS_SERVER_FEATURES=";

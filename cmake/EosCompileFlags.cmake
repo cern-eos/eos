@@ -35,7 +35,7 @@ set(CMAKE_CXX_EXTENSIONS FALSE)
 # and 37.
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
 
-add_compile_definitions(EOSCITRINE VERSION="${VERSION}" RELEASE="${RELEASE}")
+add_compile_definitions(EOSCITRINE VERSION="${VERSION}")
 
 #-------------------------------------------------------------------------------
 # Compile Options

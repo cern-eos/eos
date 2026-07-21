@@ -86,6 +86,12 @@ include(EosUtils)
 EOS_CheckOutOfSourceBuild()
 EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/common")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/BuildVersion.hh.in"
+  "${CMAKE_BINARY_DIR}/common/BuildVersion.hh" @ONLY)
+
 include(EosOSDefaults)
 
 if (NOT PACKAGEONLY)
@@ -137,7 +143,7 @@ endif()
 #-------------------------------------------------------------------------------
 # Build qclient static library
 #-------------------------------------------------------------------------------
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 add_subdirectory(common)
 add_subdirectory(proto)
 add_subdirectory(fst)

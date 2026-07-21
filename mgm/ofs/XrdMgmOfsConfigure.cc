@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "common/Audit.hh"
+#include "common/BuildVersion.hh"
 #include "common/CommentLog.hh"
 #include "common/InstanceName.hh"
 #include "common/JeMallocHandler.hh"
@@ -1572,7 +1573,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::SymKey::Base64Encode(binary_sha1.data(), binary_sha1.size(),
                                     symkey);
   eos_static_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s "
-                    "KEYTABADLER=%s", HostName, myPort, VERSION, RELEASE,
+                    "KEYTABADLER=%s",
+                    HostName, myPort, VERSION, eos::common::kBuildRelease,
                     keytab_xs.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
