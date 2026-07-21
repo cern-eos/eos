@@ -315,11 +315,14 @@ struct LoopTimingSnapshot {
 
 struct SystemTimingSnapshot {
   LoopTimingSnapshot estimators;
+  LoopTimingSnapshot fst_policy;
+  LoopTimingSnapshot io_pressure;
   LoopTimingSnapshot reservation_controller;
   LoopTimingSnapshot fst_limits;
   LoopTimingSnapshot garbage_collection;
   DurationHistogramSnapshot fsview_lock_wait;
   DurationHistogramSnapshot fsview_lock_hold;
+  uint64_t fst_policy_slow_iterations_total = 0;
 };
 
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
@@ -638,6 +641,9 @@ public:
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
+  void UpdateFstPolicyLoopMicroSec(uint64_t total_microseconds,
+                                   uint64_t pressure_microseconds, bool slow_iteration);
+
   void UpdateFsViewLockMicroSec(uint64_t wait_microseconds, uint64_t hold_microseconds);
 
   void UpdateFstReportsProcessed(uint64_t count);
@@ -779,11 +785,14 @@ private:
       fst_reports_processed_per_second;
 
   LoopTimingState mEstimatorsLoopTiming;
+  LoopTimingState mFstPolicyLoopTiming;
+  LoopTimingState mIoPressureLoopTiming;
   LoopTimingState mReservationControllerLoopTiming;
   LoopTimingState mFstLimitsLoopTiming;
   LoopTimingState mGarbageCollectionLoopTiming;
   DurationHistogramState mFsViewLockWaitTiming;
   DurationHistogramState mFsViewLockHoldTiming;
+  uint64_t mFstPolicySlowIterationsTotal{0};
   GarbageCollectionStats mGarbageCollectionRemovedTotal{0, 0, 0, 0, 0};
 
   double mEstimatorsTickIntervalSec{0.5};

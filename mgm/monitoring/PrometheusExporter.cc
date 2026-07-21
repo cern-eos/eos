@@ -353,6 +353,9 @@ public:
         "eos_io_shaping_loop_last_completed_timestamp_seconds",
         "Unix timestamp of the most recently completed traffic shaping loop "
         "iteration.");
+    auto slow_iterations = MakeCounterFamily(
+        "eos_io_shaping_slow_iterations_total",
+        "Traffic shaping loop iterations exceeding their warning threshold.");
     auto reports_processed = MakeGaugeFamily("eos_io_shaping_reports_processed_per_sec",
                                              "FST IO reports processed per second");
     auto report_queue_depth = MakeGaugeFamily(
@@ -504,7 +507,7 @@ public:
                        all_entries, all_entries_exported, all_entries_limited);
     AddSystemFamilies(
         *manager, system_loop_duration, fsview_lock_duration, loop_iterations,
-        loop_last_completed, reports_processed, report_queue_depth,
+        loop_last_completed, slow_iterations, reports_processed, report_queue_depth,
         report_queue_estimated_bytes, reports_dropped, stream_state_estimated_bytes,
         estimated_memory_bytes, memory_limit_bytes, stream_state_limit_entries,
         stream_states_rejected, garbage_collection_removed_entries, map_cardinality);
@@ -545,6 +548,7 @@ public:
         std::move(fsview_lock_duration),
         std::move(loop_iterations),
         std::move(loop_last_completed),
+        std::move(slow_iterations),
         std::move(reports_processed),
         std::move(report_queue_depth),
         std::move(report_queue_estimated_bytes),
@@ -719,6 +723,7 @@ private:
                     prometheus::MetricFamily& fsview_lock_duration,
                     prometheus::MetricFamily& loop_iterations,
                     prometheus::MetricFamily& loop_last_completed,
+                    prometheus::MetricFamily& slow_iterations,
                     prometheus::MetricFamily& reports_processed,
                     prometheus::MetricFamily& report_queue_depth,
                     prometheus::MetricFamily& report_queue_estimated_bytes,
@@ -743,6 +748,8 @@ private:
                static_cast<double>(loop.last_completed_timestamp_seconds));
     };
     add_loop_timing("estimators", timing.estimators);
+    add_loop_timing("fst_policy", timing.fst_policy);
+    add_loop_timing("io_pressure", timing.io_pressure);
     add_loop_timing("reservation_controller", timing.reservation_controller);
     add_loop_timing("fst_limits", timing.fst_limits);
     add_loop_timing("garbage_collection", timing.garbage_collection);
@@ -750,6 +757,8 @@ private:
                  timing.fsview_lock_wait);
     AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "hold"}},
                  timing.fsview_lock_hold);
+    AddCounter(slow_iterations, {{"cluster", mCluster}, {"loop_name", "fst_policy"}},
+               timing.fst_policy_slow_iterations_total);
     AddGauge(reports_processed, {{"cluster", mCluster}, {"stat", "mean"}},
              manager.GetFstReportsProcessedPerSecondMean());
     AddGauge(report_queue_depth, {{"cluster", mCluster}},

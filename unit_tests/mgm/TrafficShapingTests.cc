@@ -1135,6 +1135,7 @@ TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
   manager.ApplyThreadConfig(200, 200, 200, 15);
 
   manager.UpdateEstimatorsLoopMicroSec(2);
+  manager.UpdateFstPolicyLoopMicroSec(200000, 195000, true);
   manager.UpdateReservationControllerLoopMicroSec(0, false);
   manager.UpdateReservationControllerLoopMicroSec(123456, true);
   manager.UpdateFstLimitsLoopMicroSec(789);
@@ -1150,6 +1151,16 @@ TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
   EXPECT_EQ(1u, timing.estimators.duration.cumulative_bucket_counts[1]);
   EXPECT_EQ(1u, timing.estimators.iterations_total);
   EXPECT_GT(timing.estimators.last_completed_timestamp_seconds, 0u);
+
+  EXPECT_EQ(1u, timing.fst_policy.duration.sample_count);
+  EXPECT_DOUBLE_EQ(0.2, timing.fst_policy.duration.sample_sum_seconds);
+  EXPECT_EQ(1u, timing.fst_policy.iterations_total);
+  EXPECT_GT(timing.fst_policy.last_completed_timestamp_seconds, 0u);
+  EXPECT_EQ(1u, timing.io_pressure.duration.sample_count);
+  EXPECT_DOUBLE_EQ(0.195, timing.io_pressure.duration.sample_sum_seconds);
+  EXPECT_EQ(1u, timing.io_pressure.iterations_total);
+  EXPECT_GT(timing.io_pressure.last_completed_timestamp_seconds, 0u);
+  EXPECT_EQ(1u, timing.fst_policy_slow_iterations_total);
 
   EXPECT_EQ(1u, timing.reservation_controller.duration.sample_count);
   EXPECT_EQ(1u, timing.reservation_controller.iterations_total);
@@ -1169,10 +1180,13 @@ TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
   manager.ApplyThreadConfig(1000, 1000, 1000, 30);
   const auto after_reconfigure = manager.GetSystemTimingSnapshot();
   EXPECT_EQ(1u, after_reconfigure.estimators.duration.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.fst_policy.duration.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.io_pressure.duration.sample_count);
   EXPECT_EQ(1u, after_reconfigure.reservation_controller.duration.sample_count);
   EXPECT_EQ(1u, after_reconfigure.fst_limits.duration.sample_count);
   EXPECT_EQ(1u, after_reconfigure.fsview_lock_wait.sample_count);
   EXPECT_EQ(1u, after_reconfigure.fsview_lock_hold.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.fst_policy_slow_iterations_total);
 }
 
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)

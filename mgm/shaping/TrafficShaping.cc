@@ -3988,6 +3988,19 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
 }
 
 void
+TrafficShapingManager::UpdateFstPolicyLoopMicroSec(const uint64_t total_microseconds,
+                                                   const uint64_t pressure_microseconds,
+                                                   const bool slow_iteration)
+{
+  std::unique_lock lock(mMutex);
+  mFstPolicyLoopTiming.Observe(total_microseconds);
+  mIoPressureLoopTiming.Observe(pressure_microseconds);
+  if (slow_iteration) {
+    ++mFstPolicySlowIterationsTotal;
+  }
+}
+
+void
 TrafficShapingManager::UpdateFsViewLockMicroSec(const uint64_t wait_microseconds,
                                                 const uint64_t hold_microseconds)
 {
@@ -4042,9 +4055,11 @@ SystemTimingSnapshot
 TrafficShapingManager::GetSystemTimingSnapshot() const
 {
   std::shared_lock lock(mMutex);
-  return {mEstimatorsLoopTiming.Snapshot(), mReservationControllerLoopTiming.Snapshot(),
+  return {mEstimatorsLoopTiming.Snapshot(), mFstPolicyLoopTiming.Snapshot(),
+          mIoPressureLoopTiming.Snapshot(), mReservationControllerLoopTiming.Snapshot(),
           mFstLimitsLoopTiming.Snapshot(),  mGarbageCollectionLoopTiming.Snapshot(),
-          mFsViewLockWaitTiming.Snapshot(), mFsViewLockHoldTiming.Snapshot()};
+          mFsViewLockWaitTiming.Snapshot(), mFsViewLockHoldTiming.Snapshot(),
+          mFstPolicySlowIterationsTotal};
 }
 
 MapCardinalityStats
@@ -4196,11 +4211,14 @@ TrafficShapingManager::Clear()
   fst_limits_update_loop_micro_sec.reset();
   fst_reports_processed_per_second.reset();
   mEstimatorsLoopTiming.Clear();
+  mFstPolicyLoopTiming.Clear();
+  mIoPressureLoopTiming.Clear();
   mReservationControllerLoopTiming.Clear();
   mFstLimitsLoopTiming.Clear();
   mGarbageCollectionLoopTiming.Clear();
   mFsViewLockWaitTiming.Clear();
   mFsViewLockHoldTiming.Clear();
+  mFstPolicySlowIterationsTotal = 0;
   mGarbageCollectionRemovedTotal = {0, 0, 0, 0, 0};
 }
 
@@ -5581,9 +5599,10 @@ try {
                                                                 controller_done_time)
               .count();
 
-      if (static_cast<double>(compute_duration_us) >
-          static_cast<double>(mFstIoPolicyUpdateThreadPeriodMilliseconds) * 0.5 *
-              1000.0) {
+      const bool slow_iteration =
+          static_cast<double>(compute_duration_us) >
+          static_cast<double>(mFstIoPolicyUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0;
+      if (slow_iteration) {
         eos_static_warning(
             "msg=\"Traffic Shaping FST policy update loop is slow\" total_ms=%.2f "
             "pressure_ms=%.2f controller_ms=%.2f limits_ms=%.2f controller_ran=%d",
@@ -5593,6 +5612,8 @@ try {
             static_cast<double>(limits_duration_us) / 1000.0, run_controller);
       }
 
+      mManager->UpdateFstPolicyLoopMicroSec(compute_duration_us, pressure_duration_us,
+                                            slow_iteration);
       mManager->UpdateReservationControllerLoopMicroSec(controller_duration_us,
                                                         run_controller);
       mManager->UpdateFstLimitsLoopMicroSec(limits_duration_us);
