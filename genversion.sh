@@ -30,7 +30,7 @@ function getVersionFromLog()
     TAG=${TAG%-*}
   fi
 
-  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); gsub(":","",$2); print tag"-"$1$2"git"$4; }')"
+  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); gsub(":","",$2); print tag"-"$1$2"git"$NF; }')"
 
   if test $? -ne 0; then
     echo "unknown";
@@ -120,8 +120,10 @@ else
         exit 1
       fi
 
-      # Get last commit date and hash used to build the rest of the version
-      LOGINFO="$(git log -1 --format='%ai %h')"
+      # Use the committer date so a cherry-picked or rebased commit sorts after
+      # its new parent when commit builds are compared as package versions.
+      # Normalize to UTC because commit objects can record different timezones.
+      LOGINFO="$(TZ=UTC git log -1 --date=format-local:'%Y-%m-%d %H:%M:%S' --format='%cd %h')"
 
       if [[ ${?} -ne 0 ]]; then
         echo "[!] Can not get info about last commit"
