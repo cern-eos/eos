@@ -310,6 +310,9 @@ public:
     auto system_loop_duration_us =
         MakeGaugeFamily("eos_io_shaping_sys_loop_duration_microseconds",
                         "System thread loop duration in microseconds");
+    auto fsview_lock_duration_us = MakeGaugeFamily(
+        "eos_io_shaping_fsview_lock_duration_microseconds",
+        "Traffic shaping FsView lock wait and hold durations in microseconds.");
     auto reports_processed = MakeGaugeFamily("eos_io_shaping_reports_processed_per_sec",
                                              "FST IO reports processed per second");
     auto report_queue_depth = MakeGaugeFamily(
@@ -446,10 +449,10 @@ public:
     AddCounterFamilies(*manager, bytes_total, operations_total, fs_bytes_total,
                        fs_operations_total, all_bytes_total, all_operations_total,
                        all_entries, all_entries_exported, all_entries_limited);
-    AddSystemFamilies(*manager, system_loop_duration_us, reports_processed,
-                      report_queue_depth, report_queue_estimated_bytes, reports_dropped,
-                      stream_state_estimated_bytes, stream_states_rejected,
-                      map_cardinality);
+    AddSystemFamilies(*manager, system_loop_duration_us, fsview_lock_duration_us,
+                      reports_processed, report_queue_depth, report_queue_estimated_bytes,
+                      reports_dropped, stream_state_estimated_bytes,
+                      stream_states_rejected, map_cardinality);
     AddPolicyFamilies(*manager, policy_bytes);
     AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
@@ -484,6 +487,7 @@ public:
         std::move(all_entries_exported),
         std::move(all_entries_limited),
         std::move(system_loop_duration_us),
+        std::move(fsview_lock_duration_us),
         std::move(reports_processed),
         std::move(report_queue_depth),
         std::move(report_queue_estimated_bytes),
@@ -651,6 +655,7 @@ private:
   void
   AddSystemFamilies(TrafficShapingManager& manager,
                     prometheus::MetricFamily& system_loop_duration_us,
+                    prometheus::MetricFamily& fsview_lock_duration_us,
                     prometheus::MetricFamily& reports_processed,
                     prometheus::MetricFamily& report_queue_depth,
                     prometheus::MetricFamily& report_queue_estimated_bytes,
@@ -665,6 +670,10 @@ private:
                  manager.GetReservationControllerUpdateLoopMicroSecStats());
     AddLoopStats(system_loop_duration_us, mCluster, "fst_limits",
                  manager.GetFstLimitsUpdateLoopMicroSecStats());
+    AddLoopStats(fsview_lock_duration_us, mCluster, "wait",
+                 manager.GetFsViewLockWaitMicroSecStats());
+    AddLoopStats(fsview_lock_duration_us, mCluster, "hold",
+                 manager.GetFsViewLockHoldMicroSecStats());
     AddGauge(reports_processed, {{"cluster", mCluster}, {"stat", "mean"}},
              manager.GetFstReportsProcessedPerSecondMean());
     AddGauge(report_queue_depth, {{"cluster", mCluster}},

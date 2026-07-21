@@ -599,6 +599,8 @@ public:
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
+  void UpdateFsViewLockMicroSec(uint64_t wait_microseconds, uint64_t hold_microseconds);
+
   void UpdateFstReportsProcessed(uint64_t count);
 
   double GetFstReportsProcessedPerSecondMean() const;
@@ -618,6 +620,10 @@ public:
 
   std::tuple<uint64_t, uint64_t, uint64_t>
   GetReservationControllerUpdateLoopMicroSecStats() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetFsViewLockWaitMicroSecStats() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetFsViewLockHoldMicroSecStats() const;
 
   MapCardinalityStats GetMapCardinalityStats() const;
 
@@ -700,6 +706,10 @@ private:
       reservation_controller_update_loop_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_limits_update_loop_micro_sec;
+  std::optional<eos::common::traffic_shaping::SlidingWindowStats>
+      fsview_lock_wait_micro_sec;
+  std::optional<eos::common::traffic_shaping::SlidingWindowStats>
+      fsview_lock_hold_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_reports_processed_per_second;
 

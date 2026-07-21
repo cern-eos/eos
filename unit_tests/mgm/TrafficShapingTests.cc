@@ -1122,6 +1122,24 @@ TEST(TrafficShapingManager, ReservationControllerAndFstLimitLoopStatsAreSeparate
   ASSERT_EQ(789u, limits_max);
 }
 
+TEST(TrafficShapingManager, FsViewLockWaitAndHoldStatsAreSeparate)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.ApplyThreadConfig(200, 200, 200, 15);
+
+  manager.UpdateFsViewLockMicroSec(123, 456);
+
+  const auto [wait_median, wait_min, wait_max] = manager.GetFsViewLockWaitMicroSecStats();
+  const auto [hold_median, hold_min, hold_max] = manager.GetFsViewLockHoldMicroSecStats();
+
+  EXPECT_EQ(123u, wait_median);
+  EXPECT_EQ(123u, wait_min);
+  EXPECT_EQ(123u, wait_max);
+  EXPECT_EQ(456u, hold_median);
+  EXPECT_EQ(456u, hold_min);
+  EXPECT_EQ(456u, hold_max);
+}
+
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;

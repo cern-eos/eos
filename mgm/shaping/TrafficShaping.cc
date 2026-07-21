@@ -2,6 +2,7 @@
 #include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
+#include "common/mq/SharedHashWrapper.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
@@ -783,6 +784,10 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
         std::in_place, bounded_window_seconds, policy_tick_sec};
     std::optional<SlidingWindowStats> replacement_limit_loop_stats{
         std::in_place, bounded_window_seconds, policy_tick_sec};
+    std::optional<SlidingWindowStats> replacement_fsview_lock_wait_stats{
+        std::in_place, bounded_window_seconds, policy_tick_sec};
+    std::optional<SlidingWindowStats> replacement_fsview_lock_hold_stats{
+        std::in_place, bounded_window_seconds, policy_tick_sec};
 
     // A cadence change invalidates every fixed-window history. Rebuild these
     // bounded runtime entries lazily instead of allocating a new history for
@@ -801,6 +806,8 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
     reservation_controller_update_loop_micro_sec =
         std::move(replacement_controller_loop_stats);
     fst_limits_update_loop_micro_sec = std::move(replacement_limit_loop_stats);
+    fsview_lock_wait_micro_sec = std::move(replacement_fsview_lock_wait_stats);
+    fsview_lock_hold_micro_sec = std::move(replacement_fsview_lock_hold_stats);
     mSystemStatsWindowSeconds = bounded_window_seconds;
     mEstimatorsTickIntervalSec = estimator_tick_sec;
     mFstPolicyTickIntervalSec = policy_tick_sec;
@@ -853,7 +860,31 @@ struct EntityRateMaps {
 struct IoPressureSnapshot {
   std::unordered_map<std::string, double> nodes;
   std::unordered_map<DiskKey, double, DiskKeyHash> filesystems;
+  uint64_t fsview_lock_wait_us = 0;
+  uint64_t fsview_lock_hold_us = 0;
 };
+
+struct FilesystemPressureSource {
+  DiskKey key;
+  eos::common::SharedHashLocator locator;
+  eos::common::ActiveStatus active_status = eos::common::ActiveStatus::kOffline;
+};
+
+struct IoPressureTopologySnapshot {
+  std::vector<std::string> online_nodes;
+  std::vector<FilesystemPressureSource> filesystems;
+  uint64_t fsview_lock_wait_us = 0;
+  uint64_t fsview_lock_hold_us = 0;
+};
+
+uint64_t
+ElapsedMicroseconds(const std::chrono::steady_clock::time_point start,
+                    const std::chrono::steady_clock::time_point end)
+{
+  const auto elapsed =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+  return static_cast<uint64_t>(std::max<int64_t>(0, elapsed));
+}
 
 std::optional<double>
 ParseFreshFilesystemIoPressure(const std::string& load_value,
@@ -896,10 +927,67 @@ ParseFreshFilesystemIoPressure(const std::string& load_value,
 }
 
 std::optional<double>
-ReadFilesystemIoPressure(FileSystem* fs, const int64_t now_ms)
+ReadFilesystemIoPressure(const FilesystemPressureSource& source, const int64_t now_ms)
 {
-  return ParseFreshFilesystemIoPressure(fs->GetString("stat.disk.load"),
-                                        fs->GetString("stat.publishtimestamp"), now_ms);
+  if (source.active_status == eos::common::ActiveStatus::kOffline || !gOFS ||
+      !gOFS->mMessagingRealm) {
+    return std::nullopt;
+  }
+
+  static const std::vector<std::string> keys{"configstatus", "stat.boot",
+                                             "stat.disk.load", "stat.publishtimestamp"};
+  std::map<std::string, std::string> values;
+  eos::mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), source.locator, true,
+                                  false);
+  if (!hash.get(keys, values) ||
+      FileSystem::GetConfigStatusFromString(values["configstatus"].c_str()) <
+          eos::common::ConfigStatus::kRO ||
+      FileSystem::GetStatusFromString(values["stat.boot"].c_str()) !=
+          eos::common::BootStatus::kBooted) {
+    return std::nullopt;
+  }
+
+  return ParseFreshFilesystemIoPressure(values["stat.disk.load"],
+                                        values["stat.publishtimestamp"], now_ms);
+}
+
+IoPressureTopologySnapshot
+CollectIoPressureTopology()
+{
+  IoPressureTopologySnapshot snapshot;
+  const auto wait_start = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point lock_acquired;
+
+  {
+    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+    lock_acquired = std::chrono::steady_clock::now();
+    snapshot.filesystems.reserve(FsView::gFsView.mIdView.size());
+
+    // Copy only stable identifiers and atomic state while FsView protects the
+    // object lifetimes. Shared-hash reads can wait on QDB and happen below,
+    // after ViewMutex has been released.
+    for (const auto& [node_name, node_view] : FsView::gFsView.mNodeView) {
+      if (node_view->GetStatus() != "online") {
+        continue;
+      }
+
+      snapshot.online_nodes.push_back(node_name);
+      for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
+        auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
+        if (!fs) {
+          continue;
+        }
+        snapshot.filesystems.push_back(
+            FilesystemPressureSource{DiskKey{node_name, static_cast<uint64_t>(*fsid_it)},
+                                     fs->getHashLocator(), fs->GetActiveStatus()});
+      }
+    }
+  }
+
+  const auto lock_released = std::chrono::steady_clock::now();
+  snapshot.fsview_lock_wait_us = ElapsedMicroseconds(wait_start, lock_acquired);
+  snapshot.fsview_lock_hold_us = ElapsedMicroseconds(lock_acquired, lock_released);
+  return snapshot;
 }
 
 IoPressureSnapshot
@@ -910,58 +998,48 @@ CollectIoPressure(std::vector<std::string>* online_nodes = nullptr,
   const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
                              .count();
-  std::vector<std::pair<DiskKey, double>> filesystem_samples;
-
-  {
-    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-    if (include_filesystems) {
-      filesystem_samples.reserve(FsView::gFsView.mIdView.size());
-    }
-    for (const auto& [node_name, node_view] : FsView::gFsView.mNodeView) {
-      if (node_view->GetStatus() != "online") {
-        continue;
-      }
-
-      if (online_nodes) {
-        online_nodes->push_back(node_name);
-      }
-
-      bool have_pressure_sample = false;
-      double max_disk_load = 0.0;
-
-      for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
-        auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
-        if (!fs || !BaseView::ConsiderForStatistics(fs)) {
-          continue;
-        }
-
-        const auto disk_load = ReadFilesystemIoPressure(fs, now_ms);
-        if (!disk_load.has_value()) {
-          continue;
-        }
-
-        if (include_filesystems) {
-          filesystem_samples.emplace_back(
-              DiskKey{node_name, static_cast<uint64_t>(*fsid_it)}, *disk_load);
-        }
-        max_disk_load = std::max(max_disk_load, *disk_load);
-        have_pressure_sample = true;
-      }
-
-      if (have_pressure_sample) {
-        pressure.nodes[node_name] = max_disk_load;
-      }
-    }
+  auto topology = CollectIoPressureTopology();
+  pressure.fsview_lock_wait_us = topology.fsview_lock_wait_us;
+  pressure.fsview_lock_hold_us = topology.fsview_lock_hold_us;
+  if (online_nodes) {
+    *online_nodes = std::move(topology.online_nodes);
+  }
+  if (include_filesystems) {
+    pressure.filesystems.reserve(topology.filesystems.size());
   }
 
-  if (include_filesystems) {
-    pressure.filesystems.reserve(filesystem_samples.size());
-    for (auto& [key, sample] : filesystem_samples) {
-      pressure.filesystems.emplace(std::move(key), sample);
+  for (const auto& source : topology.filesystems) {
+    const auto disk_load = ReadFilesystemIoPressure(source, now_ms);
+    if (!disk_load.has_value()) {
+      continue;
+    }
+
+    auto [node_it, inserted] = pressure.nodes.try_emplace(source.key.node_id, *disk_load);
+    if (!inserted) {
+      node_it->second = std::max(node_it->second, *disk_load);
+    }
+    if (include_filesystems) {
+      pressure.filesystems.emplace(source.key, *disk_load);
     }
   }
 
   return pressure;
+}
+
+bool
+SetNodeConfigMember(const std::string& node_name, const std::string& key,
+                    const std::string& value)
+{
+  if (!gOFS || !gOFS->mMessagingRealm) {
+    return false;
+  }
+
+  // Resolve the shared hash by its stable locator so the synchronous update
+  // neither retains a raw FsNode pointer nor requires ViewMutex.
+  eos::mq::SharedHashWrapper node_hash(
+      gOFS->mMessagingRealm.get(), eos::common::SharedHashLocator::makeForNode(node_name),
+      true, false);
+  return node_hash.set(key, value);
 }
 
 void
@@ -3593,16 +3671,10 @@ TrafficShapingManager::UpdateLimits(
   }
 
   std::vector<std::pair<std::string, std::string>> published_configs;
-  if (!configs_to_publish.empty()) {
-    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-    for (const auto& [node_name, encoded] : configs_to_publish) {
-      auto it = FsView::gFsView.mNodeView.find(node_name);
-      if (it != FsView::gFsView.mNodeView.end()) {
-        if (it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS,
-                                        encoded, true)) {
-          published_configs.emplace_back(node_name, encoded);
-        }
-      }
+  for (const auto& [node_name, encoded] : configs_to_publish) {
+    if (SetNodeConfigMember(node_name, eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+                            encoded)) {
+      published_configs.emplace_back(node_name, encoded);
     }
   }
 
@@ -3837,6 +3909,21 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
   }
 }
 
+void
+TrafficShapingManager::UpdateFsViewLockMicroSec(const uint64_t wait_microseconds,
+                                                const uint64_t hold_microseconds)
+{
+  std::unique_lock lock(mMutex);
+  if (fsview_lock_wait_micro_sec) {
+    fsview_lock_wait_micro_sec->Add(wait_microseconds);
+    fsview_lock_wait_micro_sec->Tick();
+  }
+  if (fsview_lock_hold_micro_sec) {
+    fsview_lock_hold_micro_sec->Add(hold_microseconds);
+    fsview_lock_hold_micro_sec->Tick();
+  }
+}
+
 std::tuple<uint64_t, uint64_t, uint64_t>
 TrafficShapingManager::GetEstimatorsUpdateLoopMicroSecStats() const
 {
@@ -3875,6 +3962,30 @@ TrafficShapingManager::GetReservationControllerUpdateLoopMicroSecStats() const
         reservation_controller_update_loop_micro_sec->GetMin(true),
         reservation_controller_update_loop_micro_sec->GetMax(true),
     };
+  }
+  return {0, 0, 0};
+}
+
+std::tuple<uint64_t, uint64_t, uint64_t>
+TrafficShapingManager::GetFsViewLockWaitMicroSecStats() const
+{
+  std::shared_lock lock(mMutex);
+  if (fsview_lock_wait_micro_sec) {
+    return {fsview_lock_wait_micro_sec->GetMedian(true),
+            fsview_lock_wait_micro_sec->GetMin(true),
+            fsview_lock_wait_micro_sec->GetMax(true)};
+  }
+  return {0, 0, 0};
+}
+
+std::tuple<uint64_t, uint64_t, uint64_t>
+TrafficShapingManager::GetFsViewLockHoldMicroSecStats() const
+{
+  std::shared_lock lock(mMutex);
+  if (fsview_lock_hold_micro_sec) {
+    return {fsview_lock_hold_micro_sec->GetMedian(true),
+            fsview_lock_hold_micro_sec->GetMin(true),
+            fsview_lock_hold_micro_sec->GetMax(true)};
   }
   return {0, 0, 0};
 }
@@ -3999,6 +4110,8 @@ TrafficShapingManager::Clear()
   estimators_update_loop_micro_sec.reset();
   reservation_controller_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
+  fsview_lock_wait_micro_sec.reset();
+  fsview_lock_hold_micro_sec.reset();
   fst_reports_processed_per_second.reset();
 }
 
@@ -5348,6 +5461,8 @@ try {
       std::vector<std::string> online_nodes;
       const auto io_pressure = CollectIoPressure(&online_nodes, false);
       const auto pressure_done_time = std::chrono::steady_clock::now();
+      mManager->UpdateFsViewLockMicroSec(io_pressure.fsview_lock_wait_us,
+                                         io_pressure.fsview_lock_hold_us);
 
       if (run_controller) {
         mManager->UpdateTrafficShapingController(io_pressure.nodes);
@@ -5641,12 +5756,8 @@ TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
   const std::string enabled_str = enabled ? "true" : "false";
 
   for (const auto& node_name : GetOnlineFstNodeNames()) {
-    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-    auto it = FsView::gFsView.mNodeView.find(node_name);
-    if (it != FsView::gFsView.mNodeView.end()) {
-      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
-                                  enabled_str, true);
-    }
+    SetNodeConfigMember(node_name, eos::common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
+                        enabled_str);
   }
 }
 
@@ -5658,14 +5769,10 @@ TrafficShapingEngine::SyncTrafficShapingConfigWithFst()
   const std::string detail_level = GetDetailLevel();
 
   for (const auto& node_name : GetOnlineFstNodeNames()) {
-    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-    auto it = FsView::gFsView.mNodeView.find(node_name);
-    if (it != FsView::gFsView.mNodeView.end()) {
-      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
-                                  period_str, true);
-      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
-                                  detail_level, true);
-    }
+    SetNodeConfigMember(node_name, eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
+                        period_str);
+    SetNodeConfigMember(node_name, eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
+                        detail_level);
   }
 }
 
