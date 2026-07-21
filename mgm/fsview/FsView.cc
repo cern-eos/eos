@@ -1017,6 +1017,17 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("lru", "off");
     }
 
+    // Read-through cache watermarks (percent of used capacity)
+    if (GetConfigMember(eos::common::SPACE_CACHE_LOW_WATERMARK_NAME).empty()) {
+      SetConfigMember(eos::common::SPACE_CACHE_LOW_WATERMARK_NAME,
+                      eos::common::SPACE_CACHE_LOW_WATERMARK_DEFAULT);
+    }
+
+    if (GetConfigMember(eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME).empty()) {
+      SetConfigMember(eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME,
+                      eos::common::SPACE_CACHE_HIGH_WATERMARK_DEFAULT);
+    }
+
     // Set one week lru interval by default
     if (GetConfigMember("lru.interval") == "604800") {
       SetConfigMember("lru.interval", "604800");

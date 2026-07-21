@@ -12,7 +12,7 @@
  * (at your option) any later version.                                  *
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied waDon'trranty of  *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
@@ -314,8 +314,19 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation,
       mFsId, mFileId);
   COMMONTIMING("layout::exists", &tm);
+  const bool is_cache_open = (mCapOpaque && mCapOpaque->Get("mgm.cache") &&
+                              mCapOpaque->Get("mgm.cache.fsid") &&
+                              (mFsId == (eos::common::FileSystem::fsid_t)
+                               atoi(mCapOpaque->Get("mgm.cache.fsid"))));
 
-  if ((retc = mLayout->GetFileIo()->fileExists())) {
+  // Read-through cache serves from a sparse journal, not the normal FST path
+  if (is_cache_open) {
+    eos_info("msg=\"skip local exists check for cache open\" fxid=%08llx "
+             "fsid=%u", mFileId, mFsId);
+    // Backend (or client-side) checksum is authoritative; do not verify
+    // against a non-existent local replica on the cache filesystem
+    mChecksumGroup->Clear();
+  } else if ((retc = mLayout->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or returns ENOENT,
     // otherwise we might trigger an automatic clean-up of a file!!!
     if (errno != ENOENT) {
@@ -578,45 +589,78 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   COMMONTIMING("get::localfmd", &tm);
-  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                       vid.uid, vid.gid, mLid);
-  COMMONTIMING("resync::localfmd", &tm);
 
-  if (mFmd == nullptr) {
-    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRdrManager.c_str())) {
-      eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
-      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
-                                           mIsRW, vid.uid, vid.gid, mLid);
-      std::string dummy_xs;
-      int rc = 0;
+  if (is_cache_open) {
+    // Cache opens serve from a sparse journal under .eoscache; there is no
+    // local replica or FMD xattr on the cache filesystem path. Build a
+    // transient FMD from the capability so the rest of open/close can proceed
+    // without ResyncDisk/ResyncMgm against a non-existent file.
+    mFmd = std::make_unique<eos::common::FmdHelper>(mFileId, mFsId);
+    mFmd->mProtoFmd.set_lid(mLid);
+    mFmd->mProtoFmd.set_cid(mCid);
+    mFmd->mProtoFmd.set_uid(vid.uid);
+    mFmd->mProtoFmd.set_gid(vid.gid);
+    uint64_t fsize = 0;
 
-      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
-                                             dummy_xs))) {
-        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx "
-                "path=%s rc=%d", mFsId, mFileId, mFstPath.c_str(), rc);
+    if (const char* ssize = mCapOpaque->Get("mgm.size")) {
+      fsize = strtoull(ssize, nullptr, 10);
+    }
+
+    mFmd->mProtoFmd.set_size(fsize);
+    mFmd->mProtoFmd.set_disksize(fsize);
+    mFmd->mProtoFmd.set_mgmsize(fsize);
+
+    if (const char* smtime = mCapOpaque->Get("mgm.cache.mtime")) {
+      mFmd->mProtoFmd.set_mtime(strtoll(smtime, nullptr, 10));
+    }
+
+    // No authoritative local checksum on the cache FS; skip verification
+    mFmd->mProtoFmd.set_checksum("none");
+    mFmd->mProtoFmd.set_mgmchecksum("none");
+    mFmd->mProtoFmd.set_diskchecksum("none");
+    eos_info("msg=\"using synthetic FMD for cache open\" fxid=%08llx "
+             "fsid=%u size=%llu", mFileId, mFsId, fsize);
+  } else {
+    mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+                                         vid.uid, vid.gid, mLid);
+    COMMONTIMING("resync::localfmd", &tm);
+
+    if (mFmd == nullptr) {
+      if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRdrManager.c_str())) {
+        eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
+        mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
+                                             mIsRW, vid.uid, vid.gid, mLid);
+        std::string dummy_xs;
+        int rc = 0;
+
+        if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                               dummy_xs))) {
+          eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx "
+                  "path=%s rc=%d", mFsId, mFileId, mFstPath.c_str(), rc);
+        } else {
+          eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+        }
       } else {
-        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
-      }
-    } else {
-      eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
-    }
-  }
-
-  if (mFmd == nullptr) {
-    eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
-
-    if (!mIsRW || (mLayout->IsEntryServer() && !mIsReplication)) {
-      eos_warning("msg=\"failed to get FMD record\" fsid=%u fxid=%08llx "
-                  "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
-                  mFstPath.c_str());
-
-      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
       }
     }
 
-    // Return an error that can be recovered at the MGM
-    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+    if (mFmd == nullptr) {
+      eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
+
+      if (!mIsRW || (mLayout->IsEntryServer() && !mIsReplication)) {
+        eos_warning("msg=\"failed to get FMD record\" fsid=%u fxid=%08llx "
+                    "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
+                    mFstPath.c_str());
+
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        }
+      }
+
+      // Return an error that can be recovered at the MGM
+      return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+    }
   }
 
   // Update the fmd information for any clone objects
@@ -795,8 +839,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   } else {
     // For reading of replica file check for xs errors unless this
-    // is a fuse client!
-    if (!mFusex && eos::common::LayoutId::IsReplica(mLid) &&
+    // is a fuse client or a read-through cache open (no local replica)!
+    if (!mFusex && !is_cache_open && eos::common::LayoutId::IsReplica(mLid) &&
         gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
       eos_err("msg=\"open failed due to checksum mismatch\" fxid=%08llx "
               "path=\"%s\"", mFileId, mNsPath.c_str());
@@ -1696,7 +1740,14 @@ XrdFstOfsFile::_close_rd()
   gOFS.openedForReading.down(mFsId, mFileId);
 
   if (checksum_err) {
-    if (!gOFS.mSimXsReadErr) {
+    const bool is_cache_open = (mCapOpaque && mCapOpaque->Get("mgm.cache") &&
+                                mCapOpaque->Get("mgm.cache.fsid") &&
+                                (mFsId == (eos::common::FileSystem::fsid_t)
+                                 atoi(mCapOpaque->Get("mgm.cache.fsid"))));
+
+    // Never persist checksum state onto the cache filesystem - there is no
+    // local replica / FMD xattr for journal-backed opens
+    if (!gOFS.mSimXsReadErr && !is_cache_open) {
       auto xs = mChecksumGroup->GetDefault();
 
       if (xs) {
@@ -2846,7 +2897,23 @@ XrdFstOfsFile::ProcessMixedOpaque()
                      "open - no file system id in capability", mNsPath.c_str());
   }
 
-  if (mOpenOpaque->Get("mgm.replicaindex")) {
+  // Read-through cache: only the FST that hosts the cache fsid remaps the
+  // local path. Backend FSTs keep mgm.fsid from the capability. Bridge
+  // fetches (eos.cache.bridge) are served as normal opens even when this
+  // FST also hosts the cache filesystem.
+  bool is_cache_remap = false;
+
+  if (mCapOpaque->Get("mgm.cache") && mCapOpaque->Get("mgm.cache.fsid") &&
+      !(mOpenOpaque && mOpenOpaque->Get("eos.cache.bridge"))) {
+    const auto cache_fsid = atoi(mCapOpaque->Get("mgm.cache.fsid"));
+
+    if (!gOFS.Storage->GetStoragePath(cache_fsid).empty()) {
+      sfsid = mCapOpaque->Get("mgm.cache.fsid");
+      is_cache_remap = true;
+    }
+  }
+
+  if (mOpenOpaque->Get("mgm.replicaindex") && !is_cache_remap) {
     XrdOucString replicafsidtag = "mgm.fsid";
     replicafsidtag += (int) atoi(mOpenOpaque->Get("mgm.replicaindex"));
 

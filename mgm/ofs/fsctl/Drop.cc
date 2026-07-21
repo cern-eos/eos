@@ -33,6 +33,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/iostat/Iostat.hh"
 #include <XrdOuc/XrdOucEnv.hh>
@@ -67,6 +68,7 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
+    eos::IFileMD::location_t cache_trunc_fsid = 0;
     eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
         gOFS->eosFsView, fsid);
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
@@ -164,6 +166,10 @@ XrdMgmOfs::Drop(const char* path,
             // there was indeed a replica to be dropped, otherwise we get
             // unlinked files if the secondary replica fails to write but
             // the machine can call the MGM
+            // Remember the cache location - the FST is notified only after
+            // the namespace lock is released (network call, lock recursion)
+            cache_trunc_fsid = fmd->getCacheLocation();
+
             if (ns_quota) {
               // If we were still attached to a container, we can now detach
               // and count the file as removed
@@ -186,6 +192,12 @@ XrdMgmOfs::Drop(const char* path,
           eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
         }
       }
+    }
+
+    if (cache_trunc_fsid) {
+      // Best-effort: the file is gone from the namespace, just tell the
+      // cache FST to drop the journal content
+      (void) ReadThroughCache::NotifyJournalTruncate(cache_trunc_fsid, fid);
     }
 
     if (report) {

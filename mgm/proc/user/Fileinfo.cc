@@ -449,6 +449,10 @@ ProcCommand::FileInfo(const char* path)
                 << std::endl;
             out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
 
+            if (fmd_copy->getCacheLocation()) {
+              out << "Cache: " << fmd_copy->getCacheLocation() << std::endl;
+            }
+
             if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
               std::string storage_class = xattrs["sys.archive.storage_class"];
               std::string archive_id = xattrs["sys.archive.file_id"];
@@ -504,6 +508,7 @@ ProcCommand::FileInfo(const char* path)
                 << " nstripes=" << (LayoutId::GetStripeNumber(lid) + 1)
                 << " lid=" << FileId::Fid2Hex(lid)
                 << " nrep=" << fmd_copy->getNumLocation()
+                << " cachefsid=" << fmd_copy->getCacheLocation()
                 << " ";
 
             for (const auto& elem : xattrs) {
@@ -1063,6 +1068,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     json["locations"] = jsonfsids;
+    json["cache_location"] = fmd_copy->getCacheLocation();
     json["checksumtype"] = eos::common::LayoutId::GetChecksumString(
                              fmd_copy->getLayoutId());
     std::string cks;
