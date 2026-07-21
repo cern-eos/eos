@@ -37,6 +37,7 @@ usage() { echo '''Usage: eos-https-functional-test [-h|--host <host>[:<port>| (-
                            [-v|--verbose]
                            [--macaroons] - run only macaroon tests
                            [--tpc]       - run only TPC tests
+                           [--authz]     - run only "authz=" opaque tests
 
                            [--help] - usage & exit
 '''; }
@@ -63,6 +64,7 @@ if [ "$#" != 0 ]; then
       # Your options go here.
       --macaroons)  macaroons=1;;
       --tpc)        tpc=1;;
+      --authz)      authz=1;;
       -v|--verbose) verbose="-v";;
       -h|--host)    assert_argument "$1" "$opt"; host="${1%:*}" && port="${1#*:}"; shift;;
       -p|--port)    assert_argument "$1" "$opt"; port="$1"; shift;;
@@ -88,6 +90,29 @@ if [ "$#" != 0 ]; then
 fi
 
 echo "Results:"
+
+# The proxy certificate is deliberately kept out of the default location.
+# XrdTlsContext::Init() builds every client tls context by taking the cert from
+# X509_USER_PROXY, falling back to an unconditional stat of /tmp/x509up_u<uid>,
+# and the key from X509_USER_KEY. A proxy sitting in the default place is
+# therefore presented as a client certificate by *every* subsequent xrootd
+# client on the machine - the plain "eos" calls of this script, its cleanup and
+# anything else the user runs - which fails against an MGM not accepting that
+# identity.
+proxy="/tmp/eos-https-functional-test-proxy-u$(id -u)"
+
+# Create the proxy once, on first use. Both macaroon() and eostoken() need it:
+# the credentials they obtain are only worth testing if they carry the identity
+# of ${cert}, which the MGM maps to the owner of the test directory.
+ensure_proxy() {
+    if X509_USER_PROXY=${proxy} voms-proxy-info -exists >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "info: create client proxy certificate"
+    X509_USER_CERT=${cert} X509_USER_KEY=${key} X509_USER_PROXY=${proxy} voms-proxy-init
+}
+
 ### X509
 # Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
 x509() {
@@ -108,10 +133,6 @@ x509() {
 ### Macaroon
 # Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
 macaroon() {
-    # certificate and private key
-    export X509_USER_CERT=${cert}
-    export X509_USER_KEY=${key}
-
     # Use the eos-macaroon-init tool to request a macaroon
     eos-macaroon-init -h >/dev/null 2>&1 || { echo -e >&2 "I require eos-macaroon-init but it's not installed.  Aborting.\n"
     "dnf install https://repo.opensciencegrid.org/osg/3.6/osg-3.6-el$(uname -r | awk -F '.' '$0=$(NF-1)')-release-latest.rpm\n"
@@ -119,15 +140,39 @@ macaroon() {
     exit 256;
     }
 
-    # Make sure the macaroon library does not allow random caveats
-    eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 --caveat "dummy:random" https://${host}:${port}/${testdir}/
+    # eos-macaroon-init honours X509_USER_PROXY and otherwise falls back to the
+    # host certificate when running as root - the --cert and --key of this
+    # script are only understood by curl. The proxy matters: the macaroon
+    # authorizes the operation but carries no identity of its own into the
+    # namespace, Mapping::IdMap derives the user from the 'request.name'
+    # attribute the authorization plugin fills with the issuing DN. Issued with
+    # the host certificate the request would be served as 'nobody' and could
+    # only ever succeed on a world writable directory.
+    ensure_proxy
 
-    if [[ $? -eq 0 ]]; then
-        echo -e "error: macaroon library allowd random caveat requets"
-        exit 1;
+    # Make sure the macaroon issuer does not allow random caveats. The URL has
+    # to come before the options: '--caveat' takes a variable number of values
+    # and would otherwise swallow the trailing URL, making eos-macaroon-init
+    # fail on its own argument parsing rather than on the issuer's answer.
+    if X509_USER_PROXY=${proxy} eos-macaroon-init https://${host}:${port}/${testdir}/ --activity UPLOAD,DOWNLOAD,MANAGE --validity 60 --caveat "dummy:random"; then
+        echo -e "\terror: macaroon issuer accepted a random caveat"
+        return 3
     fi
 
-    export MACAROON="$(eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 https://${host}:${port}/${testdir}/)"
+    # eos-macaroon-init prints the whole issuer response, the macaroon still has
+    # to be picked out of it - a raw json body handed over as a bearer token
+    # contains spaces and is rejected by the XrdHttp header parser
+    macaroonResp="$(X509_USER_PROXY=${proxy} eos-macaroon-init https://${host}:${port}/${testdir}/ --activity UPLOAD,DOWNLOAD,MANAGE --validity 60)"
+    export MACAROON="$(echo "${macaroonResp}" | jq -r '.macaroon')"
+
+    # Without this an unissued macaroon would leave an empty "Authorization:
+    # Bearer" header behind, and the requests below would silently be served as
+    # an unauthenticated client instead of failing
+    if [[ -z "${MACAROON}" || "${MACAROON}" == "null" ]]; then
+        echo -e "\terror: macaroon issuer did not return a token"
+        return 3
+    fi
+
     respMacaroonUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt --upload-file <(echo ola) | grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\tmacaroon upload -> ${respMacaroonUpload}"
     respMacaroonDownload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt|grep HTTP | tr -d '\r' | paste -sd'+')"
@@ -200,25 +245,23 @@ tcp() {
 
 # EOS token
 eostoken() {
-    # certificate and private key
-    export X509_USER_CERT=${cert}
-    export X509_USER_KEY=${key}
     echo "info: enable token generation"
     eos space config default space.token.generation=1
-    EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
-    echo "info: create client proxy certificate"
-    voms-proxy-init
+    # The tokens are reused by authz_opaque() which only runs after the TPC
+    # transfers, so give them enough headroom to still be valid by then
+    EXPIRE=`date +%s`; LATER=$(($EXPIRE+600));
+    ensure_proxy
     # Make destination directory only accessible to eos-user
     eos chmod 700 ${testdir}
 
-    export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
+    export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi X509_USER_PROXY=${proxy} eos root://${host}/ token --path ${testdir}/ --tree --permission rwx --expires $LATER`
 
     if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos rw token command failed'
         return 1
     fi
 
-    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rx --expires $LATER`
+    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi X509_USER_PROXY=${proxy} eos root://${host}/ token --path ${testdir}/ --tree --permission rx --expires $LATER`
 
     if [[ $EOS_RO_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos ro token command failed'
@@ -248,9 +291,73 @@ eostoken() {
     eostoken_ro_up=$?
 
     eos chmod 750 ${testdir}
-    echo "info: destroy client proxy certificate"
-    voms-proxy-destroy
     return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up))
+}
+
+### "authz=" opaque information
+# Authorization can also be given as opaque information instead of the
+# "Authorization" http header. XrdHttp hands the query over to the MGM already
+# percent-decoded, so every accepted spelling of the bearer prefix must end up
+# mapping the very same identity - see EOS-6614.
+# Reuses the credentials issued by the macaroon() and eostoken() tests. Both
+# were obtained with ${cert}, so both map to the owner of the test directory
+# and the transfers below are only granted because the credential was really
+# honoured - the directory is left at 750 by eostoken() and denies everyone
+# else, which is what makes the invalid token check meaningful too.
+authz_opaque() {
+    if [[ -z "${MACAROON}" || -z "${EOS_RW_TOKEN}" ]]; then
+        echo -e '\terror: authz opaque tests require a macaroon and an eos token'
+        return 1
+    fi
+
+    url="https://${host}:${port}${testdir}"
+
+    # Macaroon given as "?authz=Bearer%20<macaroon>" - the standard spelling
+    respAuthzMacUpload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" --upload-file <(echo ola-authz) | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon upload -> ${respAuthzMacUpload}"
+    [[ $respAuthzMacUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
+    authz_mac_up=$?
+
+    respAuthzMacDownload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon download -> ${respAuthzMacDownload}"
+    [[ $respAuthzMacDownload == "HTTP/1.1 200 OK" ]]
+    authz_mac_down=$?
+
+    # Double encoded percent sign - the workaround advertised before EOS-6614
+    # was fixed, it must keep on working
+    respAuthzMacEncDownload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%2520${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon (double encoded) download -> ${respAuthzMacEncDownload}"
+    [[ $respAuthzMacEncDownload == "HTTP/1.1 200 OK" ]]
+    authz_mac_enc_down=$?
+
+    # EOS token with the bearer prefix
+    respAuthzTokenBearer="$(curl -I -sS ${verbose} -L "${url}/helloworld-eostoken.txt?authz=Bearer%20${EOS_RW_TOKEN}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque eostoken (bearer) download -> ${respAuthzTokenBearer}"
+    [[ $respAuthzTokenBearer == "HTTP/1.1 200 OK" ]]
+    authz_tok_bearer=$?
+
+    # EOS token without any bearer prefix, the spelling used over xroot
+    respAuthzTokenBare="$(curl -I -sS ${verbose} -L "${url}/helloworld-eostoken.txt?authz=${EOS_RW_TOKEN}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque eostoken (bare) download -> ${respAuthzTokenBare}"
+    [[ $respAuthzTokenBare == "HTTP/1.1 200 OK" ]]
+    authz_tok_bare=$?
+
+    # An invalid token must never be granted access. The request is mapped to
+    # 'nobody', which the 750 mode left behind by eostoken() denies, and only
+    # ENOENT is reported as 404 by the MGM - hence a plain 403.
+    respAuthzInvalid="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20invalidtoken" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque invalid token download -> ${respAuthzInvalid}"
+    [[ $respAuthzInvalid == "HTTP/1.1 403 FORBIDDEN" ]]
+    authz_invalid=$?
+
+    # Authorization given both as opaque information and as http header is
+    # rejected by the MGM
+    respAuthzConflict="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque conflicting with http header -> ${respAuthzConflict}"
+    [[ $respAuthzConflict == *" 500"* ]]
+    authz_conflict=$?
+
+    return $((2#$authz_conflict$authz_invalid$authz_tok_bare$authz_tok_bearer$authz_mac_enc_down$authz_mac_down$authz_mac_up))
 }
 
 echo "info: prepare https test directory ${testdir}"
@@ -261,8 +368,9 @@ x509code=0
 macarooncode=0
 eostokencode=0
 tcpcode=0
+authzcode=0
 
-if [[ -z "$macaroons" && -z "$tpc" ]]; then
+if [[ -z "$macaroons" && -z "$tpc" && -z "$authz" ]]; then
   x509
   x509code=$?
   echo "x509:"$x509code
@@ -278,6 +386,10 @@ if [[ -z "$macaroons" && -z "$tpc" ]]; then
   tcp
   tcpcode=$?
   echo "tpc:"$tcpcode
+
+  authz_opaque
+  authzcode=$?
+  echo "authz-opaque:"$authzcode
 else
   if [[ -n "$macaroons" ]]; then
     macaroon
@@ -290,10 +402,32 @@ else
     tcpcode=$?
     echo "tpc:"$tcpcode
   fi
+
+  if [[ -n "$authz" ]]; then
+    # The opaque tests reuse the credentials issued by the tests below
+    macaroon
+    macarooncode=$?
+    echo "macaroon:"$macarooncode
+
+    eostoken
+    eostokencode=$?
+    echo "eostoken:"$eostokencode
+
+    authz_opaque
+    authzcode=$?
+    echo "authz-opaque:"$authzcode
+  fi
 fi
 
 echo "info: cleanup https test directory"
+if X509_USER_PROXY=${proxy} voms-proxy-info -exists >/dev/null 2>&1; then
+    echo "info: destroy client proxy certificate"
+    X509_USER_PROXY=${proxy} voms-proxy-destroy
+fi
 eos ls -lrta ${testdir}
-eos rm -rF ${testdir}
+# A recursive removal of a path less than 4 levels deep is interactively
+# confirmed by the console, which would block the test - see
+# rm-proto-native.cc:mNeedsConfirmation
+eos rm -rF --no-confirmation ${testdir}
 
-exit $((x509code | macarooncode | eostokencode | tcpcode))
+exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode))
