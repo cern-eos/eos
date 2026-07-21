@@ -25,6 +25,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/acl/Acl.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/policy/Policy.hh"
@@ -33,6 +34,7 @@
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/xattr/XattrLock.hh"
 #include "mgm/misc/Constants.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/Utils.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
@@ -95,22 +97,89 @@ ProcCommand::File()
     return SFS_OK;
   } else {
     // --------------------------------------------------------------------------
-    // drop a replica referenced by filesystem id
+    // drop a replica referenced by filesystem id, or the read-through cache
+    // location when mgm.file.dropcache=1 / fsid=cache
     // --------------------------------------------------------------------------
     if (mSubCmd == "drop") {
       cmdok = true;
       XrdOucString sfsid = pOpaque->Get("mgm.file.fsid");
       XrdOucString sforce = pOpaque->Get("mgm.file.force");
+      const char* sdropcache = pOpaque->Get("mgm.file.dropcache");
+      const bool drop_cache = (sdropcache && !strcmp(sdropcache, "1")) ||
+                              (sfsid == "cache");
       bool forceRemove = false;
 
       if (sforce.length() && (sforce == "1")) {
         forceRemove = true;
       }
 
-      unsigned long fsid = (sfsid.length()) ? strtoul(sfsid.c_str(), 0, 10) : 0;
+      unsigned long fsid = (sfsid.length() && !drop_cache) ?
+                           strtoul(sfsid.c_str(), 0, 10) : 0;
       unsigned long fid = (spathid.length()) ? strtoul(spathid.c_str(), 0, 10) : 0;
 
-      if (gOFS->_dropstripe(spath.c_str(), fid, *mError, *pVid, fsid, forceRemove)) {
+      if (drop_cache) {
+        try {
+          if (fid) {
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+          } else {
+            eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
+          }
+
+          std::shared_ptr<eos::IFileMD> fmd;
+          eos::IContainerMD::id_t cid = 0ull;
+          {
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+            if (fid) {
+              fmd = gOFS->eosFileService->getFileMD(fid);
+            } else {
+              fmd = gOFS->eosView->getFile(spath.c_str());
+              fid = fmd->getId();
+            }
+
+            cid = fmd->getContainerId();
+          }
+
+          if (cid) {
+            eos::Prefetcher::prefetchContainerMDWithParentsAndWait(
+              gOFS->eosView, cid);
+          }
+
+          // Same permission model as stripe drop: parent needs W_OK|X_OK
+          try {
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+            auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+            errno = 0;
+
+            if (pVid->token ||
+                (!cmd->access(pVid->uid, pVid->gid, X_OK | W_OK) && !errno)) {
+              stdErr = "error: permission denied to drop cache location";
+              retc = EPERM;
+              return SFS_OK;
+            }
+          } catch (eos::MDException& e) {
+            if (pVid->uid) {
+              stdErr = "error: permission denied to drop detached cache location";
+              retc = EPERM;
+              return SFS_OK;
+            }
+          }
+
+          const auto cache_fsid = ReadThroughCache::DropCacheLocation(fmd);
+
+          if (!cache_fsid) {
+            stdErr = "error: no cache location to drop";
+            retc = ENOENT;
+          } else {
+            stdOut += "success: dropped cache location fs=";
+            stdOut += (int) cache_fsid;
+          }
+        } catch (eos::MDException& e) {
+          stdErr = "error: unable to drop cache location";
+          retc = e.getErrno();
+        }
+      } else if (gOFS->_dropstripe(spath.c_str(), fid, *mError, *pVid, fsid,
+                                   forceRemove)) {
         stdErr += "error: unable to drop stripe";
         retc = errno;
       } else {

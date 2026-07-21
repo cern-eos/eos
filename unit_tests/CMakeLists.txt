@@ -173,7 +173,8 @@ set(FST_UT_SRCS
   fst/WalkDirTreeTests.cc
   fst/HttpHandlerFstFileCacheTests.cc
   fst/ChecksumGroupTests.cc
-  fst/NfsIoTests.cc)
+  fst/NfsIoTests.cc
+  fst/SparseJournalTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files

@@ -33,6 +33,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/iostat/Iostat.hh"
 #include <XrdOuc/XrdOucEnv.hh>
@@ -71,6 +72,7 @@ XrdMgmOfs::Drop(const char* path,
     // the FsView lock and does a network call, neither of which may happen
     // while holding eosViewRWMutex (lock order is FsView -> eosView)
     std::vector<eos::common::FileSystem::fsid_t> external_deletions;
+    eos::IFileMD::location_t cache_trunc_fsid = 0;
     // Note: we deliberately do NOT prefetch the file system file list here.
     // The only fsview operation done below is eraseEntry which never requires
     // the contents to be cached - it either updates an already loaded cache or
@@ -174,6 +176,10 @@ XrdMgmOfs::Drop(const char* path,
             // there was indeed a replica to be dropped, otherwise we get
             // unlinked files if the secondary replica fails to write but
             // the machine can call the MGM
+            // Remember the cache location - the FST is notified only after
+            // the namespace lock is released (network call, lock recursion)
+            cache_trunc_fsid = fmd->getCacheLocation();
+
             if (ns_quota) {
               // If we were still attached to a container, we can now detach
               // and count the file as removed
@@ -200,6 +206,12 @@ XrdMgmOfs::Drop(const char* path,
 
     for (const auto& id : external_deletions) {
       (void)DeleteExternal(id, fid);
+    }
+
+    if (cache_trunc_fsid) {
+      // Best-effort: the file is gone from the namespace, just tell the
+      // cache FST to drop the journal content
+      (void) ReadThroughCache::NotifyJournalTruncate(cache_trunc_fsid, fid);
     }
 
     if (report) {

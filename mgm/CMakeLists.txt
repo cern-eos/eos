@@ -185,6 +185,7 @@ add_library(
   proc/user/Whoami.cc
   quota/Quota.cc
   scheduler/Scheduler.cc
+  cache/ReadThroughCache.cc
   vid/Vid.cc
   fsview/FsView.cc
   ofs/XrdMgmOfsConfigure.cc

@@ -165,6 +165,16 @@ public:
   virtual void setCloneFST(const std::string& data) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get read-through cache location filesystem id (0 = none)
+  //----------------------------------------------------------------------------
+  virtual location_t getCacheLocation() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set read-through cache location filesystem id (0 = none)
+  //----------------------------------------------------------------------------
+  virtual void setCacheLocation(location_t location) = 0;
+
+  //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
   virtual uint64_t getSize() const = 0;

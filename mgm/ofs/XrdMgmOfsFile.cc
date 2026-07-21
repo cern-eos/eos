@@ -54,6 +54,7 @@
 #include "mgm/xattr/XattrLock.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1466,6 +1467,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
+      if (fmd) {
+        ReadThroughCache::TruncateOnMutation(fmd);
+      }
+
       if (!ocUploadUuid.length()) {
         fmd.reset();
       } else {
@@ -1496,6 +1501,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+
+        if (fmd) {
+          ReadThroughCache::TruncateOnMutation(fmd);
+        }
 
         // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
         if (gOFS->mAudit) {
@@ -2810,6 +2819,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     fs_id = filesystem->GetId();
   } // fs_rd_lock scope
 
+  bool used_proxy_entrypoint = false;
+
   if (auto result = setProxyFwEntrypoint(firewalleps, proxys, fsIndex,
                                          fs_hostport, fs_prefix);
       result.valid()) {
@@ -2817,6 +2828,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targethttpport = result.targethttpport;
     targethost = std::move(result.targethost);
     redirectionhost = result.redirectionhost.c_str();
+    used_proxy_entrypoint = true;
   } else {
     // There is no proxy or firewall entry point to use
     targethost  = fs_host.c_str();
@@ -3203,6 +3215,102 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += eos::common::StringConversion::Join(altChecksums, ",").c_str();
     capability += "&mgm.altxs.compute=";
     capability += computeAltXs ? "1" : "0";
+  }
+
+  // ---------------------------------------------------------------------------
+  // Optionally redirect reads through a configured cache space. Keep the
+  // backend fsid/host in the capability so the cache FST can fetch/bridge.
+  // ---------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t cache_fsid = 0;
+
+  // Skip caching when the client is redirected via a proxy or firewall
+  // entrypoint - the rebuilt redirection below would bypass it
+  if (!isRW && !isCreation && !isPio && !isPioReconstruct && !isInjection &&
+      !mIsZeroSize && !used_proxy_entrypoint && fmd) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    // Directory sys.forced.cachespace overrides space.cachespace when set
+    cache_fsid = ReadThroughCache::SelectCacheFs(space, fmd, &attrmap);
+
+    if (cache_fsid) {
+      auto* cache_fs = FsView::gFsView.mIdView.lookupByID(cache_fsid);
+
+      if (cache_fs) {
+        const std::string cache_host = cache_fs->GetString("host");
+        const int cache_port = atoi(cache_fs->GetString("port").c_str());
+        const int cache_http_port =
+          atoi(cache_fs->GetString("stat.http.port").c_str());
+        capability += "&mgm.cache=1";
+        capability += "&mgm.cache.fsid=";
+        capability += (int) cache_fsid;
+        capability += "&mgm.cache.backend.host=";
+        capability += targethost.c_str();
+        capability += "&mgm.cache.backend.port=";
+        capability += (int) targetport;
+        capability += "&mgm.cache.backend.fsid=";
+        capability += (int) fs_id;
+        capability += "&mgm.size=";
+        capability += std::to_string(fmd->getSize()).c_str();
+        {
+          eos::IFileMD::ctime_t mtime;
+          fmd->getMTime(mtime);
+          capability += "&mgm.cache.mtime=";
+          capability += std::to_string(mtime.tv_sec).c_str();
+        }
+        {
+          auto sit = FsView::gFsView.mSpaceView.find(space);
+          const std::string low_wm =
+            (sit != FsView::gFsView.mSpaceView.end() && sit->second) ?
+            sit->second->GetConfigMember(
+              eos::common::SPACE_CACHE_LOW_WATERMARK_NAME) :
+            std::string(eos::common::SPACE_CACHE_LOW_WATERMARK_DEFAULT);
+          const std::string high_wm =
+            (sit != FsView::gFsView.mSpaceView.end() && sit->second) ?
+            sit->second->GetConfigMember(
+              eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME) :
+            std::string(eos::common::SPACE_CACHE_HIGH_WATERMARK_DEFAULT);
+          capability += "&mgm.cache.low_watermark=";
+          capability += (low_wm.empty() ?
+                         eos::common::SPACE_CACHE_LOW_WATERMARK_DEFAULT :
+                         low_wm.c_str());
+          capability += "&mgm.cache.high_watermark=";
+          capability += (high_wm.empty() ?
+                         eos::common::SPACE_CACHE_HIGH_WATERMARK_DEFAULT :
+                         high_wm.c_str());
+        }
+        // Switch client redirect target to the cache FST
+        targethost = cache_host.c_str();
+        targetport = cache_port;
+        targethttpport = cache_http_port;
+        // Rebuild redirection host prefix; opaque is appended after encrypt
+        redirectionhost = targethost.c_str();
+        redirectionhost += "?";
+        eos_info("msg=\"read-through cache redirect\" fxid=%08llx "
+                 "cache_fsid=%u backend_fsid=%u", mFid, cache_fsid, fs_id);
+        const auto previous_cache_fsid = fmd->getCacheLocation();
+        const bool need_persist = (previous_cache_fsid != cache_fsid);
+        fs_rd_lock.Release();
+
+        if (need_persist) {
+          try {
+            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+            fmd->setCacheLocation(cache_fsid);
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& e) {
+            eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
+                        "errno=%d", mFid, e.getErrno());
+          }
+
+          // Topology remapping (e.g. cache space grew): drop the orphan journal
+          // on the previous cache FS so it does not linger until LRU eviction
+          if (previous_cache_fsid) {
+            (void) ReadThroughCache::NotifyJournalTruncate(previous_cache_fsid,
+                mFid);
+          }
+        }
+      } else {
+        cache_fsid = 0;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

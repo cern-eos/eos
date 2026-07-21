@@ -79,6 +79,8 @@ class XrdFstOfsFile : public XrdOfsFileBase, public eos::common::LogId
   friend class RainMetaLayout;
   friend class RaidDpLayout;
   friend class ReedSLayout;
+  friend class CacheLayout;
+  friend class LayoutPlugin;
   friend class LocalIo;
   friend class HttpHandler;
   friend class HttpServer;

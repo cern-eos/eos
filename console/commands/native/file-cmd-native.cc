@@ -73,7 +73,10 @@ std::string MakeFileHelp()
       << "  -c     clone the file (keep ctime, mtime)\n\n";
   oss << "drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid> [-f]\n"
       << "  Drop the file from <fsid>. -f force removes replica without trigger/wait for deletion "
-      << "(used to retire a filesystem).\n\n";
+      << "(used to retire a filesystem).\n"
+      << "drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] cache\n"
+      << "  Drop the read-through cache location from the file metadata and "
+      << "truncate the journal on the cache FST.\n\n";
   oss << "info [<path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<cid-dec>|pxid:<cid-hex>|inode:<inode-dec>] [options]\n"
       << "  Show file info. Options: --path, --fid, --fxid, --size, --checksum, --fullpath, "
       << "--proxy, -m, -s|--silent.\n\n";
@@ -700,10 +703,14 @@ public:
       XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=drop";
       set_path_or_id(p);
-      in += "&mgm.file.fsid=";
-      in += rest[1].c_str();
-      if (rest.size() > 2 && rest[2] == "-f")
-        in += "&mgm.file.force=1";
+      if (rest[1] == "cache") {
+        in += "&mgm.file.dropcache=1";
+      } else {
+        in += "&mgm.file.fsid=";
+        in += rest[1].c_str();
+        if (rest.size() > 2 && rest[2] == "-f")
+          in += "&mgm.file.force=1";
+      }
     } else if (cmd == "touch") {
       std::string option;
       size_t idx = 0;
