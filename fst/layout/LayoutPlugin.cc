@@ -23,10 +23,12 @@
 
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "common/FileSystem.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/layout/CacheLayout.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -44,6 +46,19 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                               bool storeRecovery,
                               bool computeStripeChecksum)
 {
+  // Only the cache FST itself uses CacheLayout; backend FSTs receiving the
+  // same capability (for fetch/bridge) must use the normal layout. The
+  // eos.cache.bridge flag marks the bridge fetch itself so an FST hosting
+  // both the cache and the backend filesystem does not recurse.
+  if (file && file->mCapOpaque && file->mCapOpaque->Get("mgm.cache") &&
+      file->mCapOpaque->Get("mgm.cache.fsid") &&
+      !(file->mOpenOpaque && file->mOpenOpaque->Get("eos.cache.bridge")) &&
+      (file->GetFileSystemId() == (eos::common::FileSystem::fsid_t)
+       atoi(file->mCapOpaque->Get("mgm.cache.fsid")))) {
+    return static_cast<Layout*>(new CacheLayout(file, layoutId, client, error,
+                                path, fmdHandler, timeout));
+  }
+
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
     return static_cast<Layout*>(new PlainLayout(file, layoutId, client, error, path,
                                 fmdHandler, timeout));

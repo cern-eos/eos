@@ -53,6 +53,9 @@ std::string MakeAttrHelp()
   oss << "\nAdministrator Variables:\n";
   oss << "         sys.forced.space=<space>              : enforces to use "
          "<space>    [configuration dependent]\n";
+  oss << "         sys.forced.cachespace=<space>|none    : overrides "
+         "space.cachespace for read-through caching under this directory "
+         "(none disables; remove attr to fall back to space config)\n";
   oss << "         sys.forced.group=<group>              : enforces to use "
          "<group>, where <group> is the numerical index of <space>.<n>    "
          "[configuration dependent]\n";
@@ -153,6 +156,7 @@ std::string MakeAttrHelp()
   oss << "\nExamples:\n";
   oss << "  attr set default=replica /eos/instance/2-replica\n";
   oss << "  attr set sys.forced.nstripes=10 /eos/instance/archive\n";
+  oss << "  attr set sys.forced.cachespace=cache /eos/instance/hot/\n";
   oss << "  attr set sys.acl=g:xx::!d!u /eos/instance/no-update-deletion\n";
   oss << "  attr set sys.forced.atomic=1 /eos/dev/instance/atomic/\n";
   oss << "  attr set sys.attr.link=/eos/dev/origin-attr/ "

@@ -563,6 +563,12 @@ void com_space_help()
       << std::endl
       << "space config <space-name> space.altxs=on|off                          : enable/disable the alternative checksums computation when the file is uploaded\n"
       << std::endl
+      << "Read-through cache parameters (configure on the backend space, typically default):\n"
+      << "space config <space-name> space.cachespace=<cache-space>              : bind a cache space used for read-through caching [ default=none ]\n"
+      << "                                                                        => value 'remove' or empty clears the binding\n"
+      << "space config <space-name> space.cache.low_watermark=<0-100>           : cache used-capacity low watermark percent [ default=70 ]\n"
+      << "space config <space-name> space.cache.high_watermark=<0-100>          : cache used-capacity high watermark percent [ default=85 ]\n"
+      << std::endl
       << "TAPE REST API specific parameters:\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF <<
       "=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"

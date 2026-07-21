@@ -218,6 +218,27 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get read-through cache location filesystem id (0 = none)
+  //----------------------------------------------------------------------------
+  inline location_t
+  getCacheLocation() const override
+  {
+    return runReadOp([this]() {
+      return mFile.cache_location();
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set read-through cache location filesystem id (0 = none)
+  //----------------------------------------------------------------------------
+  void setCacheLocation(location_t location) override
+  {
+    runWriteOp([this, location]() {
+      mFile.set_cache_location(location);
+    });
+  }
+
+  //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t

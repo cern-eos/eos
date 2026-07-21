@@ -45,6 +45,7 @@ static const std::string SYS_FORCED_MINSIZE = "sys.forced.minsize";
 static const std::string SYS_FORCED_MAXSIZE = "sys.forced.maxsize";
 static const std::string SYS_FORCED_STALLTIME = "sys.forced.stalltime";
 static const std::string SYS_FORCED_SPACE = "sys.forced.space";
+static const std::string SYS_FORCED_CACHESPACE = "sys.forced.cachespace";
 static const std::string SYS_FORCED_GROUP = "sys.forced.group";
 static const std::string SYS_FORCED_LAYOUT = "sys.forced.layout";
 static const std::string SYS_FORCED_CHECKSUM = "sys.forced.checksum";
