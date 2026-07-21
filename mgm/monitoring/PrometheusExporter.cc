@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -28,6 +29,8 @@ using eos::common::traffic_shaping::GidLabel;
 using eos::common::traffic_shaping::NodeLabel;
 using eos::common::traffic_shaping::UidLabel;
 using eos::mgm::traffic_shaping::AppIoPressureSnapshot;
+using eos::mgm::traffic_shaping::DurationHistogramSnapshot;
+using eos::mgm::traffic_shaping::LoopTimingSnapshot;
 using eos::mgm::traffic_shaping::RateSnapshot;
 using eos::mgm::traffic_shaping::TrafficShapingEngine;
 using eos::mgm::traffic_shaping::TrafficShapingManager;
@@ -178,6 +181,49 @@ MakeCounterFamily(const std::string& name, const std::string& help)
   return family;
 }
 
+prometheus::ClientMetric
+MakeHistogramMetric(const std::map<std::string, std::string>& labels,
+                    const DurationHistogramSnapshot& snapshot)
+{
+  prometheus::ClientMetric metric;
+  metric.histogram.sample_count = snapshot.sample_count;
+  metric.histogram.sample_sum = snapshot.sample_sum_seconds;
+
+  const size_t bucket_count = std::min(snapshot.upper_bounds_seconds.size(),
+                                       snapshot.cumulative_bucket_counts.size());
+  metric.histogram.bucket.reserve(bucket_count + 1);
+  for (size_t i = 0; i < bucket_count; ++i) {
+    metric.histogram.bucket.push_back(
+        {snapshot.cumulative_bucket_counts[i], snapshot.upper_bounds_seconds[i]});
+  }
+  metric.histogram.bucket.push_back(
+      {snapshot.sample_count, std::numeric_limits<double>::infinity()});
+
+  for (const auto& [name, label_value] : labels) {
+    metric.label.push_back({name, label_value});
+  }
+
+  return metric;
+}
+
+void
+AddHistogram(prometheus::MetricFamily& family,
+             const std::map<std::string, std::string>& labels,
+             const DurationHistogramSnapshot& snapshot)
+{
+  family.metric.push_back(MakeHistogramMetric(labels, snapshot));
+}
+
+prometheus::MetricFamily
+MakeHistogramFamily(const std::string& name, const std::string& help)
+{
+  prometheus::MetricFamily family;
+  family.name = name;
+  family.help = help;
+  family.type = prometheus::MetricType::Histogram;
+  return family;
+}
+
 void
 AddReadWriteCounters(prometheus::MetricFamily& bytes_family,
                      prometheus::MetricFamily& ops_family,
@@ -191,20 +237,6 @@ AddReadWriteCounters(prometheus::MetricFamily& bytes_family,
   labels["operation"] = "write";
   AddCounter(bytes_family, labels, totals.write_bytes);
   AddCounter(ops_family, labels, totals.write_ops);
-}
-
-void
-AddLoopStats(prometheus::MetricFamily& family, const std::string& cluster,
-             const std::string& loop_name,
-             const std::tuple<uint64_t, uint64_t, uint64_t>& stats)
-{
-  const auto [median, min, max] = stats;
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "median"}},
-           static_cast<double>(median));
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "min"}},
-           static_cast<double>(min));
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "max"}},
-           static_cast<double>(max));
 }
 
 void
@@ -307,12 +339,20 @@ public:
     auto all_operations_total =
         MakeCounterFamily("eos_io_shaping_all_operations_total",
                           "Total IO shaping all-tags operations observed");
-    auto system_loop_duration_us =
-        MakeGaugeFamily("eos_io_shaping_sys_loop_duration_microseconds",
-                        "System thread loop duration in microseconds");
-    auto fsview_lock_duration_us = MakeGaugeFamily(
-        "eos_io_shaping_fsview_lock_duration_microseconds",
-        "Traffic shaping FsView lock wait and hold durations in microseconds.");
+    auto system_loop_duration = MakeHistogramFamily(
+        "eos_io_shaping_loop_duration_seconds",
+        "Cumulative traffic shaping loop duration distribution in seconds.");
+    auto fsview_lock_duration = MakeHistogramFamily(
+        "eos_io_shaping_fsview_lock_duration_seconds",
+        "Cumulative traffic shaping FsView lock wait and hold duration distribution "
+        "in seconds.");
+    auto loop_iterations = MakeCounterFamily(
+        "eos_io_shaping_loop_iterations_total",
+        "Completed traffic shaping loop iterations since process start.");
+    auto loop_last_completed = MakeGaugeFamily(
+        "eos_io_shaping_loop_last_completed_timestamp_seconds",
+        "Unix timestamp of the most recently completed traffic shaping loop "
+        "iteration.");
     auto reports_processed = MakeGaugeFamily("eos_io_shaping_reports_processed_per_sec",
                                              "FST IO reports processed per second");
     auto report_queue_depth = MakeGaugeFamily(
@@ -449,10 +489,11 @@ public:
     AddCounterFamilies(*manager, bytes_total, operations_total, fs_bytes_total,
                        fs_operations_total, all_bytes_total, all_operations_total,
                        all_entries, all_entries_exported, all_entries_limited);
-    AddSystemFamilies(*manager, system_loop_duration_us, fsview_lock_duration_us,
-                      reports_processed, report_queue_depth, report_queue_estimated_bytes,
-                      reports_dropped, stream_state_estimated_bytes,
-                      stream_states_rejected, map_cardinality);
+    AddSystemFamilies(*manager, system_loop_duration, fsview_lock_duration,
+                      loop_iterations, loop_last_completed, reports_processed,
+                      report_queue_depth, report_queue_estimated_bytes, reports_dropped,
+                      stream_state_estimated_bytes, stream_states_rejected,
+                      map_cardinality);
     AddPolicyFamilies(*manager, policy_bytes);
     AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
@@ -486,8 +527,10 @@ public:
         std::move(all_entries),
         std::move(all_entries_exported),
         std::move(all_entries_limited),
-        std::move(system_loop_duration_us),
-        std::move(fsview_lock_duration_us),
+        std::move(system_loop_duration),
+        std::move(fsview_lock_duration),
+        std::move(loop_iterations),
+        std::move(loop_last_completed),
         std::move(reports_processed),
         std::move(report_queue_depth),
         std::move(report_queue_estimated_bytes),
@@ -654,8 +697,10 @@ private:
 
   void
   AddSystemFamilies(TrafficShapingManager& manager,
-                    prometheus::MetricFamily& system_loop_duration_us,
-                    prometheus::MetricFamily& fsview_lock_duration_us,
+                    prometheus::MetricFamily& system_loop_duration,
+                    prometheus::MetricFamily& fsview_lock_duration,
+                    prometheus::MetricFamily& loop_iterations,
+                    prometheus::MetricFamily& loop_last_completed,
                     prometheus::MetricFamily& reports_processed,
                     prometheus::MetricFamily& report_queue_depth,
                     prometheus::MetricFamily& report_queue_estimated_bytes,
@@ -664,16 +709,24 @@ private:
                     prometheus::MetricFamily& stream_states_rejected,
                     prometheus::MetricFamily& map_cardinality) const
   {
-    AddLoopStats(system_loop_duration_us, mCluster, "estimators",
-                 manager.GetEstimatorsUpdateLoopMicroSecStats());
-    AddLoopStats(system_loop_duration_us, mCluster, "reservation_controller",
-                 manager.GetReservationControllerUpdateLoopMicroSecStats());
-    AddLoopStats(system_loop_duration_us, mCluster, "fst_limits",
-                 manager.GetFstLimitsUpdateLoopMicroSecStats());
-    AddLoopStats(fsview_lock_duration_us, mCluster, "wait",
-                 manager.GetFsViewLockWaitMicroSecStats());
-    AddLoopStats(fsview_lock_duration_us, mCluster, "hold",
-                 manager.GetFsViewLockHoldMicroSecStats());
+    const auto timing = manager.GetSystemTimingSnapshot();
+    auto add_loop_timing = [this, &system_loop_duration, &loop_iterations,
+                            &loop_last_completed](const std::string& loop_name,
+                                                  const LoopTimingSnapshot& loop) {
+      const std::map<std::string, std::string> labels{{"cluster", mCluster},
+                                                      {"loop_name", loop_name}};
+      AddHistogram(system_loop_duration, labels, loop.duration);
+      AddCounter(loop_iterations, labels, loop.iterations_total);
+      AddGauge(loop_last_completed, labels,
+               static_cast<double>(loop.last_completed_timestamp_seconds));
+    };
+    add_loop_timing("estimators", timing.estimators);
+    add_loop_timing("reservation_controller", timing.reservation_controller);
+    add_loop_timing("fst_limits", timing.fst_limits);
+    AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "wait"}},
+                 timing.fsview_lock_wait);
+    AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "hold"}},
+                 timing.fsview_lock_hold);
     AddGauge(reports_processed, {{"cluster", mCluster}, {"stat", "mean"}},
              manager.GetFstReportsProcessedPerSecondMean());
     AddGauge(report_queue_depth, {{"cluster", mCluster}},

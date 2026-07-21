@@ -784,11 +784,6 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
         std::in_place, bounded_window_seconds, policy_tick_sec};
     std::optional<SlidingWindowStats> replacement_limit_loop_stats{
         std::in_place, bounded_window_seconds, policy_tick_sec};
-    std::optional<SlidingWindowStats> replacement_fsview_lock_wait_stats{
-        std::in_place, bounded_window_seconds, policy_tick_sec};
-    std::optional<SlidingWindowStats> replacement_fsview_lock_hold_stats{
-        std::in_place, bounded_window_seconds, policy_tick_sec};
-
     // A cadence change invalidates every fixed-window history. Rebuild these
     // bounded runtime entries lazily instead of allocating a new history for
     // every populated key while holding the manager lock. Cumulative counters
@@ -806,8 +801,6 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
     reservation_controller_update_loop_micro_sec =
         std::move(replacement_controller_loop_stats);
     fst_limits_update_loop_micro_sec = std::move(replacement_limit_loop_stats);
-    fsview_lock_wait_micro_sec = std::move(replacement_fsview_lock_wait_stats);
-    fsview_lock_hold_micro_sec = std::move(replacement_fsview_lock_hold_stats);
     mSystemStatsWindowSeconds = bounded_window_seconds;
     mEstimatorsTickIntervalSec = estimator_tick_sec;
     mFstPolicyTickIntervalSec = policy_tick_sec;
@@ -3876,6 +3869,69 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 }
 
 void
+TrafficShapingManager::DurationHistogramState::Observe(
+    const uint64_t duration_microseconds)
+{
+  ++sample_count;
+  sample_sum_seconds += static_cast<double>(duration_microseconds) / 1'000'000.0;
+
+  for (size_t i = 0; i < kDurationHistogramBucketUpperBoundsUs.size(); ++i) {
+    if (duration_microseconds <= kDurationHistogramBucketUpperBoundsUs[i]) {
+      ++cumulative_bucket_counts[i];
+    }
+  }
+}
+
+DurationHistogramSnapshot
+TrafficShapingManager::DurationHistogramState::Snapshot() const
+{
+  DurationHistogramSnapshot snapshot;
+  snapshot.upper_bounds_seconds.reserve(kDurationHistogramBucketUpperBoundsUs.size());
+  for (const auto upper_bound_us : kDurationHistogramBucketUpperBoundsUs) {
+    snapshot.upper_bounds_seconds.push_back(static_cast<double>(upper_bound_us) /
+                                            1'000'000.0);
+  }
+  snapshot.cumulative_bucket_counts.assign(cumulative_bucket_counts.begin(),
+                                           cumulative_bucket_counts.end());
+  snapshot.sample_count = sample_count;
+  snapshot.sample_sum_seconds = sample_sum_seconds;
+  return snapshot;
+}
+
+void
+TrafficShapingManager::DurationHistogramState::Clear()
+{
+  cumulative_bucket_counts.fill(0);
+  sample_count = 0;
+  sample_sum_seconds = 0.0;
+}
+
+void
+TrafficShapingManager::LoopTimingState::Observe(const uint64_t duration_microseconds)
+{
+  duration.Observe(duration_microseconds);
+  ++iterations_total;
+  last_completed_timestamp_seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+}
+
+LoopTimingSnapshot
+TrafficShapingManager::LoopTimingState::Snapshot() const
+{
+  return {duration.Snapshot(), iterations_total, last_completed_timestamp_seconds};
+}
+
+void
+TrafficShapingManager::LoopTimingState::Clear()
+{
+  duration.Clear();
+  iterations_total = 0;
+  last_completed_timestamp_seconds = 0;
+}
+
+void
 TrafficShapingManager::UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds)
 {
   std::unique_lock lock(mMutex);
@@ -3883,16 +3939,20 @@ TrafficShapingManager::UpdateFstLimitsLoopMicroSec(const uint64_t time_microseco
     fst_limits_update_loop_micro_sec->Add(time_microseconds);
     fst_limits_update_loop_micro_sec->Tick();
   }
+  mFstLimitsLoopTiming.Observe(time_microseconds);
 }
 
 void
 TrafficShapingManager::UpdateReservationControllerLoopMicroSec(
-    const uint64_t time_microseconds)
+    const uint64_t time_microseconds, const bool controller_ran)
 {
   std::unique_lock lock(mMutex);
   if (reservation_controller_update_loop_micro_sec) {
     reservation_controller_update_loop_micro_sec->Add(time_microseconds);
     reservation_controller_update_loop_micro_sec->Tick();
+  }
+  if (controller_ran) {
+    mReservationControllerLoopTiming.Observe(time_microseconds);
   }
 }
 
@@ -3904,6 +3964,7 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
     estimators_update_loop_micro_sec->Add(time_microseconds);
     estimators_update_loop_micro_sec->Tick();
   }
+  mEstimatorsLoopTiming.Observe(time_microseconds);
   if (fst_reports_processed_per_second) {
     fst_reports_processed_per_second->Tick();
   }
@@ -3914,14 +3975,8 @@ TrafficShapingManager::UpdateFsViewLockMicroSec(const uint64_t wait_microseconds
                                                 const uint64_t hold_microseconds)
 {
   std::unique_lock lock(mMutex);
-  if (fsview_lock_wait_micro_sec) {
-    fsview_lock_wait_micro_sec->Add(wait_microseconds);
-    fsview_lock_wait_micro_sec->Tick();
-  }
-  if (fsview_lock_hold_micro_sec) {
-    fsview_lock_hold_micro_sec->Add(hold_microseconds);
-    fsview_lock_hold_micro_sec->Tick();
-  }
+  mFsViewLockWaitTiming.Observe(wait_microseconds);
+  mFsViewLockHoldTiming.Observe(hold_microseconds);
 }
 
 std::tuple<uint64_t, uint64_t, uint64_t>
@@ -3966,28 +4021,13 @@ TrafficShapingManager::GetReservationControllerUpdateLoopMicroSecStats() const
   return {0, 0, 0};
 }
 
-std::tuple<uint64_t, uint64_t, uint64_t>
-TrafficShapingManager::GetFsViewLockWaitMicroSecStats() const
+SystemTimingSnapshot
+TrafficShapingManager::GetSystemTimingSnapshot() const
 {
   std::shared_lock lock(mMutex);
-  if (fsview_lock_wait_micro_sec) {
-    return {fsview_lock_wait_micro_sec->GetMedian(true),
-            fsview_lock_wait_micro_sec->GetMin(true),
-            fsview_lock_wait_micro_sec->GetMax(true)};
-  }
-  return {0, 0, 0};
-}
-
-std::tuple<uint64_t, uint64_t, uint64_t>
-TrafficShapingManager::GetFsViewLockHoldMicroSecStats() const
-{
-  std::shared_lock lock(mMutex);
-  if (fsview_lock_hold_micro_sec) {
-    return {fsview_lock_hold_micro_sec->GetMedian(true),
-            fsview_lock_hold_micro_sec->GetMin(true),
-            fsview_lock_hold_micro_sec->GetMax(true)};
-  }
-  return {0, 0, 0};
+  return {mEstimatorsLoopTiming.Snapshot(), mReservationControllerLoopTiming.Snapshot(),
+          mFstLimitsLoopTiming.Snapshot(), mFsViewLockWaitTiming.Snapshot(),
+          mFsViewLockHoldTiming.Snapshot()};
 }
 
 MapCardinalityStats
@@ -4110,9 +4150,12 @@ TrafficShapingManager::Clear()
   estimators_update_loop_micro_sec.reset();
   reservation_controller_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
-  fsview_lock_wait_micro_sec.reset();
-  fsview_lock_hold_micro_sec.reset();
   fst_reports_processed_per_second.reset();
+  mEstimatorsLoopTiming.Clear();
+  mReservationControllerLoopTiming.Clear();
+  mFstLimitsLoopTiming.Clear();
+  mFsViewLockWaitTiming.Clear();
+  mFsViewLockHoldTiming.Clear();
 }
 
 void
@@ -5504,7 +5547,8 @@ try {
             static_cast<double>(limits_duration_us) / 1000.0, run_controller);
       }
 
-      mManager->UpdateReservationControllerLoopMicroSec(controller_duration_us);
+      mManager->UpdateReservationControllerLoopMicroSec(controller_duration_us,
+                                                        run_controller);
       mManager->UpdateFstLimitsLoopMicroSec(limits_duration_us);
     } catch (const std::exception& error) {
       if (controller_due) {

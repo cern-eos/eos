@@ -1122,22 +1122,50 @@ TEST(TrafficShapingManager, ReservationControllerAndFstLimitLoopStatsAreSeparate
   ASSERT_EQ(789u, limits_max);
 }
 
-TEST(TrafficShapingManager, FsViewLockWaitAndHoldStatsAreSeparate)
+TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
   manager.ApplyThreadConfig(200, 200, 200, 15);
 
-  manager.UpdateFsViewLockMicroSec(123, 456);
+  manager.UpdateEstimatorsLoopMicroSec(2);
+  manager.UpdateReservationControllerLoopMicroSec(0, false);
+  manager.UpdateReservationControllerLoopMicroSec(123456, true);
+  manager.UpdateFstLimitsLoopMicroSec(789);
+  manager.UpdateFsViewLockMicroSec(25, 456);
 
-  const auto [wait_median, wait_min, wait_max] = manager.GetFsViewLockWaitMicroSecStats();
-  const auto [hold_median, hold_min, hold_max] = manager.GetFsViewLockHoldMicroSecStats();
+  const auto timing = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(1u, timing.estimators.duration.sample_count);
+  EXPECT_DOUBLE_EQ(0.000002, timing.estimators.duration.sample_sum_seconds);
+  ASSERT_EQ(timing.estimators.duration.upper_bounds_seconds.size(),
+            timing.estimators.duration.cumulative_bucket_counts.size());
+  ASSERT_GE(timing.estimators.duration.cumulative_bucket_counts.size(), 2u);
+  EXPECT_EQ(0u, timing.estimators.duration.cumulative_bucket_counts[0]);
+  EXPECT_EQ(1u, timing.estimators.duration.cumulative_bucket_counts[1]);
+  EXPECT_EQ(1u, timing.estimators.iterations_total);
+  EXPECT_GT(timing.estimators.last_completed_timestamp_seconds, 0u);
 
-  EXPECT_EQ(123u, wait_median);
-  EXPECT_EQ(123u, wait_min);
-  EXPECT_EQ(123u, wait_max);
-  EXPECT_EQ(456u, hold_median);
-  EXPECT_EQ(456u, hold_min);
-  EXPECT_EQ(456u, hold_max);
+  EXPECT_EQ(1u, timing.reservation_controller.duration.sample_count);
+  EXPECT_EQ(1u, timing.reservation_controller.iterations_total);
+  EXPECT_NEAR(0.123456, timing.reservation_controller.duration.sample_sum_seconds, 1e-12);
+  EXPECT_GT(timing.reservation_controller.last_completed_timestamp_seconds, 0u);
+
+  EXPECT_EQ(1u, timing.fst_limits.duration.sample_count);
+  EXPECT_EQ(1u, timing.fst_limits.iterations_total);
+  EXPECT_NEAR(0.000789, timing.fst_limits.duration.sample_sum_seconds, 1e-12);
+  EXPECT_GT(timing.fst_limits.last_completed_timestamp_seconds, 0u);
+
+  EXPECT_EQ(1u, timing.fsview_lock_wait.sample_count);
+  EXPECT_DOUBLE_EQ(0.000025, timing.fsview_lock_wait.sample_sum_seconds);
+  EXPECT_EQ(1u, timing.fsview_lock_hold.sample_count);
+  EXPECT_DOUBLE_EQ(0.000456, timing.fsview_lock_hold.sample_sum_seconds);
+
+  manager.ApplyThreadConfig(1000, 1000, 1000, 30);
+  const auto after_reconfigure = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(1u, after_reconfigure.estimators.duration.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.reservation_controller.duration.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.fst_limits.duration.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.fsview_lock_wait.sample_count);
+  EXPECT_EQ(1u, after_reconfigure.fsview_lock_hold.sample_count);
 }
 
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)

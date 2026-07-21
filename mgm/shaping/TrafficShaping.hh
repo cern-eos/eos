@@ -285,6 +285,27 @@ struct MapCardinalityStats {
   uint64_t published_fst_io_delay_configs = 0;
 };
 
+struct DurationHistogramSnapshot {
+  std::vector<double> upper_bounds_seconds;
+  std::vector<uint64_t> cumulative_bucket_counts;
+  uint64_t sample_count = 0;
+  double sample_sum_seconds = 0.0;
+};
+
+struct LoopTimingSnapshot {
+  DurationHistogramSnapshot duration;
+  uint64_t iterations_total = 0;
+  uint64_t last_completed_timestamp_seconds = 0;
+};
+
+struct SystemTimingSnapshot {
+  LoopTimingSnapshot estimators;
+  LoopTimingSnapshot reservation_controller;
+  LoopTimingSnapshot fst_limits;
+  DurationHistogramSnapshot fsview_lock_wait;
+  DurationHistogramSnapshot fsview_lock_hold;
+};
+
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
@@ -595,7 +616,8 @@ public:
 
   void UpdateFstLimitsLoopMicroSec(uint64_t time_microseconds);
 
-  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds);
+  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds,
+                                               bool controller_ran = true);
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
@@ -621,9 +643,7 @@ public:
   std::tuple<uint64_t, uint64_t, uint64_t>
   GetReservationControllerUpdateLoopMicroSecStats() const;
 
-  std::tuple<uint64_t, uint64_t, uint64_t> GetFsViewLockWaitMicroSecStats() const;
-
-  std::tuple<uint64_t, uint64_t, uint64_t> GetFsViewLockHoldMicroSecStats() const;
+  SystemTimingSnapshot GetSystemTimingSnapshot() const;
 
   MapCardinalityStats GetMapCardinalityStats() const;
 
@@ -649,6 +669,36 @@ public:
   void ClearDetailedRuntimeStats();
 
 private:
+  static constexpr std::array<uint64_t, 22> kDurationHistogramBucketUpperBoundsUs{
+      1,       2,       5,         10,        25,        50,        100,    250,
+      500,     1'000,   2'500,     5'000,     10'000,    25'000,    50'000, 100'000,
+      250'000, 500'000, 1'000'000, 2'500'000, 5'000'000, 10'000'000};
+
+  struct DurationHistogramState {
+    std::array<uint64_t, kDurationHistogramBucketUpperBoundsUs.size()>
+        cumulative_bucket_counts{};
+    uint64_t sample_count = 0;
+    double sample_sum_seconds = 0.0;
+
+    void Observe(uint64_t duration_microseconds);
+
+    DurationHistogramSnapshot Snapshot() const;
+
+    void Clear();
+  };
+
+  struct LoopTimingState {
+    DurationHistogramState duration;
+    uint64_t iterations_total = 0;
+    uint64_t last_completed_timestamp_seconds = 0;
+
+    void Observe(uint64_t duration_microseconds);
+
+    LoopTimingSnapshot Snapshot() const;
+
+    void Clear();
+  };
+
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
 
   struct NodeData {
@@ -707,11 +757,13 @@ private:
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_limits_update_loop_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
-      fsview_lock_wait_micro_sec;
-  std::optional<eos::common::traffic_shaping::SlidingWindowStats>
-      fsview_lock_hold_micro_sec;
-  std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_reports_processed_per_second;
+
+  LoopTimingState mEstimatorsLoopTiming;
+  LoopTimingState mReservationControllerLoopTiming;
+  LoopTimingState mFstLimitsLoopTiming;
+  DurationHistogramState mFsViewLockWaitTiming;
+  DurationHistogramState mFsViewLockHoldTiming;
 
   double mEstimatorsTickIntervalSec{0.5};
   double mFstPolicyTickIntervalSec{0.5};
