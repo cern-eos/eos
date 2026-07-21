@@ -37,6 +37,7 @@ usage() { echo '''Usage: eos-https-functional-test [-h|--host <host>[:<port>| (-
                            [-v|--verbose]
                            [--macaroons] - run only macaroon tests
                            [--tpc]       - run only TPC tests
+                           [--authz]     - run only "authz=" opaque tests
 
                            [--help] - usage & exit
 '''; }
@@ -63,6 +64,7 @@ if [ "$#" != 0 ]; then
       # Your options go here.
       --macaroons)  macaroons=1;;
       --tpc)        tpc=1;;
+      --authz)      authz=1;;
       -v|--verbose) verbose="-v";;
       -h|--host)    assert_argument "$1" "$opt"; host="${1%:*}" && port="${1#*:}"; shift;;
       -p|--port)    assert_argument "$1" "$opt"; port="$1"; shift;;
@@ -253,6 +255,68 @@ eostoken() {
     return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up))
 }
 
+### "authz=" opaque information
+# Authorization can also be given as opaque information instead of the
+# "Authorization" http header. XrdHttp hands the query over to the MGM already
+# percent-decoded, so every accepted spelling of the bearer prefix must end up
+# mapping the very same identity - see EOS-6614.
+# Reuses the credentials issued by the macaroon() and eostoken() tests.
+authz_opaque() {
+    if [[ -z "${MACAROON}" || -z "${EOS_RW_TOKEN}" ]]; then
+        echo -e '\terror: authz opaque tests require a macaroon and an eos token'
+        return 1
+    fi
+
+    url="https://${host}:${port}${testdir}"
+
+    # Macaroon given as "?authz=Bearer%20<macaroon>" - the standard spelling
+    respAuthzMacUpload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" --upload-file <(echo ola-authz) | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon upload -> ${respAuthzMacUpload}"
+    [[ $respAuthzMacUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
+    authz_mac_up=$?
+
+    respAuthzMacDownload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon download -> ${respAuthzMacDownload}"
+    [[ $respAuthzMacDownload == "HTTP/1.1 200 OK" ]]
+    authz_mac_down=$?
+
+    # Double encoded percent sign - the workaround advertised before EOS-6614
+    # was fixed, it must keep on working
+    respAuthzMacEncDownload="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%2520${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque macaroon (double encoded) download -> ${respAuthzMacEncDownload}"
+    [[ $respAuthzMacEncDownload == "HTTP/1.1 200 OK" ]]
+    authz_mac_enc_down=$?
+
+    # EOS token with the bearer prefix
+    respAuthzTokenBearer="$(curl -I -sS ${verbose} -L "${url}/helloworld-eostoken.txt?authz=Bearer%20${EOS_RW_TOKEN}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque eostoken (bearer) download -> ${respAuthzTokenBearer}"
+    [[ $respAuthzTokenBearer == "HTTP/1.1 200 OK" ]]
+    authz_tok_bearer=$?
+
+    # EOS token without any bearer prefix, the spelling used over xroot
+    respAuthzTokenBare="$(curl -I -sS ${verbose} -L "${url}/helloworld-eostoken.txt?authz=${EOS_RW_TOKEN}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque eostoken (bare) download -> ${respAuthzTokenBare}"
+    [[ $respAuthzTokenBare == "HTTP/1.1 200 OK" ]]
+    authz_tok_bare=$?
+
+    # An invalid token must never be granted access. The exact status code
+    # depends on the identity the request falls back to, therefore only assert
+    # that the request was not served.
+    respAuthzInvalid="$(curl -I -sS ${verbose} -L "${url}/helloworld-authz.txt?authz=Bearer%20invalidtoken" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque invalid token download -> ${respAuthzInvalid}"
+    [[ $respAuthzInvalid != *"200 OK"* && $respAuthzInvalid != *"201 CREATED"* ]]
+    authz_invalid=$?
+
+    # Authorization given both as opaque information and as http header is
+    # rejected by the MGM
+    respAuthzConflict="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" "${url}/helloworld-authz.txt?authz=Bearer%20${MACAROON}" | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tauthz opaque conflicting with http header -> ${respAuthzConflict}"
+    [[ $respAuthzConflict == *" 500"* ]]
+    authz_conflict=$?
+
+    return $((2#$authz_conflict$authz_invalid$authz_tok_bare$authz_tok_bearer$authz_mac_enc_down$authz_mac_down$authz_mac_up))
+}
+
 echo "info: prepare https test directory ${testdir}"
 eos mkdir -p ${testdir}
 eos chown eos-user:eos-user ${testdir}
@@ -261,8 +325,9 @@ x509code=0
 macarooncode=0
 eostokencode=0
 tcpcode=0
+authzcode=0
 
-if [[ -z "$macaroons" && -z "$tpc" ]]; then
+if [[ -z "$macaroons" && -z "$tpc" && -z "$authz" ]]; then
   x509
   x509code=$?
   echo "x509:"$x509code
@@ -278,6 +343,10 @@ if [[ -z "$macaroons" && -z "$tpc" ]]; then
   tcp
   tcpcode=$?
   echo "tpc:"$tcpcode
+
+  authz_opaque
+  authzcode=$?
+  echo "authz-opaque:"$authzcode
 else
   if [[ -n "$macaroons" ]]; then
     macaroon
@@ -290,10 +359,25 @@ else
     tcpcode=$?
     echo "tpc:"$tcpcode
   fi
+
+  if [[ -n "$authz" ]]; then
+    # The opaque tests reuse the credentials issued by the tests below
+    macaroon
+    macarooncode=$?
+    echo "macaroon:"$macarooncode
+
+    eostoken
+    eostokencode=$?
+    echo "eostoken:"$eostokencode
+
+    authz_opaque
+    authzcode=$?
+    echo "authz-opaque:"$authzcode
+  fi
 fi
 
 echo "info: cleanup https test directory"
 eos ls -lrta ${testdir}
 eos rm -rF ${testdir}
 
-exit $((x509code | macarooncode | eostokencode | tcpcode))
+exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode))

@@ -499,6 +499,23 @@ HttpServer::BuildPathAndEnvOpaque
 
   std::string opaque;
   extractPathAndOpaque(it->second, path, opaque);
+  // XrdHttp exposes the very same opaque query twice: percent-encoded inside the
+  // "xrd-http-fullresource" header and already decoded inside the
+  // "xrd-http-query" one. Concatenating both used to duplicate every key in
+  // the XrdOucEnv, where the last occurrence wins. Keep only the decoded one,
+  // which is the value that was effectively used anyway, and fall back to the
+  // raw opaque when the header is not available.
+  auto it_query = normalized_headers.find("xrd-http-query");
+
+  if ((it_query != normalized_headers.end()) && !it_query->second.empty()) {
+    opaque = it_query->second;
+    // XrdOucEnv::Env() always prefixes the query with a single '&'
+    opaque.erase(0, opaque.find_first_not_of('&'));
+  }
+
+  // Restore the "Bearer%20" prefix, the only one understood by Mapping::IdMap
+  // and by the XrdMacaroons/XrdSciTokens authorization plugins
+  NormalizeBearerAuthz(opaque);
   // Check if there is an explicit authorization header
   std::string http_authz;
   it = normalized_headers.find("authorization");
@@ -524,24 +541,31 @@ HttpServer::BuildPathAndEnvOpaque
     opaque += enc_authz;
   }
 
-  it = normalized_headers.find("xrd-http-query");
-
-  if (it != normalized_headers.end()) {
-    std::string query = it->second;
-
-    if (!query.empty()) {
-      if (*query.begin() != '&') {
-        opaque += "&";
-      }
-
-      opaque += query;
-    }
-  }
-
   // Append eos.app tag
   eos::common::AddEosApp(opaque, "http");
   env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Restore the url-encoded form of the bearer prefix in the "authz" opaque value
+//------------------------------------------------------------------------------
+void
+HttpServer::NormalizeBearerAuthz(std::string& opaque)
+{
+  static const std::string tag = "authz=Bearer ";
+  size_t pos = 0;
+
+  // Targeted replacement rather than a split/rejoin on '&' since a decoded
+  // opaque value may legitimately contain such a separator
+  while ((pos = opaque.find(tag, pos)) != std::string::npos) {
+    // Only rewrite a real key, not a suffix match such as "eos.authz=..."
+    if ((pos == 0) || (opaque[pos - 1] == '&')) {
+      opaque.replace(pos + tag.length() - 1, 1, "%20");
+    }
+
+    pos += tag.length();
+  }
 }
 
 void HttpServer::extractOpaqueWithoutAuthz(const std::string& fullpath,

@@ -197,6 +197,15 @@ public:
   //----------------------------------------------------------------------------
   static void extractOpaqueWithoutAuthz(const std::string & fullpath, std::string & opaque);
 
+  //----------------------------------------------------------------------------
+  //! Restore the url-encoded form of the bearer prefix in the "authz" opaque
+  //! value i.e "authz=Bearer <token>" becomes "authz=Bearer%20<token>".
+  //! XrdHttp hands over the query already percent-decoded whereas EOS and the
+  //! XrdMacaroons/XrdSciTokens plugins only recognize the "Bearer%20" prefix.
+  //!
+  //! @param opaque opaque query string, modified in place
+  //----------------------------------------------------------------------------
+  static void NormalizeBearerAuthz(std::string& opaque);
 };
 
 EOSMGMNAMESPACE_END
