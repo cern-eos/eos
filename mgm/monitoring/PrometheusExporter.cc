@@ -367,9 +367,22 @@ public:
     auto stream_state_estimated_bytes = MakeGaugeFamily(
         "eos_io_shaping_stream_state_estimated_bytes",
         "Conservative estimated memory charged to admitted FST stream state.");
+    auto estimated_memory_bytes = MakeGaugeFamily(
+        "eos_io_shaping_estimated_memory_bytes",
+        "Conservative estimated memory attributable to bounded traffic shaping "
+        "stream state and queued reports; this is not allocator RSS.");
+    auto memory_limit_bytes =
+        MakeGaugeFamily("eos_io_shaping_memory_limit_bytes",
+                        "Traffic shaping memory admission safety bound by component.");
+    auto stream_state_limit_entries =
+        MakeGaugeFamily("eos_io_shaping_stream_state_limit_entries",
+                        "Maximum admitted FST stream states across all nodes.");
     auto stream_states_rejected = MakeCounterFamily(
         "eos_io_shaping_stream_states_rejected_total",
         "New FST streams rejected by traffic shaping state safety bounds.");
+    auto garbage_collection_removed_entries = MakeCounterFamily(
+        "eos_io_shaping_garbage_collection_removed_entries_total",
+        "Traffic shaping runtime entries removed by garbage collection.");
     auto map_cardinality =
         MakeGaugeFamily("eos_io_shaping_map_cardinality",
                         "Traffic shaping internal map cardinality by map name.");
@@ -489,11 +502,12 @@ public:
     AddCounterFamilies(*manager, bytes_total, operations_total, fs_bytes_total,
                        fs_operations_total, all_bytes_total, all_operations_total,
                        all_entries, all_entries_exported, all_entries_limited);
-    AddSystemFamilies(*manager, system_loop_duration, fsview_lock_duration,
-                      loop_iterations, loop_last_completed, reports_processed,
-                      report_queue_depth, report_queue_estimated_bytes, reports_dropped,
-                      stream_state_estimated_bytes, stream_states_rejected,
-                      map_cardinality);
+    AddSystemFamilies(
+        *manager, system_loop_duration, fsview_lock_duration, loop_iterations,
+        loop_last_completed, reports_processed, report_queue_depth,
+        report_queue_estimated_bytes, reports_dropped, stream_state_estimated_bytes,
+        estimated_memory_bytes, memory_limit_bytes, stream_state_limit_entries,
+        stream_states_rejected, garbage_collection_removed_entries, map_cardinality);
     AddPolicyFamilies(*manager, policy_bytes);
     AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
@@ -536,7 +550,11 @@ public:
         std::move(report_queue_estimated_bytes),
         std::move(reports_dropped),
         std::move(stream_state_estimated_bytes),
+        std::move(estimated_memory_bytes),
+        std::move(memory_limit_bytes),
+        std::move(stream_state_limit_entries),
         std::move(stream_states_rejected),
+        std::move(garbage_collection_removed_entries),
         std::move(map_cardinality),
         std::move(policy_bytes),
         std::move(app_io_pressure),
@@ -706,7 +724,11 @@ private:
                     prometheus::MetricFamily& report_queue_estimated_bytes,
                     prometheus::MetricFamily& reports_dropped,
                     prometheus::MetricFamily& stream_state_estimated_bytes,
+                    prometheus::MetricFamily& estimated_memory_bytes,
+                    prometheus::MetricFamily& memory_limit_bytes,
+                    prometheus::MetricFamily& stream_state_limit_entries,
                     prometheus::MetricFamily& stream_states_rejected,
+                    prometheus::MetricFamily& garbage_collection_removed_entries,
                     prometheus::MetricFamily& map_cardinality) const
   {
     const auto timing = manager.GetSystemTimingSnapshot();
@@ -723,6 +745,7 @@ private:
     add_loop_timing("estimators", timing.estimators);
     add_loop_timing("reservation_controller", timing.reservation_controller);
     add_loop_timing("fst_limits", timing.fst_limits);
+    add_loop_timing("garbage_collection", timing.garbage_collection);
     AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "wait"}},
                  timing.fsview_lock_wait);
     AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "hold"}},
@@ -731,16 +754,43 @@ private:
              manager.GetFstReportsProcessedPerSecondMean());
     AddGauge(report_queue_depth, {{"cluster", mCluster}},
              static_cast<double>(manager.GetFstReportQueueDepth()));
+    const auto memory = manager.GetMemoryStats();
     AddGauge(report_queue_estimated_bytes, {{"cluster", mCluster}},
-             static_cast<double>(manager.GetFstReportQueueEstimatedBytes()));
+             static_cast<double>(memory.report_queue_estimated_bytes));
     AddCounter(reports_dropped, {{"cluster", mCluster}},
                manager.GetFstReportsDroppedTotal());
 
-    const auto cardinality = manager.GetMapCardinalityStats();
     AddGauge(stream_state_estimated_bytes, {{"cluster", mCluster}},
-             static_cast<double>(cardinality.node_state_estimated_bytes));
+             static_cast<double>(memory.stream_state_estimated_bytes));
+    AddGauge(estimated_memory_bytes, {{"cluster", mCluster}},
+             static_cast<double>(memory.estimated_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "total"}},
+             static_cast<double>(memory.limit_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "stream_state"}},
+             static_cast<double>(memory.stream_state_limit_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "report_queue"}},
+             static_cast<double>(memory.report_queue_limit_bytes));
+    AddGauge(stream_state_limit_entries, {{"cluster", mCluster}},
+             static_cast<double>(memory.stream_state_limit_entries));
+
+    const auto cardinality = manager.GetMapCardinalityStats();
     AddCounter(stream_states_rejected, {{"cluster", mCluster}},
                cardinality.node_state_rejections_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "nodes"}},
+               cardinality.garbage_collection_removed_nodes_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "node_streams"}},
+               cardinality.garbage_collection_removed_node_streams_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "global_streams"}},
+               cardinality.garbage_collection_removed_global_streams_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "disk_stats"}},
+               cardinality.garbage_collection_removed_disk_stats_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "detailed_stats"}},
+               cardinality.garbage_collection_removed_detailed_stats_total);
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_states"}},
              static_cast<double>(cardinality.node_states));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_state_streams"}},

@@ -283,6 +283,21 @@ struct MapCardinalityStats {
   uint64_t app_policies = 0;
   uint64_t node_fst_io_delay_configs = 0;
   uint64_t published_fst_io_delay_configs = 0;
+  uint64_t garbage_collection_removed_nodes_total = 0;
+  uint64_t garbage_collection_removed_node_streams_total = 0;
+  uint64_t garbage_collection_removed_global_streams_total = 0;
+  uint64_t garbage_collection_removed_disk_stats_total = 0;
+  uint64_t garbage_collection_removed_detailed_stats_total = 0;
+};
+
+struct TrafficShapingMemoryStats {
+  uint64_t estimated_bytes = 0;
+  uint64_t limit_bytes = 0;
+  uint64_t stream_state_estimated_bytes = 0;
+  uint64_t stream_state_limit_bytes = 0;
+  uint64_t stream_state_limit_entries = 0;
+  uint64_t report_queue_estimated_bytes = 0;
+  uint64_t report_queue_limit_bytes = 0;
 };
 
 struct DurationHistogramSnapshot {
@@ -302,6 +317,7 @@ struct SystemTimingSnapshot {
   LoopTimingSnapshot estimators;
   LoopTimingSnapshot reservation_controller;
   LoopTimingSnapshot fst_limits;
+  LoopTimingSnapshot garbage_collection;
   DurationHistogramSnapshot fsview_lock_wait;
   DurationHistogramSnapshot fsview_lock_hold;
 };
@@ -320,8 +336,9 @@ constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
 constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
 constexpr uint32_t kDefaultGarbageCollectionIdleSec = 5 * 60;
-// Leave headroom below the conservative 256 MiB stream-state admission budget
-// (roughly 2,000 worst-case streams at the minimum estimator period).
+// Switch away from filesystem detail well before the stream-state safety bound;
+// baseline state remains available for shaping while detailed histories stop
+// growing with stream cardinality.
 constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 1000;
 constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 1500;
 constexpr size_t kMaxSerializedFstIoReportBytes =
@@ -647,6 +664,8 @@ public:
 
   MapCardinalityStats GetMapCardinalityStats() const;
 
+  TrafficShapingMemoryStats GetMemoryStats() const;
+
   uint32_t
   GetSystemStatsWindowSeconds() const
   {
@@ -714,7 +733,7 @@ private:
 
   std::unordered_map<std::string, NodeData> mNodeStates;
   size_t mFstStreamStateCount = 0;
-  size_t mFstStreamStateEstimatedBytes = 0;
+  uint64_t mFstStreamStateEstimatedBytes = 0;
   std::atomic<uint64_t> mFstStreamStatesRejectedTotal{0};
   std::atomic<uint64_t> mLastFstReportStateWarningMonotonicNs{0};
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
@@ -762,8 +781,10 @@ private:
   LoopTimingState mEstimatorsLoopTiming;
   LoopTimingState mReservationControllerLoopTiming;
   LoopTimingState mFstLimitsLoopTiming;
+  LoopTimingState mGarbageCollectionLoopTiming;
   DurationHistogramState mFsViewLockWaitTiming;
   DurationHistogramState mFsViewLockHoldTiming;
+  GarbageCollectionStats mGarbageCollectionRemovedTotal{0, 0, 0, 0, 0};
 
   double mEstimatorsTickIntervalSec{0.5};
   double mFstPolicyTickIntervalSec{0.5};
@@ -829,7 +850,7 @@ public:
     mNodeEntityStats[DetailedKey{node, stream}].last_activity_time = last_activity_time;
   }
 
-  std::pair<size_t, size_t>
+  std::pair<size_t, uint64_t>
   GetFstStreamStateAccountingForTest() const
   {
     std::shared_lock lock(mMutex);

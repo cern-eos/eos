@@ -64,17 +64,19 @@ constexpr std::size_t kMaxFstIoEntryWireFields = 16;
 constexpr std::size_t kMaxFstReportWireFields = kMaxFstReportEntries + 16;
 constexpr std::size_t kMaxFstTrackedNodes = 4096;
 constexpr std::size_t kMaxFstStreamsPerNode = 8192;
-constexpr std::size_t kMaxFstStreamStates = 8192;
-constexpr std::size_t kMaxFstStreamStateEstimatedBytes = 256ULL * 1024ULL * 1024ULL;
+// The count bound matches the 8 GiB budget at the conservative 128 KiB base
+// charge. Identity overhead makes the byte bound win slightly before it.
+constexpr uint64_t kMaxFstStreamStates = 65536;
+constexpr uint64_t kMaxFstStreamStateEstimatedBytes = 8ULL * 1024ULL * 1024ULL * 1024ULL;
 // A delta-bearing stream can populate global aggregate and filesystem keys,
 // detailed and disk maps, and (in the one-stream-per-node worst case) a node
 // map. At the supported 50 ms estimator period those histories alone approach
 // 85 KiB. Charge their worst-case downstream state at baseline admission time,
 // including map/key headroom, so a later detail or period change cannot turn
 // admitted baselines into an unbounded allocation burst.
-constexpr std::size_t kEstimatedFstStreamStateBaseBytes = 128ULL * 1024ULL;
-constexpr std::size_t kEstimatedFstStreamIdentityByteCopies = 8;
-constexpr std::size_t kMaxQueuedReportEstimatedBytes = 64ULL * 1024ULL * 1024ULL;
+constexpr uint64_t kEstimatedFstStreamStateBaseBytes = 128ULL * 1024ULL;
+constexpr uint64_t kEstimatedFstStreamIdentityByteCopies = 8;
+constexpr uint64_t kMaxQueuedReportEstimatedBytes = 64ULL * 1024ULL * 1024ULL;
 constexpr std::size_t kEstimatedFstReportEntryOverheadBytes = 128;
 constexpr std::size_t kReportQueueHighWater = kMaxQueuedReports * 4 / 5;
 constexpr std::size_t kReportQueueEstimatedBytesHighWater =
@@ -97,7 +99,7 @@ MonotonicNowNs()
   return static_cast<uint64_t>(std::max<int64_t>(0, count));
 }
 
-size_t
+uint64_t
 EstimateFstStreamStateBytes(const std::string& node_id, const std::string& app)
 {
   return kEstimatedFstStreamStateBaseBytes +
@@ -1197,7 +1199,7 @@ try {
           node_data.retired_node_start_times.size();
     }
     for (const auto& [stream, _] : node_map) {
-      const size_t estimated_stream_bytes =
+      const uint64_t estimated_stream_bytes =
           EstimateFstStreamStateBytes(node_id, stream.app);
       mFstStreamStateCount -= std::min<size_t>(mFstStreamStateCount, 1);
       mFstStreamStateEstimatedBytes -=
@@ -1274,7 +1276,7 @@ try {
 
     auto stream_it = node_map.find(stream_key);
     if (stream_it == node_map.end()) {
-      const size_t estimated_stream_bytes =
+      const uint64_t estimated_stream_bytes =
           EstimateFstStreamStateBytes(node_id, entry.app_name());
       if (node_map.size() >= kMaxFstStreamsPerNode ||
           mFstStreamStateCount >= kMaxFstStreamStates ||
@@ -1482,7 +1484,7 @@ try {
 
   const size_t node_streams = node_map.size();
   const size_t total_streams = mFstStreamStateCount;
-  const size_t total_stream_estimated_bytes = mFstStreamStateEstimatedBytes;
+  const uint64_t total_stream_estimated_bytes = mFstStreamStateEstimatedBytes;
   mFstStreamStatesRejectedTotal.fetch_add(static_cast<uint64_t>(rejected_new_streams),
                                           std::memory_order_relaxed);
   if (inserted_node && node_map.empty()) {
@@ -1494,11 +1496,13 @@ try {
       ShouldEmitRateLimitedWarning(mLastFstReportStateWarningMonotonicNs)) {
     eos_static_warning("msg=\"Rejecting new Traffic Shaping FST streams at memory or "
                        "cardinality limit\" node=\"%s\" rejected=%zu node_streams=%zu "
-                       "total_streams=%zu estimated_bytes=%zu max_node_streams=%zu "
-                       "max_total_streams=%zu max_estimated_bytes=%zu",
+                       "total_streams=%zu estimated_bytes=%llu max_node_streams=%zu "
+                       "max_total_streams=%llu max_estimated_bytes=%llu",
                        node_id.c_str(), rejected_new_streams, node_streams, total_streams,
-                       total_stream_estimated_bytes, kMaxFstStreamsPerNode,
-                       kMaxFstStreamStates, kMaxFstStreamStateEstimatedBytes);
+                       static_cast<unsigned long long>(total_stream_estimated_bytes),
+                       kMaxFstStreamsPerNode,
+                       static_cast<unsigned long long>(kMaxFstStreamStates),
+                       static_cast<unsigned long long>(kMaxFstStreamStateEstimatedBytes));
   } else if (report_elapsed_sec > 2.0 * expected_report_period_sec &&
              !report.entries().empty() &&
              ShouldEmitRateLimitedWarning(mLastFstReportStateWarningMonotonicNs)) {
@@ -3758,6 +3762,7 @@ TrafficShapingManager::GetDetailedStats() const
 TrafficShapingManager::GarbageCollectionStats
 TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 {
+  const auto collection_start = std::chrono::steady_clock::now();
   std::lock_guard publish_lock(mFstConfigPublishMutex);
   std::unique_lock lock(mMutex);
 
@@ -3776,7 +3781,7 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
                              .count();
 
       if (elapsed_sec > max_idle_seconds) {
-        const size_t estimated_stream_bytes =
+        const uint64_t estimated_stream_bytes =
             EstimateFstStreamStateBytes(node_it->first, stream_it->first.app);
         mFstStreamStateCount -= std::min<size_t>(mFstStreamStateCount, 1);
         mFstStreamStateEstimatedBytes -=
@@ -3864,6 +3869,18 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
     // controller tick will release only runtimes whose own inputs disappeared.
     ++mControllerInputRevision;
   }
+
+  mGarbageCollectionRemovedTotal.removed_nodes += stats.removed_nodes;
+  mGarbageCollectionRemovedTotal.removed_node_streams += stats.removed_node_streams;
+  mGarbageCollectionRemovedTotal.removed_global_streams += stats.removed_global_streams;
+  mGarbageCollectionRemovedTotal.removed_disk_stats += stats.removed_disk_stats;
+  mGarbageCollectionRemovedTotal.removed_detailed_stats += stats.removed_detailed_stats;
+  const auto duration_microseconds =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now() - collection_start)
+          .count();
+  mGarbageCollectionLoopTiming.Observe(
+      static_cast<uint64_t>(std::max<int64_t>(0, duration_microseconds)));
 
   return stats;
 }
@@ -4026,8 +4043,8 @@ TrafficShapingManager::GetSystemTimingSnapshot() const
 {
   std::shared_lock lock(mMutex);
   return {mEstimatorsLoopTiming.Snapshot(), mReservationControllerLoopTiming.Snapshot(),
-          mFstLimitsLoopTiming.Snapshot(), mFsViewLockWaitTiming.Snapshot(),
-          mFsViewLockHoldTiming.Snapshot()};
+          mFstLimitsLoopTiming.Snapshot(),  mGarbageCollectionLoopTiming.Snapshot(),
+          mFsViewLockWaitTiming.Snapshot(), mFsViewLockHoldTiming.Snapshot()};
 }
 
 MapCardinalityStats
@@ -4065,6 +4082,33 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.node_fst_io_delay_configs = static_cast<uint64_t>(mNodeFstIoDelayConfigs.size());
   stats.published_fst_io_delay_configs =
       static_cast<uint64_t>(mPublishedFstIoDelayConfigs.size());
+  stats.garbage_collection_removed_nodes_total =
+      static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_nodes);
+  stats.garbage_collection_removed_node_streams_total =
+      static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_node_streams);
+  stats.garbage_collection_removed_global_streams_total =
+      static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_global_streams);
+  stats.garbage_collection_removed_disk_stats_total =
+      static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_disk_stats);
+  stats.garbage_collection_removed_detailed_stats_total =
+      static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_detailed_stats);
+  return stats;
+}
+
+TrafficShapingMemoryStats
+TrafficShapingManager::GetMemoryStats() const
+{
+  std::shared_lock lock(mMutex);
+  TrafficShapingMemoryStats stats;
+  stats.stream_state_estimated_bytes = mFstStreamStateEstimatedBytes;
+  stats.stream_state_limit_bytes = kMaxFstStreamStateEstimatedBytes;
+  stats.stream_state_limit_entries = kMaxFstStreamStates;
+  stats.report_queue_estimated_bytes =
+      mFstReportQueueEstimatedBytes.load(std::memory_order_relaxed);
+  stats.report_queue_limit_bytes = kMaxQueuedReportEstimatedBytes;
+  stats.estimated_bytes =
+      stats.stream_state_estimated_bytes + stats.report_queue_estimated_bytes;
+  stats.limit_bytes = stats.stream_state_limit_bytes + stats.report_queue_limit_bytes;
   return stats;
 }
 
@@ -4154,8 +4198,10 @@ TrafficShapingManager::Clear()
   mEstimatorsLoopTiming.Clear();
   mReservationControllerLoopTiming.Clear();
   mFstLimitsLoopTiming.Clear();
+  mGarbageCollectionLoopTiming.Clear();
   mFsViewLockWaitTiming.Clear();
   mFsViewLockHoldTiming.Clear();
+  mGarbageCollectionRemovedTotal = {0, 0, 0, 0, 0};
 }
 
 void

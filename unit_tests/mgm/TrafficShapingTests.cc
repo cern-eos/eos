@@ -1012,7 +1012,7 @@ TEST(TrafficShapingManager, EmptyHeartbeatDoesNotHideFirstFreshTraffic)
   EXPECT_EQ(10u * 1024u * 1024u, manager.GetTotalCumulativeStats().bytes_written_total);
 }
 
-TEST(TrafficShapingManager, StreamStateMemoryBudgetRejectsExcessCardinality)
+TEST(TrafficShapingManager, StreamStateMemoryBudgetAndAccounting)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
   eos::traffic_shaping::FstIoReport report;
@@ -1031,12 +1031,20 @@ TEST(TrafficShapingManager, StreamStateMemoryBudgetRejectsExcessCardinality)
 
   const auto cardinality = manager.GetMapCardinalityStats();
   constexpr uint64_t expected_stream_charge = 131504;
-  constexpr uint64_t expected_admitted_streams = 2041;
-  constexpr uint64_t expected_rejected_streams = 59;
+  constexpr uint64_t expected_admitted_streams = 2100;
   EXPECT_EQ(expected_admitted_streams, cardinality.node_state_streams);
-  EXPECT_EQ(expected_rejected_streams, cardinality.node_state_rejections_total);
+  EXPECT_EQ(0u, cardinality.node_state_rejections_total);
   EXPECT_EQ(expected_admitted_streams * expected_stream_charge,
             cardinality.node_state_estimated_bytes);
+
+  const auto memory = manager.GetMemoryStats();
+  EXPECT_EQ(cardinality.node_state_estimated_bytes, memory.stream_state_estimated_bytes);
+  EXPECT_EQ(memory.stream_state_estimated_bytes, memory.estimated_bytes);
+  EXPECT_EQ(8ULL * 1024ULL * 1024ULL * 1024ULL, memory.stream_state_limit_bytes);
+  EXPECT_EQ(65536u, memory.stream_state_limit_entries);
+  EXPECT_EQ(64ULL * 1024ULL * 1024ULL, memory.report_queue_limit_bytes);
+  EXPECT_EQ(memory.stream_state_limit_bytes + memory.report_queue_limit_bytes,
+            memory.limit_bytes);
 
   eos::traffic_shaping::FstIoReport update;
   update.set_node_id(report.node_id());
@@ -1051,8 +1059,7 @@ TEST(TrafficShapingManager, StreamStateMemoryBudgetRejectsExcessCardinality)
   manager.ProcessReport(update);
 
   EXPECT_EQ(1024u, manager.GetTotalCumulativeStats().bytes_written_total);
-  EXPECT_EQ(expected_rejected_streams,
-            manager.GetMapCardinalityStats().node_state_rejections_total);
+  EXPECT_EQ(0u, manager.GetMapCardinalityStats().node_state_rejections_total);
 }
 
 TEST(TrafficShapingManager, FreshFilesystemIoPressureParsing)
@@ -1543,6 +1550,13 @@ TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
   EXPECT_TRUE(projection_stats.uid.empty());
   EXPECT_TRUE(projection_stats.gid.empty());
   EXPECT_TRUE(projection_stats.node.empty());
+
+  EXPECT_EQ(1u, cardinality.garbage_collection_removed_nodes_total);
+  EXPECT_EQ(1u, cardinality.garbage_collection_removed_node_streams_total);
+  EXPECT_EQ(1u, cardinality.garbage_collection_removed_global_streams_total);
+  EXPECT_EQ(1u, cardinality.garbage_collection_removed_disk_stats_total);
+  EXPECT_EQ(1u, cardinality.garbage_collection_removed_detailed_stats_total);
+  EXPECT_EQ(2u, manager.GetSystemTimingSnapshot().garbage_collection.iterations_total);
 }
 
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)
