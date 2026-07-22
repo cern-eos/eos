@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -28,6 +29,8 @@ using eos::common::traffic_shaping::GidLabel;
 using eos::common::traffic_shaping::NodeLabel;
 using eos::common::traffic_shaping::UidLabel;
 using eos::mgm::traffic_shaping::AppIoPressureSnapshot;
+using eos::mgm::traffic_shaping::DurationHistogramSnapshot;
+using eos::mgm::traffic_shaping::LoopTimingSnapshot;
 using eos::mgm::traffic_shaping::RateSnapshot;
 using eos::mgm::traffic_shaping::TrafficShapingEngine;
 using eos::mgm::traffic_shaping::TrafficShapingManager;
@@ -178,6 +181,49 @@ MakeCounterFamily(const std::string& name, const std::string& help)
   return family;
 }
 
+prometheus::ClientMetric
+MakeHistogramMetric(const std::map<std::string, std::string>& labels,
+                    const DurationHistogramSnapshot& snapshot)
+{
+  prometheus::ClientMetric metric;
+  metric.histogram.sample_count = snapshot.sample_count;
+  metric.histogram.sample_sum = snapshot.sample_sum_seconds;
+
+  const size_t bucket_count = std::min(snapshot.upper_bounds_seconds.size(),
+                                       snapshot.cumulative_bucket_counts.size());
+  metric.histogram.bucket.reserve(bucket_count + 1);
+  for (size_t i = 0; i < bucket_count; ++i) {
+    metric.histogram.bucket.push_back(
+        {snapshot.cumulative_bucket_counts[i], snapshot.upper_bounds_seconds[i]});
+  }
+  metric.histogram.bucket.push_back(
+      {snapshot.sample_count, std::numeric_limits<double>::infinity()});
+
+  for (const auto& [name, label_value] : labels) {
+    metric.label.push_back({name, label_value});
+  }
+
+  return metric;
+}
+
+void
+AddHistogram(prometheus::MetricFamily& family,
+             const std::map<std::string, std::string>& labels,
+             const DurationHistogramSnapshot& snapshot)
+{
+  family.metric.push_back(MakeHistogramMetric(labels, snapshot));
+}
+
+prometheus::MetricFamily
+MakeHistogramFamily(const std::string& name, const std::string& help)
+{
+  prometheus::MetricFamily family;
+  family.name = name;
+  family.help = help;
+  family.type = prometheus::MetricType::Histogram;
+  return family;
+}
+
 void
 AddReadWriteCounters(prometheus::MetricFamily& bytes_family,
                      prometheus::MetricFamily& ops_family,
@@ -191,20 +237,6 @@ AddReadWriteCounters(prometheus::MetricFamily& bytes_family,
   labels["operation"] = "write";
   AddCounter(bytes_family, labels, totals.write_bytes);
   AddCounter(ops_family, labels, totals.write_ops);
-}
-
-void
-AddLoopStats(prometheus::MetricFamily& family, const std::string& cluster,
-             const std::string& loop_name,
-             const std::tuple<uint64_t, uint64_t, uint64_t>& stats)
-{
-  const auto [median, min, max] = stats;
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "median"}},
-           static_cast<double>(median));
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "min"}},
-           static_cast<double>(min));
-  AddGauge(family, {{"cluster", cluster}, {"loop_name", loop_name}, {"stat", "max"}},
-           static_cast<double>(max));
 }
 
 void
@@ -307,11 +339,53 @@ public:
     auto all_operations_total =
         MakeCounterFamily("eos_io_shaping_all_operations_total",
                           "Total IO shaping all-tags operations observed");
-    auto system_loop_duration_us =
-        MakeGaugeFamily("eos_io_shaping_sys_loop_duration_microseconds",
-                        "System thread loop duration in microseconds");
+    auto system_loop_duration = MakeHistogramFamily(
+        "eos_io_shaping_loop_duration_seconds",
+        "Cumulative traffic shaping loop duration distribution in seconds.");
+    auto fsview_lock_duration = MakeHistogramFamily(
+        "eos_io_shaping_fsview_lock_duration_seconds",
+        "Cumulative traffic shaping FsView lock wait and hold duration distribution "
+        "in seconds.");
+    auto loop_iterations = MakeCounterFamily(
+        "eos_io_shaping_loop_iterations_total",
+        "Completed traffic shaping loop iterations since process start.");
+    auto loop_last_completed = MakeGaugeFamily(
+        "eos_io_shaping_loop_last_completed_timestamp_seconds",
+        "Unix timestamp of the most recently completed traffic shaping loop "
+        "iteration.");
+    auto slow_iterations = MakeCounterFamily(
+        "eos_io_shaping_slow_iterations_total",
+        "Traffic shaping loop iterations exceeding their warning threshold.");
     auto reports_processed = MakeGaugeFamily("eos_io_shaping_reports_processed_per_sec",
                                              "FST IO reports processed per second");
+    auto report_queue_depth = MakeGaugeFamily(
+        "eos_io_shaping_report_queue_depth",
+        "Current number of FST IO reports waiting for traffic shaping processing.");
+    auto report_queue_estimated_bytes =
+        MakeGaugeFamily("eos_io_shaping_report_queue_estimated_bytes",
+                        "Estimated memory footprint of queued FST IO reports.");
+    auto reports_dropped = MakeCounterFamily(
+        "eos_io_shaping_reports_dropped_total",
+        "FST IO reports rejected or evicted by traffic shaping queue safety bounds.");
+    auto stream_state_estimated_bytes = MakeGaugeFamily(
+        "eos_io_shaping_stream_state_estimated_bytes",
+        "Conservative estimated memory charged to admitted FST stream state.");
+    auto estimated_memory_bytes = MakeGaugeFamily(
+        "eos_io_shaping_estimated_memory_bytes",
+        "Conservative estimated memory attributable to bounded traffic shaping "
+        "stream state and queued reports; this is not allocator RSS.");
+    auto memory_limit_bytes =
+        MakeGaugeFamily("eos_io_shaping_memory_limit_bytes",
+                        "Traffic shaping memory admission safety bound by component.");
+    auto stream_state_limit_entries =
+        MakeGaugeFamily("eos_io_shaping_stream_state_limit_entries",
+                        "Maximum admitted FST stream states across all nodes.");
+    auto stream_states_rejected = MakeCounterFamily(
+        "eos_io_shaping_stream_states_rejected_total",
+        "New FST streams rejected by traffic shaping state safety bounds.");
+    auto garbage_collection_removed_entries = MakeCounterFamily(
+        "eos_io_shaping_garbage_collection_removed_entries_total",
+        "Traffic shaping runtime entries removed by garbage collection.");
     auto map_cardinality =
         MakeGaugeFamily("eos_io_shaping_map_cardinality",
                         "Traffic shaping internal map cardinality by map name.");
@@ -328,23 +402,54 @@ public:
         "absent).");
     auto app_node_io_pressure = MakeGaugeFamily(
         "eos_io_shaping_app_node_io_pressure",
-        "Reservation IO pressure by application, node and pressure scope.");
+        "Reservation IO pressure by recently observed application, node and pressure "
+        "scope.");
     auto app_node_reservation_deficit_bytes = MakeGaugeFamily(
         "eos_io_shaping_app_node_reservation_deficit_bytes",
-        "Reservation deficit by application, node and operation in bytes per second.");
+        "Reservation deficit by recently observed application, node and operation in "
+        "bytes per second.");
     auto app_node_reservation_deficit_active = MakeGaugeFamily(
         "eos_io_shaping_app_node_reservation_deficit_active",
-        "Reservation deficit activity by application, node and operation.");
+        "Reservation deficit activity by recently observed application, node and "
+        "operation.");
     auto app_node_pressure_active = MakeGaugeFamily(
         "eos_io_shaping_app_node_pressure_active",
-        "Reservation pressure activity by application, node and operation.");
+        "Reservation pressure activity by recently observed application, node and "
+        "operation.");
     auto app_node_reservation_trigger_active = MakeGaugeFamily(
         "eos_io_shaping_app_node_reservation_trigger_active",
-        "Reservation pressure that triggers competitor throttling by application, node "
-        "and operation.");
+        "Reservation pressure that triggers competitor throttling by recently observed "
+        "application, node and operation.");
     auto node_pressured_reservation_active =
         MakeGaugeFamily("eos_io_shaping_node_pressured_reservation_active",
                         "Node has at least one pressured reservation by operation.");
+    auto node_controller_limit_bytes_per_second = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_limit_bytes_per_second",
+        "Active node-local controller limit by application and operation.");
+    auto node_controller_applied_reduction_bytes_per_second = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_applied_reduction_bytes_per_second",
+        "Rate removed by the latest node-local controller action.");
+    auto node_controller_protected_gain_bytes_per_second = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_protected_gain_bytes_per_second",
+        "Protected rate gained in the latest evaluated controller response.");
+    auto node_controller_response_ratio = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_response_ratio",
+        "Conservative protected gain divided by assigned competitor reduction.");
+    auto node_controller_cohort_apps = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_cohort_apps",
+        "Number of protected applications in the active or failed response cohort.");
+    auto node_controller_ineffective_probes = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_ineffective_probes",
+        "Consecutive ineffective controller probes by node and operation.");
+    auto node_controller_suppression_seconds = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_suppression_seconds",
+        "Seconds remaining before an ineffective controller probe may retry.");
+    auto node_controller_deficit_samples =
+        MakeGaugeFamily("eos_io_shaping_node_controller_deficit_samples",
+                        "Consecutive qualifying reservation-deficit samples.");
+    auto node_controller_state = MakeGaugeFamily(
+        "eos_io_shaping_node_controller_state",
+        "Current controller phase by node and operation (value is always 1).");
     auto config_enabled = MakeGaugeFamily(
         "eos_io_shaping_config_enabled",
         "Traffic shaping configuration status (1 if enabled, 0 if disabled).");
@@ -400,14 +505,25 @@ public:
     AddCounterFamilies(*manager, bytes_total, operations_total, fs_bytes_total,
                        fs_operations_total, all_bytes_total, all_operations_total,
                        all_entries, all_entries_exported, all_entries_limited);
-    AddSystemFamilies(*manager, system_loop_duration_us, reports_processed,
-                      map_cardinality);
+    AddSystemFamilies(
+        *manager, system_loop_duration, fsview_lock_duration, loop_iterations,
+        loop_last_completed, slow_iterations, reports_processed, report_queue_depth,
+        report_queue_estimated_bytes, reports_dropped, stream_state_estimated_bytes,
+        estimated_memory_bytes, memory_limit_bytes, stream_state_limit_entries,
+        stream_states_rejected, garbage_collection_removed_entries, map_cardinality);
     AddPolicyFamilies(*manager, policy_bytes);
     AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
                         app_node_reservation_deficit_active, app_node_pressure_active,
                         app_node_reservation_trigger_active,
                         node_pressured_reservation_active);
+    AddControllerFamilies(*manager, node_controller_limit_bytes_per_second,
+                          node_controller_applied_reduction_bytes_per_second,
+                          node_controller_protected_gain_bytes_per_second,
+                          node_controller_response_ratio, node_controller_cohort_apps,
+                          node_controller_ineffective_probes,
+                          node_controller_suppression_seconds,
+                          node_controller_deficit_samples, node_controller_state);
     AddConfigFamilies(
         config_enabled, config_estimators_update_period_ms,
         config_fst_io_policy_update_period_ms, config_fst_io_stats_reporting_period_ms,
@@ -428,8 +544,21 @@ public:
         std::move(all_entries),
         std::move(all_entries_exported),
         std::move(all_entries_limited),
-        std::move(system_loop_duration_us),
+        std::move(system_loop_duration),
+        std::move(fsview_lock_duration),
+        std::move(loop_iterations),
+        std::move(loop_last_completed),
+        std::move(slow_iterations),
         std::move(reports_processed),
+        std::move(report_queue_depth),
+        std::move(report_queue_estimated_bytes),
+        std::move(reports_dropped),
+        std::move(stream_state_estimated_bytes),
+        std::move(estimated_memory_bytes),
+        std::move(memory_limit_bytes),
+        std::move(stream_state_limit_entries),
+        std::move(stream_states_rejected),
+        std::move(garbage_collection_removed_entries),
         std::move(map_cardinality),
         std::move(policy_bytes),
         std::move(app_io_pressure),
@@ -440,6 +569,15 @@ public:
         std::move(app_node_pressure_active),
         std::move(app_node_reservation_trigger_active),
         std::move(node_pressured_reservation_active),
+        std::move(node_controller_limit_bytes_per_second),
+        std::move(node_controller_applied_reduction_bytes_per_second),
+        std::move(node_controller_protected_gain_bytes_per_second),
+        std::move(node_controller_response_ratio),
+        std::move(node_controller_cohort_apps),
+        std::move(node_controller_ineffective_probes),
+        std::move(node_controller_suppression_seconds),
+        std::move(node_controller_deficit_samples),
+        std::move(node_controller_state),
         std::move(config_enabled),
         std::move(config_limits_enabled),
         std::move(config_reservations_enabled),
@@ -581,20 +719,87 @@ private:
 
   void
   AddSystemFamilies(TrafficShapingManager& manager,
-                    prometheus::MetricFamily& system_loop_duration_us,
+                    prometheus::MetricFamily& system_loop_duration,
+                    prometheus::MetricFamily& fsview_lock_duration,
+                    prometheus::MetricFamily& loop_iterations,
+                    prometheus::MetricFamily& loop_last_completed,
+                    prometheus::MetricFamily& slow_iterations,
                     prometheus::MetricFamily& reports_processed,
+                    prometheus::MetricFamily& report_queue_depth,
+                    prometheus::MetricFamily& report_queue_estimated_bytes,
+                    prometheus::MetricFamily& reports_dropped,
+                    prometheus::MetricFamily& stream_state_estimated_bytes,
+                    prometheus::MetricFamily& estimated_memory_bytes,
+                    prometheus::MetricFamily& memory_limit_bytes,
+                    prometheus::MetricFamily& stream_state_limit_entries,
+                    prometheus::MetricFamily& stream_states_rejected,
+                    prometheus::MetricFamily& garbage_collection_removed_entries,
                     prometheus::MetricFamily& map_cardinality) const
   {
-    AddLoopStats(system_loop_duration_us, mCluster, "estimators",
-                 manager.GetEstimatorsUpdateLoopMicroSecStats());
-    AddLoopStats(system_loop_duration_us, mCluster, "reservation_controller",
-                 manager.GetReservationControllerUpdateLoopMicroSecStats());
-    AddLoopStats(system_loop_duration_us, mCluster, "fst_limits",
-                 manager.GetFstLimitsUpdateLoopMicroSecStats());
+    const auto timing = manager.GetSystemTimingSnapshot();
+    auto add_loop_timing = [this, &system_loop_duration, &loop_iterations,
+                            &loop_last_completed](const std::string& loop_name,
+                                                  const LoopTimingSnapshot& loop) {
+      const std::map<std::string, std::string> labels{{"cluster", mCluster},
+                                                      {"loop_name", loop_name}};
+      AddHistogram(system_loop_duration, labels, loop.duration);
+      AddCounter(loop_iterations, labels, loop.iterations_total);
+      AddGauge(loop_last_completed, labels,
+               static_cast<double>(loop.last_completed_timestamp_seconds));
+    };
+    add_loop_timing("estimators", timing.estimators);
+    add_loop_timing("fst_policy", timing.fst_policy);
+    add_loop_timing("io_pressure", timing.io_pressure);
+    add_loop_timing("reservation_controller", timing.reservation_controller);
+    add_loop_timing("fst_limits", timing.fst_limits);
+    add_loop_timing("garbage_collection", timing.garbage_collection);
+    AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "wait"}},
+                 timing.fsview_lock_wait);
+    AddHistogram(fsview_lock_duration, {{"cluster", mCluster}, {"phase", "hold"}},
+                 timing.fsview_lock_hold);
+    AddCounter(slow_iterations, {{"cluster", mCluster}, {"loop_name", "fst_policy"}},
+               timing.fst_policy_slow_iterations_total);
     AddGauge(reports_processed, {{"cluster", mCluster}, {"stat", "mean"}},
              manager.GetFstReportsProcessedPerSecondMean());
+    AddGauge(report_queue_depth, {{"cluster", mCluster}},
+             static_cast<double>(manager.GetFstReportQueueDepth()));
+    const auto memory = manager.GetMemoryStats();
+    AddGauge(report_queue_estimated_bytes, {{"cluster", mCluster}},
+             static_cast<double>(memory.report_queue_estimated_bytes));
+    AddCounter(reports_dropped, {{"cluster", mCluster}},
+               manager.GetFstReportsDroppedTotal());
+
+    AddGauge(stream_state_estimated_bytes, {{"cluster", mCluster}},
+             static_cast<double>(memory.stream_state_estimated_bytes));
+    AddGauge(estimated_memory_bytes, {{"cluster", mCluster}},
+             static_cast<double>(memory.estimated_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "total"}},
+             static_cast<double>(memory.limit_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "stream_state"}},
+             static_cast<double>(memory.stream_state_limit_bytes));
+    AddGauge(memory_limit_bytes, {{"cluster", mCluster}, {"component", "report_queue"}},
+             static_cast<double>(memory.report_queue_limit_bytes));
+    AddGauge(stream_state_limit_entries, {{"cluster", mCluster}},
+             static_cast<double>(memory.stream_state_limit_entries));
 
     const auto cardinality = manager.GetMapCardinalityStats();
+    AddCounter(stream_states_rejected, {{"cluster", mCluster}},
+               cardinality.node_state_rejections_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "nodes"}},
+               cardinality.garbage_collection_removed_nodes_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "node_streams"}},
+               cardinality.garbage_collection_removed_node_streams_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "global_streams"}},
+               cardinality.garbage_collection_removed_global_streams_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "disk_stats"}},
+               cardinality.garbage_collection_removed_disk_stats_total);
+    AddCounter(garbage_collection_removed_entries,
+               {{"cluster", mCluster}, {"map", "detailed_stats"}},
+               cardinality.garbage_collection_removed_detailed_stats_total);
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_states"}},
              static_cast<double>(cardinality.node_states));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_state_streams"}},
@@ -675,14 +880,21 @@ private:
     std::map<std::string, AppIoPressureSnapshot> app_pressure_by_app;
 
     for (const auto& [app, policy] : manager.GetAppPolicies()) {
-      if (policy.reservation_read_bytes_per_sec > 0 ||
-          policy.reservation_write_bytes_per_sec > 0) {
+      if (policy.is_enabled && (policy.reservation_read_bytes_per_sec > 0 ||
+                                policy.reservation_write_bytes_per_sec > 0)) {
         app_pressure_by_app[LabelOrUnknown(app)] = {};
       }
     }
 
     std::map<std::pair<std::string, std::string>, bool> node_pressure_flags;
-    const auto node_pressure_snapshots = manager.GetReservedAppNodeIoPressure();
+    std::vector<std::string> online_nodes;
+    const auto node_pressure_snapshots =
+        manager.GetReservedAppNodeIoPressure(&online_nodes);
+    for (const auto& node : online_nodes) {
+      const std::string node_label = NodeLabel(LabelOrUnknown(node));
+      node_pressure_flags[{node_label, "read"}] = false;
+      node_pressure_flags[{node_label, "write"}] = false;
+    }
 
     for (const auto& snapshot : node_pressure_snapshots) {
       const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
@@ -767,6 +979,81 @@ private:
       if (pressure.has_write) {
         AddGauge(app_io_pressure, labels, pressure.write);
       }
+    }
+  }
+
+  void
+  AddControllerFamilies(
+      TrafficShapingManager& manager,
+      prometheus::MetricFamily& node_controller_limit_bytes_per_second,
+      prometheus::MetricFamily& node_controller_applied_reduction_bytes_per_second,
+      prometheus::MetricFamily& node_controller_protected_gain_bytes_per_second,
+      prometheus::MetricFamily& node_controller_response_ratio,
+      prometheus::MetricFamily& node_controller_cohort_apps,
+      prometheus::MetricFamily& node_controller_ineffective_probes,
+      prometheus::MetricFamily& node_controller_suppression_seconds,
+      prometheus::MetricFamily& node_controller_deficit_samples,
+      prometheus::MetricFamily& node_controller_state) const
+  {
+    const auto snapshot = manager.GetNodeReservationControllerSnapshot();
+
+    for (const auto& limit : snapshot.limits) {
+      auto labels = std::map<std::string, std::string>{
+          {"cluster", mCluster},
+          {"node_id", NodeLabel(LabelOrUnknown(limit.node_id))},
+          {"app", LabelOrUnknown(limit.app)}};
+      if (limit.read_bytes_per_sec > 0) {
+        labels["operation"] = "read";
+        AddGauge(node_controller_limit_bytes_per_second, labels,
+                 static_cast<double>(limit.read_bytes_per_sec));
+      }
+      if (limit.write_bytes_per_sec > 0) {
+        labels["operation"] = "write";
+        AddGauge(node_controller_limit_bytes_per_second, labels,
+                 static_cast<double>(limit.write_bytes_per_sec));
+      }
+    }
+
+    for (const auto& feedback : snapshot.feedback) {
+      auto labels = std::map<std::string, std::string>{
+          {"cluster", mCluster},
+          {"node_id", NodeLabel(LabelOrUnknown(feedback.node_id))},
+          {"operation", feedback.is_write ? "write" : "read"}};
+      AddGauge(node_controller_applied_reduction_bytes_per_second, labels,
+               feedback.applied_reduction_bps);
+      AddGauge(node_controller_protected_gain_bytes_per_second, labels,
+               feedback.observed_protected_gain_bps);
+      AddGauge(node_controller_response_ratio, labels, feedback.response_ratio);
+      AddGauge(node_controller_ineffective_probes, labels,
+               static_cast<double>(feedback.ineffective_probe_count));
+      AddGauge(node_controller_suppression_seconds, labels,
+               feedback.suppression_remaining_seconds);
+      AddGauge(node_controller_deficit_samples, labels,
+               static_cast<double>(feedback.consecutive_deficit_samples));
+
+      auto cohort_labels = labels;
+      cohort_labels["cohort"] = "active";
+      AddGauge(node_controller_cohort_apps, cohort_labels,
+               static_cast<double>(feedback.protected_app_count));
+      cohort_labels["cohort"] = "failed";
+      AddGauge(node_controller_cohort_apps, cohort_labels,
+               static_cast<double>(feedback.failed_protected_app_count));
+
+      std::string phase = feedback.phase;
+      if (phase.empty()) {
+        phase = "idle";
+        if (feedback.suppressed) {
+          phase = "suppressed";
+        } else if (feedback.awaiting_response) {
+          phase = "awaiting_response";
+        } else if (feedback.consecutive_deficit_samples > 0) {
+          phase = "qualifying";
+        } else if (feedback.applied_reduction_bps > 0.0) {
+          phase = "holding";
+        }
+      }
+      labels["phase"] = phase;
+      AddGauge(node_controller_state, labels, 1.0);
     }
   }
 

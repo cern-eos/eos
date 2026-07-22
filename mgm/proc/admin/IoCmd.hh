@@ -37,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 bool BuildTrafficShapingRateReport(
     const eos::traffic_shaping::TrafficShapingRateRequest& request,
     eos::traffic_shaping::TrafficShapingRateResponse& report,
-    std::string* error = nullptr);
+    std::string* error = nullptr) noexcept;
 
 //------------------------------------------------------------------------------
 //! Class IoCmd - class handling io commands

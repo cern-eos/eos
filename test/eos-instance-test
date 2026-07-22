@@ -2899,14 +2899,14 @@ runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --app t
 # --- User (UID) Policy Tests ---
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --uid 1000 --limit-write 20M
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --uid 1000 --limit-write 20M --limit-read 10M
-runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --uid 1000 --reservation-write 5M
+runtest "### Traffic Shaping " unix ERROR "" eos io shaping policy set --uid 1000 --reservation-write 5M
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --uid 1000 --disable
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --uid 1000 --enable
 
 # --- Group (GID) Policy Tests ---
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --gid 2000 --limit-write 30M
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --gid 2000 --limit-write 30M --limit-read 15M
-runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --gid 2000 --reservation-read 10M
+runtest "### Traffic Shaping " unix ERROR "" eos io shaping policy set --gid 2000 --reservation-read 10M
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --gid 2000 --disable
 runtest "### Traffic Shaping " unix SUCCESS "" eos io shaping policy set --gid 2000 --enable
 

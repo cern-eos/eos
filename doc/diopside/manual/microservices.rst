@@ -2635,6 +2635,48 @@ To remove a policy:
    eos io shaping policy rm --uid 133153
 
 .. index::
+   pair: Traffic Shaping; Reservations
+
+Application Reservations
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Reservations express a protected read or write rate for an application. They are
+supported for application policies only; UID and GID policies can still define
+explicit limits. On an enabled policy, a non-zero explicit or controller limit
+cannot be lower than the reservation for the same direction. Disabling a policy
+is always allowed so an incompatible pre-existing policy can be stopped safely.
+
+.. code-block:: bash
+
+   # Protect 2 GB/s of write throughput for the application
+   eos io shaping policy set --app production --reservation-write 2G
+
+   # Inspect effective reservations, storage pressure, and node-local limits
+   eos io shaping pressure ls
+
+The built-in controller acts only when a reserved application is below its target
+on a storage node reporting I/O pressure and competing traffic is present. It
+distributes the application deficit across pressured nodes, tightens competitor
+limits gradually, waits for a measured response, and backs off ineffective
+interventions. Response is evaluated for the exact set of deficient applications
+that caused the action; every member must benefit, so a newly arriving or healthy
+reservation cannot mask a flat protected transfer. Successful response controls
+the next retune gain, while an ineffective action releases limits and suppresses
+retries until every non-responder in the failed cohort shows new demand. After
+sustained recovery the controller probes higher limits so that temporary
+contention does not leave applications throttled indefinitely.
+
+Reservation enforcement and its safety thresholds can be configured separately
+from explicit limit enforcement:
+
+.. code-block:: bash
+
+   eos io shaping config set --reservations enabled \
+       --controller-min-limit 100M \
+       --active-node-rate-threshold 100M \
+       --io-pressure-threshold 0.05
+
+.. index::
    pair: Traffic Shaping; Monitoring
 
 Monitoring Throughput
@@ -2665,4 +2707,18 @@ You can retrieve real-time I/O rates directly from the console. The output is sm
 Observability and Exporters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Traffic Shaping metrics are natively exposed via JSON (using the ``--json`` flag). These metrics are fully integrated into the Prometheus ``eos_exporter``, allowing seamless aggregation of application, user, group, and cluster-total throughput in monitoring dashboards like Grafana.
+Traffic Shaping metrics are natively exposed via JSON (using the ``--json``
+flag) and by the built-in Prometheus exporter, allowing aggregation of
+application, user, group, and cluster-total throughput in monitoring dashboards
+such as Grafana.
+
+``eos io shaping pressure ls --json`` also emits ``node_controller_limit`` and
+``node_controller_feedback`` records. A third
+``node_controller_cohort_app`` record identifies every active or failed protected
+application together with its target, pre-action baseline, assigned share of the
+competitor reduction, and failure-time rate. The built-in Prometheus exporter
+publishes actual node-local limits and aggregate controller feedback in the
+``eos_io_shaping_node_controller_*`` metric families. Use the JSON cohort records
+when an experiment must attribute a competitor-rate loss to a specific protected
+application; configured application policy limits alone do not show node-local
+controller decisions.
