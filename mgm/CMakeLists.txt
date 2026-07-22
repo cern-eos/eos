@@ -275,6 +275,10 @@ add_library(
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
   monitoring/CachedCollectable.cc
   monitoring/CachedCollectable.hh
+  monitoring/FstStatusCollector.cc
+  monitoring/FstStatusCollector.hh
+  monitoring/MgmStatusCollector.cc
+  monitoring/MgmStatusCollector.hh
   monitoring/Monitoring.cc
   monitoring/Monitoring.hh
   monitoring/MonitoringConfig.hh

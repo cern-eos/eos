@@ -1,5 +1,7 @@
 #pragma once
 
+#include "mgm/monitoring/MgmStatusCollector.hh"
+
 #include "mgm/shaping/TrafficShaping.hh"
 
 #include <chrono>
@@ -21,7 +23,8 @@ public:
   PrometheusExporter(std::string bind_address,
                      traffic_shaping::TrafficShapingEngine& engine, std::string cluster,
                      std::chrono::milliseconds cache_ttl,
-                     std::function<bool()> should_collect);
+                     std::function<bool()> should_collect,
+                     std::function<std::vector<MgmStatusSnapshot>()> mgm_status_snapshot);
   ~PrometheusExporter();
 
   PrometheusExporter(const PrometheusExporter&) = delete;

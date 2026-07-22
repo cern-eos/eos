@@ -130,6 +130,7 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdVersion.hh>
+#include <cstdlib>
 #include <exception>
 #include <sstream>
 
@@ -583,10 +584,38 @@ XrdMgmOfs::ApplyMonitoringConfig(std::string* err)
 
   try {
     monitoring::LogPrometheusEndpointStarting(bind_address, cache_ttl_seconds);
+    std::vector<std::string> mgm_candidate_hosts;
+    mgm_candidate_hosts.reserve(2);
+
+    // The QDB contact list identifies QDB endpoints, not MGM membership. MGM
+    // candidates are already supplied to every MGM by deployment configuration;
+    // capture them once here so collecting metrics stays lock- and I/O-free.
+    for (const char* variable : {"EOS_MGM_MASTER1", "EOS_MGM_MASTER2"}) {
+      if (const char* host = std::getenv(variable); host && *host) {
+        mgm_candidate_hosts.emplace_back(host);
+      }
+    }
+
     mPrometheusExporter = std::make_unique<monitoring::PrometheusExporter>(
         bind_address, mTrafficShapingEngine, MgmOfsInstanceName.c_str(),
         std::chrono::seconds(cache_ttl_seconds),
-        [this]() { return mMaster && mMaster->IsMaster(); });
+        [this]() { return mMaster && mMaster->IsMaster(); },
+        [this, mgm_candidate_hosts = std::move(mgm_candidate_hosts)]() {
+          const std::string mgm_id = ManagerId.c_str();
+
+          if (!mMaster) {
+            return monitoring::BuildMgmStatusSnapshots(mgm_id, false, {}, ManagerPort,
+                                                       mgm_candidate_hosts);
+          }
+
+          // Match the established ns-stat snapshot order. Reading the observed
+          // lease holder instead of deriving it from the local role preserves
+          // transient role/lease disagreement during failover.
+          const std::string master_id = mMaster->GetMasterId();
+          const bool is_master = mMaster->IsMaster();
+          return monitoring::BuildMgmStatusSnapshots(mgm_id, is_master, master_id,
+                                                     ManagerPort, mgm_candidate_hosts);
+        });
     mPrometheusExporterBindAddress = bind_address;
     mPrometheusExporterCacheTtlSeconds = cache_ttl_seconds;
     monitoring::LogPrometheusEndpointStarted(bind_address, cache_ttl_seconds);
