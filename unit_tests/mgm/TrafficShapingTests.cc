@@ -408,6 +408,57 @@ TEST(TrafficShapingEngine, DetailConfigReplayDoesNotSyncWhileViewLocked)
             engine.GetDetailLevel());
 }
 
+TEST(TrafficShapingEngine, AutomaticDetailLevelSwitchesWithHysteresis)
+{
+  using eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
+  using eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
+
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  engine.ApplyAutomaticDetailLevelEnabledConfig(false);
+  engine.ApplyAutomaticDetailLevelCardinalityConfig(1, 2);
+  engine.ApplyDetailLevelConfig(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM);
+
+  auto make_report = [](const size_t streams) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/automatic-detail.example:1095/fst");
+    for (size_t i = 0; i < streams; ++i) {
+      auto* entry = report.add_entries();
+      entry->set_app_name("automatic-detail-app-" + std::to_string(i));
+      entry->set_uid(i + 1);
+      entry->set_gid(i + 1);
+      entry->set_fsid(i + 1);
+      entry->set_generation_id(1);
+    }
+    return report;
+  };
+
+  engine.GetManager()->ProcessReport(make_report(2));
+  engine.ApplyAutomaticDetailLevelEnabledConfig(true);
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM, engine.GetDetailLevel());
+
+  engine.GetManager()->ProcessReport(make_report(3));
+  engine.ApplyAutomaticDetailLevel();
+  ASSERT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+
+  // The transition clears runtime state, but the holdoff must prevent an
+  // immediate switch back solely because cardinality is now zero.
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+
+  // Crossing a detail boundary clears runtime state. Rebuild a cardinality in
+  // the hysteresis band and verify it does not immediately switch back.
+  engine.GetManager()->ProcessReport(make_report(2));
+  engine.mLastAutomaticDetailLevelChange -=
+      std::chrono::seconds(engine.GetGarbageCollectionIdleSeconds());
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+
+  engine.GetManager()->ClearRuntimeStats();
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM, engine.GetDetailLevel());
+}
+
 TEST(TrafficShapingEngine, StartAcceptsUnchangedDefaultThreadConfig)
 {
   eos::mgm::traffic_shaping::TrafficShapingEngine engine;
