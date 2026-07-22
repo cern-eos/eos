@@ -1,11 +1,13 @@
-#include <string>
-#include <iostream>
 #include "client/grpc/GrpcClient.hh"
-#include <stdio.h>
 #include "common/StringConversion.hh"
-#include "proto/Recycle.pb.h"
+#include "console/commands/helpers/FileHelper.hh"
 #include "console/commands/helpers/RecycleHelper.hh"
+#include "proto/File.pb.h"
+#include "proto/Recycle.pb.h"
 #include <google/protobuf/util/json_util.h>
+#include <iostream>
+#include <stdio.h>
+#include <string>
 
 int usage(const char* prog)
 {
@@ -37,13 +39,22 @@ int usage(const char* prog)
           "                                     -p <key>  old_recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] old_recycle purge\n"
           "                                     -p <key>  old_recycle purge\n"
-          "                                               recycle ls [<date> [<limit>]] [-m] [-n] [--all] [--rid <val>]\n"
-          "                                               recycle purge [--all] [--uid] [--rid <val>] <date> | -k <key>]\n"
-          "                                               recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
-          "                                               recycle project --path <path> [--acl <val>]\n"
-          "                                               recycle config [--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] [--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] [--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
+          "                                               recycle ls [<date> [<limit>]] "
+          "[-m] [-n] [--all] [--rid <val>]\n"
+          "                                               recycle purge [--all] [--uid] "
+          "[--rid <val>] <date> | -k <key>]\n"
+          "                                               recycle restore [-p] "
+          "[-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
+          "                                               recycle project --path <path> "
+          "[--acl <val>]\n"
+          "                                               recycle config "
+          "[--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] "
+          "[--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] "
+          "[--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
+          "                                               file <subcmd> [args...]\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
-          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project quota set\n"
+          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> "
+          "--quota user|group|project quota set\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
           "                                   [-p <path>] quota rmnode\n");
   return -1;
@@ -76,6 +87,36 @@ int ParseRecycleCommand(int argc, const char* argv[], int arg_index,
   } else {
     std::cerr << "error: failed to parse recycle command "
               << command_line << std::endl;
+    return EINVAL;
+  }
+}
+
+int
+ParseFileCommand(int argc, const char* argv[], int arg_index,
+                 eos::rpc::NSRequest& request)
+{
+  std::string command_line;
+
+  for (int i = arg_index; i < argc; i++) {
+    command_line += argv[i];
+    command_line += " ";
+  }
+
+  if (command_line.empty()) {
+    return EINVAL;
+  }
+
+  // Remove trailing space
+  command_line.pop_back();
+  GlobalOptions opts;
+
+  FileHelper file_helper(opts);
+
+  if (file_helper.ParseCommand(command_line.c_str())) {
+    request.mutable_file()->CopyFrom(file_helper.GetRequest().file());
+    return 0;
+  } else {
+    std::cerr << "error: failed to parse file command " << command_line << std::endl;
     return EINVAL;
   }
 }
@@ -452,6 +493,20 @@ int main(int argc, const char* argv[])
         break;
       }
 
+      if (cmd == "file") {
+        arg_index = i;
+        subcmd = argv[i + 1];
+
+        // 'file check' queries the FSTs from the client side, it has no
+        // server-side counterpart to route through the gRPC interface.
+        if (subcmd == "check") {
+          std::cerr << "error: 'file check' is not supported over gRPC" << std::endl;
+          return EINVAL;
+        }
+
+        break;
+      }
+
       if (cmd == "quota") {
         subcmd = argv[i + 1];
 
@@ -475,9 +530,8 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || ((cmd != "quota") && (cmd != "old_recycle") &&
-                      (cmd != "recycle") && path.empty() &&
-                      eostoken.empty())) {
+  if (cmd.empty() || ((cmd != "quota") && (cmd != "old_recycle") && (cmd != "recycle") &&
+                      (cmd != "file") && path.empty() && eostoken.empty())) {
     return usage(argv[0]);
   }
 
@@ -704,6 +758,10 @@ int main(int argc, const char* argv[])
     if (ParseRecycleCommand(argc, argv, arg_index + 1, subcmd, path, request)) {
       return EINVAL;
     }
+  } else if (cmd == "file") {
+    if (ParseFileCommand(argc, argv, arg_index + 1, request)) {
+      return EINVAL;
+    }
   }
 
   (void) google::protobuf::util::MessageToJsonString(request,
@@ -713,6 +771,8 @@ int main(int argc, const char* argv[])
 
   if (eosgrpc->Exec(request, reply)) {
     std::cerr << "grpc request failed" << std::endl;
+  } else if (cmd == "file") {
+    retc = reply.file().code();
   } else {
     retc = reply.error().code();
   }
