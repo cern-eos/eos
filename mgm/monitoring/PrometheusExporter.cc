@@ -5,12 +5,15 @@
 #include "common/shaping/Identity.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "mgm/monitoring/CachedCollectable.hh"
+#include "mgm/monitoring/FstStatusCollector.hh"
+#include "mgm/monitoring/MgmStatusCollector.hh"
 #include "prometheus/client_metric.h"
 #include "prometheus/collectable.h"
 #include "prometheus/exposer.h"
 #include "prometheus/metric_family.h"
 #include "prometheus/metric_type.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -38,6 +41,7 @@ using eos::mgm::traffic_shaping::TrafficShapingPolicy;
 
 constexpr std::size_t kPrometheusExporterThreads = 8;
 constexpr std::size_t kMaxAllTagsMetricEntries = 50000;
+constexpr std::chrono::milliseconds kFstStatusCacheTtl{5000};
 
 class MasterOnlyCollectable : public prometheus::Collectable {
 public:
@@ -1117,22 +1121,35 @@ private:
 
 } // namespace
 
-PrometheusExporter::PrometheusExporter(std::string bind_address,
-                                       TrafficShapingEngine& engine, std::string cluster,
-                                       const std::chrono::milliseconds cache_ttl,
-                                       std::function<bool()> should_collect)
+PrometheusExporter::PrometheusExporter(
+    std::string bind_address, TrafficShapingEngine& engine, std::string cluster,
+    const std::chrono::milliseconds cache_ttl, std::function<bool()> should_collect,
+    std::function<std::vector<MgmStatusSnapshot>()> mgm_status_snapshot)
     : mExposer(std::make_unique<prometheus::Exposer>(std::move(bind_address),
                                                      kPrometheusExporterThreads))
 {
+  const auto fst_status_cache_ttl = std::max(cache_ttl, kFstStatusCacheTtl);
+  auto mgm_status_collector =
+      std::make_shared<MgmStatusCollector>(cluster, std::move(mgm_status_snapshot));
   auto monitoring_collector = std::make_shared<MasterOnlyCollectable>(
       std::make_shared<MonitoringCollector>(cluster, cache_ttl), should_collect);
+  // Temporary native source for eos-orbit. Keep it isolated so it can be
+  // removed when equivalent XRootD monitoring is available.
+  auto fst_status_collector = std::make_shared<MasterOnlyCollectable>(
+      std::make_shared<CachedCollectable>(std::make_shared<FstStatusCollector>(cluster),
+                                          fst_status_cache_ttl),
+      should_collect);
   auto traffic_shaping_collector = std::make_shared<MasterOnlyCollectable>(
       std::make_shared<CachedCollectable>(
           std::make_shared<TrafficShapingCollector>(engine, std::move(cluster)),
           cache_ttl),
       std::move(should_collect));
 
+  // Role is deliberately not master-only: every scraped MGM must identify
+  // itself and the lease holder so failover and disagreement are observable.
+  mCollectors.emplace_back(std::move(mgm_status_collector));
   mCollectors.emplace_back(std::move(monitoring_collector));
+  mCollectors.emplace_back(std::move(fst_status_collector));
   mCollectors.emplace_back(std::move(traffic_shaping_collector));
 
   for (const auto& collector : mCollectors) {

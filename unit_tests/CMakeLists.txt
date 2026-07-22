@@ -48,6 +48,8 @@ set(MGM_UT_SRCS
   mgm/EgroupTests.cc
   mgm/FileSystemRegistryTests.cc
   mgm/FsViewTests.cc
+  mgm/FstStatusCollectorTests.cc
+  mgm/MgmStatusCollectorTests.cc
   mgm/HttpTests.cc
   mgm/IostatTests.cc
   mgm/LockTrackerTests.cc
