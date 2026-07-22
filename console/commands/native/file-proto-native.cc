@@ -690,14 +690,18 @@ public:
       eos::console::FileDropProto* drop = file->mutable_drop();
       SetPathOrId(file->mutable_md(), rest[0]);
 
-      try {
-        drop->set_fsid(std::stoul(rest[1]));
-      } catch (...) {
-        return false;
-      }
+      if (rest[1] == "cache") {
+        drop->set_dropcache(true);
+      } else {
+        try {
+          drop->set_fsid(std::stoul(rest[1]));
+        } catch (...) {
+          return false;
+        }
 
-      if (rest.size() > 2 && rest[2] == "-f") {
-        drop->set_force(true);
+        if (rest.size() > 2 && rest[2] == "-f") {
+          drop->set_force(true);
+        }
       }
     } else if (token == "touch") {
       eos::console::TouchProto* touch = file->mutable_touch();

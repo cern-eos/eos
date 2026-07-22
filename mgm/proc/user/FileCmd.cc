@@ -28,6 +28,7 @@
 #include "common/Utils.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/acl/Acl.hh"
+#include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/macros/Macros.hh"
@@ -38,6 +39,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/xattr/XattrLock.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -303,11 +305,88 @@ FileCmd::DropSubcmd(const eos::console::FileDropProto& drop, const std::string& 
   bool forceRemove = drop.force();
   unsigned long fsid = drop.fsid();
 
+  if (drop.dropcache()) {
+    DropCacheLocation(spath, fid, reply);
+    return;
+  }
+
   if (gOFS->_dropstripe(spath.c_str(), fid, mError, mVid, fsid, forceRemove)) {
     std_err << "error: unable to drop stripe";
     reply.set_retc(errno);
   } else {
     std_out << "success: dropped stripe on fs=" << (int)fsid;
+  }
+
+  reply.set_std_out(std_out.str());
+  reply.set_std_err(std_err.str());
+}
+
+//------------------------------------------------------------------------------
+// Drop the read-through cache location of a file
+//------------------------------------------------------------------------------
+void
+FileCmd::DropCacheLocation(const std::string& spath, unsigned long long fid,
+                           eos::console::ReplyProto& reply)
+{
+  std::ostringstream std_out, std_err;
+
+  try {
+    if (fid) {
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+    } else {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
+    }
+
+    std::shared_ptr<eos::IFileMD> fmd;
+    eos::IContainerMD::id_t cid = 0ull;
+    {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+      if (fid) {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+      } else {
+        fmd = gOFS->eosView->getFile(spath.c_str());
+        fid = fmd->getId();
+      }
+
+      cid = fmd->getContainerId();
+    }
+
+    if (cid) {
+      eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, cid);
+    }
+
+    // Same permission model as stripe drop: parent needs W_OK|X_OK
+    try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+      errno = 0;
+
+      if (mVid.token || (!cmd->access(mVid.uid, mVid.gid, X_OK | W_OK) && !errno)) {
+        reply.set_std_err("error: permission denied to drop cache location");
+        reply.set_retc(EPERM);
+        return;
+      }
+    } catch (eos::MDException& e) {
+      if (mVid.uid) {
+        reply.set_std_err("error: permission denied to drop detached cache "
+                          "location");
+        reply.set_retc(EPERM);
+        return;
+      }
+    }
+
+    const auto cache_fsid = ReadThroughCache::DropCacheLocation(fmd);
+
+    if (!cache_fsid) {
+      std_err << "error: no cache location to drop";
+      reply.set_retc(ENOENT);
+    } else {
+      std_out << "success: dropped cache location fs=" << (int)cache_fsid;
+    }
+  } catch (eos::MDException& e) {
+    std_err << "error: unable to drop cache location";
+    reply.set_retc(e.getErrno());
   }
 
   reply.set_std_out(std_out.str());

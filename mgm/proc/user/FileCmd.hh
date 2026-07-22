@@ -82,6 +82,13 @@ private:
                   unsigned long long fid, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Drop the read-through cache location of a file, used by the 'drop cache'
+  //! flavour of the drop subcommand
+  //----------------------------------------------------------------------------
+  void DropCacheLocation(const std::string& spath, unsigned long long fid,
+                         eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Execute layout subcommand
   //----------------------------------------------------------------------------
   void LayoutSubcmd(const eos::console::FileLayoutProto& layout, const std::string& spath,
