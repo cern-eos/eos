@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <json/json.h>
@@ -467,8 +468,8 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
 bool
 BuildTrafficShapingRateReport(
     const eos::traffic_shaping::TrafficShapingRateRequest& request,
-    eos::traffic_shaping::TrafficShapingRateResponse& report, std::string* error)
-{
+    eos::traffic_shaping::TrafficShapingRateResponse& report, std::string* error) noexcept
+try {
   const auto& engine = gOFS->mTrafficShapingEngine;
   const std::shared_ptr<traffic_shaping::TrafficShapingManager> manager =
       engine.GetManager();
@@ -482,6 +483,23 @@ BuildTrafficShapingRateReport(
 
   BuildReport(manager, request, report);
   return true;
+} catch (const std::exception& exception) {
+  try {
+    if (error != nullptr) {
+      *error =
+          std::string("Traffic shaping report construction failed: ") + exception.what();
+    }
+  } catch (...) {
+  }
+  return false;
+} catch (...) {
+  try {
+    if (error != nullptr) {
+      *error = "Traffic shaping report construction failed";
+    }
+  } catch (...) {
+  }
+  return false;
 }
 
 void
@@ -518,6 +536,17 @@ ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction
     return;
   }
 
+  const bool sets_positive_reservation = (set_req.has_reservation_read_bytes_per_sec() &&
+                                          set_req.reservation_read_bytes_per_sec() > 0) ||
+                                         (set_req.has_reservation_write_bytes_per_sec() &&
+                                          set_req.reservation_write_bytes_per_sec() > 0);
+  if (!set_req.has_app() && sets_positive_reservation) {
+    reply.set_retc(EOPNOTSUPP);
+    reply.set_std_err(
+        "error: Reservations are currently supported for application policies only.\n");
+    return;
+  }
+
   // --- Parse User Limits ---
   if (set_req.has_limit_read_bytes_per_sec()) {
     policy.limit_read_bytes_per_sec = set_req.limit_read_bytes_per_sec();
@@ -548,12 +577,31 @@ ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction
     policy.is_enabled = set_req.is_enabled();
   }
 
-  if (set_req.has_app()) {
-    manager->SetAppPolicy(set_req.app(), policy);
-  } else if (set_req.has_uid()) {
-    manager->SetUidPolicy(set_req.uid(), policy);
-  } else if (set_req.has_gid()) {
-    manager->SetGidPolicy(set_req.gid(), policy);
+  if (set_req.has_app() && !policy.IsReservationConfigurationFeasible()) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err(
+        "error: A non-zero limit cannot be lower than the reservation for the "
+        "same direction.\n");
+    return;
+  }
+
+  try {
+    if (set_req.has_app()) {
+      manager->SetAppPolicy(set_req.app(), policy);
+    } else if (set_req.has_uid()) {
+      manager->SetUidPolicy(set_req.uid(), policy);
+    } else if (set_req.has_gid()) {
+      manager->SetGidPolicy(set_req.gid(), policy);
+    }
+  } catch (const std::exception& error) {
+    reply.set_retc(EIO);
+    reply.set_std_err(std::string("error: Failed to update shaping policy: ") +
+                      error.what() + "\n");
+    return;
+  } catch (...) {
+    reply.set_retc(EIO);
+    reply.set_std_err("error: Failed to update shaping policy.\n");
+    return;
   }
 
   const std::string status_str = policy.is_enabled ? "Enabled" : "Disabled";
@@ -579,19 +627,30 @@ ShapingPolicyDelete(
 
   std::string target_desc;
 
-  if (rm_req.has_app()) {
-    manager->RemoveAppPolicy(rm_req.app());
-    target_desc = "App '" + rm_req.app() + "'";
-  } else if (rm_req.has_uid()) {
-    manager->RemoveUidPolicy(rm_req.uid());
-    target_desc = "UID " + std::to_string(rm_req.uid());
-  } else if (rm_req.has_gid()) {
-    manager->RemoveGidPolicy(rm_req.gid());
-    target_desc = "GID " + std::to_string(rm_req.gid());
-  } else {
-    reply.set_retc(EINVAL);
-    reply.set_std_err(
-        "error: You must specify a target to delete (--app, --uid, or --gid).\n");
+  try {
+    if (rm_req.has_app()) {
+      manager->RemoveAppPolicy(rm_req.app());
+      target_desc = "App '" + rm_req.app() + "'";
+    } else if (rm_req.has_uid()) {
+      manager->RemoveUidPolicy(rm_req.uid());
+      target_desc = "UID " + std::to_string(rm_req.uid());
+    } else if (rm_req.has_gid()) {
+      manager->RemoveGidPolicy(rm_req.gid());
+      target_desc = "GID " + std::to_string(rm_req.gid());
+    } else {
+      reply.set_retc(EINVAL);
+      reply.set_std_err(
+          "error: You must specify a target to delete (--app, --uid, or --gid).\n");
+      return;
+    }
+  } catch (const std::exception& error) {
+    reply.set_retc(EIO);
+    reply.set_std_err(std::string("error: Failed to delete shaping policy: ") +
+                      error.what() + "\n");
+    return;
+  } catch (...) {
+    reply.set_retc(EIO);
+    reply.set_std_err("error: Failed to delete shaping policy.\n");
     return;
   }
 
@@ -603,7 +662,12 @@ void
 ShapingTrafficEnable(eos::console::ReplyProto& reply)
 {
   auto& engine = gOFS->mTrafficShapingEngine;
-  engine.Enable();
+  if (!engine.Enable()) {
+    reply.set_retc(EIO);
+    reply.set_std_err("error: Traffic Shaping could not be enabled completely; "
+                      "check the MGM log and retry.\n");
+    return;
+  }
   reply.set_retc(0);
   reply.set_std_out("success: Traffic Shaping enabled.\n");
 }
@@ -612,7 +676,12 @@ void
 ShapingTrafficDisable(eos::console::ReplyProto& reply)
 {
   auto& engine = gOFS->mTrafficShapingEngine;
-  engine.Disable();
+  if (!engine.Disable()) {
+    reply.set_retc(EIO);
+    reply.set_std_err("error: Traffic Shaping could not be disabled completely; "
+                      "check the MGM log and retry.\n");
+    return;
+  }
   reply.set_retc(0);
   reply.set_std_out("success: Traffic Shaping disabled.\n");
 }
@@ -1275,6 +1344,22 @@ ShapingPressureList(
   }
 
   const auto snapshots = manager->GetReservedAppNodeIoPressure();
+  const auto controller_snapshot = manager->GetNodeReservationControllerSnapshot();
+  auto controller_phase = [](const auto& feedback) {
+    if (feedback.suppressed) {
+      return "suppressed";
+    }
+    if (feedback.awaiting_response) {
+      return "awaiting-response";
+    }
+    if (feedback.consecutive_deficit_samples > 0) {
+      return "qualifying";
+    }
+    if (feedback.applied_reduction_bps > 0.0) {
+      return "holding";
+    }
+    return "idle";
+  };
   std::ostringstream oss;
 
   if (list_req.json_output()) {
@@ -1296,6 +1381,18 @@ ShapingPressureList(
           static_cast<Json::Value::UInt64>(snapshot.reservation_read_bytes_per_sec);
       entry["reservation_write_bytes_per_sec"] =
           static_cast<Json::Value::UInt64>(snapshot.reservation_write_bytes_per_sec);
+      entry["effective_reservation_read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(
+              snapshot.effective_reservation_read_bytes_per_sec);
+      entry["effective_reservation_write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(
+              snapshot.effective_reservation_write_bytes_per_sec);
+      entry["node_controller_read_limit_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(
+              snapshot.node_controller_read_limit_bytes_per_sec);
+      entry["node_controller_write_limit_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(
+              snapshot.node_controller_write_limit_bytes_per_sec);
       entry["read_reservation_deficit_bps"] = snapshot.read_reservation_deficit_bps;
       entry["write_reservation_deficit_bps"] = snapshot.write_reservation_deficit_bps;
       entry["has_read_io_pressure"] = snapshot.has_read_io_pressure;
@@ -1325,19 +1422,70 @@ ShapingPressureList(
       json.append(entry);
     }
 
+    for (const auto& limit : controller_snapshot.limits) {
+      Json::Value entry;
+      entry["type"] = "node_controller_limit";
+      entry["app"] = limit.app;
+      entry["node_id"] = NodeLabel(LabelOrUnknown(limit.node_id));
+      entry["read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(limit.read_bytes_per_sec);
+      entry["write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(limit.write_bytes_per_sec);
+      json.append(entry);
+    }
+
+    for (const auto& feedback : controller_snapshot.feedback) {
+      Json::Value entry;
+      entry["type"] = "node_controller_feedback";
+      entry["node_id"] = NodeLabel(LabelOrUnknown(feedback.node_id));
+      entry["operation"] = feedback.is_write ? "write" : "read";
+      entry["phase"] = controller_phase(feedback);
+      entry["consecutive_deficit_samples"] =
+          static_cast<Json::Value::UInt64>(feedback.consecutive_deficit_samples);
+      entry["protected_app_count"] =
+          static_cast<Json::Value::UInt64>(feedback.protected_app_count);
+      entry["applied_reduction_bps"] = feedback.applied_reduction_bps;
+      entry["ineffective_probe_count"] =
+          static_cast<Json::Value::UInt64>(feedback.ineffective_probe_count);
+      entry["failed_protected_app_count"] =
+          static_cast<Json::Value::UInt64>(feedback.failed_protected_app_count);
+      entry["observed_protected_gain_bps"] = feedback.observed_protected_gain_bps;
+      entry["response_ratio"] = feedback.response_ratio;
+      entry["awaiting_response"] = feedback.awaiting_response;
+      entry["suppressed"] = feedback.suppressed;
+      entry["suppression_remaining_seconds"] = feedback.suppression_remaining_seconds;
+      json.append(entry);
+    }
+
+    for (const auto& cohort_app : controller_snapshot.cohort_apps) {
+      Json::Value entry;
+      entry["type"] = "node_controller_cohort_app";
+      entry["node_id"] = NodeLabel(LabelOrUnknown(cohort_app.node_id));
+      entry["operation"] = cohort_app.is_write ? "write" : "read";
+      entry["cohort"] = cohort_app.failed ? "failed" : "active";
+      entry["app"] = cohort_app.app;
+      entry["target_bps"] = cohort_app.target_bps;
+      entry["baseline_rate_bps"] = cohort_app.baseline_rate_bps;
+      entry["assigned_reduction_bps"] = cohort_app.assigned_reduction_bps;
+      entry["rate_at_failure_bps"] = cohort_app.rate_at_failure_bps;
+      json.append(entry);
+    }
+
     oss << CompactJsonString(json);
   } else {
     constexpr size_t kPressureAppWidth = 40;
     constexpr size_t kPressureNodeWidth = 42;
-    constexpr size_t kPressureSeparatorWidth = 176;
+    constexpr size_t kPressureSeparatorWidth = 232;
 
     oss << "--- Reserved Application IO Pressure by Node ---\n";
     oss << std::left << std::setw(kPressureAppWidth) << "Application"
         << std::setw(kPressureNodeWidth) << "Node" << std::right << std::setw(14)
         << "Read Rate" << std::setw(14) << "Write Rate" << std::setw(12) << "Node Press"
-        << std::setw(12) << "Read Press" << std::setw(12) << "Write Press"
-        << std::setw(10) << "Rd Trig" << std::setw(10) << "Wr Trig" << std::setw(10)
-        << "Node Rd" << std::setw(10) << "Node Wr" << "\n";
+        << std::setw(14) << "Eff Rd Res" << std::setw(14) << "Eff Wr Res" << std::setw(14)
+        << "Node Rd Lim" << std::setw(14) << "Node Wr Lim" << std::setw(12)
+        << "Read Press" << std::setw(12) << "Write Press" << std::setw(10) << "Rd Trig"
+        << std::setw(10) << "Wr Trig" << std::setw(10) << "Node Rd" << std::setw(10)
+        << "Node Wr" << "\n";
     oss << std::string(kPressureSeparatorWidth, '-') << "\n";
 
     for (const auto& snapshot : snapshots) {
@@ -1350,6 +1498,14 @@ ShapingPressureList(
           << format_rate(snapshot.write_rate_bps) << std::setw(12)
           << format_optional_io_pressure(snapshot.has_node_io_pressure,
                                          snapshot.node_io_pressure)
+          << std::setw(14)
+          << format_rate(snapshot.effective_reservation_read_bytes_per_sec)
+          << std::setw(14)
+          << format_rate(snapshot.effective_reservation_write_bytes_per_sec)
+          << std::setw(14)
+          << format_rate(snapshot.node_controller_read_limit_bytes_per_sec)
+          << std::setw(14)
+          << format_rate(snapshot.node_controller_write_limit_bytes_per_sec)
           << std::setw(12)
           << format_optional_io_pressure(snapshot.has_read_io_pressure,
                                          snapshot.node_io_pressure)
@@ -1364,7 +1520,82 @@ ShapingPressureList(
     }
 
     if (snapshots.empty()) {
-      oss << "No application reservations configured.\n";
+      oss << "No reserved application pressure snapshots.\n";
+    }
+
+    oss << "\n--- Active Node Controller Limits ---\n";
+    oss << std::left << std::setw(kPressureAppWidth) << "Application"
+        << std::setw(kPressureNodeWidth) << "Node" << std::right << std::setw(16)
+        << "Read Limit" << std::setw(16) << "Write Limit" << "\n";
+    oss << std::string(kPressureAppWidth + kPressureNodeWidth + 32, '-') << "\n";
+    for (const auto& limit : controller_snapshot.limits) {
+      oss << std::left << std::setw(kPressureAppWidth)
+          << format_table_label(limit.app, kPressureAppWidth)
+          << std::setw(kPressureNodeWidth)
+          << format_table_label(NodeLabel(LabelOrUnknown(limit.node_id)),
+                                kPressureNodeWidth)
+          << std::right << std::setw(16) << format_rate(limit.read_bytes_per_sec)
+          << std::setw(16) << format_rate(limit.write_bytes_per_sec) << "\n";
+    }
+    if (controller_snapshot.limits.empty()) {
+      oss << "No active node-local controller limits.\n";
+    }
+
+    constexpr size_t kFeedbackSeparatorWidth = 158;
+    oss << "\n--- Node Controller Feedback ---\n";
+    oss << std::left << std::setw(kPressureNodeWidth) << "Node" << std::setw(10)
+        << "Operation" << std::setw(20) << "Phase" << std::right << std::setw(9)
+        << "Samples" << std::setw(9) << "Active" << std::setw(9) << "Failed"
+        << std::setw(14) << "Reduction" << std::setw(14) << "Gain" << std::setw(10)
+        << "Ratio" << std::setw(9) << "Probes" << std::setw(12) << "Backoff s"
+        << "\n";
+    oss << std::string(kFeedbackSeparatorWidth, '-') << "\n";
+    for (const auto& feedback : controller_snapshot.feedback) {
+      std::ostringstream ratio;
+      ratio << std::fixed << std::setprecision(3) << feedback.response_ratio;
+      oss << std::left << std::setw(kPressureNodeWidth)
+          << format_table_label(NodeLabel(LabelOrUnknown(feedback.node_id)),
+                                kPressureNodeWidth)
+          << std::setw(10) << (feedback.is_write ? "write" : "read") << std::setw(20)
+          << controller_phase(feedback) << std::right << std::setw(9)
+          << feedback.consecutive_deficit_samples << std::setw(9)
+          << feedback.protected_app_count << std::setw(9)
+          << feedback.failed_protected_app_count << std::setw(14)
+          << format_rate(feedback.applied_reduction_bps) << std::setw(14)
+          << format_rate(feedback.observed_protected_gain_bps) << std::setw(10)
+          << ratio.str() << std::setw(9) << feedback.ineffective_probe_count
+          << std::setw(12)
+          << static_cast<uint64_t>(std::ceil(feedback.suppression_remaining_seconds))
+          << "\n";
+    }
+    if (controller_snapshot.feedback.empty()) {
+      oss << "No active controller feedback state.\n";
+    }
+
+    constexpr size_t kCohortSeparatorWidth = 158;
+    oss << "\n--- Node Controller Protected Cohorts ---\n";
+    oss << std::left << std::setw(kPressureNodeWidth) << "Node"
+        << std::setw(kPressureAppWidth) << "Application" << std::setw(10) << "Operation"
+        << std::setw(10) << "Cohort" << std::right << std::setw(14) << "Target"
+        << std::setw(14) << "Baseline" << std::setw(14) << "Assigned" << std::setw(14)
+        << "Failure Rate"
+        << "\n";
+    oss << std::string(kCohortSeparatorWidth, '-') << "\n";
+    for (const auto& cohort_app : controller_snapshot.cohort_apps) {
+      oss << std::left << std::setw(kPressureNodeWidth)
+          << format_table_label(NodeLabel(LabelOrUnknown(cohort_app.node_id)),
+                                kPressureNodeWidth)
+          << std::setw(kPressureAppWidth)
+          << format_table_label(cohort_app.app, kPressureAppWidth) << std::setw(10)
+          << (cohort_app.is_write ? "write" : "read") << std::setw(10)
+          << (cohort_app.failed ? "failed" : "active") << std::right << std::setw(14)
+          << format_rate(cohort_app.target_bps) << std::setw(14)
+          << format_rate(cohort_app.baseline_rate_bps) << std::setw(14)
+          << format_rate(cohort_app.assigned_reduction_bps) << std::setw(14)
+          << format_rate(cohort_app.rate_at_failure_bps) << "\n";
+    }
+    if (controller_snapshot.cohort_apps.empty()) {
+      oss << "No protected controller cohorts.\n";
     }
   }
 

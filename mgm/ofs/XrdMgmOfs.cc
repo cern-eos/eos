@@ -683,6 +683,8 @@ XrdMgmOfs::OrderlyShutdown()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  eos_warning("%s", "msg=\"stopping traffic shaping workers\"");
+  mTrafficShapingEngine.Stop();
   eos_warning("%s", "msg=\"stopping error logger thread\"");
   mErrLoggerTid.join();
   eos_warning("%s", "msg=\"stopping fs listener thread\"");
@@ -822,8 +824,6 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("msg=\"finished orderly shutdown in %llu seconds\"",
               std::chrono::duration_cast<std::chrono::seconds>
               (end_ts - start_ts).count());
-
-  mTrafficShapingEngine.Stop();
 }
 
 //------------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common/Constants.hh"
-#include "common/Logging.hh"
 #include "common/VirtualIdentity.hh"
 #include "common/shaping/IoStatsKey.hh"
 
@@ -14,6 +13,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace eos::fst::traffic_shaping {
@@ -23,6 +23,16 @@ using IoStatsKeyHash = eos::common::traffic_shaping::IoStatsKeyHash;
 
 inline constexpr uint64_t kIoDelayReferenceBytes = 1024 * 1024;
 inline constexpr uint64_t kMaxScaledIoDelayUs = 30ULL * 1000 * 1000;
+inline constexpr size_t kMaxIoStatsEntries = 8192;
+
+bool ParseFstIoStatsReportingPeriodMilliseconds(std::string_view value,
+                                                uint32_t& period_ms) noexcept;
+
+uint32_t SanitizeFstIoStatsReportingPeriodMilliseconds(uint32_t period_ms) noexcept;
+
+bool ValidateFstIoDelayConfig(
+    const eos::traffic_shaping::TrafficShapingFstIoDelayConfig& config,
+    size_t& entry_count) noexcept;
 
 // "alignas(64)" prevents False Sharing (cache line bouncing) between threads.
 struct alignas(64) IoStatsEntry {
@@ -32,7 +42,7 @@ struct alignas(64) IoStatsEntry {
   std::atomic<uint64_t> write_iops{0};
 
   // Lifecycle management
-  uint64_t generation_id;                 // Random ID assigned on creation
+  uint64_t generation_id;                 // Unique token assigned on creation
   std::atomic<int64_t> last_activity_s{}; // Timestamp for cleanup
 
   IoStatsEntry(); // Constructor generates the random ID
@@ -40,13 +50,13 @@ struct alignas(64) IoStatsEntry {
 
 class IoStatsCollector {
 public:
-  IoStatsCollector() = default;
+  IoStatsCollector();
 
   void RecordRead(const std::string& app, uint32_t uid, uint32_t gid, uint32_t fsid,
-                  size_t bytes);
+                  size_t bytes) noexcept;
 
   void RecordWrite(const std::string& app, uint32_t uid, uint32_t gid, uint32_t fsid,
-                   size_t bytes);
+                   size_t bytes) noexcept;
 
   bool SetFilesystemDetailEnabled(bool enabled);
 
@@ -74,12 +84,7 @@ public:
     }
   }
 
-  void
-  Clear()
-  {
-    std::unique_lock lock(mutex_);
-    stats_map_.clear();
-  }
+  void Clear();
 
   void
   SetEnabled(const bool enabled)
@@ -96,11 +101,17 @@ public:
     return mIsEnabled.load(std::memory_order_relaxed);
   }
 
+  uint64_t
+  GetRejectedEntryCount() const
+  {
+    return mRejectedEntryCount.load(std::memory_order_relaxed);
+  }
+
 private:
   uint32_t NormalizeFsid(uint32_t fsid) const;
 
-  std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
-                                         uint32_t gid, uint32_t fsid);
+  IoStatsEntry* GetEntry(const std::string& app, uint32_t uid, uint32_t gid,
+                         uint32_t fsid);
 
   mutable std::shared_mutex mutex_;
   std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash>
@@ -108,6 +119,10 @@ private:
 
   std::atomic<bool> mIsEnabled{false};
   std::atomic<bool> mFilesystemDetailEnabled{false};
+  std::atomic<bool> mAtCapacity{false};
+  std::atomic<uint64_t> mRejectedEntryCount{0};
+  // Invalidates thread-local entry handles after map or keying changes.
+  std::atomic<uint64_t> mCacheGeneration;
 };
 
 class IoDelayConfig {
@@ -117,10 +132,10 @@ public:
   void UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config);
 
   uint64_t GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
-                                    uint64_t bytes = 0) const;
+                                    uint64_t bytes = 0) const noexcept;
 
   uint64_t GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
-                                     uint64_t bytes = 0) const;
+                                     uint64_t bytes = 0) const noexcept;
 
   void Clear();
 
@@ -138,5 +153,7 @@ private:
       mFstIoDelayConfigPtr;
 
   std::atomic<bool> mIsEnabled{false};
+  // Invalidates thread-local resolved delays after a configuration update.
+  std::atomic<uint64_t> mCacheGeneration;
 };
 } // namespace eos::fst::traffic_shaping

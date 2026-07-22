@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/AssistedThread.hh"
+#include "common/Constants.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "common/shaping/SlidingWindowStats.hh"
 #include "proto/TrafficShaping.pb.h"
@@ -12,39 +13,30 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
-#include <functional>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <string>
-#include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace eos::mgm::traffic_shaping {
 
-extern "C" {
-// Function signatures for the hot-reloaded plugin
-struct DelayState {
-  double limit_bps;
-  double current_rate_bps;
-  uint64_t current_delay_us;
-  double io_pressure;
-  bool has_rate_sample;
-  bool allow_idle_release;
-  double delay_reference_bps;
-  double io_pressure_threshold;
-};
+#ifdef IN_TEST_HARNESS
+std::optional<double>
+ParseFreshFilesystemIoPressureForTest(const std::string& load_value,
+                                      const std::string& publish_timestamp_value,
+                                      int64_t now_ms);
+#endif
 
-typedef uint64_t (*DelayAlgoFunc)(const DelayState* state);
-
-// A flat, simple struct containing all inputs and outputs for ONE app
+// Inputs and outputs for one application in the built-in reservation controller.
 struct AppState {
-  char app_name[128]; // Fixed size so we don't mess with pointers
+  std::string app_name;
 
-  // Inputs from MGM -> Plugin
   double current_read_bps;
   double current_write_bps;
   // Max FST disk-load pressure on nodes where this app is currently active.
@@ -56,27 +48,69 @@ struct AppState {
   uint64_t reservation_read_bps;
   uint64_t controller_limit_write_bps;
   uint64_t controller_limit_read_bps;
-  uint64_t controller_min_limit_bps;
-  double io_pressure_threshold;
   bool has_read_io_pressure;
   bool has_write_io_pressure;
   bool has_read_reservation_competition;
   bool has_write_reservation_competition;
 
-  // Outputs from Plugin -> MGM
   uint64_t new_controller_limit_write_bps;
   uint64_t new_controller_limit_read_bps;
-  bool update_write; // Set to true if the plugin wants to apply the new write limit
-  bool update_read;  // Set to true if the plugin wants to apply the new read limit
-  uint64_t new_reservation_write_bps;
-  uint64_t new_reservation_read_bps;
-  bool update_reservation_write;
-  bool update_reservation_read;
+  bool update_write;
+  bool update_read;
 };
 
-// Pass the pure data array to avoid C++ ABI name mangling and linking issues
-typedef void (*ControllerAlgoFunc)(AppState* apps, size_t num_apps);
-}
+struct ReservationControllerState {
+  struct ProtectedAppAction {
+    double target_bps = 0.0;
+    double baseline_rate_bps = 0.0;
+    double assigned_reduction_bps = 0.0;
+  };
+
+  struct FailedProtectedApp {
+    double target_bps = 0.0;
+    double baseline_rate_bps = 0.0;
+    double assigned_reduction_bps = 0.0;
+    double rate_at_failure_bps = 0.0;
+  };
+
+  struct Direction {
+    uint32_t consecutive_deficit_samples = 0;
+    std::unordered_map<std::string, ProtectedAppAction> protected_apps;
+    double applied_reduction_bps = 0.0;
+    uint32_t ineffective_probe_count = 0;
+    std::unordered_map<std::string, FailedProtectedApp> failed_protected_apps;
+    double last_observed_protected_gain_bps = 0.0;
+    double last_response_ratio = 0.0;
+    std::chrono::steady_clock::time_point last_adjustment_time{};
+    std::chrono::steady_clock::time_point healthy_since{};
+    std::chrono::steady_clock::time_point suppressed_until{};
+  };
+
+  Direction read;
+  Direction write;
+};
+
+struct NodeAppControllerLimit {
+  uint64_t read_bps = 0;
+  uint64_t write_bps = 0;
+  std::chrono::steady_clock::time_point read_update_time{};
+  std::chrono::steady_clock::time_point write_update_time{};
+};
+
+struct NodeReservationControllerRuntime {
+  ReservationControllerState feedback;
+  std::unordered_map<std::string, NodeAppControllerLimit> app_limits;
+};
+
+// App delays from global policies and from the built-in node-local controller
+// use different rate domains. Keep their feedback state separate and publish
+// only the stricter result.
+struct NodeAppDelayState {
+  std::unordered_map<std::string, uint64_t> global_read;
+  std::unordered_map<std::string, uint64_t> global_write;
+  std::unordered_map<std::string, uint64_t> reservation_read;
+  std::unordered_map<std::string, uint64_t> reservation_write;
+};
 
 struct StreamState {
   uint64_t last_bytes_read = 0;
@@ -86,6 +120,9 @@ struct StreamState {
 
   uint64_t generation_id = 0;
 
+  // Source timestamp of the newest accepted cumulative snapshot for this stream.
+  int64_t last_report_timestamp_ms = 0;
+
   std::chrono::steady_clock::time_point last_update_time{};
 };
 
@@ -94,6 +131,57 @@ struct RateMetrics {
   double write_rate_bps = 0.0;
   double read_iops = 0.0;
   double write_iops = 0.0;
+};
+
+struct RateCounters {
+  double bytes_read = 0.0;
+  double bytes_written = 0.0;
+  double read_ops = 0.0;
+  double write_ops = 0.0;
+};
+
+// Stores cumulative checkpoints so fixed-window rates take O(log N) time instead
+// of rescanning every bucket for every metric and window.
+class CumulativeRateHistory {
+public:
+  CumulativeRateHistory(double max_history_seconds, double tick_interval_seconds);
+
+  void Reset(double max_history_seconds, double tick_interval_seconds);
+
+  void Push(const RateCounters& counters, double elapsed_seconds);
+
+  RateMetrics GetRate(double seconds) const;
+
+private:
+  struct Sample {
+    RateCounters counters;
+    double elapsed_seconds = 0.0;
+  };
+
+  struct HistoryRing {
+    std::vector<Sample> samples;
+    size_t capacity = 0;
+    size_t head = 0;
+    size_t size = 0;
+    Sample base;
+
+    void Reset(size_t capacity);
+    void Push(const Sample& sample);
+    const Sample& GetLogicalSample(size_t index) const;
+    Sample FindBoundary(double target_elapsed) const;
+  };
+
+  static constexpr double kFineHistorySeconds = 15.0;
+  static constexpr double kMediumHistorySeconds = 60.0;
+  double mTickIntervalSec = 0.0;
+  double mMediumIntervalSec = 1.0;
+  double mCoarseIntervalSec = 5.0;
+  double mLastMediumCheckpointSec = 0.0;
+  double mLastCoarseCheckpointSec = 0.0;
+  HistoryRing mFineHistory;
+  HistoryRing mMediumHistory;
+  HistoryRing mCoarseHistory;
+  Sample mCumulativeSample;
 };
 
 struct AppIoPressureSnapshot {
@@ -115,6 +203,10 @@ struct AppNodeIoPressureSnapshot {
   double write_reservation_deficit_bps = 0.0;
   uint64_t reservation_read_bytes_per_sec = 0;
   uint64_t reservation_write_bytes_per_sec = 0;
+  uint64_t effective_reservation_read_bytes_per_sec = 0;
+  uint64_t effective_reservation_write_bytes_per_sec = 0;
+  uint64_t node_controller_read_limit_bytes_per_sec = 0;
+  uint64_t node_controller_write_limit_bytes_per_sec = 0;
   bool has_node_io_pressure = false;
   bool has_read_io_pressure = false;
   bool has_write_io_pressure = false;
@@ -128,9 +220,51 @@ struct AppNodeIoPressureSnapshot {
   bool node_has_pressured_write_reservation = false;
 };
 
+struct NodeReservationControllerLimitSnapshot {
+  std::string node_id;
+  std::string app;
+  uint64_t read_bytes_per_sec = 0;
+  uint64_t write_bytes_per_sec = 0;
+};
+
+struct NodeReservationControllerFeedbackSnapshot {
+  std::string node_id;
+  bool is_write = false;
+  uint32_t consecutive_deficit_samples = 0;
+  size_t protected_app_count = 0;
+  double applied_reduction_bps = 0.0;
+  uint32_t ineffective_probe_count = 0;
+  size_t failed_protected_app_count = 0;
+  double observed_protected_gain_bps = 0.0;
+  double response_ratio = 0.0;
+  bool awaiting_response = false;
+  bool suppressed = false;
+  double suppression_remaining_seconds = 0.0;
+  std::string phase;
+};
+
+struct NodeReservationControllerCohortAppSnapshot {
+  std::string node_id;
+  std::string app;
+  bool is_write = false;
+  bool failed = false;
+  double target_bps = 0.0;
+  double baseline_rate_bps = 0.0;
+  double assigned_reduction_bps = 0.0;
+  double rate_at_failure_bps = 0.0;
+};
+
+struct NodeReservationControllerSnapshot {
+  std::vector<NodeReservationControllerLimitSnapshot> limits;
+  std::vector<NodeReservationControllerFeedbackSnapshot> feedback;
+  std::vector<NodeReservationControllerCohortAppSnapshot> cohort_apps;
+};
+
 struct MapCardinalityStats {
   uint64_t node_states = 0;
   uint64_t node_state_streams = 0;
+  uint64_t node_state_estimated_bytes = 0;
+  uint64_t node_state_rejections_total = 0;
   uint64_t global_stats = 0;
   uint64_t node_stats = 0;
   uint64_t disk_stats = 0;
@@ -149,6 +283,46 @@ struct MapCardinalityStats {
   uint64_t app_policies = 0;
   uint64_t node_fst_io_delay_configs = 0;
   uint64_t published_fst_io_delay_configs = 0;
+  uint64_t garbage_collection_removed_nodes_total = 0;
+  uint64_t garbage_collection_removed_node_streams_total = 0;
+  uint64_t garbage_collection_removed_global_streams_total = 0;
+  uint64_t garbage_collection_removed_disk_stats_total = 0;
+  uint64_t garbage_collection_removed_detailed_stats_total = 0;
+};
+
+struct TrafficShapingMemoryStats {
+  uint64_t estimated_bytes = 0;
+  uint64_t limit_bytes = 0;
+  uint64_t stream_state_estimated_bytes = 0;
+  uint64_t stream_state_limit_bytes = 0;
+  uint64_t stream_state_limit_entries = 0;
+  uint64_t report_queue_estimated_bytes = 0;
+  uint64_t report_queue_limit_bytes = 0;
+};
+
+struct DurationHistogramSnapshot {
+  std::vector<double> upper_bounds_seconds;
+  std::vector<uint64_t> cumulative_bucket_counts;
+  uint64_t sample_count = 0;
+  double sample_sum_seconds = 0.0;
+};
+
+struct LoopTimingSnapshot {
+  DurationHistogramSnapshot duration;
+  uint64_t iterations_total = 0;
+  uint64_t last_completed_timestamp_seconds = 0;
+};
+
+struct SystemTimingSnapshot {
+  LoopTimingSnapshot estimators;
+  LoopTimingSnapshot fst_policy;
+  LoopTimingSnapshot io_pressure;
+  LoopTimingSnapshot reservation_controller;
+  LoopTimingSnapshot fst_limits;
+  LoopTimingSnapshot garbage_collection;
+  DurationHistogramSnapshot fsview_lock_wait;
+  DurationHistogramSnapshot fsview_lock_hold;
+  uint64_t fst_policy_slow_iterations_total = 0;
 };
 
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
@@ -158,56 +332,57 @@ enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
 
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma15s = 2, Sma1m = 3, Sma5m = 4 };
 
-constexpr uint32_t kMinThreadPeriodMs = 50;
-constexpr uint32_t kMaxThreadPeriodMs = 3000;
+constexpr uint32_t kMinThreadPeriodMs = eos::common::TRAFFIC_SHAPING_THREAD_PERIOD_MIN_MS;
+constexpr uint32_t kMaxThreadPeriodMs = eos::common::TRAFFIC_SHAPING_THREAD_PERIOD_MAX_MS;
 constexpr uint32_t kMinSystemStatsWindowSec = 5;
 constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
 constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
 constexpr uint32_t kDefaultGarbageCollectionIdleSec = 5 * 60;
-constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 5000;
-constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 8000;
+// Switch away from filesystem detail well before the stream-state safety bound;
+// baseline state remains available for shaping while detailed histories stop
+// growing with stream cardinality.
+constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 1000;
+constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 1500;
+constexpr size_t kMaxSerializedFstIoReportBytes =
+    eos::common::TRAFFIC_SHAPING_FST_REPORT_MAX_SERIALIZED_BYTES;
+constexpr size_t kMaxBase64EncodedFstIoReportBytes =
+    7 + ((kMaxSerializedFstIoReportBytes + 2) / 3) * 4;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
 constexpr uint64_t kDefaultActiveNodeRateThresholdBps = 1024ULL * 1024ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
 
 struct MultiWindowRate {
   double tick_interval_seconds;
-  const double sma_max_history_seconds =
-      *std::max_element(SmaWindowSec.begin(), SmaWindowSec.end());
+  static constexpr double sma_max_history_seconds = SmaWindowSec.back();
 
-  std::atomic<uint64_t> bytes_read_accumulator{0};
-  std::atomic<uint64_t> bytes_written_accumulator{0};
-  std::atomic<uint64_t> read_iops_accumulator{0};
-  std::atomic<uint64_t> write_iops_accumulator{0};
+  // TrafficShapingManager serializes all access with mMutex, so atomics here only
+  // added cache-coherency traffic without providing additional safety.
+  double bytes_read_accumulator = 0.0;
+  double bytes_written_accumulator = 0.0;
+  double read_iops_accumulator = 0.0;
+  double write_iops_accumulator = 0.0;
 
   std::array<RateMetrics, EmaWindowSec.size()> ema{};
   std::array<RateMetrics, SmaWindowSec.size()> sma{};
 
-  eos::common::traffic_shaping::SlidingWindowStats bytes_read_window;
-  eos::common::traffic_shaping::SlidingWindowStats bytes_written_window;
-  eos::common::traffic_shaping::SlidingWindowStats iops_read_window;
-  eos::common::traffic_shaping::SlidingWindowStats iops_write_window;
+  CumulativeRateHistory rate_history;
 
-  uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 
   explicit MultiWindowRate(const double initial_tick_interval)
       : tick_interval_seconds(initial_tick_interval)
-      , bytes_read_window(sma_max_history_seconds, initial_tick_interval)
-      , bytes_written_window(sma_max_history_seconds, initial_tick_interval)
-      , iops_read_window(sma_max_history_seconds, initial_tick_interval)
-      , iops_write_window(sma_max_history_seconds, initial_tick_interval)
+      , rate_history(sma_max_history_seconds, initial_tick_interval)
   {
   }
 
   void
   clear()
   {
-    bytes_read_accumulator.store(0, std::memory_order_relaxed);
-    bytes_written_accumulator.store(0, std::memory_order_relaxed);
-    read_iops_accumulator.store(0, std::memory_order_relaxed);
-    write_iops_accumulator.store(0, std::memory_order_relaxed);
+    bytes_read_accumulator = 0.0;
+    bytes_written_accumulator = 0.0;
+    read_iops_accumulator = 0.0;
+    write_iops_accumulator = 0.0;
 
     for (auto& m : ema) {
       m = RateMetrics{};
@@ -219,7 +394,6 @@ struct MultiWindowRate {
 
     ResetWindows(tick_interval_seconds);
 
-    active_stream_count = 0;
     last_activity_time = 0;
   }
 
@@ -227,14 +401,7 @@ struct MultiWindowRate {
   ResetWindows(double new_tick_interval)
   {
     tick_interval_seconds = new_tick_interval;
-    bytes_read_window = eos::common::traffic_shaping::SlidingWindowStats(
-        sma_max_history_seconds, tick_interval_seconds);
-    bytes_written_window = eos::common::traffic_shaping::SlidingWindowStats(
-        sma_max_history_seconds, tick_interval_seconds);
-    iops_read_window = eos::common::traffic_shaping::SlidingWindowStats(
-        sma_max_history_seconds, tick_interval_seconds);
-    iops_write_window = eos::common::traffic_shaping::SlidingWindowStats(
-        sma_max_history_seconds, tick_interval_seconds);
+    rate_history.Reset(sma_max_history_seconds, tick_interval_seconds);
 
     for (auto& s : sma) {
       s = RateMetrics{};
@@ -242,9 +409,19 @@ struct MultiWindowRate {
   }
 };
 
+// The controller only needs a one-second EMA for per-node entities. Keeping the
+// full five-minute SMA history here duplicated the most expensive state in the
+// manager without any consumer.
+struct EmaRate {
+  double bytes_read_accumulator = 0.0;
+  double bytes_written_accumulator = 0.0;
+  double read_iops_accumulator = 0.0;
+  double write_iops_accumulator = 0.0;
+  RateMetrics ema;
+  time_t last_activity_time = 0;
+};
+
 struct RateSnapshot {
-  uint64_t bytes_read_accumulator = 0;
-  uint64_t bytes_written_accumulator = 0;
   uint64_t bytes_read_total = 0;
   uint64_t bytes_written_total = 0;
   uint64_t read_ops_total = 0;
@@ -253,7 +430,6 @@ struct RateSnapshot {
   std::array<RateMetrics, EmaWindowSec.size()> ema{};
   std::array<RateMetrics, SmaWindowSec.size()> sma{};
 
-  uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 };
 
@@ -338,6 +514,8 @@ struct TrafficShapingPolicy {
 
   uint64_t GetEffectiveReadLimit() const;
 
+  bool IsReservationConfigurationFeasible() const;
+
   bool IsEmpty() const;
 
   bool IsActive() const;
@@ -363,7 +541,7 @@ public:
                     const std::vector<std::string>& online_nodes);
 
   void UpdateTrafficShapingController(
-      const std::unordered_map<std::string, double>& node_io_pressure);
+      const std::unordered_map<std::string, double>& node_io_pressure) noexcept;
 
   void SetLimitsEnabled(bool enabled);
 
@@ -389,8 +567,8 @@ public:
 
   size_t ExpireControllerLimits(std::chrono::steady_clock::time_point now);
 
-  void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
-                         uint32_t window_seconds);
+  bool ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
+                         uint32_t fst_report_period_ms, uint32_t window_seconds) noexcept;
 
   void SetFilesystemDetailEnabled(bool enabled);
 
@@ -458,13 +636,28 @@ public:
 
   void UpdateFstLimitsLoopMicroSec(uint64_t time_microseconds);
 
-  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds);
+  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds,
+                                               bool controller_ran = true);
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
+
+  void UpdateFstPolicyLoopMicroSec(uint64_t total_microseconds,
+                                   uint64_t pressure_microseconds, bool slow_iteration);
+
+  void UpdateFsViewLockMicroSec(uint64_t wait_microseconds, uint64_t hold_microseconds);
 
   void UpdateFstReportsProcessed(uint64_t count);
 
   double GetFstReportsProcessedPerSecondMean() const;
+
+  void UpdateFstReportQueueStats(uint64_t depth, uint64_t estimated_bytes,
+                                 uint64_t dropped);
+
+  uint64_t GetFstReportQueueDepth() const;
+
+  uint64_t GetFstReportQueueEstimatedBytes() const;
+
+  uint64_t GetFstReportsDroppedTotal() const;
 
   std::tuple<uint64_t, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
 
@@ -473,7 +666,11 @@ public:
   std::tuple<uint64_t, uint64_t, uint64_t>
   GetReservationControllerUpdateLoopMicroSecStats() const;
 
+  SystemTimingSnapshot GetSystemTimingSnapshot() const;
+
   MapCardinalityStats GetMapCardinalityStats() const;
+
+  TrafficShapingMemoryStats GetMemoryStats() const;
 
   uint32_t
   GetSystemStatsWindowSeconds() const
@@ -482,17 +679,13 @@ public:
     return mSystemStatsWindowSeconds;
   }
 
-  std::tuple<std::unordered_map<std::string, double>, // app read
-             std::unordered_map<std::string, double>, // app write
-             std::unordered_map<uint32_t, double>,    // uid read
-             std::unordered_map<uint32_t, double>,    // uid write
-             std::unordered_map<uint32_t, double>,    // gid read
-             std::unordered_map<uint32_t, double>>    // gid write
-  GetCurrentReadAndWriteRates() const;
-
   std::unordered_map<std::string, AppIoPressureSnapshot> GetReservedAppIoPressure() const;
 
-  std::vector<AppNodeIoPressureSnapshot> GetReservedAppNodeIoPressure() const;
+  std::vector<AppNodeIoPressureSnapshot> GetReservedAppNodeIoPressure(
+      std::vector<std::string>* online_nodes_out = nullptr) const;
+
+  NodeReservationControllerSnapshot GetNodeReservationControllerSnapshot(
+      std::chrono::steady_clock::time_point now = {}) const;
 
   void Clear();
 
@@ -501,19 +694,59 @@ public:
   void ClearDetailedRuntimeStats();
 
 private:
+  static constexpr std::array<uint64_t, 22> kDurationHistogramBucketUpperBoundsUs{
+      1,       2,       5,         10,        25,        50,        100,    250,
+      500,     1'000,   2'500,     5'000,     10'000,    25'000,    50'000, 100'000,
+      250'000, 500'000, 1'000'000, 2'500'000, 5'000'000, 10'000'000};
+
+  struct DurationHistogramState {
+    std::array<uint64_t, kDurationHistogramBucketUpperBoundsUs.size()>
+        cumulative_bucket_counts{};
+    uint64_t sample_count = 0;
+    double sample_sum_seconds = 0.0;
+
+    void Observe(uint64_t duration_microseconds);
+
+    DurationHistogramSnapshot Snapshot() const;
+
+    void Clear();
+  };
+
+  struct LoopTimingState {
+    DurationHistogramState duration;
+    uint64_t iterations_total = 0;
+    uint64_t last_completed_timestamp_seconds = 0;
+
+    void Observe(uint64_t duration_microseconds);
+
+    LoopTimingSnapshot Snapshot() const;
+
+    void Clear();
+  };
+
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
 
   struct NodeData {
     std::chrono::steady_clock::time_point last_report_time{};
+    int64_t node_start_time_ms = 0;
+    std::array<int64_t, 4> retired_node_start_times{};
+    size_t next_retired_node_start_time = 0;
+    // Newest node heartbeat timestamp. Empty reports advance this anchor so
+    // changed streams are normalized over the report cadence, not their idle age.
+    int64_t last_source_report_timestamp_ms = 0;
     NodeStateMap streams;
   };
 
   std::unordered_map<std::string, NodeData> mNodeStates;
+  size_t mFstStreamStateCount = 0;
+  uint64_t mFstStreamStateEstimatedBytes = 0;
+  std::atomic<uint64_t> mFstStreamStatesRejectedTotal{0};
+  std::atomic<uint64_t> mLastFstReportStateWarningMonotonicNs{0};
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;
   std::unordered_map<DiskKey, MultiWindowRate, DiskKeyHash> mDiskStats;
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mDetailedStats;
-  std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mNodeEntityStats;
+  std::unordered_map<DetailedKey, EmaRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
 
@@ -527,6 +760,11 @@ private:
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
   std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
+  // Built-in reservation limits are node-local. Manually configured controller
+  // limits remain global application policy.
+  std::unordered_map<std::string, NodeReservationControllerRuntime>
+      mNodeReservationControllers;
+  std::unordered_map<std::string, NodeAppDelayState> mNodeAppDelayStates;
 
   std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mNodeFstIoDelayConfigs;
@@ -546,14 +784,131 @@ private:
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_reports_processed_per_second;
 
+  LoopTimingState mEstimatorsLoopTiming;
+  LoopTimingState mFstPolicyLoopTiming;
+  LoopTimingState mIoPressureLoopTiming;
+  LoopTimingState mReservationControllerLoopTiming;
+  LoopTimingState mFstLimitsLoopTiming;
+  LoopTimingState mGarbageCollectionLoopTiming;
+  DurationHistogramState mFsViewLockWaitTiming;
+  DurationHistogramState mFsViewLockHoldTiming;
+  uint64_t mFstPolicySlowIterationsTotal{0};
+  GarbageCollectionStats mGarbageCollectionRemovedTotal{0, 0, 0, 0, 0};
+
   double mEstimatorsTickIntervalSec{0.5};
+  double mFstPolicyTickIntervalSec{0.5};
+  double mFstReportTickIntervalSec{0.5};
   uint32_t mSystemStatsWindowSeconds{15};
   std::atomic<bool> mFilesystemDetailEnabled{false};
+  std::atomic<bool> mFailNextThreadConfigPreparation{false};
+  std::atomic<bool> mFailNextControllerPublication{false};
+  std::atomic<bool> mPauseControllerBeforePublication{false};
+  std::atomic<bool> mControllerPublicationPaused{false};
 
   mutable std::shared_mutex mMutex;
+  // Serializes controller-input mutations with external FST config publication.
+  // Recursive because the controller update invokes expiry and policy-apply helpers.
+  mutable std::recursive_mutex mFstConfigPublishMutex;
+  // Orders durable policy snapshots without retaining controller/runtime locks
+  // across the potentially blocking QDB persistence wait.
+  mutable std::mutex mPolicyPersistenceMutex;
 
 #ifdef IN_TEST_HARNESS
 public:
+  void
+  SetNodeReservationControllerRuntimeForTest(
+      const std::string& node, const NodeReservationControllerRuntime& runtime)
+  {
+    std::lock_guard publish_lock(mFstConfigPublishMutex);
+    std::unique_lock lock(mMutex);
+    mNodeReservationControllers[node] = runtime;
+  }
+
+  std::unordered_map<std::string, NodeReservationControllerRuntime>
+  GetNodeReservationControllerRuntimes() const
+  {
+    std::shared_lock lock(mMutex);
+    return mNodeReservationControllers;
+  }
+
+  void
+  SetGlobalEmaRatesForTest(const StreamKey& key, const RateMetrics& fast,
+                           const RateMetrics& stable)
+  {
+    std::unique_lock lock(mMutex);
+    auto [it, _] = mGlobalStats.try_emplace(key, mEstimatorsTickIntervalSec);
+    it->second.ema[Ema1s] = fast;
+    it->second.ema[Ema5s] = stable;
+  }
+
+  void
+  SetNodeEntityRateForTest(const std::string& node, const StreamKey& stream,
+                           const RateMetrics& rate)
+  {
+    std::unique_lock lock(mMutex);
+    auto& stats = mNodeEntityStats[DetailedKey{node, stream}];
+    stats.ema = rate;
+    stats.last_activity_time = time(nullptr);
+  }
+
+  void
+  SetNodeEntityLastActivityForTest(const std::string& node, const StreamKey& stream,
+                                   const time_t last_activity_time)
+  {
+    std::unique_lock lock(mMutex);
+    mNodeEntityStats[DetailedKey{node, stream}].last_activity_time = last_activity_time;
+  }
+
+  std::pair<size_t, uint64_t>
+  GetFstStreamStateAccountingForTest() const
+  {
+    std::shared_lock lock(mMutex);
+    return {mFstStreamStateCount, mFstStreamStateEstimatedBytes};
+  }
+
+  std::unique_lock<std::shared_mutex>
+  LockStateForTest()
+  {
+    return std::unique_lock<std::shared_mutex>(mMutex);
+  }
+
+  std::vector<AppNodeIoPressureSnapshot>
+  GetReservedAppNodeIoPressureForTest(
+      const std::unordered_map<std::string, double>& node_io_pressure,
+      const std::vector<std::string>& online_nodes) const
+  {
+    return BuildReservedAppNodeIoPressure(node_io_pressure, online_nodes);
+  }
+
+  void
+  FailNextThreadConfigPreparationForTest()
+  {
+    mFailNextThreadConfigPreparation.store(true, std::memory_order_relaxed);
+  }
+
+  void
+  FailNextControllerPublicationForTest()
+  {
+    mFailNextControllerPublication.store(true, std::memory_order_relaxed);
+  }
+
+  void
+  PauseControllerBeforePublicationForTest()
+  {
+    mPauseControllerBeforePublication.store(true, std::memory_order_release);
+  }
+
+  bool
+  IsControllerPublicationPausedForTest() const
+  {
+    return mControllerPublicationPaused.load(std::memory_order_acquire);
+  }
+
+  void
+  ResumeControllerPublicationForTest()
+  {
+    mPauseControllerBeforePublication.store(false, std::memory_order_release);
+  }
 #endif
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
@@ -568,7 +923,12 @@ public:
       std::vector<AppState>& apps, bool reservations_enabled = true,
       uint64_t controller_min_limit_bps = kDefaultControllerMinLimitBps,
       double io_pressure_threshold = kDefaultIoPressureThreshold,
-      uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps);
+      uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps,
+      ReservationControllerState* controller_state = nullptr,
+      std::chrono::steady_clock::time_point now = {},
+      const std::unordered_map<std::string, double>* competition_write_rates = nullptr,
+      const std::unordered_map<std::string, double>* competition_read_rates = nullptr,
+      bool deficits_prequalified = false);
 
   static bool ShouldEmitDelayForPolicy(
       const TrafficShapingPolicy& policy, bool is_write, double node_rate_bps,
@@ -577,30 +937,27 @@ public:
       double io_pressure_threshold = kDefaultIoPressureThreshold,
       uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps);
 
-  void ApplyControllerPolicyUpdates(const std::vector<AppState>& app_array,
-                                    bool used_custom_controller,
-                                    std::chrono::steady_clock::time_point now);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
 
   size_t ClearControllerLimitsUnlocked();
+  void UpdateTrafficShapingControllerImpl(
+      const std::unordered_map<std::string, double>& node_io_pressure);
+  std::vector<AppNodeIoPressureSnapshot> BuildReservedAppNodeIoPressure(
+      const std::unordered_map<std::string, double>& node_io_pressure,
+      const std::vector<std::string>& online_nodes) const;
 
-  // --- Plugin Hot-Reload State ---
-  void* mPluginHandle = nullptr;
-  DelayAlgoFunc mCustomAlgo = nullptr;
-  ControllerAlgoFunc mCustomControllerAlgo = nullptr;
-  time_t mPluginLastModified = 0;
-  std::chrono::steady_clock::time_point mNextPluginCheckTime{};
-  std::shared_mutex mPluginMutex;
-
-  void LoadPluginIfModified();
+  std::atomic<uint64_t> mFstReportQueueDepth{0};
+  std::atomic<uint64_t> mFstReportQueueEstimatedBytes{0};
+  std::atomic<uint64_t> mFstReportsDroppedTotal{0};
 
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
   std::atomic<uint64_t> mActiveNodeRateThresholdBps{kDefaultActiveNodeRateThresholdBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
+  uint64_t mControllerInputRevision = 0;
 };
 
 class TrafficShapingEngine {
@@ -611,15 +968,15 @@ public:
 
   void ApplyConfig();
 
-  void Start();
+  bool Start() noexcept;
 
-  void Stop();
+  void Stop() noexcept;
 
-  void Enable();
+  bool Enable() noexcept;
 
-  void Disable();
+  bool Disable() noexcept;
 
-  void SetEnabled(bool enabled);
+  bool SetEnabled(bool enabled) noexcept;
 
   bool
   IsEnabled() const
@@ -633,7 +990,10 @@ public:
 
   std::shared_ptr<TrafficShapingManager> GetManager() const;
 
-  void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
+  void
+  ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report) noexcept;
+
+  void RejectFstIoReportNonBlocking(const char* reason) noexcept;
 
   uint32_t
   GetEstimatorsUpdateThreadPeriodMilliseconds() const
@@ -719,24 +1079,38 @@ public:
   }
 
 #ifdef IN_TEST_HARNESS
+  void
+  FailNextFstEnabledSyncThreadStartForTest()
+  {
+    mFailNextFstEnabledSyncThreadStart.store(true, std::memory_order_relaxed);
+  }
+
+  void
+  FailNextEnabledConfigStoreForTest()
+  {
+    mFailNextEnabledConfigStore.store(true, std::memory_order_relaxed);
+  }
+#endif
+
+#ifdef IN_TEST_HARNESS
 public:
 #else
 private:
 #endif
-  void ApplyEnabledConfig(bool enabled);
+  bool ApplyEnabledConfig(bool enabled) noexcept;
 
   void StoreEnabledConfig(bool enabled);
 
-  void StopRuntime();
+  bool StopRuntime() noexcept;
 
-  void EnsureFstEnabledSyncThread();
+  bool EnsureFstEnabledSyncThread() noexcept;
 
   void StopFstEnabledSyncThread();
 
   std::vector<std::string> GetOnlineFstNodeNames() const;
 
   bool ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
-                         uint32_t win_s);
+                         uint32_t win_s, bool* applied_successfully = nullptr) noexcept;
 
   void SetThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms, uint32_t win_s);
 
@@ -745,7 +1119,7 @@ private:
   bool ApplyDetailLevelConfig(const std::string& detail_level);
 
   void LogDetailLevelSwitch(const char* reason, const std::string& detail_level,
-                            const MapCardinalityStats& cardinality) const;
+                            const MapCardinalityStats& cardinality) const noexcept;
 
   static void StoreDetailLevelConfig(const std::string& detail_level);
 
@@ -791,7 +1165,9 @@ private:
 
   void FstTrafficShapingEnabledUpdate(ThreadAssistant&);
 
-  void AddReportToQueue(const eos::traffic_shaping::FstIoReport& report);
+  void AddReportToQueue(eos::traffic_shaping::FstIoReport report) noexcept;
+
+  void RecordRejectedFstReport() noexcept;
 
   void ProcessAllQueuedReports();
 
@@ -800,21 +1176,28 @@ private:
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
   AssistedThread mFstTrafficShapingEnabledUpdateThread;
-  bool mFstEnabledSyncThreadStarted = false;
+
   std::mutex mFstEnabledSyncThreadMutex;
+  std::mutex mRuntimeLifecycleMutex;
+  std::mutex mEnabledOperationMutex;
 
   std::atomic<bool> mRunning{};
+  bool mFstEnabledSyncThreadStarted = false;
+  std::atomic<bool> mFailNextFstEnabledSyncThreadStart{false};
+  std::atomic<bool> mFailNextEnabledConfigStore{false};
 
   std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
+  std::mutex mThreadConfigMutex;
   std::atomic<bool> mFilesystemDetailEnabled{};
   std::atomic<bool> mAutomaticDetailLevelEnabled{true};
   std::atomic<uint64_t> mAutomaticDetailLevelLowCardinality{
       kDefaultAutomaticFilesystemDetailLowCardinality};
   std::atomic<uint64_t> mAutomaticDetailLevelHighCardinality{
       kDefaultAutomaticFilesystemDetailHighCardinality};
+  std::mutex mAutomaticDetailLevelMutex;
   std::chrono::steady_clock::time_point mLastAutomaticDetailLevelChange{};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
@@ -823,8 +1206,14 @@ private:
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
   std::atomic<uint32_t> mGarbageCollectionIdleSeconds{kDefaultGarbageCollectionIdleSec};
 
-  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
+  struct QueuedFstIoReport {
+    eos::traffic_shaping::FstIoReport report;
+    size_t estimated_bytes = 0;
+  };
+  std::deque<QueuedFstIoReport> mReportQueue{};
+  size_t mReportQueueEstimatedBytes = 0;
   std::mutex mReportQueueMutex{};
+  std::atomic<uint64_t> mLastReportQueueWarningMonotonicNs{0};
 };
 
 } // namespace eos::mgm::traffic_shaping

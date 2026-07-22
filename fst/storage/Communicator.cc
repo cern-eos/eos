@@ -177,12 +177,27 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
 // Handle fst io limits
 //------------------------------------------------------------------------------
 void
-ProcessFstIoLimitsCommand(const std::string& data)
-{
+ProcessFstIoLimitsCommand(const std::string& data) noexcept
+try {
+  if (data.size() > eos::common::TRAFFIC_SHAPING_FST_CONFIG_MAX_ENCODED_BYTES) {
+    eos_static_err("msg=\"Rejecting oversized encoded FST IO limits config\" "
+                   "encoded_bytes=%zu maximum_bytes=%zu",
+                   data.size(),
+                   eos::common::TRAFFIC_SHAPING_FST_CONFIG_MAX_ENCODED_BYTES);
+    return;
+  }
+
   std::string serialized;
 
   if (!eos::common::SymKey::DeBase64(data, serialized)) {
     eos_static_err("msg=\"Failed to base64-decode FST IO limits config\"");
+    return;
+  }
+  if (serialized.size() > eos::common::TRAFFIC_SHAPING_FST_CONFIG_MAX_DECODED_BYTES) {
+    eos_static_err("msg=\"Rejecting oversized decoded FST IO limits config\" "
+                   "decoded_bytes=%zu maximum_bytes=%zu",
+                   serialized.size(),
+                   eos::common::TRAFFIC_SHAPING_FST_CONFIG_MAX_DECODED_BYTES);
     return;
   }
 
@@ -192,11 +207,31 @@ ProcessFstIoLimitsCommand(const std::string& data)
     eos_static_err("msg=\"Failed to parse FST IO limits config\"");
     return;
   }
-  eos_static_debug(
-      "msg=\"Traffic Shaping FST IO limits config change received\" new_config=\"%s\"",
-      fst_io_delay_config.DebugString().c_str());
+
+  size_t entry_count = 0;
+  if (!traffic_shaping::ValidateFstIoDelayConfig(fst_io_delay_config, entry_count)) {
+    eos_static_err("msg=\"Rejecting FST IO limits config outside safety bounds\" "
+                   "entries=%zu maximum_entries=%zu",
+                   entry_count, eos::common::TRAFFIC_SHAPING_FST_CONFIG_MAX_ENTRIES);
+    return;
+  }
+  eos_static_debug("msg=\"Traffic Shaping FST IO limits config change received\" "
+                   "entries=%zu decoded_bytes=%zu",
+                   entry_count, serialized.size());
 
   gOFS.mIoDelayConfig.UpdateConfig(std::move(fst_io_delay_config));
+} catch (const std::exception& error) {
+  try {
+    eos_static_err("msg=\"FST IO limits config update failed\" error=\"%s\"",
+                   error.what());
+  } catch (...) {
+  }
+} catch (...) {
+  try {
+    eos_static_err("%s", "msg=\"FST IO limits config update failed due to unknown "
+                         "exception\"");
+  } catch (...) {
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -214,9 +249,13 @@ ProcessTrafficShapingToggle(bool enable)
                    enable ? "enabled" : "disabled");
 
   if (enable) {
-    storage->StartTrafficShapingThread();
+    if (!storage->StartTrafficShapingThread()) {
+      eos_static_err("%s", "msg=\"Failed to enable Traffic Shaping on FST\"");
+    }
   } else {
-    storage->StopTrafficShapingThread();
+    if (!storage->StopTrafficShapingThread()) {
+      eos_static_err("%s", "msg=\"Failed to disable Traffic Shaping on FST\"");
+    }
   }
 }
 
@@ -226,22 +265,25 @@ ProcessTrafficShapingToggle(bool enable)
 void
 ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
 {
-  try {
-    unsigned long long period_millis = std::stoull(period_millis_as_str);
-    const auto new_period = static_cast<uint32_t>(period_millis);
-    const uint32_t old_period =
-        traffic_shaping::IoStatsCollector::
-            fst_io_stats_reporting_thread_period_milliseconds.exchange(new_period);
-
-    if (old_period != new_period) {
-      eos_static_info("msg=\"Traffic Shaping FST IO stats reporting thread period "
-                      "changed\" old_period_ms=%u new_period_ms=%u",
-                      old_period, new_period);
-    }
-  } catch (const std::exception& e) {
+  uint32_t new_period = 0;
+  if (!traffic_shaping::ParseFstIoStatsReportingPeriodMilliseconds(period_millis_as_str,
+                                                                   new_period)) {
     eos_static_err("msg=\"invalid FST IO stats reporting thread period value\" "
-                   "value=\"%s\" error=\"%s\"",
-                   period_millis_as_str.c_str(), e.what());
+                   "value=\"%s\" minimum_ms=%u maximum_ms=%u",
+                   period_millis_as_str.c_str(),
+                   eos::common::TRAFFIC_SHAPING_THREAD_PERIOD_MIN_MS,
+                   eos::common::TRAFFIC_SHAPING_THREAD_PERIOD_MAX_MS);
+    return;
+  }
+
+  const uint32_t old_period =
+      traffic_shaping::IoStatsCollector::fst_io_stats_reporting_thread_period_milliseconds
+          .exchange(new_period);
+
+  if (old_period != new_period) {
+    eos_static_info("msg=\"Traffic Shaping FST IO stats reporting thread period "
+                    "changed\" old_period_ms=%u new_period_ms=%u",
+                    old_period, new_period);
   }
 }
 
@@ -271,17 +313,27 @@ ProcessTrafficShapingDetailLevel(const std::string& detail_level)
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
-void Storage::ProcessFstConfigChange(const std::string& key, const std::string& value) {
+void
+Storage::ProcessFstConfigChange(const std::string& key, const std::string& value) noexcept
+try {
   static std::string last_refresh_ts;
   eos_static_debug("msg=\"FST node configuration change\" key=\"%s\" "
-                   "value=\"%s\"",
-                   key.c_str(), value.c_str());
+                   "value_bytes=%zu",
+                   key.c_str(), value.size());
 
   // if key not in list, warning and return
   if (sNodeUpdateKeys.find(key) == sNodeUpdateKeys.end()) {
-    eos_static_warning("msg=\"unhandled FST node configuration change due to invalid key\" "
-                       "key=\"%s\" value=\"%s\"",
-                       key.c_str(), value.c_str());
+    eos_static_warning("msg=\"unhandled FST node configuration change due to invalid "
+                       "key\" key=\"%s\" value_bytes=%zu",
+                       key.c_str(), value.size());
+    return;
+  }
+  if (key != eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS &&
+      value.size() > eos::common::TRAFFIC_SHAPING_FST_CONFIG_VALUE_MAX_BYTES) {
+    eos_static_err("msg=\"Rejecting oversized FST node configuration value\" "
+                   "key=\"%s\" value_bytes=%zu maximum_bytes=%zu",
+                   key.c_str(), value.size(),
+                   eos::common::TRAFFIC_SHAPING_FST_CONFIG_VALUE_MAX_BYTES);
     return;
   }
 
@@ -341,6 +393,20 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
                    "of missing implementation\" key=\"%s\" value=\"%s\". "
                    "This should never happen!",
                    key.c_str(), value.c_str());
+  }
+} catch (const std::exception& error) {
+  try {
+    eos_static_err("msg=\"FST node configuration callback failed\" key=\"%s\" "
+                   "error=\"%s\"",
+                   key.c_str(), error.what());
+  } catch (...) {
+  }
+} catch (...) {
+  try {
+    eos_static_err("msg=\"FST node configuration callback failed\" key=\"%s\" "
+                   "error=\"unknown exception\"",
+                   key.c_str());
+  } catch (...) {
   }
 }
 

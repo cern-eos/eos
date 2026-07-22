@@ -43,6 +43,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/policy/Policy.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "mq/SharedHashWrapper.hh"
@@ -50,6 +51,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include <cfloat>
 #include <curl/curl.h>
+#include <exception>
 
 using eos::common::RWMutexReadLock;
 
@@ -2813,9 +2815,27 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
     }
   } else if (eos::common::FST_TRAFFIC_SHAPING_IO_REPORT == upd.key) {
     std::string serialized_report;
+    const bool is_base64 = upd.value.compare(0, 7, "base64:") == 0;
+    const size_t maximum_input_bytes =
+        is_base64 ? eos::mgm::traffic_shaping::kMaxBase64EncodedFstIoReportBytes
+                  : eos::mgm::traffic_shaping::kMaxSerializedFstIoReportBytes;
+    if (upd.value.size() > maximum_input_bytes) {
+      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(
+          "encoded report exceeds pre-decode size limit");
+      return;
+    }
 
-    if (!eos::common::SymKey::DeBase64(upd.value, serialized_report)) {
-      eos_static_warning("%s", "msg=\"failed to base64-decode FST IO report\"");
+    try {
+      if (!eos::common::SymKey::DeBase64(upd.value, serialized_report)) {
+        gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking("base64 decode failed");
+        return;
+      }
+    } catch (const std::exception& error) {
+      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(error.what());
+      return;
+    } catch (...) {
+      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(
+          "base64 decode raised unknown exception");
       return;
     }
 

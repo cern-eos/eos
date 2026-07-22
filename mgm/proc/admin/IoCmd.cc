@@ -28,6 +28,7 @@
 #include "proto/Io.pb.h"
 #include "zmq.hpp"
 
+#include <exception>
 #include <iomanip>
 #include <string>
 
@@ -40,32 +41,59 @@ eos::console::ReplyProto
 IoCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
-  const eos::console::IoProto io = mReqProto.io();
+  try {
+    const eos::console::IoProto io = mReqProto.io();
 
-  switch (mReqProto.io().subcmd_case()) {
-  case eos::console::IoProto::kStat:
-    StatSubcmd(io.stat(), reply);
-    break;
+    switch (io.subcmd_case()) {
+    case eos::console::IoProto::kStat:
+      StatSubcmd(io.stat(), reply);
+      break;
 
-  case eos::console::IoProto::kEnable:
-    EnableSubcmd(io.enable(), reply);
-    break;
+    case eos::console::IoProto::kEnable:
+      EnableSubcmd(io.enable(), reply);
+      break;
 
-  case eos::console::IoProto::kReport:
-    ReportSubcmd(io.report(), reply);
-    break;
+    case eos::console::IoProto::kReport:
+      ReportSubcmd(io.report(), reply);
+      break;
 
-  case eos::console::IoProto::kNs:
-    NsSubcmd(io.ns(), reply);
-    break;
+    case eos::console::IoProto::kNs:
+      NsSubcmd(io.ns(), reply);
+      break;
 
-  case eos::console::IoProto::kShaping:
-    ShapingSubcommand(io.shaping(), reply);
-    break;
+    case eos::console::IoProto::kShaping:
+      ShapingSubcommand(io.shaping(), reply);
+      break;
 
-  default:
-    reply.set_retc(EINVAL);
-    reply.set_std_err("error: not supported");
+    default:
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: not supported");
+    }
+  } catch (const std::exception& error) {
+    try {
+      eos_static_err("msg=\"IO command aborted by exception\" error=\"%s\"",
+                     error.what());
+    } catch (...) {
+    }
+    try {
+      reply.Clear();
+      reply.set_retc(EIO);
+      reply.set_std_err("error: IO command aborted by an internal exception");
+    } catch (...) {
+      // Returning a minimally populated reply is preferable to unwinding
+      // through this noexcept command boundary.
+    }
+  } catch (...) {
+    try {
+      eos_static_err("%s", "msg=\"IO command aborted by unknown exception\"");
+    } catch (...) {
+    }
+    try {
+      reply.Clear();
+      reply.set_retc(EIO);
+      reply.set_std_err("error: IO command aborted by an unknown internal exception");
+    } catch (...) {
+    }
   }
 
   return reply;
