@@ -295,9 +295,9 @@ private:
   AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
-  std::unique_ptr<AssistedThread>
-      mTrafficShapingThread; ///< Thread sending traffic shaping stats
+  AssistedThread mTrafficShapingThread; ///< Thread sending traffic shaping stats
   std::mutex mTrafficShapingThreadMutex;
+  bool mTrafficShapingThreadStarted = false;
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;

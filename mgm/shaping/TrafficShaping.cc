@@ -5043,23 +5043,15 @@ TrafficShapingEngine::Start() noexcept
     if (mRunning.load(std::memory_order_acquire)) {
       return true;
     }
-    if (mEstimatorsUpdateThread != nullptr) {
-      mEstimatorsUpdateThread->join();
-      mEstimatorsUpdateThread.reset();
-    }
-    if (mFstIoPolicyUpdateThread != nullptr) {
-      mFstIoPolicyUpdateThread->join();
-      mFstIoPolicyUpdateThread.reset();
-    }
+    mEstimatorsUpdateThread.join();
+    mFstIoPolicyUpdateThread.join();
 
     try {
-      auto estimators_thread =
-          std::make_unique<AssistedThread>(&TrafficShapingEngine::EstimatorsUpdate, this);
-      estimators_thread->setName("Traffic Shaping Estimators Update");
+      mEstimatorsUpdateThread.reset(&TrafficShapingEngine::EstimatorsUpdate, this);
+      mEstimatorsUpdateThread.setName("Traffic Shaping Estimators Update");
 
-      auto policy_thread = std::make_unique<AssistedThread>(
-          &TrafficShapingEngine::FstIoPolicyUpdate, this);
-      policy_thread->setName("Traffic Shaping FST Policy Update");
+      mFstIoPolicyUpdateThread.reset(&TrafficShapingEngine::FstIoPolicyUpdate, this);
+      mFstIoPolicyUpdateThread.setName("Traffic Shaping FST Policy Update");
 
       bool config_applied = false;
       ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
@@ -5069,13 +5061,17 @@ TrafficShapingEngine::Start() noexcept
       if (!config_applied) {
         throw std::runtime_error("traffic shaping thread configuration failed");
       }
-      mEstimatorsUpdateThread = std::move(estimators_thread);
-      mFstIoPolicyUpdateThread = std::move(policy_thread);
       mRunning.store(true, std::memory_order_release);
     } catch (...) {
       mRunning.store(false, std::memory_order_release);
-      mEstimatorsUpdateThread.reset();
-      mFstIoPolicyUpdateThread.reset();
+      try {
+        mEstimatorsUpdateThread.join();
+      } catch (...) {
+      }
+      try {
+        mFstIoPolicyUpdateThread.join();
+      } catch (...) {
+      }
       throw;
     }
 
@@ -5131,33 +5127,22 @@ TrafficShapingEngine::StopRuntime() noexcept
 {
   try {
     std::unique_lock lifecycle_lock(mRuntimeLifecycleMutex);
-    if (!mRunning.load(std::memory_order_acquire) && mEstimatorsUpdateThread == nullptr &&
-        mFstIoPolicyUpdateThread == nullptr) {
-      return true;
-    }
     mRunning.store(false, std::memory_order_release);
 
     bool threads_stopped = true;
     try {
-      if (mEstimatorsUpdateThread != nullptr) {
-        mEstimatorsUpdateThread->join();
-      }
+      mEstimatorsUpdateThread.join();
     } catch (...) {
       threads_stopped = false;
     }
     try {
-      if (mFstIoPolicyUpdateThread != nullptr) {
-        mFstIoPolicyUpdateThread->join();
-      }
+      mFstIoPolicyUpdateThread.join();
     } catch (...) {
       threads_stopped = false;
     }
     if (!threads_stopped) {
       throw std::runtime_error("one or more traffic shaping threads failed to join");
     }
-    mEstimatorsUpdateThread.reset();
-    mFstIoPolicyUpdateThread.reset();
-
     {
       std::lock_guard lock(mReportQueueMutex);
       mReportQueue.clear();
@@ -5799,21 +5784,21 @@ TrafficShapingEngine::EnsureFstEnabledSyncThread() noexcept
 try {
   std::lock_guard lock(mFstEnabledSyncThreadMutex);
 
-  if (mFstTrafficShapingEnabledUpdateThread != nullptr) {
+  if (mFstEnabledSyncThreadStarted) {
     return true;
   }
 
   if (mFailNextFstEnabledSyncThreadStart.exchange(false, std::memory_order_relaxed)) {
     throw std::runtime_error("injected Traffic Shaping FST sync thread failure");
   }
-  auto sync_thread = std::make_unique<AssistedThread>(
+  mFstTrafficShapingEnabledUpdateThread.reset(
       &TrafficShapingEngine::FstTrafficShapingEnabledUpdate, this);
   try {
-    sync_thread->setName("Traffic Shaping FST Enabled Update");
+    mFstTrafficShapingEnabledUpdateThread.setName("Traffic Shaping FST Enabled Update");
   } catch (...) {
     // Naming is diagnostic only; the sync worker is already running.
   }
-  mFstTrafficShapingEnabledUpdateThread = std::move(sync_thread);
+  mFstEnabledSyncThreadStarted = true;
   return true;
 } catch (const std::exception& error) {
   try {
@@ -5837,12 +5822,12 @@ TrafficShapingEngine::StopFstEnabledSyncThread()
 {
   std::lock_guard lock(mFstEnabledSyncThreadMutex);
 
-  if (mFstTrafficShapingEnabledUpdateThread == nullptr) {
+  if (!mFstEnabledSyncThreadStarted) {
     return;
   }
 
-  mFstTrafficShapingEnabledUpdateThread->join();
-  mFstTrafficShapingEnabledUpdateThread.reset();
+  mFstTrafficShapingEnabledUpdateThread.join();
+  mFstEnabledSyncThreadStarted = false;
 }
 
 std::vector<std::string>

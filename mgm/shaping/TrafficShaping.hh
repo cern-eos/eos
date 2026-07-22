@@ -1173,15 +1173,16 @@ private:
 
   std::shared_ptr<TrafficShapingManager> mManager{};
 
-  std::unique_ptr<AssistedThread> mEstimatorsUpdateThread;
-  std::unique_ptr<AssistedThread> mFstIoPolicyUpdateThread;
-  std::unique_ptr<AssistedThread> mFstTrafficShapingEnabledUpdateThread;
+  AssistedThread mEstimatorsUpdateThread;
+  AssistedThread mFstIoPolicyUpdateThread;
+  AssistedThread mFstTrafficShapingEnabledUpdateThread;
 
   std::mutex mFstEnabledSyncThreadMutex;
   std::mutex mRuntimeLifecycleMutex;
   std::mutex mEnabledOperationMutex;
 
   std::atomic<bool> mRunning{};
+  bool mFstEnabledSyncThreadStarted = false;
   std::atomic<bool> mFailNextFstEnabledSyncThreadStart{false};
   std::atomic<bool> mFailNextEnabledConfigStore{false};
 

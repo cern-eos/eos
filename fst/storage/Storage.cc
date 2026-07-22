@@ -458,21 +458,20 @@ bool
 Storage::StartTrafficShapingThread() noexcept
 try {
   std::lock_guard lock(mTrafficShapingThreadMutex);
-  if (mTrafficShapingThread != nullptr) {
+  if (mTrafficShapingThreadStarted) {
     return true;
   }
 
-  auto traffic_shaping_thread =
-      std::make_unique<AssistedThread>(&Storage::SendTrafficShapingStats, this);
   gOFS.mIoStatsCollector.SetEnabled(true);
   gOFS.mIoDelayConfig.SetEnabled(true);
+  mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
+  mTrafficShapingThreadStarted = true;
 
   try {
-    traffic_shaping_thread->setName("Traffic Shaping Thread");
+    mTrafficShapingThread.setName("Traffic Shaping Thread");
   } catch (...) {
     // Naming is diagnostic only; the publisher is already running.
   }
-  mTrafficShapingThread = std::move(traffic_shaping_thread);
   return true;
 } catch (const std::exception& error) {
   try {
@@ -510,7 +509,7 @@ bool
 Storage::StopTrafficShapingThread() noexcept
 try {
   std::lock_guard lock(mTrafficShapingThreadMutex);
-  if (mTrafficShapingThread == nullptr) {
+  if (!mTrafficShapingThreadStarted) {
     return true;
   }
 
@@ -526,10 +525,8 @@ try {
     disabled = false;
   }
   try {
-    if (mTrafficShapingThread != nullptr) {
-      mTrafficShapingThread->join();
-      mTrafficShapingThread.reset();
-    }
+    mTrafficShapingThread.join();
+    mTrafficShapingThreadStarted = false;
   } catch (...) {
     return false;
   }

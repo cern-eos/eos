@@ -743,6 +743,8 @@ TEST(TrafficShapingEngine, FstSyncThreadStartFailureIsContainedAndRetryable)
   EXPECT_FALSE(engine.SetEnabled(true));
   EXPECT_FALSE(engine.IsEnabled());
   EXPECT_TRUE(engine.EnsureFstEnabledSyncThread());
+  engine.StopFstEnabledSyncThread();
+  EXPECT_TRUE(engine.EnsureFstEnabledSyncThread());
   engine.Stop();
 }
 
