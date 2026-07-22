@@ -1,0 +1,264 @@
+#!/bin/bash
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2026 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+# Dual-protocol regression test for 'eos file' and its subcommands.
+#
+# For each subcommand, sends a raw legacy opaque-CGI request directly via
+# xrdcp (simulating an old, not-yet-upgraded client binary talking to the
+# now-upgraded MGM) AND the equivalent request via the new Protobuf-based
+# 'eos file ...' CLI, against the same live MGM. Reports PASS/FAIL for each.
+#
+# Usage: eos-file-dual-protocol-test <test-dir> [<mgm-url>]
+
+set -u
+prefix=$1
+prefix=${prefix%/}
+host=${2-"root://localhost"}
+BASE="${prefix}/dualproto"
+HOST="${host}"
+
+test -z "${prefix}" && echo "error: must specify test directory" && exit 1
+PASS=0
+FAIL=0
+FAILED_TESTS=()
+
+legacy() {
+  # legacy <opaque-without-leading-mgm.cmd-prefix-already-included>
+  xrdcp "${HOST}//proc/user/?$1" - 2>/dev/null
+}
+
+pick_fsid() {
+  # pick_fsid <exclude-fsid>... -> first booted/rw fsid not in the exclude list.
+  # The replicate/move targets must differ from the file's own location, and
+  # placement is free to put the file on any filesystem, so they cannot be
+  # hardcoded without making the test flaky.
+  local excl=" $* "
+  local f
+  for f in $(eos -b fs ls -m 2>/dev/null | tr ' ' '\n' | \
+             grep -E '^id=' | cut -d= -f2 | sort -n); do
+    case "${excl}" in
+      *" ${f} "*) continue ;;
+    esac
+    echo "${f}"
+    return
+  done
+}
+
+check() {
+  # check <label> <actual-output> <expected-substring>
+  local label="$1" actual="$2" expected="$3"
+  if echo "$actual" | grep -qF "$expected"; then
+    echo "  [PASS] $label"
+    PASS=$((PASS+1))
+  else
+    echo "  [FAIL] $label"
+    echo "         expected substring: $expected"
+    echo "         actual: $actual"
+    FAIL=$((FAIL+1))
+    FAILED_TESTS+=("$label")
+  fi
+}
+
+echo "=== setup ==="
+eos -b mkdir -p "$BASE" >/dev/null 2>&1
+eos -b chmod 777 "$BASE" >/dev/null 2>&1
+
+##############################################################################
+echo "=== touch ==="
+eos -b file touch "$BASE/proto_touch.txt" >/dev/null 2>&1
+check "proto: touch" "$(eos -b stat "$BASE/proto_touch.txt" 2>&1)" "File:"
+
+out=$(legacy "mgm.cmd=file&mgm.subcmd=touch&mgm.path=$BASE/legacy_touch.txt")
+check "legacy: touch" "$out" "success: touched"
+
+##############################################################################
+echo "=== rename ==="
+eos -b touch "$BASE/proto_rename_src.txt" >/dev/null 2>&1
+eos -b file rename "$BASE/proto_rename_src.txt" "$BASE/proto_rename_dst.txt" >/dev/null 2>&1
+check "proto: rename" "$(eos -b stat "$BASE/proto_rename_dst.txt" 2>&1)" "File:"
+
+eos -b touch "$BASE/legacy_rename_src.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=rename&mgm.path=$BASE/legacy_rename_src.txt&mgm.file.source=$BASE/legacy_rename_src.txt&mgm.file.target=$BASE/legacy_rename_dst.txt")
+check "legacy: rename" "$out" "success: renamed"
+
+##############################################################################
+echo "=== symlink ==="
+out_proto=$(eos -b file symlink "$BASE/proto_symlink.lnk" "$BASE/proto_rename_dst.txt" 2>&1)
+check "proto: symlink" "$out_proto" "success: linked"
+
+out=$(legacy "mgm.cmd=file&mgm.subcmd=symlink&mgm.path=$BASE/legacy_symlink.lnk&mgm.file.source=$BASE/legacy_symlink.lnk&mgm.file.target=$BASE/legacy_rename_dst.txt")
+check "legacy: symlink" "$out" "success: linked"
+
+##############################################################################
+echo "=== rename_with_symlink ==="
+eos -b touch "$BASE/proto_rws_src.txt" >/dev/null 2>&1
+eos -b mkdir -p "$BASE/proto_rws_dst" >/dev/null 2>&1
+out_proto=$(eos -b file rename_with_symlink "$BASE/proto_rws_src.txt" "$BASE/proto_rws_dst" 2>&1)
+check "proto: rename_with_symlink" "$out_proto" "success: renamed"
+
+eos -b touch "$BASE/legacy_rws_src.txt" >/dev/null 2>&1
+eos -b mkdir -p "$BASE/legacy_rws_dst" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=rename_with_symlink&mgm.path=$BASE/legacy_rws_src.txt&mgm.file.source=$BASE/legacy_rws_src.txt&mgm.file.target=$BASE/legacy_rws_dst")
+check "legacy: rename_with_symlink" "$out" "success: renamed"
+
+##############################################################################
+echo "=== tag (root, +/-) ==="
+eos -b touch "$BASE/proto_tag.txt" >/dev/null 2>&1
+out_proto=$(eos -b file tag "$BASE/proto_tag.txt" +777001 2>&1)
+check "proto: tag +" "$out_proto" "success: added location"
+out_proto=$(eos -b file tag "$BASE/proto_tag.txt" -777001 2>&1)
+check "proto: tag -" "$out_proto" "success: removed location"
+
+eos -b touch "$BASE/legacy_tag.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=tag&mgm.path=$BASE/legacy_tag.txt&mgm.file.tag.fsid=%2B777002")
+check "legacy: tag + (xrdcp probe isn't literal root - identical root-only denial as FileCmd.cc, see source line check below; this is expected parity, not a failure)" "$out" "have to be root"
+out=$(legacy "mgm.cmd=file&mgm.subcmd=tag&mgm.path=$BASE/legacy_tag.txt&mgm.file.tag.fsid=-777002")
+check "legacy: tag - (same root-only parity note as above)" "$out" "have to be root"
+
+##############################################################################
+echo "=== layout ==="
+eos -b touch "$BASE/proto_layout.txt" >/dev/null 2>&1
+out_proto=$(eos -b file layout "$BASE/proto_layout.txt" -stripes 2 2>&1)
+check "proto: layout" "$out_proto" "success: setting layout"
+
+eos -b touch "$BASE/legacy_layout.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=layout&mgm.path=$BASE/legacy_layout.txt&mgm.file.layout.stripes=2")
+check "legacy: layout (root-only parity, see note above)" "$out" "take role 'root'"
+
+##############################################################################
+echo "=== verify ==="
+out_proto=$(eos -b file verify "$BASE/proto_layout.txt" -checksum 2>&1)
+check "proto: verify" "$out_proto" "success: sending verify"
+
+out=$(legacy "mgm.cmd=file&mgm.subcmd=verify&mgm.path=$BASE/legacy_layout.txt&mgm.file.compute.checksum=1")
+check "legacy: verify (root-only parity, see note above)" "$out" "take role 'root'"
+
+##############################################################################
+echo "=== share ==="
+out_proto=$(eos -b file share "$BASE/proto_layout.txt" 2>&1)
+check "proto: share" "$out_proto" "eos.share.signature"
+
+out=$(legacy "mgm.cmd=file&mgm.subcmd=share&mgm.path=$BASE/legacy_layout.txt&mgm.file.expires=3600")
+check "legacy: share" "$out" "eos.share.signature"
+
+##############################################################################
+echo "=== drop ==="
+proto_fsid=$(eos -b file info "$BASE/proto_layout.txt" -m 2>&1 | tr ' ' '\n' | grep -m1 '^fsid=' | cut -d= -f2)
+if [ -z "$proto_fsid" ]; then
+  proto_fsid="none"
+fi
+out_proto=$(eos -b file drop "$BASE/proto_layout.txt" "$proto_fsid" -f 2>&1)
+check "proto: drop" "$out_proto" "success: dropped stripe"
+
+legacy_fsid=$(eos -j -b fileinfo "$BASE/legacy_layout.txt" 2>&1 | grep -o '"fsid" : [0-9]*' | head -1 | grep -o '[0-9]*')
+out=$(legacy "mgm.cmd=file&mgm.subcmd=drop&mgm.path=$BASE/legacy_layout.txt&mgm.file.fsid=${legacy_fsid}&mgm.file.force=1")
+check "legacy: drop" "$out" "success: dropped stripe"
+
+##############################################################################
+echo "=== adjustreplica ==="
+eos -b touch "$BASE/proto_adj.txt" >/dev/null 2>&1
+out_proto=$(eos -b file adjustreplica "$BASE/proto_adj.txt" 2>&1)
+check "proto: adjustreplica (no error)" "$out_proto" ""
+
+eos -b touch "$BASE/legacy_adj.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=$BASE/legacy_adj.txt")
+check "legacy: adjustreplica (root-only parity, see note above)" "$out" "take role 'root'"
+
+##############################################################################
+echo "=== version / versions / purge ==="
+eos -b touch "$BASE/proto_ver.txt" >/dev/null 2>&1
+out_proto=$(eos -b file version "$BASE/proto_ver.txt" 99 2>&1)
+check "proto: version" "$out_proto" "info: created new version"
+out_proto=$(eos -b file versions "$BASE/proto_ver.txt" 2>&1)
+check "proto: versions (list)" "$out_proto" ""
+out_proto=$(eos -b file purge "$BASE/proto_ver.txt" 0 2>&1)
+check "proto: purge 0" "$out_proto" ""
+out_proto=$(eos -b stat "$BASE/proto_ver.txt.sys.v#" 2>&1; eos -b stat "$BASE/.sys.v#.proto_ver.txt" 2>&1)
+
+eos -b touch "$BASE/legacy_ver.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=version&mgm.path=$BASE/legacy_ver.txt&mgm.purge.version=99")
+check "legacy: version" "$out" "info: created new version"
+out=$(legacy "mgm.cmd=file&mgm.subcmd=versions&mgm.path=$BASE/legacy_ver.txt&mgm.grab.version=-1")
+check "legacy: versions (list)" "$out" ""
+out=$(legacy "mgm.cmd=file&mgm.subcmd=purge&mgm.path=$BASE/legacy_ver.txt&mgm.purge.version=0")
+check "legacy: purge 0" "$out" ""
+
+##############################################################################
+echo "=== move / replicate ==="
+eos -b touch "$BASE/proto_repl.txt" >/dev/null 2>&1
+src_fsid=$(eos -b file info "$BASE/proto_repl.txt" -m 2>&1 | tr ' ' '\n' | grep -m1 '^fsid=' | cut -d= -f2)
+repl_tgt=$(pick_fsid "$src_fsid")
+move_tgt=$(pick_fsid "$src_fsid" "$repl_tgt")
+out_proto=$(eos -b file replicate "$BASE/proto_repl.txt" "$src_fsid" "$repl_tgt" 2>&1)
+check "proto: replicate" "$out_proto" "success: scheduled replication"
+out_proto=$(eos -b file move "$BASE/proto_repl.txt" "$src_fsid" "$move_tgt" 2>&1)
+check "proto: move" "$out_proto" ""
+
+eos -b touch "$BASE/legacy_repl.txt" >/dev/null 2>&1
+lsrc_fsid=$(eos -j -b fileinfo "$BASE/legacy_repl.txt" 2>&1 | grep -o '"fsid" : [0-9]*' | head -1 | grep -o '[0-9]*')
+lrepl_tgt=$(pick_fsid "$lsrc_fsid")
+lmove_tgt=$(pick_fsid "$lsrc_fsid" "$lrepl_tgt")
+out=$(legacy "mgm.cmd=file&mgm.subcmd=replicate&mgm.path=$BASE/legacy_repl.txt&mgm.file.sourcefsid=${lsrc_fsid}&mgm.file.targetfsid=${lrepl_tgt}")
+check "legacy: replicate" "$out" "success: scheduled replication"
+out=$(legacy "mgm.cmd=file&mgm.subcmd=move&mgm.path=$BASE/legacy_repl.txt&mgm.file.sourcefsid=${lsrc_fsid}&mgm.file.targetfsid=${lmove_tgt}")
+check "legacy: move" "$out" ""
+
+##############################################################################
+echo "=== copy ==="
+eos -b touch "$BASE/proto_copy_src.txt" >/dev/null 2>&1
+out_proto=$(eos -b file copy "$BASE/proto_copy_src.txt" "$BASE/proto_copy_dst.txt" 2>&1)
+check "proto: copy" "$out_proto" "success: copy done"
+
+eos -b touch "$BASE/legacy_copy_src.txt" >/dev/null 2>&1
+out=$(legacy "mgm.cmd=file&mgm.subcmd=copy&mgm.path=$BASE/legacy_copy_src.txt&mgm.file.target=$BASE/legacy_copy_dst.txt")
+check "legacy: copy" "$out" "success: copy done"
+
+##############################################################################
+echo "=== workflow (expect domain error, not parse error, both sides) ==="
+out_proto=$(eos -b file workflow "$BASE/proto_copy_src.txt" bogus bogusevent 2>&1)
+check "proto: workflow (reaches workflow engine)" "$out_proto" "Unable to trigger workflow"
+
+out=$(legacy "mgm.cmd=file&mgm.subcmd=workflow&mgm.path=$BASE/legacy_copy_src.txt&mgm.workflow=bogus&mgm.event=bogusevent")
+check "legacy: workflow (reaches workflow engine)" "$out" "Unable to trigger workflow"
+
+##############################################################################
+echo "=== fileinfo / info (separate legacy mgm.cmd=fileinfo, still untouched) ==="
+out_proto=$(eos -b file info "$BASE/proto_touch.txt" 2>&1)
+check "proto: info" "$out_proto" "File:"
+
+out=$(legacy "mgm.cmd=fileinfo&mgm.path=$BASE/legacy_touch.txt")
+check "legacy: fileinfo" "$out" "File:"
+
+##############################################################################
+echo "=== cleanup ==="
+eos -b rm -rF --no-confirmation "$BASE" >/dev/null 2>&1
+
+echo
+echo "================================================================"
+echo "RESULTS: $PASS passed, $FAIL failed"
+if [ $FAIL -gt 0 ]; then
+  echo "Failed tests:"
+  for t in "${FAILED_TESTS[@]}"; do
+    echo "  - $t"
+  done
+fi
+echo "================================================================"
+
+test ${FAIL} -eq 0

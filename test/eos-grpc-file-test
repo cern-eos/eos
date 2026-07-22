@@ -1,0 +1,406 @@
+#!/bin/bash
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2026 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+# Parity test for the 'eos file' command over gRPC.
+#
+# Every 'file' subcommand reachable through eos.rpc.Eos/Exec is driven twice:
+# once through the console (which builds a FileProto and ships it over
+# XRootD) and once through eos-grpc-ns (which builds the *same* FileProto and
+# ships it over gRPC). Both land in mgm::FileCmd, so any difference between
+# the two columns means the gRPC plumbing - not the command - is at fault.
+#
+# The MGM refuses to start its gRPC server without TLS unless it is run with
+# EOS_MGM_GRPC_ALLOW_INSECURE=1, in which case it binds to loopback only. Pass
+# 'insecure' to match such a setup; the default assumes TLS.
+#
+# Usage: eos-grpc-file-test <test-dir> [<host>] [<grpc-port>] [ssl|insecure]
+
+prefix=$1
+prefix=${prefix%/}
+host=${2-"localhost"}
+grpc_port=${3-"50051"}
+ssl_mode=${4-"ssl"}
+grpc_endpoint="${host}:${grpc_port}"
+host_ips=($(hostname -i))
+
+test -z "${prefix}" && echo "error: must specify test directory" && exit 1
+
+authkey=12345678
+# uid/gid the gRPC key maps to - matches eos-grpc-test
+TEST_UID=11
+TEST_GID=11
+testdir="${prefix}/t_grpc_file"
+passed=0
+failed=0
+
+GRPC="eos-grpc-ns --endpoint ${grpc_endpoint} --token ${authkey}"
+
+if [ "${ssl_mode}" != "insecure" ]; then
+  GRPC="${GRPC} --force-ssl"
+fi
+
+#-------------------------------------------------------------------------------
+# Reporting helpers
+#-------------------------------------------------------------------------------
+section() {
+  echo "=== $1 ==="
+}
+
+pass() {
+  echo "  [PASS] $1"
+  passed=$((passed + 1))
+}
+
+fail() {
+  echo "  [FAIL] $1"
+  [ -n "$2" ] && echo "         $2"
+  failed=$((failed + 1))
+}
+
+#-------------------------------------------------------------------------------
+# Run a 'file' subcommand over gRPC.
+#
+# eos-grpc-ns exits with NSResponse.file.code and prints the whole reply as
+# JSON, so the command output lands in the "msg" field.
+#-------------------------------------------------------------------------------
+grpc_file() {
+  grpc_out=$(${GRPC} file "$@" 2>&1)
+  grpc_rc=$?
+  return ${grpc_rc}
+}
+
+#-------------------------------------------------------------------------------
+# Run the same subcommand through the console (Protobuf over XRootD)
+#-------------------------------------------------------------------------------
+proto_file() {
+  proto_out=$(eos -r ${TEST_UID} ${TEST_GID} file "$@" 2>&1)
+  proto_rc=$?
+  return ${proto_rc}
+}
+
+#-------------------------------------------------------------------------------
+# Assert that a subcommand succeeds over gRPC and that the console agrees
+#
+# $1 label, rest: the 'file' subcommand and its arguments
+#-------------------------------------------------------------------------------
+check_both_ok() {
+  local label="$1"
+  shift
+  grpc_file "$@"
+
+  if [ ${grpc_rc} -eq 0 ]; then
+    pass "grpc: ${label}"
+  else
+    fail "grpc: ${label}" "rc=${grpc_rc} ${grpc_out}"
+  fi
+
+  proto_file "$@"
+
+  if [ ${proto_rc} -eq 0 ]; then
+    pass "proto: ${label}"
+  else
+    fail "proto: ${label}" "rc=${proto_rc} ${proto_out}"
+  fi
+}
+
+#-------------------------------------------------------------------------------
+# Create a fresh, identical file for each transport and echo their paths.
+#
+# The 'file' subcommands mutate their target, so running the same command twice
+# against the same file would make the second run observe the first one's side
+# effects rather than the transport's behaviour.
+#-------------------------------------------------------------------------------
+fresh_pair() {
+  local name="$1"
+  eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/${name}_g" > /dev/null 2>&1
+  eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/${name}_p" > /dev/null 2>&1
+  eos -r ${TEST_UID} ${TEST_GID} file touch "${testdir}/${name}_g" > /dev/null 2>&1
+  eos -r ${TEST_UID} ${TEST_GID} file touch "${testdir}/${name}_p" > /dev/null 2>&1
+}
+
+#-------------------------------------------------------------------------------
+# Assert that gRPC and the console return the *same* status, whatever it is.
+#
+# Used for subcommands whose success depends on instance state (spare
+# filesystems, workflow engine, ...) - what matters is that both transports
+# agree. Each side runs against its own freshly created file: the literal
+# token @FILE@ in the arguments is replaced by that file's path.
+#
+# $1 label, $2 basename for the file pair, rest: the subcommand and arguments
+#-------------------------------------------------------------------------------
+check_same_rc() {
+  local label="$1"
+  local name="$2"
+  shift 2
+  fresh_pair "${name}"
+  local grpc_args=()
+  local proto_args=()
+
+  for a in "$@"; do
+    grpc_args+=("${a//@FILE@/${testdir}/${name}_g}")
+    proto_args+=("${a//@FILE@/${testdir}/${name}_p}")
+  done
+
+  grpc_file "${grpc_args[@]}"
+  proto_file "${proto_args[@]}"
+
+  if [ ${grpc_rc} -eq ${proto_rc} ]; then
+    pass "parity: ${label} (both rc=${grpc_rc})"
+  else
+    fail "parity: ${label}" \
+         "grpc rc=${grpc_rc} vs proto rc=${proto_rc}: ${grpc_out} | ${proto_out}"
+  fi
+}
+
+#-------------------------------------------------------------------------------
+# Assert that the gRPC reply carries an expected substring
+#-------------------------------------------------------------------------------
+check_grpc_output() {
+  local label="$1"
+  local needle="$2"
+  shift 2
+  grpc_file "$@"
+
+  if echo "${grpc_out}" | grep -q -- "${needle}"; then
+    pass "grpc: ${label}"
+  else
+    fail "grpc: ${label}" "expected '${needle}' in: ${grpc_out}"
+  fi
+}
+
+#-------------------------------------------------------------------------------
+# Setup - same gRPC identity mapping as eos-grpc-test, so that both tests can
+# run against one instance without either redefining the other's key.
+#
+# Note that a gRPC client cannot become root: GrpcNsInterface::Exec treats a
+# role of uid=0/gid=0 as "no role given" and does not implement sudo to root.
+# The root-only subcommands (tag, layout, verify, adjustreplica) are therefore
+# denied here, and the test asserts that both transports deny them alike.
+#-------------------------------------------------------------------------------
+section "setup"
+
+for ip in "${host_ips[@]}"; do
+  eos vid add gateway "${ip}" grpc
+done
+
+eos vid add gateway "127.0.0.1" grpc
+eos vid add gateway "[:1]" grpc
+eos vid add gateway "[::1]" grpc
+eos vid set map -grpc key:${authkey} vuid:${TEST_UID}
+eos vid set map -grpc key:${authkey} vgid:${TEST_GID}
+
+eos rm -rF --no-confirmation "${testdir}/" > /dev/null 2>&1
+eos mkdir -p "${testdir}/" || { echo "error: cannot create ${testdir}"; exit 1; }
+eos chown ${TEST_UID}:${TEST_GID} "${testdir}" > /dev/null 2>&1
+eos chmod 700 "${testdir}" > /dev/null 2>&1
+# 'file workflow' with a prepare event needs P_OK, which is granted through
+# the 'p' ACL bit. The console reaches the MGM over sss, for which Event.cc
+# skips the check entirely, so without this the two transports would disagree
+# on permission grounds rather than on the command itself.
+eos attr set sys.acl=u:${TEST_UID}:rwxp "${testdir}" > /dev/null 2>&1
+eos attr set sys.forced.nstripes=2 "${testdir}" > /dev/null 2>&1
+eos attr set sys.versioning=3 "${testdir}" > /dev/null 2>&1
+
+#-------------------------------------------------------------------------------
+section "touch"
+#-------------------------------------------------------------------------------
+check_both_ok "touch" touch "${testdir}/gf1"
+check_both_ok "touch (second file)" touch "${testdir}/gf2"
+
+#-------------------------------------------------------------------------------
+section "info"
+#-------------------------------------------------------------------------------
+check_both_ok "info" info "${testdir}/gf1"
+check_grpc_output "info --fullpath" "${testdir}/gf1" info "${testdir}/gf1" --fullpath
+check_grpc_output "info -m (monitoring)" "keylength.file=" info "${testdir}/gf1" -m
+
+# id specifiers must resolve the same way as a path does
+fid=$(eos -r ${TEST_UID} ${TEST_GID} file info "${testdir}/gf1" -m 2>/dev/null | tr ' ' '\n' | grep '^fid=' | cut -d= -f2)
+
+if [ -n "${fid}" ]; then
+  check_grpc_output "info fid:<dec>" "${testdir}/gf1" info "fid:${fid}" --fullpath
+  fxid=$(printf '%08x' "${fid}")
+  check_grpc_output "info fxid:<hex>" "${testdir}/gf1" info "fxid:${fxid}" --fullpath
+else
+  fail "grpc: info fid:/fxid:" "could not determine fid of ${testdir}/gf1"
+fi
+
+#-------------------------------------------------------------------------------
+section "rename"
+#-------------------------------------------------------------------------------
+grpc_file rename "${testdir}/gf1" "${testdir}/gf1_grpc"
+
+if [ ${grpc_rc} -eq 0 ] && eos ls "${testdir}/gf1_grpc" > /dev/null 2>&1; then
+  pass "grpc: rename"
+else
+  fail "grpc: rename" "rc=${grpc_rc} ${grpc_out}"
+fi
+
+proto_file rename "${testdir}/gf1_grpc" "${testdir}/gf1"
+
+if [ ${proto_rc} -eq 0 ] && eos ls "${testdir}/gf1" > /dev/null 2>&1; then
+  pass "proto: rename"
+else
+  fail "proto: rename" "rc=${proto_rc} ${proto_out}"
+fi
+
+#-------------------------------------------------------------------------------
+section "symlink"
+#-------------------------------------------------------------------------------
+eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/gl_grpc" > /dev/null 2>&1
+grpc_file symlink "${testdir}/gl_grpc" "${testdir}/gf1"
+
+if [ ${grpc_rc} -eq 0 ]; then
+  pass "grpc: symlink"
+else
+  fail "grpc: symlink" "rc=${grpc_rc} ${grpc_out}"
+fi
+
+eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/gl_proto" > /dev/null 2>&1
+proto_file symlink "${testdir}/gl_proto" "${testdir}/gf1"
+
+if [ ${proto_rc} -eq 0 ]; then
+  pass "proto: symlink"
+else
+  fail "proto: symlink" "rc=${proto_rc} ${proto_out}"
+fi
+
+#-------------------------------------------------------------------------------
+section "rename_with_symlink"
+#-------------------------------------------------------------------------------
+# each side moves its own file into its own destination directory
+eos -r ${TEST_UID} ${TEST_GID} mkdir -p "${testdir}/moved_g" > /dev/null 2>&1
+eos -r ${TEST_UID} ${TEST_GID} mkdir -p "${testdir}/moved_p" > /dev/null 2>&1
+fresh_pair rws
+grpc_file rename_with_symlink "${testdir}/rws_g" "${testdir}/moved_g"
+
+if [ ${grpc_rc} -eq 0 ]; then
+  pass "grpc: rename_with_symlink"
+else
+  fail "grpc: rename_with_symlink" "rc=${grpc_rc} ${grpc_out}"
+fi
+
+proto_file rename_with_symlink "${testdir}/rws_p" "${testdir}/moved_p"
+
+if [ ${proto_rc} -eq 0 ]; then
+  pass "proto: rename_with_symlink"
+else
+  fail "proto: rename_with_symlink" "rc=${proto_rc} ${proto_out}"
+fi
+
+#-------------------------------------------------------------------------------
+section "tag (root only)"
+#-------------------------------------------------------------------------------
+check_same_rc "tag +" tagadd tag "@FILE@" "+1"
+check_same_rc "tag -" tagrm tag "@FILE@" "-1"
+check_same_rc "tag ~" tagul tag "@FILE@" "~1"
+
+#-------------------------------------------------------------------------------
+section "layout"
+#-------------------------------------------------------------------------------
+check_same_rc "layout -stripes" laystr layout "@FILE@" -stripes 2
+check_same_rc "layout -checksum" laycks layout "@FILE@" -checksum adler
+check_same_rc "layout -type" laytyp layout "@FILE@" -type 00100112
+
+#-------------------------------------------------------------------------------
+section "verify"
+#-------------------------------------------------------------------------------
+check_same_rc "verify -checksum" vercks verify "@FILE@" -checksum
+check_same_rc "verify -commitsize" versz verify "@FILE@" -commitsize
+check_same_rc "verify -rate" verrate verify "@FILE@" -rate 100
+
+#-------------------------------------------------------------------------------
+section "share"
+#-------------------------------------------------------------------------------
+check_grpc_output "share" "eos.share" share "${testdir}/gf1"
+
+#-------------------------------------------------------------------------------
+section "version / versions / purge"
+#-------------------------------------------------------------------------------
+check_both_ok "version" version "${testdir}/gf1" 2
+check_both_ok "versions (list)" versions "${testdir}/gf1"
+check_both_ok "purge" purge "${testdir}/gf1" 0
+
+#-------------------------------------------------------------------------------
+section "drop / move / replicate / adjustreplica"
+#-------------------------------------------------------------------------------
+# These need spare filesystems, so assert transport parity rather than success
+check_same_rc "adjustreplica" adjrep adjustreplica "@FILE@"
+check_same_rc "adjustreplica --nodrop" adjnod adjustreplica "@FILE@" --nodrop
+check_same_rc "replicate" repl replicate "@FILE@" 1 2
+check_same_rc "move" mv move "@FILE@" 1 2
+check_same_rc "drop" drp drop "@FILE@" 1
+check_same_rc "drop cache" drpc drop "@FILE@" cache
+
+#-------------------------------------------------------------------------------
+section "convert / copy / workflow"
+#-------------------------------------------------------------------------------
+check_same_rc "convert" conv convert "@FILE@" replica:2
+# the copy destination is derived from the per-side source, so neither
+# transport sees the other's target
+check_same_rc "copy" cp copy "@FILE@" "@FILE@_copy"
+check_same_rc "workflow" wf workflow "@FILE@" default sync::prepare
+
+#-------------------------------------------------------------------------------
+section "unsupported over gRPC"
+#-------------------------------------------------------------------------------
+# 'file check' queries the FSTs from the client side and has no server-side
+# counterpart, eos-grpc-ns must reject it rather than send a bogus request
+${GRPC} file check "${testdir}/gf1" > /dev/null 2>&1
+
+if [ $? -ne 0 ]; then
+  pass "grpc: 'file check' rejected"
+else
+  fail "grpc: 'file check' rejected" "expected a non-zero exit"
+fi
+
+#-------------------------------------------------------------------------------
+section "error propagation"
+#-------------------------------------------------------------------------------
+# A missing file must come back as an error code in NSResponse.file.code,
+# not as a transport-level failure
+grpc_file info "${testdir}/does_not_exist"
+
+if [ ${grpc_rc} -ne 0 ]; then
+  pass "grpc: error code propagated for missing file"
+else
+  fail "grpc: error code propagated for missing file" \
+       "expected non-zero rc, got: ${grpc_out}"
+fi
+
+proto_file info "${testdir}/does_not_exist"
+
+if [ ${grpc_rc} -eq ${proto_rc} ]; then
+  pass "parity: missing file (both rc=${grpc_rc})"
+else
+  fail "parity: missing file" "grpc rc=${grpc_rc} vs proto rc=${proto_rc}"
+fi
+
+#-------------------------------------------------------------------------------
+section "cleanup"
+#-------------------------------------------------------------------------------
+eos rm -rF --no-confirmation "${testdir}/" > /dev/null 2>&1
+
+echo ""
+echo "================================================================"
+echo "RESULTS: ${passed} passed, ${failed} failed"
+echo "================================================================"
+
+test ${failed} -eq 0

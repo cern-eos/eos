@@ -28,6 +28,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 #-------------------------------------------------------------------------------
 add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/ICmdHelper.cc    commands/helpers/ICmdHelper.hh
+  commands/helpers/FileHelper.cc    commands/helpers/FileHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh

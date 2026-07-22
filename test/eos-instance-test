@@ -482,6 +482,14 @@ eos_grpc() {
    echo eos-grpc-test $1 $2; eval eos-grpc-test $1 $2 >> $EOSCERTLOG 2>&1
 }
 
+eos_grpc_file() {
+   echo eos-grpc-file-test $1 $2; eval eos-grpc-file-test $1 $2 >> $EOSCERTLOG 2>&1
+}
+
+eos_file_dual_protocol() {
+   echo eos-file-dual-protocol-test $1; eval eos-file-dual-protocol-test $1 >> $EOSCERTLOG 2>&1
+}
+
 eos_token() {
    echo eos-token-test $1 ; eval eos-token-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
@@ -2853,6 +2861,18 @@ runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/te
 categorie="grpc"
 # ------------------------------------------------------------------------------
 runtest "### eos-grpc  " unix SUCCESS "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/" ${EOS_TEST_FULL_REDIRECTOR}
+runtest "### eos-grpc-file " unix SUCCESS "" eos_grpc_file "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpcfile.dir/" ${EOS_TEST_FULL_REDIRECTOR}
+
+################################################################################
+# 'eos file' legacy opaque-CGI vs Protobuf tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="cgi_vs_proto_file"
+# ------------------------------------------------------------------------------
+# Drives every 'eos file' subcommand over both the legacy opaque-CGI protocol
+# and the Protobuf CLI, so an old client talking to an upgraded MGM stays
+# covered.
+runtest "### eos-file-dual-protocol " unix SUCCESS "" eos_file_dual_protocol "/eos/$EOS_TEST_INSTANCE/test/instancetest/filedual"
 
 ################################################################################
 # Accounting tests
