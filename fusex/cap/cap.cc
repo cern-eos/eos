@@ -104,6 +104,34 @@ cap::reset()
 }
 
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+size_t
+cap::invalidate_all()
+{
+  // Invalidate every held capability. Unlike reset(), which drops the caps on
+  // the spot and revokes them upstream, this only zeroes their validity: the
+  // capflush thread then expires them through the standard timeout path -
+  // decrementing the cap count, invalidating the kernel caches and cleaning
+  // up the attached meta data - and the next access re-fetches cap and meta
+  // data from the MGM. This is the behaviour of a natural lease expiry,
+  // applied early because a ZMQ reconnection means update broadcasts may
+  // have been lost while the socket was down.
+  cmap stalecaps;
+  {
+    // avoid locking a cap while holding the capmap lock, see capflush
+    XrdSysMutexHelper mLock(capmap);
+    stalecaps = capmap;
+  }
+
+  for (auto& it : stalecaps) {
+    it.second->invalidate();
+  }
+
+  return stalecaps.size();
+}
+
+/* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
 cap::capx::capid(fuse_req_t req, fuse_ino_t ino)

@@ -394,6 +394,12 @@ public:
 
   void reset();
 
+  // invalidate every held capability so that the capflush thread expires them
+  // and the next access re-fetches cap and meta data from the MGM - used after
+  // a ZMQ reconnection, when broadcast messages may have been lost silently;
+  // returns the number of invalidated capabilities
+  size_t invalidate_all();
+
   void clear()
   {
     capmap.clear();

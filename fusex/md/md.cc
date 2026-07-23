@@ -100,6 +100,18 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   set_zmq_wants_to_connect(1);
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
 
+  if (z_socket) {
+    // This is a re-connection - a failover to another MGM or a recovery from
+    // a failed send. The MGM pushes REFRESH/MD/CAP/LEASE messages fire and
+    // forget over a ROUTER socket, which silently drops what it cannot route,
+    // so anything broadcast while the old socket was going down may be lost
+    // and nobody will resend it. Invalidate every held capability.
+    const size_t n_caps = EosFuse::Instance().caps.invalidate_all();
+    eos_static_warning("msg=\"zmq reconnect - invalidating all caps to resync "
+                       "possibly lost updates\" n-caps=%lu",
+                       n_caps);
+  }
+
   // delete the exinsting ZMQ connection
   delete z_socket;
   delete z_ctx;
@@ -3537,6 +3549,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                        hbstream.c_str(), hbstream.length(),
                        eos::common::stringToHex(hbstream).c_str());
+        // The socket is broken, so update broadcasts from the MGM may already
+        // have been lost - and stay lost until the next backend round-trip
+        // triggers the reconnection (TrackMgm). Invalidate the held
+        // capabilities right away.
+        const size_t n_caps = EosFuse::Instance().caps.invalidate_all();
+        eos_static_warning("msg=\"zmq send failed - invalidating all caps to "
+                           "resync possibly lost updates\" n-caps=%lu",
+                           n_caps);
       } else {
         eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                          hbstream.c_str(), hbstream.length(),
