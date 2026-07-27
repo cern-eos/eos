@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.4.9 Diopside``
+===================
+
+2026-07-27
+
+Bug
+----
+
+* [EOS-6615] - FUSEX: Resync the client after a ZMQ reconnection
+
+
 ``v5.4.8 Diopside``
 ===================
 
