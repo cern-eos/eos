@@ -106,8 +106,8 @@ publish_debian:
   stage: publish
   image: registry.cern.ch/docker.io/ubuntu:noble
   script:
-    - apt-get update
-    - apt-get install -y sudo apt-utils sssd reprepro
+    - apt-get update -y
+    - apt-get install -y sudo apt-utils sssd git build-essential devscripts equivs
     # The 'Limit' field used in conf/distributions to retain multiple package
     # versions is only supported by the reprepro multiple-versions fork, not the
     # stock Ubuntu reprepro package. Build and install it from source, pinned to
