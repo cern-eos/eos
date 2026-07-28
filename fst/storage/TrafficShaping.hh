@@ -7,8 +7,11 @@
 #include "proto/TrafficShaping.pb.h"
 
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -23,6 +26,8 @@ using IoStatsKeyHash = eos::common::traffic_shaping::IoStatsKeyHash;
 
 inline constexpr uint64_t kIoDelayReferenceBytes = 1024 * 1024;
 inline constexpr uint64_t kMaxScaledIoDelayUs = 30ULL * 1000 * 1000;
+inline constexpr uint64_t kRateLimiterMinBurstBytes = 1024 * 1024;
+inline constexpr uint64_t kRateLimiterMaxBurstBytes = 16ULL * 1024 * 1024;
 inline constexpr size_t kMaxIoStatsEntries = 8192;
 
 bool ParseFstIoStatsReportingPeriodMilliseconds(std::string_view value,
@@ -127,6 +132,15 @@ private:
 
 class IoDelayConfig {
 public:
+  struct ActuatorStats {
+    uint64_t read_wait_events = 0;
+    uint64_t write_wait_events = 0;
+    uint64_t read_wait_microseconds = 0;
+    uint64_t write_wait_microseconds = 0;
+    uint64_t read_active_waiters = 0;
+    uint64_t write_active_waiters = 0;
+  };
+
   IoDelayConfig();
 
   void UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config);
@@ -137,6 +151,12 @@ public:
   uint64_t GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
                                      uint64_t bytes = 0) const noexcept;
 
+  void WaitForRead(const eos::common::VirtualIdentity& vid, uint64_t bytes) noexcept;
+
+  void WaitForWrite(const eos::common::VirtualIdentity& vid, uint64_t bytes) noexcept;
+
+  ActuatorStats GetActuatorStats() const noexcept;
+
   void Clear();
 
   void SetEnabled(bool enabled);
@@ -144,10 +164,39 @@ public:
   bool IsEnabled() const;
 
 private:
+  struct RateBucket {
+    uint64_t rate_bytes_per_second = 0;
+    double tokens = 0.0;
+    std::chrono::steady_clock::time_point last_refill{};
+  };
+
+  struct RateState {
+    std::unordered_map<uint32_t, RateBucket> uid_read;
+    std::unordered_map<uint32_t, RateBucket> uid_write;
+    std::unordered_map<uint32_t, RateBucket> gid_read;
+    std::unordered_map<uint32_t, RateBucket> gid_write;
+    std::unordered_map<std::string, RateBucket> app_read;
+    std::unordered_map<std::string, RateBucket> app_write;
+  };
+
+  struct RateWaiter {
+    std::condition_variable condition;
+  };
+
   uint64_t ScaleDelay(uint64_t delay_us, uint64_t bytes) const;
 
   uint64_t GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, uint64_t bytes,
                                 bool is_write) const;
+
+  void WaitForIo(const eos::common::VirtualIdentity& vid, uint64_t bytes,
+                 bool is_write) noexcept;
+
+  bool WaitForRate(const eos::common::VirtualIdentity& vid, uint64_t bytes,
+                   bool is_write);
+
+  bool HasRateForAppUidGid(const eos::common::VirtualIdentity& vid, bool is_write) const;
+
+  static uint64_t BurstBytes(uint64_t rate_bytes_per_second);
 
   std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mFstIoDelayConfigPtr;
@@ -155,5 +204,18 @@ private:
   std::atomic<bool> mIsEnabled{false};
   // Invalidates thread-local resolved delays after a configuration update.
   std::atomic<uint64_t> mCacheGeneration;
+
+  mutable std::mutex mActuatorMutex;
+  std::condition_variable mActuatorCondition;
+  RateState mRateState;
+  uint64_t mActuatorGeneration = 0;
+  std::unordered_map<std::string, std::deque<RateWaiter*>> mRateWaitQueues;
+
+  std::atomic<uint64_t> mReadWaitEvents{0};
+  std::atomic<uint64_t> mWriteWaitEvents{0};
+  std::atomic<uint64_t> mReadWaitMicroseconds{0};
+  std::atomic<uint64_t> mWriteWaitMicroseconds{0};
+  std::atomic<uint64_t> mReadActiveWaiters{0};
+  std::atomic<uint64_t> mWriteActiveWaiters{0};
 };
 } // namespace eos::fst::traffic_shaping

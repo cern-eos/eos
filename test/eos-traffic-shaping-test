@@ -47,12 +47,13 @@ eos mkdir -p /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 
-# -20% lower, +35% upper for 1 MB/s target
+# The shared rate actuator permits a one-MiB startup burst, so a cold 10-MiB
+# transfer at 1 MiB/s is expected to complete in roughly nine seconds.
 LOWER_BOUND=800000
 UPPER_BOUND=1350000
 WRITE_10MB_LOWER_MS=8000
 WRITE_10MB_UPPER_MS=22000
-READ_10MB_LOWER_MS=10000
+READ_10MB_LOWER_MS=8000
 READ_10MB_UPPER_MS=30000
 
 measure_transfer_ms() {

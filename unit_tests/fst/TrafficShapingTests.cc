@@ -3,6 +3,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cstdint>
 #include <new>
 #include <string>
@@ -103,6 +104,16 @@ TEST(IoDelayConfigTest, RejectsUnsafeConfigBounds)
   config.mutable_app_write_delay()->clear();
   (*config.mutable_app_write_delay())[std::string(
       eos::common::TRAFFIC_SHAPING_FST_IDENTITY_MAX_BYTES + 1, 'x')] = 1;
+  EXPECT_FALSE(ValidateFstIoDelayConfig(config, entries));
+
+  config.mutable_app_write_delay()->clear();
+  (*config.mutable_app_write_rate())["bounded-app"] = 1000;
+  EXPECT_TRUE(ValidateFstIoDelayConfig(config, entries));
+  EXPECT_EQ(1u, entries);
+
+  config.mutable_app_write_rate()->clear();
+  (*config.mutable_app_write_rate())[std::string(
+      eos::common::TRAFFIC_SHAPING_FST_IDENTITY_MAX_BYTES + 1, 'x')] = 1000;
   EXPECT_FALSE(ValidateFstIoDelayConfig(config, entries));
 }
 
@@ -412,4 +423,134 @@ TEST(IoDelayConfigTest, CapsScaledDelay)
   const auto vid = MakeVid("large-buffer-app");
   EXPECT_EQ(delay_config.GetWriteDelayForAppUidGid(vid, UINT64_MAX),
             eos::fst::traffic_shaping::kMaxScaledIoDelayUs);
+}
+
+TEST(IoDelayConfigTest, ConfigUpdateInterruptsLegacyWait)
+{
+  using namespace std::chrono_literals;
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
+  (*config.mutable_app_write_delay())["interruptible-app"] = 1000000;
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(std::move(config));
+
+  const auto vid = MakeVid("interruptible-app");
+  std::thread waiter([&] {
+    delay_config.WaitForWrite(vid, eos::fst::traffic_shaping::kIoDelayReferenceBytes);
+  });
+
+  for (int attempt = 0;
+       attempt < 100 && delay_config.GetActuatorStats().write_active_waiters == 0;
+       ++attempt) {
+    std::this_thread::sleep_for(2ms);
+  }
+  const bool observed_waiter = delay_config.GetActuatorStats().write_active_waiters == 1;
+  const auto update_started = std::chrono::steady_clock::now();
+  delay_config.UpdateConfig({});
+  waiter.join();
+
+  const auto elapsed = std::chrono::steady_clock::now() - update_started;
+  EXPECT_TRUE(observed_waiter);
+  EXPECT_LT(elapsed, 500ms);
+  EXPECT_EQ(0u, delay_config.GetActuatorStats().write_active_waiters);
+}
+
+TEST(IoDelayConfigTest, ConfigUpdateHandsInFlightRequestToRateActuator)
+{
+  using namespace std::chrono_literals;
+  constexpr uint64_t mib = 1024ULL * 1024ULL;
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig legacy_config;
+  (*legacy_config.mutable_app_read_delay())["handoff-app"] = 10'000'000;
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(std::move(legacy_config));
+
+  const auto vid = MakeVid("handoff-app");
+  std::thread waiter([&] { delay_config.WaitForRead(vid, 2 * mib); });
+
+  for (int attempt = 0;
+       attempt < 100 && delay_config.GetActuatorStats().read_active_waiters == 0;
+       ++attempt) {
+    std::this_thread::sleep_for(2ms);
+  }
+  const bool observed_waiter = delay_config.GetActuatorStats().read_active_waiters == 1;
+
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig rate_config;
+  (*rate_config.mutable_app_read_delay())["handoff-app"] = 10'000'000;
+  (*rate_config.mutable_app_read_rate())["handoff-app"] = 4 * mib;
+  const auto update_started = std::chrono::steady_clock::now();
+  delay_config.UpdateConfig(std::move(rate_config));
+  waiter.join();
+
+  const auto elapsed = std::chrono::steady_clock::now() - update_started;
+  EXPECT_TRUE(observed_waiter);
+  EXPECT_GE(elapsed, 150ms);
+  EXPECT_LT(elapsed, 2s);
+  EXPECT_EQ(0u, delay_config.GetActuatorStats().read_active_waiters);
+}
+
+TEST(IoDelayConfigTest, ConcurrentTransfersShareOneRateBucket)
+{
+  using namespace std::chrono_literals;
+  constexpr uint64_t mib = 1024ULL * 1024ULL;
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
+  (*config.mutable_app_write_rate())["shared-app"] = 4 * mib;
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(std::move(config));
+
+  const auto vid = MakeVid("shared-app");
+  delay_config.WaitForWrite(vid, mib);
+  const auto started = std::chrono::steady_clock::now();
+  std::thread first([&] { delay_config.WaitForWrite(vid, mib); });
+  std::thread second([&] { delay_config.WaitForWrite(vid, mib); });
+  first.join();
+  second.join();
+
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  EXPECT_GE(elapsed, 400ms);
+  EXPECT_LT(elapsed, 2s);
+  const auto stats = delay_config.GetActuatorStats();
+  EXPECT_EQ(2u, stats.write_wait_events);
+  EXPECT_EQ(0u, stats.write_active_waiters);
+  EXPECT_GE(stats.write_wait_microseconds, 400000u);
+}
+
+TEST(IoDelayConfigTest, PeriodicRefreshDoesNotForgiveTokenDebt)
+{
+  using namespace std::chrono_literals;
+  constexpr uint64_t mib = 1024ULL * 1024ULL;
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
+  (*config.mutable_app_write_rate())["refresh-app"] = 4 * mib;
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(config);
+
+  const auto vid = MakeVid("refresh-app");
+  delay_config.WaitForWrite(vid, mib);
+  delay_config.UpdateConfig(std::move(config));
+  const auto started = std::chrono::steady_clock::now();
+  delay_config.WaitForWrite(vid, mib);
+
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  EXPECT_GE(elapsed, 150ms);
+  EXPECT_LT(elapsed, 2s);
+}
+
+TEST(IoDelayConfigTest, ShapesRequestLargerThanBurstBeforeIo)
+{
+  using namespace std::chrono_literals;
+  constexpr uint64_t mib = 1024ULL * 1024ULL;
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
+  (*config.mutable_app_read_rate())["large-read-app"] = 4 * mib;
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(std::move(config));
+
+  const auto started = std::chrono::steady_clock::now();
+  delay_config.WaitForRead(MakeVid("large-read-app"), 2 * mib);
+
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  EXPECT_GE(elapsed, 150ms);
+  EXPECT_LT(elapsed, 2s);
 }

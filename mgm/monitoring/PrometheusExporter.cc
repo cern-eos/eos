@@ -175,6 +175,13 @@ AddCounter(prometheus::MetricFamily& family,
   family.metric.push_back(MakeCounterMetric(labels, static_cast<double>(value)));
 }
 
+void
+AddCounter(prometheus::MetricFamily& family,
+           const std::map<std::string, std::string>& labels, const double value)
+{
+  family.metric.push_back(MakeCounterMetric(labels, value));
+}
+
 prometheus::MetricFamily
 MakeCounterFamily(const std::string& name, const std::string& help)
 {
@@ -454,6 +461,27 @@ public:
     auto node_controller_state = MakeGaugeFamily(
         "eos_io_shaping_node_controller_state",
         "Current controller phase by node and operation (value is always 1).");
+    auto broadcast_delay_seconds = MakeGaugeFamily(
+        "eos_io_shaping_broadcast_delay_seconds",
+        "Successfully published legacy FST delay aggregated across target nodes.");
+    auto broadcast_delay_nodes = MakeGaugeFamily(
+        "eos_io_shaping_broadcast_delay_nodes",
+        "Nodes receiving a nonzero actuator command, split by active/capped state.");
+    auto broadcast_assigned_rate_bytes = MakeGaugeFamily(
+        "eos_io_shaping_broadcast_assigned_rate_bytes_per_second",
+        "Sum of successfully published node-local shared rate assignments.");
+    auto broadcast_pending_nodes = MakeGaugeFamily(
+        "eos_io_shaping_broadcast_pending_nodes",
+        "FST nodes whose latest actuator configuration has not been published.");
+    auto fst_actuator_active_waiters =
+        MakeGaugeFamily("eos_io_shaping_fst_actuator_active_waiters",
+                        "Current FST IO operations waiting for a shaping permit.");
+    auto fst_actuator_wait_events =
+        MakeCounterFamily("eos_io_shaping_fst_actuator_wait_events_total",
+                          "FST IO operations that waited for a shaping permit.");
+    auto fst_actuator_wait_seconds = MakeCounterFamily(
+        "eos_io_shaping_fst_actuator_wait_seconds_total",
+        "Cumulative time FST IO operations spent waiting for shaping permits.");
     auto config_enabled = MakeGaugeFamily(
         "eos_io_shaping_config_enabled",
         "Traffic shaping configuration status (1 if enabled, 0 if disabled).");
@@ -472,6 +500,9 @@ public:
     auto config_io_pressure_threshold =
         MakeGaugeFamily("eos_io_shaping_config_io_pressure_threshold",
                         "Configured IO pressure threshold for reservation pressure.");
+    auto config_max_delay_seconds =
+        MakeGaugeFamily("eos_io_shaping_config_max_delay_seconds",
+                        "Configured maximum legacy per-MiB FST delay in seconds.");
     auto config_garbage_collection_idle_seconds = MakeGaugeFamily(
         "eos_io_shaping_config_garbage_collection_idle_seconds",
         "Configured idle time before traffic shaping runtime stats garbage collection.");
@@ -528,15 +559,20 @@ public:
                           node_controller_ineffective_probes,
                           node_controller_suppression_seconds,
                           node_controller_deficit_samples, node_controller_state);
-    AddConfigFamilies(
-        config_enabled, config_estimators_update_period_ms,
-        config_fst_io_policy_update_period_ms, config_fst_io_stats_reporting_period_ms,
-        config_detail_filesystem, config_detail_auto_enabled,
-        config_detail_auto_low_cardinality, config_detail_auto_high_cardinality,
-        config_system_stats_time_window_sec, config_limits_enabled,
-        config_reservations_enabled, config_controller_min_limit_bytes,
-        config_active_node_rate_threshold_bytes, config_io_pressure_threshold,
-        config_garbage_collection_idle_seconds, ns_traffic_shaping_enabled);
+    AddBroadcastActuatorFamilies(*manager, broadcast_delay_seconds, broadcast_delay_nodes,
+                                 broadcast_assigned_rate_bytes, broadcast_pending_nodes);
+    AddFstActuatorFamilies(*manager, fst_actuator_active_waiters,
+                           fst_actuator_wait_events, fst_actuator_wait_seconds);
+    AddConfigFamilies(config_enabled, config_estimators_update_period_ms,
+                      config_fst_io_policy_update_period_ms,
+                      config_fst_io_stats_reporting_period_ms, config_detail_filesystem,
+                      config_detail_auto_enabled, config_detail_auto_low_cardinality,
+                      config_detail_auto_high_cardinality,
+                      config_system_stats_time_window_sec, config_limits_enabled,
+                      config_reservations_enabled, config_controller_min_limit_bytes,
+                      config_active_node_rate_threshold_bytes,
+                      config_io_pressure_threshold, config_max_delay_seconds,
+                      config_garbage_collection_idle_seconds, ns_traffic_shaping_enabled);
 
     std::vector<prometheus::MetricFamily> metrics = {
         std::move(bytes_total),
@@ -582,12 +618,20 @@ public:
         std::move(node_controller_suppression_seconds),
         std::move(node_controller_deficit_samples),
         std::move(node_controller_state),
+        std::move(broadcast_delay_seconds),
+        std::move(broadcast_delay_nodes),
+        std::move(broadcast_assigned_rate_bytes),
+        std::move(broadcast_pending_nodes),
+        std::move(fst_actuator_active_waiters),
+        std::move(fst_actuator_wait_events),
+        std::move(fst_actuator_wait_seconds),
         std::move(config_enabled),
         std::move(config_limits_enabled),
         std::move(config_reservations_enabled),
         std::move(config_controller_min_limit_bytes),
         std::move(config_active_node_rate_threshold_bytes),
         std::move(config_io_pressure_threshold),
+        std::move(config_max_delay_seconds),
         std::move(config_garbage_collection_idle_seconds),
         std::move(config_estimators_update_period_ms),
         std::move(config_fst_io_policy_update_period_ms),
@@ -1062,6 +1106,76 @@ private:
   }
 
   void
+  AddFstActuatorFamilies(TrafficShapingManager& manager,
+                         prometheus::MetricFamily& active_waiters,
+                         prometheus::MetricFamily& wait_events,
+                         prometheus::MetricFamily& wait_seconds) const
+  {
+    for (const auto& snapshot : manager.GetFstActuatorSnapshots()) {
+      auto labels = std::map<std::string, std::string>{
+          {"cluster", mCluster},
+          {"node_id", NodeLabel(LabelOrUnknown(snapshot.node_id))}};
+      auto operation_labels = labels;
+      operation_labels["operation"] = "read";
+      AddGauge(active_waiters, operation_labels,
+               static_cast<double>(snapshot.read_active_waiters));
+      AddCounter(wait_events, operation_labels,
+                 static_cast<double>(snapshot.read_wait_events));
+      AddCounter(wait_seconds, operation_labels,
+                 static_cast<double>(snapshot.read_wait_microseconds) / 1000000.0);
+
+      operation_labels["operation"] = "write";
+      AddGauge(active_waiters, operation_labels,
+               static_cast<double>(snapshot.write_active_waiters));
+      AddCounter(wait_events, operation_labels,
+                 static_cast<double>(snapshot.write_wait_events));
+      AddCounter(wait_seconds, operation_labels,
+                 static_cast<double>(snapshot.write_wait_microseconds) / 1000000.0);
+    }
+  }
+
+  void
+  AddBroadcastActuatorFamilies(TrafficShapingManager& manager,
+                               prometheus::MetricFamily& broadcast_delay_seconds,
+                               prometheus::MetricFamily& broadcast_delay_nodes,
+                               prometheus::MetricFamily& broadcast_assigned_rate_bytes,
+                               prometheus::MetricFamily& broadcast_pending_nodes) const
+  {
+    const auto snapshot = manager.GetBroadcastActuatorSnapshot();
+    AddGauge(broadcast_pending_nodes, {{"cluster", mCluster}},
+             static_cast<double>(snapshot.pending_nodes));
+
+    for (const auto& entry : snapshot.entries) {
+      auto labels =
+          std::map<std::string, std::string>{{"cluster", mCluster},
+                                             {"identity_type", entry.identity_type},
+                                             {"identity", LabelOrUnknown(entry.identity)},
+                                             {"operation", entry.operation}};
+
+      if (entry.delay_max_seconds > 0.0) {
+        labels["quantile"] = "0.50";
+        AddGauge(broadcast_delay_seconds, labels, entry.delay_p50_seconds);
+        labels["quantile"] = "0.95";
+        AddGauge(broadcast_delay_seconds, labels, entry.delay_p95_seconds);
+        labels["quantile"] = "1.00";
+        AddGauge(broadcast_delay_seconds, labels, entry.delay_max_seconds);
+      }
+
+      labels.erase("quantile");
+      labels["state"] = "active";
+      AddGauge(broadcast_delay_nodes, labels, static_cast<double>(entry.active_nodes));
+      labels["state"] = "capped";
+      AddGauge(broadcast_delay_nodes, labels, static_cast<double>(entry.capped_nodes));
+
+      labels.erase("state");
+      if (entry.assigned_rate_bytes_per_second > 0) {
+        AddGauge(broadcast_assigned_rate_bytes, labels,
+                 static_cast<double>(entry.assigned_rate_bytes_per_second));
+      }
+    }
+  }
+
+  void
   AddConfigFamilies(prometheus::MetricFamily& config_enabled,
                     prometheus::MetricFamily& config_estimators_update_period_ms,
                     prometheus::MetricFamily& config_fst_io_policy_update_period_ms,
@@ -1076,6 +1190,7 @@ private:
                     prometheus::MetricFamily& config_controller_min_limit_bytes,
                     prometheus::MetricFamily& config_active_node_rate_threshold_bytes,
                     prometheus::MetricFamily& config_io_pressure_threshold,
+                    prometheus::MetricFamily& config_max_delay_seconds,
                     prometheus::MetricFamily& config_garbage_collection_idle_seconds,
                     prometheus::MetricFamily& ns_traffic_shaping_enabled) const
   {
@@ -1092,6 +1207,8 @@ private:
     AddGauge(config_active_node_rate_threshold_bytes, labels,
              static_cast<double>(mEngine.GetActiveNodeRateThreshold()));
     AddGauge(config_io_pressure_threshold, labels, mEngine.GetIoPressureThreshold());
+    AddGauge(config_max_delay_seconds, labels,
+             static_cast<double>(mEngine.GetMaxDelayMilliseconds()) / 1000.0);
     AddGauge(config_garbage_collection_idle_seconds, labels,
              static_cast<double>(mEngine.GetGarbageCollectionIdleSeconds()));
     AddGauge(config_estimators_update_period_ms, labels,

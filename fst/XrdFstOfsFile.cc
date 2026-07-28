@@ -967,15 +967,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  const uint64_t shaping_delay_us = gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(
-      vid, static_cast<uint64_t>(buffer_size));
-
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
   // would turn this into a huge positive value corrupting all the checks below
   int64_t rc = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
   rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0) {
@@ -1111,12 +1106,8 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   RegulateBandwidth();
-  const uint64_t shaping_delay_us =
-      gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, total_read);
   int64_t rv = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForRead(vid, total_read);
 
   rv = mLayout->ReadV(chunkList, total_read);
   if (rv > 0) {
@@ -1204,8 +1195,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-  const uint64_t shaping_delay_us = gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(
-      vid, static_cast<uint64_t>(buffer_size));
 
   // if the write position moves the checksum is dirty
   if (mChecksumGroup->HasChecksums()) {
@@ -1224,9 +1213,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   int64_t rc = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForWrite(vid, static_cast<uint64_t>(buffer_size));
 
   rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   if (rc > 0) {
