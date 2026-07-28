@@ -1345,6 +1345,7 @@ ShapingPressureList(
 
   const auto snapshots = manager->GetReservedAppNodeIoPressure();
   const auto controller_snapshot = manager->GetNodeReservationControllerSnapshot();
+  const auto actuator_snapshots = manager->GetPublishedActuatorSnapshots();
   auto controller_phase = [](const auto& feedback) {
     if (feedback.suppressed) {
       return "suppressed";
@@ -1471,6 +1472,20 @@ ShapingPressureList(
       json.append(entry);
     }
 
+    for (const auto& actuator : actuator_snapshots) {
+      Json::Value entry;
+      entry["type"] = "fst_actuator";
+      entry["node_id"] = NodeLabel(LabelOrUnknown(actuator.node_id));
+      entry["identity_type"] = actuator.identity_type;
+      entry["identity"] = actuator.identity;
+      entry["operation"] = actuator.operation;
+      entry["legacy_delay_microseconds"] =
+          static_cast<Json::Value::UInt64>(actuator.delay_microseconds);
+      entry["assigned_rate_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(actuator.assigned_rate_bytes_per_second);
+      json.append(entry);
+    }
+
     oss << CompactJsonString(json);
   } else {
     constexpr size_t kPressureAppWidth = 40;
@@ -1539,6 +1554,29 @@ ShapingPressureList(
     }
     if (controller_snapshot.limits.empty()) {
       oss << "No active node-local controller limits.\n";
+    }
+
+    constexpr size_t kActuatorIdentityWidth = 40;
+    constexpr size_t kActuatorSeparatorWidth =
+        kPressureNodeWidth + kActuatorIdentityWidth + 10 + 10 + 16 + 16;
+    oss << "\n--- Successfully Published FST Actuator Values ---\n";
+    oss << std::left << std::setw(kPressureNodeWidth) << "Node" << std::setw(10) << "Type"
+        << std::setw(kActuatorIdentityWidth) << "Identity" << std::setw(10) << "Operation"
+        << std::right << std::setw(16) << "Legacy Delay" << std::setw(16)
+        << "Assigned Rate" << "\n";
+    oss << std::string(kActuatorSeparatorWidth, '-') << "\n";
+    for (const auto& actuator : actuator_snapshots) {
+      oss << std::left << std::setw(kPressureNodeWidth)
+          << format_table_label(NodeLabel(LabelOrUnknown(actuator.node_id)),
+                                kPressureNodeWidth)
+          << std::setw(10) << actuator.identity_type << std::setw(kActuatorIdentityWidth)
+          << format_table_label(actuator.identity, kActuatorIdentityWidth)
+          << std::setw(10) << actuator.operation << std::right << std::setw(16)
+          << format_duration_us(actuator.delay_microseconds) << std::setw(16)
+          << format_rate(actuator.assigned_rate_bytes_per_second) << "\n";
+    }
+    if (actuator_snapshots.empty()) {
+      oss << "No successfully published FST actuator values.\n";
     }
 
     constexpr size_t kFeedbackSeparatorWidth = 158;
@@ -1635,6 +1673,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["active_node_rate_threshold_bytes_per_sec"] =
           static_cast<Json::Value::UInt64>(engine.GetActiveNodeRateThreshold());
       json["io_pressure_threshold"] = engine.GetIoPressureThreshold();
+      json["max_delay_milliseconds"] =
+          static_cast<Json::Value::UInt64>(engine.GetMaxDelayMilliseconds());
       json["garbage_collection_idle_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetGarbageCollectionIdleSeconds());
       json["system_stats_time_window_seconds"] =
@@ -1667,6 +1707,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << format_rate(engine.GetActiveNodeRateThreshold()) << "\n"
           << std::setw(45) << "IO Pressure Threshold:"
           << format_io_pressure(engine.GetIoPressureThreshold()) << "\n"
+          << std::setw(45)
+          << "Maximum Legacy FST Delay:" << engine.GetMaxDelayMilliseconds() << " ms\n"
           << std::setw(45)
           << "Garbage Collection Idle Time:" << engine.GetGarbageCollectionIdleSeconds()
           << " s\n"
@@ -1722,6 +1764,14 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
                                                 set_req.io_pressure_threshold() > 1.0)) {
       reply.set_retc(EINVAL);
       reply.set_std_err("error: IO pressure threshold must be between 0 and 1.\n");
+      break;
+    }
+
+    if (set_req.has_max_delay_milliseconds() &&
+        (set_req.max_delay_milliseconds() < traffic_shaping::kMinMaxDelayMs ||
+         set_req.max_delay_milliseconds() > traffic_shaping::kMaxMaxDelayMs)) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: maximum delay must be between 100 and 30000 ms.\n");
       break;
     }
 
@@ -1815,6 +1865,12 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       engine.SetIoPressureThreshold(set_req.io_pressure_threshold());
       oss << "success: Set IO pressure threshold to "
           << format_io_pressure(engine.GetIoPressureThreshold()) << "\n";
+    }
+
+    if (set_req.has_max_delay_milliseconds()) {
+      engine.SetMaxDelayMilliseconds(set_req.max_delay_milliseconds());
+      oss << "success: Set maximum legacy FST delay to "
+          << engine.GetMaxDelayMilliseconds() << " ms\n";
     }
 
     if (set_req.has_garbage_collection_idle_seconds()) {

@@ -164,7 +164,8 @@ std::string MakeIoHelp()
       << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
       << std::endl
       << "     pressure [action] [options...] : inspect reservation IO pressure\n"
-      << "\t   action 'ls' : list reserved application pressure by storage node\n"
+      << "\t   action 'ls' : list pressure, controller state, and exact published "
+         "FST actuator values\n"
       << "\t     usage: pressure ls [--json]\n"
       << "\t       --json       : output in JSON format\n"
       << std::endl
@@ -179,7 +180,7 @@ std::string MakeIoHelp()
          "[--limits enabled|disabled] "
          "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
          "[--active-node-rate-threshold <rate>] [--io-pressure-threshold <value>] "
-         "[--gc-idle <s>]\n"
+         "[--max-delay <ms>] [--gc-idle <s>]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -543,6 +544,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
                    "Disk-load threshold for reservation pressure")
       ->type_name("VALUE")
       ->check(CLI::Range(0.0, 1.0));
+  config_set->add_option("--max-delay", "Maximum legacy FST delay")
+      ->type_name("MS")
+      ->check(CLI::Range(100, 30000));
   config_set->add_option("--gc-idle", "Garbage collection idle timeout")
       ->type_name("SEC")
       ->check(CLI::Range(1, 86400));
@@ -619,6 +623,10 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--io-pressure-threshold")) {
       a->set_io_pressure_threshold(
           config_set->get_option("--io-pressure-threshold")->as<double>());
+    }
+    if (config_set->count("--max-delay")) {
+      a->set_max_delay_milliseconds(
+          config_set->get_option("--max-delay")->as<uint32_t>());
     }
     if (config_set->count("--gc-idle")) {
       a->set_garbage_collection_idle_seconds(
