@@ -1590,17 +1590,33 @@ This examples shows the how replicas are attached on filesystems
 EOS FUSE mount on Ubuntu
 ------------------------
 
+Note that only Ubuntu packages are provided, there are no packages for Debian.
 The following releases of Ubuntu are currently supported:
 
-* Ubuntu 22.04.5 LTS (Jammy Jellyfish)
-* Ubuntu 24.04.3 LTS (Noble Numbat)
-* Ubuntu 25.10 (Questing Quokka)
+* Ubuntu 22.04 LTS (Jammy Jellyfish) - amd64
+* Ubuntu 24.04 LTS (Noble Numbat) - amd64, arm64
+* Ubuntu 26.04 LTS (Resolute Raccoon) - amd64
+
+The packages are published in an APT repository rooted at
+`http://storage-ci.web.cern.ch/storage-ci/ubuntu/eos/diopside` which holds one
+distribution per Ubuntu release, named after its codename. Inside a distribution
+the packages are split into components by build type and by the major.minor
+version of the EOS packages:
+
+.. code-block:: bash
+
+   <codename>/tag/<major.minor>      # official tagged releases
+   <codename>/commit/<major.minor>   # builds of individual commits
+   <codename>/deps/<major.minor>     # dependencies (XRootD etc.) of that series
+
+This way several EOS series are available side by side and a client subscribes
+only to the ones it is interested in.
 
 
 Follow these steps to configure the necessary APT repositories and install
 the EOS client and FUSE packages:
 
-.. code-blocK:: bash
+.. code-block:: bash
 
    # make sure we have a few utilities
    sudo apt update
@@ -1608,9 +1624,22 @@ the EOS client and FUSE packages:
    # Setup the APT repositories holding the EOS package:
    # Import the EOS GPG key of the repository
    curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/storage-ci.gpg
-   # Create the APT repository configuration
-   echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/diopside $(lsb_release -cs) $(lsb_release -cs)/tag $(lsb_release -cs)/commit" | sudo tee /etc/apt/sources.list.d/eos-client.list > /dev/null
+   # Create the APT repository configuration for the desired EOS series
+   EOS_SERIES=5.4
+   CODENAME=$(lsb_release -cs)
+   echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/ubuntu/eos/diopside ${CODENAME} ${CODENAME}/tag/${EOS_SERIES} ${CODENAME}/deps/${EOS_SERIES}" | sudo tee /etc/apt/sources.list.d/eos-client.list > /dev/null
 
+
+For an amd64 machine running Ubuntu 22.04 and following the 5.4 releases, this
+results in the following configuration:
+
+.. code-block:: bash
+
+   deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/ubuntu/eos/diopside jammy jammy/tag/5.4 jammy/deps/5.4
+
+
+Use the `commit` component instead of `tag` to follow the packages built for
+every commit of that series.
 
 Install the EOS packages and their dependencies. Root privileges are required. Also
 create the local directory for the local mounts:
@@ -1619,7 +1648,7 @@ create the local directory for the local mounts:
 
    sudo apt update
    sudo apt install -y eos-fusex
-   sudo mkdir /eos/
+   sudo mkdir -p /eos/
 
 
 Create the configuration files for the EOS FUSE mountpoints. Depending on the EOS
@@ -1628,7 +1657,7 @@ instance, using the following convention:
 
 * Configuration for accessing data stored on CERNBox can be placed in
   `/etc/eos/fuse.home-<initial>.conf` where <initial> should be replaced by a
-  sigle letter eg. 'e', 'a', etc. The contents of this file should at least
+  single letter eg. 'e', 'a', etc. The contents of this file should at least
   contain the following (note: this needs to be a valid JSON object):
 
   .. code-block:: bash
@@ -1669,18 +1698,18 @@ With the above configuration in place, one can setup automount to take care of m
    # Check that the autofs service is up and running
    sudo systemctl status autofs
 
-   # Create a file called "/etc/auto.eos" which containts the mountpoints to be managed by autofs.
+   # Create a file called "/etc/auto.eos" which contains the mountpoints to be managed by autofs.
    # Example contents of /etc/auto.eos
    home-a -fstype=eosx,fsname=home-a :eosxd
    # ... same for each user letter
    home-z -fstype=eosx,fsname=home-z :eosxd
    project-a -fstype=eosx,fsname=project-a :eosxd
-   # ... some for each project letter
+   # ... same for each project letter
    project-z -fstype=eosx,fsname=project-z :eosxd
    cms -fstype=eosx,fsname=cms :eosxd
 
-   #Create a file called "/etc/auto.master.d/eos.autofs" like this:
-   echo "/eos /etc/auto.eos" > /etc/auto.master.d/eos.autofs
+   # Create a file called "/etc/auto.master.d/eos.autofs" like this:
+   echo "/eos /etc/auto.eos" | sudo tee /etc/auto.master.d/eos.autofs > /dev/null
    sudo systemctl restart autofs
 
 
@@ -1697,7 +1726,7 @@ the kerberos client available:
 
 .. code-block:: bash
 
-   # Ensure the autofs package is installed:
+   # Ensure the kerberos client package is installed:
    sudo apt install -y krb5-user
 
 

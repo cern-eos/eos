@@ -28,7 +28,7 @@
 # so that several major.minor versions can live side by side and a client picks
 # the one it wants:
 #
-#   deb http://storage-ci.web.cern.ch/storage-ci/debian/eos/diopside jammy jammy/tag/5.4 jammy/deps/5.4
+#   deb http://storage-ci.web.cern.ch/storage-ci/ubuntu/eos/diopside jammy jammy/tag/5.4 jammy/deps/5.4
 #
 # The distribution name is repeated inside the component on purpose: the pool
 # lives under pool/<component>/, and the same version built for two releases
