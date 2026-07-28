@@ -4,27 +4,27 @@ Section: misc
 Priority: optional
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libfuse3-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev, libfmt-dev, librocksdb-dev, libzstd-dev, libsnappy-dev, eos-grpc, scitokens-cpp, libscitokens-dev, libcap-dev,
- eos-xrootd-plugins (= _XRD_DEB_VER_-1),
- eos-xrootd-client (= _XRD_DEB_VER_-1),
- eos-xrootd-client-plugins (= _XRD_DEB_VER_-1),
- eos-xrootd-server (= _XRD_DEB_VER_-1),
- eos-xrootd-server-plugins (= _XRD_DEB_VER_-1),
- libeosxrootd-dev (= _XRD_DEB_VER_-1),
- libeosxrootd-private-dev (= _XRD_DEB_VER_-1),
- libeosxrootd-client-dev (= _XRD_DEB_VER_-1),
- libeosxrootd-server-dev (= _XRD_DEB_VER_-1),
- libeosxrdapputils2t64 (= _XRD_DEB_VER_-1),
- libeosxrdcrypto2t64 (= _XRD_DEB_VER_-1),
- libeosxrdcryptolite2t64 (= _XRD_DEB_VER_-1),
- libeosxrdxml3t64 (= _XRD_DEB_VER_-1),
- libeosxrdutils3t64 (= _XRD_DEB_VER_-1),
- libeosxrdhttputils2t64 (= _XRD_DEB_VER_-1),
- libeosxrdserver3t64 (= _XRD_DEB_VER_-1),
- libeosxrdssilib2t64 (= _XRD_DEB_VER_-1),
- libeosxrdssishmap2t64 (= _XRD_DEB_VER_-1),
- libeosxrdcl3t64 (= _XRD_DEB_VER_-1),
- libeosxrdffs3t64 (= _XRD_DEB_VER_-1),
- libeosxrdposix3t64 (= _XRD_DEB_VER_-1),
+ eos-xrootd-plugins (>= _XRD_DEB_VER_),
+ eos-xrootd-client (>= _XRD_DEB_VER_),
+ eos-xrootd-client-plugins (>= _XRD_DEB_VER_),
+ eos-xrootd-server (>= _XRD_DEB_VER_),
+ eos-xrootd-server-plugins (>= _XRD_DEB_VER_),
+ libeosxrootd-dev (>= _XRD_DEB_VER_),
+ libeosxrootd-private-dev (>= _XRD_DEB_VER_),
+ libeosxrootd-client-dev (>= _XRD_DEB_VER_),
+ libeosxrootd-server-dev (>= _XRD_DEB_VER_),
+ libeosxrdapputils2t64 (>= _XRD_DEB_VER_),
+ libeosxrdcrypto2t64 (>= _XRD_DEB_VER_),
+ libeosxrdcryptolite2t64 (>= _XRD_DEB_VER_),
+ libeosxrdxml3t64 (>= _XRD_DEB_VER_),
+ libeosxrdutils3t64 (>= _XRD_DEB_VER_),
+ libeosxrdhttputils2t64 (>= _XRD_DEB_VER_),
+ libeosxrdserver3t64 (>= _XRD_DEB_VER_),
+ libeosxrdssilib2t64 (>= _XRD_DEB_VER_),
+ libeosxrdssishmap2t64 (>= _XRD_DEB_VER_),
+ libeosxrdcl3t64 (>= _XRD_DEB_VER_),
+ libeosxrdffs3t64 (>= _XRD_DEB_VER_),
+ libeosxrdposix3t64 (>= _XRD_DEB_VER_),
  _PROCPS_TAG_
 Homepage: http://eos.web.cern.ch/
 Vcs-Git: https://gitlab.cern.ch/dss/eos.git
@@ -35,11 +35,11 @@ Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, systemd,
  eos-grpc,
- eos-xrootd-plugins (= _XRD_DEB_VER_-1),
- libeosxrootd-client-dev (= _XRD_DEB_VER_-1),
- libeosxrdposix3t64 (= _XRD_DEB_VER_-1),
- libeosxrdutils3t64 (= _XRD_DEB_VER_-1),
- libeosxrdcl3t64 (= _XRD_DEB_VER_-1)
+ eos-xrootd-plugins (>= _XRD_DEB_VER_),
+ libeosxrootd-client-dev (>= _XRD_DEB_VER_),
+ libeosxrdposix3t64 (>= _XRD_DEB_VER_),
+ libeosxrdutils3t64 (>= _XRD_DEB_VER_),
+ libeosxrdcl3t64 (>= _XRD_DEB_VER_)
 Description: EOS client package
 
 Package: eos-fusex
@@ -47,9 +47,9 @@ Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, eos-grpc, fuse, fuse3,
   eos-client (=${binary:Version}),
-  libeosxrootd-client-dev (= _XRD_DEB_VER_-1),
-  libeosxrdcl3t64 (= _XRD_DEB_VER_-1),
-  libeosxrdutils3t64 (= _XRD_DEB_VER_-1)
+  libeosxrootd-client-dev (>= _XRD_DEB_VER_),
+  libeosxrdcl3t64 (>= _XRD_DEB_VER_),
+  libeosxrdutils3t64 (>= _XRD_DEB_VER_)
 Replaces: eos-fuse
 Description: EOS fuse client bundle
 
