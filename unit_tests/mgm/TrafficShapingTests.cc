@@ -1407,6 +1407,7 @@ TEST(TrafficShapingManager, NodeIncarnationHandlesClockRollbackAndDelayedReports
     entry->set_gid(2);
     entry->set_generation_id(static_cast<uint64_t>(node_start_time_ms));
     entry->set_total_bytes_written(bytes_written);
+    report.mutable_actuator_stats()->set_write_wait_events(bytes_written);
     return report;
   };
 
@@ -1418,9 +1419,13 @@ TEST(TrafficShapingManager, NodeIncarnationHandlesClockRollbackAndDelayedReports
   // new baseline, and a delayed report from the retired incarnation is ignored.
   manager.ProcessReport(make_report(1000, 1000, 50));
   manager.ProcessReport(make_report(1000, 1200, 100));
+  manager.ProcessReport(make_report(1000, 1100, 90));
   manager.ProcessReport(make_report(2000, 2400, 500));
 
   EXPECT_EQ(150u, manager.GetTotalCumulativeStats().bytes_written_total);
+  const auto actuator = manager.GetFstActuatorSnapshots();
+  ASSERT_EQ(1u, actuator.size());
+  EXPECT_EQ(100u, actuator.front().write_wait_events);
 }
 
 TEST(TrafficShapingManager, GlobalStatsAggregateAcrossFilesystems)
@@ -1873,7 +1878,7 @@ TEST(TrafficShapingManager, ReservedAppNodeIoPressureIsSparseAcrossOnlineNodes)
   EXPECT_EQ(123 * mb, deficient->node_controller_write_limit_bytes_per_sec);
   EXPECT_TRUE(deficient->write_triggers_competitor_throttling);
   EXPECT_TRUE(deficient->node_has_pressured_write_reservation);
-  EXPECT_EQ(1200 * mb, healthy->global_write_rate_bps);
+  EXPECT_EQ(1100 * mb, healthy->global_write_rate_bps);
   EXPECT_FALSE(healthy->write_reservation_deficit_active);
   EXPECT_FALSE(healthy->write_triggers_competitor_throttling);
   EXPECT_TRUE(healthy->node_has_pressured_write_reservation);
@@ -1887,7 +1892,7 @@ TEST(TrafficShapingManager, ReservedAppNodeIoPressureIsSparseAcrossOnlineNodes)
   EXPECT_EQ(snapshots.end(), find_pair("reserved-4", "node-2"));
 }
 
-TEST(TrafficShapingManager, ReservedAppNodeIoPressureAggregatesBeforeWindowSelection)
+TEST(TrafficShapingManager, ReservedAppNodeIoPressureUsesStableAggregateDemand)
 {
   constexpr uint64_t mb = 1000ULL * 1000ULL;
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -1925,8 +1930,8 @@ TEST(TrafficShapingManager, ReservedAppNodeIoPressureAggregatesBeforeWindowSelec
       manager.GetReservedAppNodeIoPressureForTest({{"node", 0.9}}, {"node"});
   ASSERT_EQ(1u, snapshots.size());
   const auto& snapshot = snapshots.front();
-  EXPECT_DOUBLE_EQ(500 * mb, snapshot.global_read_rate_bps);
-  EXPECT_DOUBLE_EQ(800 * mb, snapshot.global_write_rate_bps);
+  EXPECT_DOUBLE_EQ(350 * mb, snapshot.global_read_rate_bps);
+  EXPECT_DOUBLE_EQ(600 * mb, snapshot.global_write_rate_bps);
   EXPECT_DOUBLE_EQ(300 * mb, snapshot.read_rate_bps);
   EXPECT_DOUBLE_EQ(500 * mb, snapshot.write_rate_bps);
   EXPECT_TRUE(snapshot.read_triggers_competitor_throttling);
@@ -2004,6 +2009,20 @@ TEST(TrafficShapingManager, DelayFeedbackIsAlwaysBounded)
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
           limit_bps, std::numeric_limits<double>::infinity(), 1000, 1.0, true, false),
       2000000u);
+}
+
+TEST(TrafficShapingManager, DelayFeedbackHonorsConfiguredMaximum)
+{
+  constexpr double limit_bps = 1024.0 * 1024.0;
+  constexpr uint64_t configured_max_delay_us = 30000000;
+  uint64_t delay_us = 2000000;
+  for (int tick = 0; tick < 20; ++tick) {
+    delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
+        limit_bps, limit_bps * 100.0, delay_us, 1.0, true, false, limit_bps,
+        eos::mgm::traffic_shaping::kDefaultIoPressureThreshold, configured_max_delay_us);
+  }
+  EXPECT_GT(delay_us, 2000000u);
+  EXPECT_LE(delay_us, configured_max_delay_us);
 }
 
 TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
@@ -2359,6 +2378,67 @@ TEST(TrafficShapingManager, RecoveredReservationClearsNodeLimitsImmediately)
   EXPECT_TRUE(controller_snapshot.feedback.empty());
 }
 
+TEST(TrafficShapingManager, BriefReservationRecoveryKeepsActiveProbe)
+{
+  constexpr uint64_t mb = 1000ULL * 1000ULL;
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.ApplyThreadConfig(1000, 1000, 1000, 15);
+
+  eos::mgm::traffic_shaping::TrafficShapingPolicy reserved_policy;
+  reserved_policy.reservation_write_bytes_per_sec = 1000 * mb;
+  manager.SetAppPolicy("reserved-app", reserved_policy);
+
+  const std::string node = "/eos/node-a.example:1095/fst";
+  const auto now = std::chrono::steady_clock::now();
+  eos::mgm::traffic_shaping::NodeReservationControllerRuntime runtime;
+  auto& write = runtime.feedback.write;
+  write.consecutive_deficit_samples = 2;
+  write.protected_apps.emplace(
+      "reserved-app",
+      eos::mgm::traffic_shaping::ReservationControllerState::ProtectedAppAction{
+          1000.0 * mb, 700.0 * mb, 200.0 * mb});
+  write.applied_reduction_bps = 200.0 * mb;
+  write.last_adjustment_time = now;
+  auto& limit = runtime.app_limits["best-effort-app"];
+  limit.write_bps = 300 * mb;
+  limit.write_update_time = now;
+  manager.SetNodeReservationControllerRuntimeForTest(node, runtime);
+
+  eos::mgm::traffic_shaping::RateMetrics reserved_rate{};
+  reserved_rate.write_rate_bps = 1200 * mb;
+  manager.SetGlobalEmaRatesForTest({"reserved-app", 1, 1, 0}, reserved_rate,
+                                   reserved_rate);
+  manager.SetNodeEntityRateForTest(node, {"reserved-app", 1, 1, 0}, reserved_rate);
+  eos::mgm::traffic_shaping::RateMetrics competitor_rate{};
+  competitor_rate.write_rate_bps = 500 * mb;
+  manager.SetNodeEntityRateForTest(node, {"best-effort-app", 2, 2, 0}, competitor_rate);
+  manager.UpdateTrafficShapingController({{node, 0.5}});
+
+  auto runtimes = manager.GetNodeReservationControllerRuntimes();
+  ASSERT_NE(runtimes.end(), runtimes.find(node));
+  ASSERT_NE(runtimes.at(node).app_limits.end(),
+            runtimes.at(node).app_limits.find("best-effort-app"));
+  EXPECT_EQ(300 * mb, runtimes.at(node).app_limits.at("best-effort-app").write_bps);
+  EXPECT_NE(std::chrono::steady_clock::time_point{},
+            runtimes.at(node).feedback.write.healthy_since);
+  EXPECT_FALSE(runtimes.at(node).feedback.write.protected_apps.empty());
+
+  runtime = runtimes.at(node);
+  runtime.feedback.write.healthy_since =
+      std::chrono::steady_clock::now() - std::chrono::seconds(11);
+  manager.SetNodeReservationControllerRuntimeForTest(node, runtime);
+  manager.UpdateTrafficShapingController({{node, 0.5}});
+
+  runtimes = manager.GetNodeReservationControllerRuntimes();
+  ASSERT_NE(runtimes.end(), runtimes.find(node));
+  ASSERT_NE(runtimes.at(node).app_limits.end(),
+            runtimes.at(node).app_limits.find("best-effort-app"));
+  EXPECT_EQ(360 * mb, runtimes.at(node).app_limits.at("best-effort-app").write_bps);
+  EXPECT_TRUE(runtimes.at(node).feedback.write.protected_apps.empty());
+  EXPECT_NE(std::chrono::steady_clock::time_point{},
+            runtimes.at(node).feedback.write.healthy_since);
+}
+
 TEST(TrafficShapingManager, BriefBurstGapDoesNotCreateReservationDeficit)
 {
   constexpr uint64_t mb = 1000ULL * 1000ULL;
@@ -2425,6 +2505,157 @@ TEST(TrafficShapingManager, BriefBurstGapDoesNotCreateReservationDeficit)
   manager.UpdateTrafficShapingController(pressure);
   manager.UpdateTrafficShapingController(pressure);
   EXPECT_TRUE(manager.GetNodeReservationControllerRuntimes().empty());
+}
+
+TEST(TrafficShapingManager, FastBurstDoesNotMaskStableReservationDeficit)
+{
+  constexpr uint64_t mb = 1000ULL * 1000ULL;
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  eos::mgm::traffic_shaping::TrafficShapingPolicy reserved_policy;
+  reserved_policy.reservation_write_bytes_per_sec = 1000 * mb;
+  manager.SetAppPolicy("reserved-app", reserved_policy);
+
+  eos::mgm::traffic_shaping::RateMetrics fast_reserved{};
+  fast_reserved.write_rate_bps = 1200 * mb;
+  eos::mgm::traffic_shaping::RateMetrics stable_reserved{};
+  stable_reserved.write_rate_bps = 300 * mb;
+  manager.SetGlobalEmaRatesForTest({"reserved-app", 1, 1, 0}, fast_reserved,
+                                   stable_reserved);
+
+  const std::string node = "/eos/pressured.example:1095/fst";
+  manager.SetNodeEntityRatesForTest(node, {"reserved-app", 1, 1, 0}, fast_reserved,
+                                    stable_reserved);
+  eos::mgm::traffic_shaping::RateMetrics local_competitor{};
+  local_competitor.write_rate_bps = 700 * mb;
+  manager.SetNodeEntityRateForTest(node, {"best-effort-app", 2, 2, 0}, local_competitor);
+
+  const std::unordered_map<std::string, double> pressure{{node, 0.5}};
+  manager.UpdateTrafficShapingController(pressure);
+  manager.UpdateTrafficShapingController(pressure);
+
+  const auto snapshot = manager.GetNodeReservationControllerSnapshot();
+  ASSERT_EQ(1u, snapshot.limits.size());
+  EXPECT_EQ(node, snapshot.limits.front().node_id);
+  EXPECT_EQ("best-effort-app", snapshot.limits.front().app);
+  EXPECT_EQ(400 * mb, snapshot.limits.front().write_bytes_per_sec);
+
+  const auto pressure_snapshot =
+      manager.GetReservedAppNodeIoPressureForTest(pressure, {node});
+  ASSERT_EQ(1u, pressure_snapshot.size());
+  EXPECT_EQ(300 * mb, pressure_snapshot.front().write_rate_bps);
+  EXPECT_EQ(300 * mb, pressure_snapshot.front().global_write_rate_bps);
+  EXPECT_TRUE(pressure_snapshot.front().write_reservation_deficit_active);
+  EXPECT_TRUE(pressure_snapshot.front().write_triggers_competitor_throttling);
+}
+
+TEST(TrafficShapingManager, StableNodeRateBridgesFtsFileHandoffGap)
+{
+  constexpr uint64_t mb = 1000ULL * 1000ULL;
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.ApplyThreadConfig(200, 200, 200, 15);
+
+  eos::mgm::traffic_shaping::TrafficShapingPolicy reserved_policy;
+  reserved_policy.reservation_write_bytes_per_sec = 1000 * mb;
+  manager.SetAppPolicy("reserved-app", reserved_policy);
+
+  const std::string node = "/eos/pressured.example:1095/fst";
+  auto make_report = [&](const int64_t timestamp_ms, const uint64_t reserved_bytes,
+                         const uint64_t competitor_bytes) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node);
+    report.set_timestamp_ms(timestamp_ms);
+    for (const auto& [app, uid, bytes] :
+         std::vector<std::tuple<std::string, uint32_t, uint64_t>>{
+             {"reserved-app", 1, reserved_bytes},
+             {"best-effort-app", 2, competitor_bytes}}) {
+      auto* entry = report.add_entries();
+      entry->set_app_name(app);
+      entry->set_uid(uid);
+      entry->set_gid(uid);
+      entry->set_generation_id(1);
+      entry->set_total_bytes_written(bytes);
+    }
+    return report;
+  };
+
+  uint64_t reserved_bytes = 0;
+  uint64_t competitor_bytes = 0;
+  manager.ProcessReport(make_report(0, reserved_bytes, competitor_bytes));
+  for (int tick = 1; tick <= 30; ++tick) {
+    reserved_bytes += 100 * mb;
+    competitor_bytes += 140 * mb;
+    manager.ProcessReport(make_report(tick * 200, reserved_bytes, competitor_bytes));
+    manager.UpdateEstimators(0.2);
+  }
+
+  // A two-second handoff gap drops the one-second competitor EMA below the
+  // 100 MB/s safety floor, while the five-second EMA still represents active
+  // demand.
+  for (int tick = 0; tick < 10; ++tick) {
+    manager.UpdateEstimators(0.2);
+  }
+
+  const std::unordered_map<std::string, double> pressure{{node, 0.5}};
+  manager.UpdateTrafficShapingController(pressure);
+  manager.UpdateTrafficShapingController(pressure);
+
+  const auto snapshot = manager.GetNodeReservationControllerSnapshot();
+  ASSERT_EQ(1u, snapshot.limits.size());
+  EXPECT_EQ(node, snapshot.limits.front().node_id);
+  EXPECT_EQ("best-effort-app", snapshot.limits.front().app);
+  EXPECT_EQ(0u, snapshot.limits.front().read_bytes_per_sec);
+  EXPECT_GE(snapshot.limits.front().write_bytes_per_sec, 100 * mb);
+  EXPECT_LT(snapshot.limits.front().write_bytes_per_sec, 700 * mb);
+}
+
+TEST(TrafficShapingManager, StableNodeResponseRejectsOneSecondBurst)
+{
+  constexpr uint64_t mb = 1000ULL * 1000ULL;
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.reservation_write_bytes_per_sec = 1000 * mb;
+  manager.SetAppPolicy("reserved-app", policy);
+
+  eos::mgm::traffic_shaping::RateMetrics deficient{};
+  deficient.write_rate_bps = 300 * mb;
+  manager.SetGlobalEmaRatesForTest({"reserved-app", 1, 1, 0}, deficient, deficient);
+
+  const std::string node = "/eos/pressured.example:1095/fst";
+  eos::mgm::traffic_shaping::RateMetrics reserved_burst{};
+  reserved_burst.write_rate_bps = 1200 * mb;
+  manager.SetNodeEntityRatesForTest(node, {"reserved-app", 1, 1, 0}, reserved_burst,
+                                    deficient);
+  eos::mgm::traffic_shaping::RateMetrics competitor{};
+  competitor.write_rate_bps = 700 * mb;
+  manager.SetNodeEntityRateForTest(node, {"best-effort-app", 2, 2, 0}, competitor);
+
+  const auto now = std::chrono::steady_clock::now();
+  eos::mgm::traffic_shaping::NodeReservationControllerRuntime runtime;
+  auto& write = runtime.feedback.write;
+  write.consecutive_deficit_samples = 2;
+  write.protected_apps.emplace(
+      "reserved-app",
+      eos::mgm::traffic_shaping::ReservationControllerState::ProtectedAppAction{
+          1000.0 * mb, 300.0 * mb, 300.0 * mb});
+  write.applied_reduction_bps = 300.0 * mb;
+  write.last_adjustment_time = now - std::chrono::seconds(11);
+  auto& limit = runtime.app_limits["best-effort-app"];
+  limit.write_bps = 400 * mb;
+  limit.write_update_time = now;
+  manager.SetNodeReservationControllerRuntimeForTest(node, runtime);
+
+  manager.UpdateTrafficShapingController({{node, 0.5}});
+
+  const auto runtimes = manager.GetNodeReservationControllerRuntimes();
+  ASSERT_NE(runtimes.end(), runtimes.find(node));
+  const auto& result = runtimes.at(node);
+  EXPECT_TRUE(result.app_limits.empty());
+  EXPECT_EQ(1u, result.feedback.write.ineffective_probe_count);
+  EXPECT_TRUE(result.feedback.write.failed_protected_apps.count("reserved-app"));
+  EXPECT_DOUBLE_EQ(0.0, result.feedback.write.last_observed_protected_gain_bps);
+  EXPECT_DOUBLE_EQ(0.0, result.feedback.write.last_response_ratio);
 }
 
 TEST(TrafficShapingManager, BriefGapPreservesIneffectiveProbeSuppression)
@@ -2521,7 +2752,7 @@ TEST(TrafficShapingManager, ExpiredProbeSuppressionIsDiscardedDuringGap)
   EXPECT_TRUE(manager.GetNodeReservationControllerRuntimes().empty());
 }
 
-TEST(TrafficShapingManager, ReservationHealthTakesMaxAfterFsidAggregation)
+TEST(TrafficShapingManager, ReservationHealthAggregatesStableFsidRates)
 {
   constexpr uint64_t mb = 1000ULL * 1000ULL;
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -3537,6 +3768,52 @@ TEST(TrafficShapingManager, ExplicitLimitsArePublishedWithoutReservationPressure
 
   ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
       policy, true, 0.0, 0.0, false, true, true));
+}
+
+TEST(TrafficShapingManager, RateQuotasRedistributeUnusedCapacityAndRecover)
+{
+  constexpr uint64_t mb = 1000ULL * 1000ULL;
+  constexpr uint64_t global_limit = 100 * mb;
+  const std::string node_a = "/eos/node-a.example:1095/fst";
+  const std::string node_b = "/eos/node-b.example:1095/fst";
+  const std::vector<std::string> online_nodes{node_a, node_b};
+
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.limit_write_bytes_per_sec = global_limit;
+  manager.SetAppPolicy("batch-app", policy);
+
+  auto set_rate = [&](const std::string& node, const double rate) {
+    eos::mgm::traffic_shaping::RateMetrics metrics{};
+    metrics.write_rate_bps = rate;
+    manager.SetNodeEntityRateForTest(node, {"batch-app", 1000, 1000, 0}, metrics);
+  };
+  set_rate(node_a, 50 * mb);
+  set_rate(node_b, 50 * mb);
+  set_rate("/eos/offline-node.example:1095/fst", 50 * mb);
+  manager.UpdateLimits({}, online_nodes);
+
+  auto configs = manager.GetNodeFstIoConfigsForTest();
+  ASSERT_EQ(2u, configs.size());
+  EXPECT_EQ(50 * mb, configs.at(node_a).app_write_rate().at("batch-app"));
+  EXPECT_EQ(50 * mb, configs.at(node_b).app_write_rate().at("batch-app"));
+
+  set_rate(node_a, 5 * mb);
+  set_rate(node_b, 50 * mb);
+  manager.UpdateLimits({}, online_nodes);
+  configs = manager.GetNodeFstIoConfigsForTest();
+  EXPECT_EQ(6250 * 1000ULL, configs.at(node_a).app_write_rate().at("batch-app"));
+  EXPECT_EQ(global_limit - 6250 * 1000ULL,
+            configs.at(node_b).app_write_rate().at("batch-app"));
+
+  // A node using its reduced assignment is treated as backlogged on the next
+  // tick, so it can recover immediately when demand grows.
+  set_rate(node_a, 7 * mb);
+  set_rate(node_b, 90 * mb);
+  manager.UpdateLimits({}, online_nodes);
+  configs = manager.GetNodeFstIoConfigsForTest();
+  EXPECT_EQ(50 * mb, configs.at(node_a).app_write_rate().at("batch-app"));
+  EXPECT_EQ(50 * mb, configs.at(node_b).app_write_rate().at("batch-app"));
 }
 
 TEST(TrafficShapingManager, EphemeralCompetitorLimitsNeedPressuredReservationNode)

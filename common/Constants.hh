@@ -132,6 +132,7 @@ static constexpr auto TRAFFIC_SHAPING_RESERVATIONS_ENABLED_CONFIG =
     "traffic_shaping::reservations_enabled";
 static constexpr auto TRAFFIC_SHAPING_CONTROLLER_MIN_LIMIT_CONFIG =
     "traffic_shaping::controller_min_limit";
+static constexpr auto TRAFFIC_SHAPING_MAX_DELAY_CONFIG = "traffic_shaping::max_delay_ms";
 static constexpr auto TRAFFIC_SHAPING_IO_PRESSURE_THRESHOLD_CONFIG =
     "traffic_shaping::io_pressure_threshold";
 static constexpr auto TRAFFIC_SHAPING_ACTIVE_NODE_RATE_THRESHOLD_CONFIG =

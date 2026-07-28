@@ -920,9 +920,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  const uint64_t shaping_delay_us = gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(
-      vid, static_cast<uint64_t>(buffer_size));
-
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
@@ -939,9 +936,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   int64_t rc = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
   rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0) {
@@ -1077,12 +1072,8 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  const uint64_t shaping_delay_us =
-      gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, total_read);
   int64_t rv = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForRead(vid, total_read);
 
   rv = mLayout->ReadV(chunkList, total_read);
   if (rv > 0) {
@@ -1164,9 +1155,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-  const uint64_t shaping_delay_us = gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(
-      vid, static_cast<uint64_t>(buffer_size));
-
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
@@ -1199,9 +1187,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   int64_t rc = 0;
-  if (shaping_delay_us > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
-  }
+  gOFS.mIoDelayConfig.WaitForWrite(vid, static_cast<uint64_t>(buffer_size));
 
   rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   if (rc > 0) {

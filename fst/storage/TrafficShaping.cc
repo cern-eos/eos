@@ -5,6 +5,7 @@
 #include <atomic>
 #include <charconv>
 #include <chrono>
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <mutex>
@@ -38,6 +39,40 @@ uint64_t
 NextCacheGeneration()
 {
   return gNextCacheGeneration.fetch_add(1, std::memory_order_relaxed);
+}
+
+template <typename Map>
+bool
+MapsEqual(const Map& lhs, const Map& rhs)
+{
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+  for (const auto& [key, value] : lhs) {
+    const auto it = rhs.find(key);
+    if (it == rhs.end() || it->second != value) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool
+ConfigsEqual(const eos::traffic_shaping::TrafficShapingFstIoDelayConfig& lhs,
+             const eos::traffic_shaping::TrafficShapingFstIoDelayConfig& rhs)
+{
+  return MapsEqual(lhs.uid_read_delay(), rhs.uid_read_delay()) &&
+         MapsEqual(lhs.uid_write_delay(), rhs.uid_write_delay()) &&
+         MapsEqual(lhs.gid_read_delay(), rhs.gid_read_delay()) &&
+         MapsEqual(lhs.gid_write_delay(), rhs.gid_write_delay()) &&
+         MapsEqual(lhs.app_read_delay(), rhs.app_read_delay()) &&
+         MapsEqual(lhs.app_write_delay(), rhs.app_write_delay()) &&
+         MapsEqual(lhs.uid_read_rate(), rhs.uid_read_rate()) &&
+         MapsEqual(lhs.uid_write_rate(), rhs.uid_write_rate()) &&
+         MapsEqual(lhs.gid_read_rate(), rhs.gid_read_rate()) &&
+         MapsEqual(lhs.gid_write_rate(), rhs.gid_write_rate()) &&
+         MapsEqual(lhs.app_read_rate(), rhs.app_read_rate()) &&
+         MapsEqual(lhs.app_write_rate(), rhs.app_write_rate());
 }
 
 uint64_t
@@ -101,7 +136,13 @@ ValidateFstIoDelayConfig(
                 static_cast<size_t>(config.gid_read_delay_size()) +
                 static_cast<size_t>(config.gid_write_delay_size()) +
                 static_cast<size_t>(config.app_read_delay_size()) +
-                static_cast<size_t>(config.app_write_delay_size());
+                static_cast<size_t>(config.app_write_delay_size()) +
+                static_cast<size_t>(config.uid_read_rate_size()) +
+                static_cast<size_t>(config.uid_write_rate_size()) +
+                static_cast<size_t>(config.gid_read_rate_size()) +
+                static_cast<size_t>(config.gid_write_rate_size()) +
+                static_cast<size_t>(config.app_read_rate_size()) +
+                static_cast<size_t>(config.app_write_rate_size());
   const auto has_invalid_delay = [](const auto& delays) {
     return std::any_of(delays.begin(), delays.end(), [](const auto& item) {
       return item.second > kMaxScaledIoDelayUs;
@@ -121,7 +162,9 @@ ValidateFstIoDelayConfig(
          !has_invalid_delay(config.app_read_delay()) &&
          !has_invalid_delay(config.app_write_delay()) &&
          !has_oversized_app(config.app_read_delay()) &&
-         !has_oversized_app(config.app_write_delay());
+         !has_oversized_app(config.app_write_delay()) &&
+         !has_oversized_app(config.app_read_rate()) &&
+         !has_oversized_app(config.app_write_rate());
 }
 
 IoStatsEntry::IoStatsEntry()
@@ -366,11 +409,64 @@ void
 IoDelayConfig::UpdateConfig(
     eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config)
 {
-  const auto new_ptr =
-      std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
-          std::move(new_config));
-  std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
-  mCacheGeneration.store(NextCacheGeneration(), std::memory_order_release);
+  RateState next_rate_state;
+
+  {
+    std::lock_guard lock(mActuatorMutex);
+    const auto current =
+        std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
+    if (ConfigsEqual(*current, new_config)) {
+      return;
+    }
+    const auto new_ptr =
+        std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
+            std::move(new_config));
+    const auto now = std::chrono::steady_clock::now();
+    const auto rebuild = [&](const auto& configured, auto& current, auto& next) {
+      for (const auto& [key, rate] : configured) {
+        if (rate == 0) {
+          continue;
+        }
+
+        RateBucket bucket;
+        bucket.rate_bytes_per_second = rate;
+        bucket.last_refill = now;
+        bucket.tokens = static_cast<double>(BurstBytes(rate));
+        if (auto old = current.find(key); old != current.end()) {
+          const double elapsed =
+              std::chrono::duration<double>(now - old->second.last_refill).count();
+          const double old_burst =
+              static_cast<double>(BurstBytes(old->second.rate_bytes_per_second));
+          const double refilled =
+              std::min(old_burst,
+                       old->second.tokens + elapsed * old->second.rate_bytes_per_second);
+          // Preserve outstanding debt across periodic refreshes. Clamping
+          // negative tokens to zero would forgive traffic on every broadcast
+          // and systematically exceed low rate assignments.
+          bucket.tokens = std::min(static_cast<double>(BurstBytes(rate)), refilled);
+        }
+        next.emplace(key, bucket);
+      }
+    };
+
+    rebuild(new_ptr->uid_read_rate(), mRateState.uid_read, next_rate_state.uid_read);
+    rebuild(new_ptr->uid_write_rate(), mRateState.uid_write, next_rate_state.uid_write);
+    rebuild(new_ptr->gid_read_rate(), mRateState.gid_read, next_rate_state.gid_read);
+    rebuild(new_ptr->gid_write_rate(), mRateState.gid_write, next_rate_state.gid_write);
+    rebuild(new_ptr->app_read_rate(), mRateState.app_read, next_rate_state.app_read);
+    rebuild(new_ptr->app_write_rate(), mRateState.app_write, next_rate_state.app_write);
+    mRateState = std::move(next_rate_state);
+    std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
+    mCacheGeneration.store(NextCacheGeneration(), std::memory_order_release);
+    ++mActuatorGeneration;
+    for (const auto& [_, queue] : mRateWaitQueues) {
+      for (auto* waiter : queue) {
+        waiter->condition.notify_one();
+      }
+    }
+  }
+
+  mActuatorCondition.notify_all();
 }
 
 uint64_t
@@ -391,6 +487,308 @@ try {
   return 0;
 }
 
+uint64_t
+IoDelayConfig::BurstBytes(const uint64_t rate_bytes_per_second)
+{
+  // A quarter-second burst absorbs normal report/config jitter. A complete
+  // one-MiB XRootD request must always be able to make progress.
+  const uint64_t quarter_second = rate_bytes_per_second / 4;
+  return std::clamp<uint64_t>(quarter_second, kRateLimiterMinBurstBytes,
+                              kRateLimiterMaxBurstBytes);
+}
+
+bool
+IoDelayConfig::HasRateForAppUidGid(const eos::common::VirtualIdentity& vid,
+                                   const bool is_write) const
+{
+  const auto cfg =
+      std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
+  const auto contains = [](const auto& map, const auto& key) {
+    const auto it = map.find(key);
+    return it != map.end() && it->second > 0;
+  };
+
+  if (is_write) {
+    return contains(cfg->app_write_rate(), vid.app) ||
+           contains(cfg->uid_write_rate(), vid.uid) ||
+           contains(cfg->gid_write_rate(), vid.gid);
+  }
+  return contains(cfg->app_read_rate(), vid.app) ||
+         contains(cfg->uid_read_rate(), vid.uid) ||
+         contains(cfg->gid_read_rate(), vid.gid);
+}
+
+bool
+IoDelayConfig::WaitForRate(const eos::common::VirtualIdentity& vid, const uint64_t bytes,
+                           const bool is_write)
+{
+  if (bytes == 0 || !HasRateForAppUidGid(vid, is_write)) {
+    return false;
+  }
+
+  std::unique_lock lock(mActuatorMutex);
+  RateWaiter waiter;
+  std::string wait_queue_key;
+  bool queued = false;
+  bool charged = false;
+  bool recorded_wait = false;
+  const auto wait_started = std::chrono::steady_clock::now();
+  const auto record_wait = [&] {
+    if (recorded_wait) {
+      return;
+    }
+    recorded_wait = true;
+    if (is_write) {
+      mWriteWaitEvents.fetch_add(1, std::memory_order_relaxed);
+      mWriteActiveWaiters.fetch_add(1, std::memory_order_relaxed);
+    } else {
+      mReadWaitEvents.fetch_add(1, std::memory_order_relaxed);
+      mReadActiveWaiters.fetch_add(1, std::memory_order_relaxed);
+    }
+  };
+  const auto leave_queue = [&] {
+    if (!queued) {
+      return;
+    }
+    if (auto queue_it = mRateWaitQueues.find(wait_queue_key);
+        queue_it != mRateWaitQueues.end()) {
+      auto& queue = queue_it->second;
+      const auto waiter_it = std::find(queue.begin(), queue.end(), &waiter);
+      if (waiter_it != queue.end()) {
+        const bool was_front = waiter_it == queue.begin();
+        queue.erase(waiter_it);
+        if (queue.empty()) {
+          mRateWaitQueues.erase(queue_it);
+        } else if (was_front) {
+          queue.front()->condition.notify_one();
+        }
+      }
+    }
+    queued = false;
+  };
+
+  try {
+    while (mIsEnabled.load(std::memory_order_relaxed)) {
+      std::array<RateBucket*, 3> buckets{};
+      size_t bucket_count = 0;
+      uint64_t strictest_rate = std::numeric_limits<uint64_t>::max();
+      std::string strictest_key;
+      auto add_bucket = [&](auto& map, const auto& key, std::string queue_key) {
+        if (auto it = map.find(key);
+            it != map.end() && it->second.rate_bytes_per_second > 0) {
+          buckets[bucket_count++] = &it->second;
+          if (it->second.rate_bytes_per_second < strictest_rate) {
+            strictest_rate = it->second.rate_bytes_per_second;
+            strictest_key = std::move(queue_key);
+          }
+        }
+      };
+
+      const std::string operation = is_write ? "w:" : "r:";
+      if (is_write) {
+        add_bucket(mRateState.app_write, vid.app, operation + "a:" + vid.app);
+        add_bucket(mRateState.uid_write, vid.uid,
+                   operation + "u:" + std::to_string(vid.uid));
+        add_bucket(mRateState.gid_write, vid.gid,
+                   operation + "g:" + std::to_string(vid.gid));
+      } else {
+        add_bucket(mRateState.app_read, vid.app, operation + "a:" + vid.app);
+        add_bucket(mRateState.uid_read, vid.uid,
+                   operation + "u:" + std::to_string(vid.uid));
+        add_bucket(mRateState.gid_read, vid.gid,
+                   operation + "g:" + std::to_string(vid.gid));
+      }
+
+      if (bucket_count == 0) {
+        leave_queue();
+        break;
+      }
+
+      if (!queued) {
+        if (const auto queue_it = mRateWaitQueues.find(strictest_key);
+            queue_it != mRateWaitQueues.end() && !queue_it->second.empty()) {
+          wait_queue_key = std::move(strictest_key);
+          mRateWaitQueues[wait_queue_key].push_back(&waiter);
+          queued = true;
+          record_wait();
+        }
+      }
+      if (queued) {
+        auto& queue = mRateWaitQueues.at(wait_queue_key);
+        if (queue.front() != &waiter) {
+          waiter.condition.wait(lock);
+          continue;
+        }
+      }
+
+      const auto now = std::chrono::steady_clock::now();
+      for (size_t i = 0; i < bucket_count; ++i) {
+        auto& bucket = *buckets[i];
+        const double elapsed = std::max(
+            0.0, std::chrono::duration<double>(now - bucket.last_refill).count());
+        const double burst =
+            static_cast<double>(BurstBytes(bucket.rate_bytes_per_second));
+        bucket.tokens =
+            std::min(burst, bucket.tokens + elapsed * bucket.rate_bytes_per_second);
+        bucket.last_refill = now;
+      }
+
+      // Charge before waiting so a request larger than the burst is shaped
+      // itself instead of passing immediately and penalizing the next request.
+      if (!charged) {
+        for (size_t i = 0; i < bucket_count; ++i) {
+          buckets[i]->tokens -= static_cast<double>(bytes);
+        }
+        charged = true;
+      }
+
+      double wait_seconds = 0.0;
+      for (size_t i = 0; i < bucket_count; ++i) {
+        const auto& bucket = *buckets[i];
+        if (bucket.tokens < 0.0) {
+          wait_seconds =
+              std::max(wait_seconds, -bucket.tokens / bucket.rate_bytes_per_second);
+        }
+      }
+
+      if (wait_seconds <= 0.0) {
+        leave_queue();
+        break;
+      }
+
+      if (!queued) {
+        wait_queue_key = std::move(strictest_key);
+        mRateWaitQueues[wait_queue_key].push_back(&waiter);
+        queued = true;
+        record_wait();
+      }
+      waiter.condition.wait_for(lock, std::chrono::duration<double>(wait_seconds));
+    }
+    leave_queue();
+  } catch (...) {
+    leave_queue();
+  }
+
+  if (recorded_wait) {
+    const uint64_t waited_us =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                  std::chrono::steady_clock::now() - wait_started)
+                                  .count());
+    if (is_write) {
+      mWriteWaitMicroseconds.fetch_add(waited_us, std::memory_order_relaxed);
+      mWriteActiveWaiters.fetch_sub(1, std::memory_order_relaxed);
+    } else {
+      mReadWaitMicroseconds.fetch_add(waited_us, std::memory_order_relaxed);
+      mReadActiveWaiters.fetch_sub(1, std::memory_order_relaxed);
+    }
+  }
+
+  return charged;
+}
+
+void
+IoDelayConfig::WaitForIo(const eos::common::VirtualIdentity& vid, const uint64_t bytes,
+                         const bool is_write) noexcept
+try {
+  while (IsEnabled()) {
+    if (WaitForRate(vid, bytes, is_write)) {
+      return;
+    }
+
+    const auto started = std::chrono::steady_clock::now();
+    uint64_t delay_us = is_write ? GetWriteDelayForAppUidGid(vid, bytes)
+                                 : GetReadDelayForAppUidGid(vid, bytes);
+    if (delay_us == 0) {
+      // Close the narrow race where a rate actuator appeared after the first
+      // fast-path lookup but before the legacy delay was resolved.
+      WaitForRate(vid, bytes, is_write);
+      return;
+    }
+
+    if (is_write) {
+      mWriteWaitEvents.fetch_add(1, std::memory_order_relaxed);
+      mWriteActiveWaiters.fetch_add(1, std::memory_order_relaxed);
+    } else {
+      mReadWaitEvents.fetch_add(1, std::memory_order_relaxed);
+      mReadActiveWaiters.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    bool handoff_to_rate = false;
+    try {
+      std::unique_lock lock(mActuatorMutex);
+      while (mIsEnabled.load(std::memory_order_relaxed)) {
+        const auto deadline = started + std::chrono::microseconds(delay_us);
+        if (std::chrono::steady_clock::now() >= deadline) {
+          break;
+        }
+        const uint64_t generation = mActuatorGeneration;
+        mActuatorCondition.wait_until(lock, deadline, [&] {
+          return generation != mActuatorGeneration ||
+                 !mIsEnabled.load(std::memory_order_relaxed);
+        });
+        if (generation != mActuatorGeneration) {
+          if (HasRateForAppUidGid(vid, is_write)) {
+            handoff_to_rate = true;
+            break;
+          }
+          delay_us = is_write ? GetWriteDelayForAppUidGid(vid, bytes)
+                              : GetReadDelayForAppUidGid(vid, bytes);
+          if (delay_us == 0) {
+            break;
+          }
+        }
+      }
+    } catch (...) {
+      // The actuator is fail-open, but still account and retire this waiter.
+    }
+
+    const uint64_t waited_us =
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                  std::chrono::steady_clock::now() - started)
+                                  .count());
+    if (is_write) {
+      mWriteWaitMicroseconds.fetch_add(waited_us, std::memory_order_relaxed);
+      mWriteActiveWaiters.fetch_sub(1, std::memory_order_relaxed);
+    } else {
+      mReadWaitMicroseconds.fetch_add(waited_us, std::memory_order_relaxed);
+      mReadActiveWaiters.fetch_sub(1, std::memory_order_relaxed);
+    }
+
+    if (!handoff_to_rate) {
+      return;
+    }
+  }
+} catch (...) {
+  // Shaping is fail-open and must never unwind through an FST IO operation.
+}
+
+void
+IoDelayConfig::WaitForRead(const eos::common::VirtualIdentity& vid,
+                           const uint64_t bytes) noexcept
+{
+  WaitForIo(vid, bytes, false);
+}
+
+void
+IoDelayConfig::WaitForWrite(const eos::common::VirtualIdentity& vid,
+                            const uint64_t bytes) noexcept
+{
+  WaitForIo(vid, bytes, true);
+}
+
+IoDelayConfig::ActuatorStats
+IoDelayConfig::GetActuatorStats() const noexcept
+{
+  return {
+      mReadWaitEvents.load(std::memory_order_relaxed),
+      mWriteWaitEvents.load(std::memory_order_relaxed),
+      mReadWaitMicroseconds.load(std::memory_order_relaxed),
+      mWriteWaitMicroseconds.load(std::memory_order_relaxed),
+      mReadActiveWaiters.load(std::memory_order_relaxed),
+      mWriteActiveWaiters.load(std::memory_order_relaxed),
+  };
+}
+
 void
 IoDelayConfig::Clear()
 {
@@ -403,6 +801,7 @@ IoDelayConfig::SetEnabled(const bool enabled)
   mIsEnabled.store(enabled, std::memory_order_relaxed);
   if (!enabled) {
     Clear();
+    mActuatorCondition.notify_all();
   }
 }
 

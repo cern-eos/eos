@@ -17,6 +17,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <shared_mutex>
 #include <string>
 #include <tuple>
@@ -152,6 +153,12 @@ public:
 
   RateMetrics GetRate(double seconds) const;
 
+  double
+  ElapsedSeconds() const
+  {
+    return mCumulativeSample.elapsed_seconds;
+  }
+
 private:
   struct Sample {
     RateCounters counters;
@@ -260,6 +267,42 @@ struct NodeReservationControllerSnapshot {
   std::vector<NodeReservationControllerCohortAppSnapshot> cohort_apps;
 };
 
+struct BroadcastActuatorEntrySnapshot {
+  std::string identity_type;
+  std::string identity;
+  std::string operation;
+  double delay_p50_seconds = 0.0;
+  double delay_p95_seconds = 0.0;
+  double delay_max_seconds = 0.0;
+  uint64_t active_nodes = 0;
+  uint64_t capped_nodes = 0;
+  uint64_t assigned_rate_bytes_per_second = 0;
+};
+
+struct BroadcastActuatorSnapshot {
+  std::vector<BroadcastActuatorEntrySnapshot> entries;
+  uint64_t pending_nodes = 0;
+};
+
+struct PublishedActuatorEntrySnapshot {
+  std::string node_id;
+  std::string identity_type;
+  std::string identity;
+  std::string operation;
+  uint64_t delay_microseconds = 0;
+  uint64_t assigned_rate_bytes_per_second = 0;
+};
+
+struct FstActuatorSnapshot {
+  std::string node_id;
+  uint64_t read_wait_events = 0;
+  uint64_t write_wait_events = 0;
+  uint64_t read_wait_microseconds = 0;
+  uint64_t write_wait_microseconds = 0;
+  uint64_t read_active_waiters = 0;
+  uint64_t write_active_waiters = 0;
+};
+
 struct MapCardinalityStats {
   uint64_t node_states = 0;
   uint64_t node_state_streams = 0;
@@ -351,6 +394,9 @@ constexpr size_t kMaxBase64EncodedFstIoReportBytes =
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
 constexpr uint64_t kDefaultActiveNodeRateThresholdBps = 1024ULL * 1024ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
+constexpr uint32_t kDefaultMaxDelayMs = 2000;
+constexpr uint32_t kMinMaxDelayMs = 100;
+constexpr uint32_t kMaxMaxDelayMs = 30000;
 
 struct MultiWindowRate {
   double tick_interval_seconds;
@@ -409,15 +455,16 @@ struct MultiWindowRate {
   }
 };
 
-// The controller only needs a one-second EMA for per-node entities. Keeping the
-// full five-minute SMA history here duplicated the most expensive state in the
-// manager without any consumer.
+// The controller needs fast and stable EMAs for per-node entities. Locally
+// bursty workloads can make an active competitor look idle to a one-second EMA
+// while the global five-second demand signal remains active. Avoid the much
+// larger SMA history carried by MultiWindowRate.
 struct EmaRate {
   double bytes_read_accumulator = 0.0;
   double bytes_written_accumulator = 0.0;
   double read_iops_accumulator = 0.0;
   double write_iops_accumulator = 0.0;
-  RateMetrics ema;
+  std::array<RateMetrics, EmaWindowSec.size()> ema{};
   time_t last_activity_time = 0;
 };
 
@@ -563,6 +610,10 @@ public:
 
   double GetIoPressureThreshold() const;
 
+  void SetMaxDelayMilliseconds(uint32_t max_delay_ms);
+
+  uint32_t GetMaxDelayMilliseconds() const;
+
   size_t ClearControllerLimits();
 
   size_t ExpireControllerLimits(std::chrono::steady_clock::time_point now);
@@ -687,6 +738,12 @@ public:
   NodeReservationControllerSnapshot GetNodeReservationControllerSnapshot(
       std::chrono::steady_clock::time_point now = {}) const;
 
+  BroadcastActuatorSnapshot GetBroadcastActuatorSnapshot() const;
+
+  std::vector<PublishedActuatorEntrySnapshot> GetPublishedActuatorSnapshots() const;
+
+  std::vector<FstActuatorSnapshot> GetFstActuatorSnapshots() const;
+
   void Clear();
 
   void ClearRuntimeStats();
@@ -734,6 +791,7 @@ private:
     // Newest node heartbeat timestamp. Empty reports advance this anchor so
     // changed streams are normalized over the report cadence, not their idle age.
     int64_t last_source_report_timestamp_ms = 0;
+    FstActuatorSnapshot actuator;
     NodeStateMap streams;
   };
 
@@ -771,9 +829,11 @@ private:
 
   struct PublishedFstIoDelayConfig {
     std::string encoded_config;
+    eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
     std::chrono::steady_clock::time_point last_publish_time{};
   };
   std::unordered_map<std::string, PublishedFstIoDelayConfig> mPublishedFstIoDelayConfigs;
+  std::set<std::string> mPendingFstIoConfigNodes;
 
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       estimators_update_loop_micro_sec;
@@ -839,15 +899,24 @@ public:
     auto [it, _] = mGlobalStats.try_emplace(key, mEstimatorsTickIntervalSec);
     it->second.ema[Ema1s] = fast;
     it->second.ema[Ema5s] = stable;
+    it->second.sma[Sma5s] = stable;
   }
 
   void
   SetNodeEntityRateForTest(const std::string& node, const StreamKey& stream,
                            const RateMetrics& rate)
   {
+    SetNodeEntityRatesForTest(node, stream, rate, rate);
+  }
+
+  void
+  SetNodeEntityRatesForTest(const std::string& node, const StreamKey& stream,
+                            const RateMetrics& fast, const RateMetrics& stable)
+  {
     std::unique_lock lock(mMutex);
     auto& stats = mNodeEntityStats[DetailedKey{node, stream}];
-    stats.ema = rate;
+    stats.ema[Ema1s] = fast;
+    stats.ema[Ema5s] = stable;
     stats.last_activity_time = time(nullptr);
   }
 
@@ -857,6 +926,13 @@ public:
   {
     std::unique_lock lock(mMutex);
     mNodeEntityStats[DetailedKey{node, stream}].last_activity_time = last_activity_time;
+  }
+
+  std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+  GetNodeFstIoConfigsForTest() const
+  {
+    std::shared_lock lock(mMutex);
+    return mNodeFstIoDelayConfigs;
   }
 
   std::pair<size_t, uint64_t>
@@ -913,11 +989,12 @@ public:
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
   // Calculates the new FST delay microsecond value given the current rate and limit
-  static uint64_t
-  CalculateDelayUs(double limit_bps, double current_rate_bps, uint64_t current_delay_us,
-                   double io_pressure, bool has_rate_sample, bool allow_idle_release,
-                   double delay_reference_bps = 0.0,
-                   double io_pressure_threshold = kDefaultIoPressureThreshold);
+  static uint64_t CalculateDelayUs(
+      double limit_bps, double current_rate_bps, uint64_t current_delay_us,
+      double io_pressure, bool has_rate_sample, bool allow_idle_release,
+      double delay_reference_bps = 0.0,
+      double io_pressure_threshold = kDefaultIoPressureThreshold,
+      uint64_t max_delay_us = static_cast<uint64_t>(kDefaultMaxDelayMs) * 1000);
 
   static void ApplyDefaultReservationController(
       std::vector<AppState>& apps, bool reservations_enabled = true,
@@ -957,6 +1034,7 @@ private:
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
   std::atomic<uint64_t> mActiveNodeRateThresholdBps{kDefaultActiveNodeRateThresholdBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
+  std::atomic<uint32_t> mMaxDelayMilliseconds{kDefaultMaxDelayMs};
   uint64_t mControllerInputRevision = 0;
 };
 
@@ -1070,6 +1148,14 @@ public:
 
   double GetIoPressureThreshold() const;
 
+  void SetMaxDelayMilliseconds(uint32_t max_delay_ms);
+
+  uint32_t
+  GetMaxDelayMilliseconds() const
+  {
+    return mMaxDelayMilliseconds.load(std::memory_order_relaxed);
+  }
+
   void SetGarbageCollectionIdleSeconds(uint32_t idle_seconds);
 
   uint32_t
@@ -1155,6 +1241,10 @@ private:
 
   static void StoreIoPressureThresholdConfig(double threshold);
 
+  bool ApplyMaxDelayConfig(uint32_t max_delay_ms);
+
+  static void StoreMaxDelayConfig(uint32_t max_delay_ms);
+
   bool ApplyGarbageCollectionIdleSecondsConfig(uint32_t idle_seconds);
 
   static void StoreGarbageCollectionIdleSecondsConfig(uint32_t idle_seconds);
@@ -1204,6 +1294,7 @@ private:
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
   std::atomic<uint64_t> mActiveNodeRateThresholdBps{kDefaultActiveNodeRateThresholdBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
+  std::atomic<uint32_t> mMaxDelayMilliseconds{kDefaultMaxDelayMs};
   std::atomic<uint32_t> mGarbageCollectionIdleSeconds{kDefaultGarbageCollectionIdleSec};
 
   struct QueuedFstIoReport {

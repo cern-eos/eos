@@ -770,6 +770,16 @@ try {
                                  std::chrono::system_clock::now().time_since_epoch())
                                  .count();
       report.set_timestamp_ms(now_ms);
+      const auto actuator_stats = gOFS.mIoDelayConfig.GetActuatorStats();
+      auto* proto_actuator_stats = report.mutable_actuator_stats();
+      proto_actuator_stats->set_read_wait_events(actuator_stats.read_wait_events);
+      proto_actuator_stats->set_write_wait_events(actuator_stats.write_wait_events);
+      proto_actuator_stats->set_read_wait_microseconds(
+          actuator_stats.read_wait_microseconds);
+      proto_actuator_stats->set_write_wait_microseconds(
+          actuator_stats.write_wait_microseconds);
+      proto_actuator_stats->set_read_active_waiters(actuator_stats.read_active_waiters);
+      proto_actuator_stats->set_write_active_waiters(actuator_stats.write_active_waiters);
       size_t report_wire_bytes = report.ByteSizeLong();
       size_t deferred_entries = 0;
 
