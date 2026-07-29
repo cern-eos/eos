@@ -8,11 +8,6 @@
 #include "mgm/Namespace.hh"
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
 //-----------------------------------------------------------------------------
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::ServerWriter;
-using grpc::Status;
 using eos::common::VirtualIdentity;
 using eos::console::AccessProto;
 using eos::console::AclProto;
@@ -22,23 +17,22 @@ using eos::console::BackupProto;
 using eos::console::ChmodProto;
 using eos::console::ChownProto;
 using eos::console::ConfigProto;
-using eos::console::ConfigProto;
 using eos::console::ConvertProto;
 using eos::console::CpProto;
 using eos::console::DebugProto;
 using eos::console::EvictProto;
-using eos::console::FileProto;
 using eos::console::FileinfoProto;
+using eos::console::FileProto;
 using eos::console::FindProto;
-using eos::console::FsProto;
 using eos::console::FsckProto;
+using eos::console::FsProto;
 using eos::console::GeoschedProto;
 using eos::console::GroupProto;
 using eos::console::HealthProto;
-using eos::console::MapProto;
-using eos::console::MemberProto;
 using eos::console::IoProto;
 using eos::console::LsProto;
+using eos::console::MapProto;
+using eos::console::MemberProto;
 using eos::console::MkdirProto;
 using eos::console::MoveProto;
 using eos::console::NodeProto;
@@ -46,9 +40,10 @@ using eos::console::NsProto;
 using eos::console::QuotaProto;
 using eos::console::RecycleProto;
 using eos::console::ReplyProto;
-using eos::console::RmProto;
 using eos::console::RmdirProto;
+using eos::console::RmProto;
 using eos::console::RouteProto;
+using eos::console::SchedProto;
 using eos::console::SpaceProto;
 using eos::console::StatProto;
 using eos::console::StatusProto;
@@ -56,8 +51,13 @@ using eos::console::TokenProto;
 using eos::console::TouchProto;
 using eos::console::VersionProto;
 using eos::console::VidProto;
-using eos::console::WhoProto;
 using eos::console::WhoamiProto;
+using eos::console::WhoProto;
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
+using grpc::ServerWriter;
+using grpc::Status;
 //-----------------------------------------------------------------------------
 
 EOSMGMNAMESPACE_BEGIN
@@ -140,6 +140,8 @@ public:
   Status RmdirCall(VirtualIdentity& vid, const RmdirProto* rmdirRequest,
                    ReplyProto* reply);
   Status RouteCall(VirtualIdentity& vid, const RouteProto* routeRequest,
+                   ReplyProto* reply);
+  Status SchedCall(VirtualIdentity& vid, const SchedProto* schedRequest,
                    ReplyProto* reply);
   Status SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequest,
                    ReplyProto* reply);

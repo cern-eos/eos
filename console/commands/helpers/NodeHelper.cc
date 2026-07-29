@@ -39,7 +39,7 @@ bool NodeHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  // one of { ls, set, status, txgw, proxygroupadd|proxygrouprm|proxygroupclear, rm, config, register }
+  // one of { ls, set, status, rm, config, register }
   if (token == "ls") {
     eos::console::NodeProto_LsProto* ls = node->mutable_ls();
 
@@ -116,36 +116,6 @@ bool NodeHelper::ParseCommand(const char* arg)
       config->set_node_value(token.substr(pos + 1, token.length() - 1));
     } else {
       return false;
-    }
-  } else if (token == "proxygroupadd" || token == "proxygrouprm" ||
-             token == "proxygroupclear") {
-    // NodeProto no longer carries a proxygroup subcommand, so the CLI is
-    // mapped onto the config one: the value encodes the operation
-    eos::console::NodeProto_ConfigProto* config = node->mutable_config();
-    config->set_node_key("proxygroup");
-
-    if (token == "proxygroupclear") {
-      config->set_node_value("clear");
-
-      if (tokenizer.NextToken(token)) {
-        config->set_node_name(token);
-      } else {
-        return false;
-      }
-    } else {
-      std::string prefix = (token == "proxygroupadd") ? "+" : "-";
-
-      if (tokenizer.NextToken(token)) {
-        config->set_node_value(prefix + token);
-
-        if (tokenizer.NextToken(token)) {
-          config->set_node_name(token);
-        } else {
-          return false;
-        }
-      } else {
-        return false;
-      }
     }
   } else { // no proper subcommand
     return false;

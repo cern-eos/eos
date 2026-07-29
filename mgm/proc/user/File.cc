@@ -1789,7 +1789,7 @@ ProcCommand::File()
               } else {
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-                  errno = Scheduler::FileAccess(&acsargs);
+                  errno = Scheduler::Access(&acsargs);
 
                   if (!errno) {
                     // This is now our source filesystem

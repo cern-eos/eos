@@ -21,21 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_SCHEDULER__HH__
-#define __EOSMGM_SCHEDULER__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/fsview/FsView.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+namespace placement {
+class FsScheduler;
+}
 
 //------------------------------------------------------------------------------
 //! Class implementing file scheduling e.g. access and placement
@@ -46,12 +43,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Scheduler();
+  Scheduler() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~Scheduler();
+  virtual ~Scheduler() = default;
 
   //! Types of placement policy
   enum tPlctPolicy
@@ -61,7 +58,9 @@ public:
   enum tSchedType
   { regular, draining };
 
-  //! Arguments to place a file placement
+  //----------------------------------------------------------------------------
+  //! File placement structs and methods
+  //----------------------------------------------------------------------------
   struct PlacementArguments {
     /// INPUT
     //! space name
@@ -98,46 +97,50 @@ public:
     std::vector<unsigned int>* selected_filesystems;
     //! file systems not to be used by the scheduler
     std::vector<unsigned int>* exclude_filesystems;
-    //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
-    std::vector<std::string>* dataproxys;
-    //! if non NULL, schedule a firewall entry point for each fs
-    std::vector<std::string>* firewallentpts;
 
-    PlacementArguments() :
-      spacename(0),
-      path(0),
-      grouptag(0),
-      lid(0),
-      inode(0),
-      plctpolicy(kScattered),
-      plctTrgGeotag(),
-      truncate(false),
-      forced_scheduling_group_index(-1),
-      bookingsize(1024 * 1024 * 1024ll),
-      schedtype(regular),
-      sched_strategy_cstr(nullptr),
-      vid(0),
-      alreadyused_filesystems(0),
-      selected_filesystems(0),
-      exclude_filesystems(0),
-      dataproxys(0),
-      firewallentpts(0)
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    PlacementArguments()
+        : spacename(0)
+        , path(0)
+        , grouptag(0)
+        , lid(0)
+        , inode(0)
+        , plctpolicy(kScattered)
+        , plctTrgGeotag()
+        , truncate(false)
+        , forced_scheduling_group_index(-1)
+        , bookingsize(1024 * 1024 * 1024ll)
+        , schedtype(regular)
+        , sched_strategy_cstr(nullptr)
+        , vid(0)
+        , alreadyused_filesystems(0)
+        , selected_filesystems(0)
+        , exclude_filesystems(0)
     {}
 
+    //--------------------------------------------------------------------------
+    //! Check if all placement argumets are valid
+    //--------------------------------------------------------------------------
     bool isValid() const
     {
-      return
-        spacename && spacename->size()
-        && path
-        && lid
-        && isValidReplicas(lid)
-        && vid
-        && alreadyused_filesystems
-        && exclude_filesystems
-        && selected_filesystems;
+      return spacename && spacename->size() && path && lid && IsValidReplicas(lid) &&
+             vid && alreadyused_filesystems && exclude_filesystems &&
+             selected_filesystems;
     }
 
-    bool isValidReplicas(unsigned long lid) const {
+    //--------------------------------------------------------------------------
+    //! Check if number of replicas/stripes is a valid value depending on the
+    //! input layout value
+    //!
+    //! @param lid layout id
+    //!
+    //! @return true if valid, otherwise false
+    //--------------------------------------------------------------------------
+    bool
+    IsValidReplicas(unsigned long lid) const
+    {
       return common::LayoutId::GetStripeNumber(lid) + 1 < std::numeric_limits<uint8_t>::max();
     }
 
@@ -185,7 +188,6 @@ public:
       sched_strategy_cstr = p_sched_strategy_cstr;
       return *this;
     }
-
   };
 
   //----------------------------------------------------------------------------
@@ -198,12 +200,37 @@ public:
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FilePlacement(PlacementArguments* args);
+  static int Placement(PlacementArguments* args);
 
-  static uint8_t getRequiredReplicas(unsigned long lid);
+  //----------------------------------------------------------------------------
+  //! Schedule file placement using the given flat scheduler. This is the
+  //! whole implementation, the overload above only supplies the MGM's
+  //! scheduler instance - the seam is what makes the bridge unit-testable.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //! @param fs_sched flat scheduler to place with
+  //!
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int FlatSchedulerPlacement(PlacementArguments* args,
+                                    placement::FsScheduler& fs_sched);
 
-  static int FlatSchedulerFilePlacement(PlacementArguments* args);
+  //----------------------------------------------------------------------------
+  //! Get the number of replicas that should stay in the client's geolocation,
+  //! the rest are spread over the rest of the topology
+  //!
+  //! @param plctpolicy placement policy asked for
+  //! @param lid layout identifier of the file
+  //! @param has_geolocation whether the client has a geotag at all
+  //!
+  //! @return number of replicas to collocate, 0 if there is no preference
+  //----------------------------------------------------------------------------
+  static unsigned int GetCollocatedReplicas(tPlctPolicy plctpolicy, unsigned long lid,
+                                            bool has_geolocation);
 
+  //----------------------------------------------------------------------------
+  //! File access structs and methods
+  //----------------------------------------------------------------------------
   struct AccessArguments {
     /// INPUT
     //! forced filesystem for access
@@ -227,10 +254,6 @@ public:
     //!filesystem ids where layout is stored
     const std::vector<unsigned int>* locationsfs;
     /// INPUT/OUTPUT
-    //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
-    std::vector<std::string>* dataproxys;
-    //! firewallentpts if non NULL, schedule a firewall entry point for each fs
-    std::vector<std::string>* firewallentpts;
     //! return index pointing to layout entry filesystem
     unsigned long* fsindex;
     //! return filesystems currently unavailable
@@ -238,6 +261,9 @@ public:
     //! filesystem ids to exclude from access scheduling (eos.excludefsid)
     const std::vector<uint32_t>* exclude_filesystems;
 
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
     AccessArguments()
         : forcedfsid(0)
         , forcedspace(0)
@@ -249,21 +275,17 @@ public:
         , schedtype(regular)
         , vid(nullptr)
         , locationsfs(nullptr)
-        , dataproxys(nullptr)
-        , firewallentpts(nullptr)
         , fsindex(nullptr)
         , unavailfs(nullptr)
         , exclude_filesystems(nullptr)
     {}
 
+    //--------------------------------------------------------------------------
+    //! Check if all access arguments are valid
+    //--------------------------------------------------------------------------
     bool isValid() const
     {
-      return
-        lid
-        && vid
-        && locationsfs
-        && fsindex
-        && unavailfs;
+      return lid && vid && locationsfs && fsindex && unavailfs;
     }
 
   };
@@ -277,27 +299,73 @@ public:
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(AccessArguments* args);
-
-  static int FlatSchedulerFileAccess(AccessArguments* args);
-  //----------------------------------------------------------------------------
-  //! Translate placement policy type to string
-  //----------------------------------------------------------------------------
-  static const char* PlctPolicyString(tPlctPolicy plctPolicy)
-  {
-    if (plctPolicy == kScattered) {
-      return "scattered";
-    } else if (plctPolicy == kHybrid) {
-      return "hybrid";
-    } else if (plctPolicy == kGathered) {
-      return "gathered";
-    } else {
-      return "none";
-    }
-  }
+  static int Access(AccessArguments* args);
 
   //----------------------------------------------------------------------------
-  //! Return placement policy from string representation
+  //! Schedule file access using the given flat scheduler. This is the whole
+  //! implementation, the overload above only supplies the MGM's scheduler
+  //! instance - the seam is what makes the bridge unit-testable.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //! @param fs_sched flat scheduler to select with
+  //!
+  //! @return 0 if access successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int FlatSchedulerAccess(AccessArguments* args, placement::FsScheduler& fs_sched);
+
+  //----------------------------------------------------------------------------
+  //! Honour the eos.excludefsid exclusion list on an already selected access
+  //! location: if the chosen file system is excluded, re-point fsindex to a
+  //! location that is neither excluded nor unavailable
+  //!
+  //! @param args the structure holding all the input and output arguments,
+  //!        fsindex is expected to hold the engine's selection
+  //!
+  //! @return 0 if a usable location is selected, ENODATA if the exclusion
+  //!         list leaves none
+  //----------------------------------------------------------------------------
+  static int ApplyAccessExclusionFilter(AccessArguments* args);
+
+  //----------------------------------------------------------------------------
+  //! Get the writable placement capacity of a space in bytes, from whichever
+  //! engine actually schedules it: the flat scheduler when the space is opted
+  //! in, the geotree engine otherwise - the same routing the placement bridge
+  //! applies. Replaces the direct GeoTreeEngine::placementSpace calls; the
+  //! geotree branch goes when the engine does.
+  //!
+  //! @param spacename name of the space
+  //!
+  //! @return capacity in bytes, 0 when the space has none
+  //----------------------------------------------------------------------------
+  static uint64_t GetPlacementCapacity(const std::string& spacename);
+
+  //----------------------------------------------------------------------------
+  //! Select a drain destination file system for a single replica, from
+  //! whichever engine schedules the space: the flat scheduler when the space is
+  //! opted in, the geotree engine (draining policy) otherwise - the same
+  //! routing Placement applies. A drain replica must stay in its source
+  //! group and avoid both the file systems already holding the file and the
+  //! ones the caller has already tried.
+  //!
+  //! @param spacename name of the space the file lives in
+  //! @param group source scheduling group the replica has to stay in
+  //! @param fid file identifier
+  //! @param bookingsize size to book for the placement
+  //! @param existing_repl file systems already holding a replica
+  //! @param exclude_dsts destinations already tried by the caller
+  //!
+  //! @return selected file system id, or 0 if none could be scheduled
+  //!
+  //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  static eos::common::FileSystem::fsid_t
+  PlaceDrainReplica(const std::string& spacename, FsGroup* group, unsigned long long fid,
+                    unsigned long long bookingsize,
+                    const std::vector<eos::common::FileSystem::fsid_t>& existing_repl,
+                    const std::vector<eos::common::FileSystem::fsid_t>& exclude_dsts);
+
+  //----------------------------------------------------------------------------
+  //! Get placement policy from string representation
   //----------------------------------------------------------------------------
   static int PlctPolicyFromString(const std::string& placement)
   {
@@ -312,16 +380,61 @@ public:
     return -1;
   }
 
-  // reshuffle the selectedfs by returning as first entry the lowest if the
-  // sum of the fsid is odd the highest if the sum is even
+  //----------------------------------------------------------------------------
+  //! Reshuffle the selected file system ids by returning as first entry the
+  //! lowest fsid if the sum of the fsids is odd, and the highest if the sum
+  //! is even.
+  //!
+  //! @param selectedfs vector modified in place
+  //----------------------------------------------------------------------------
   static void ReshuffleFs(std::vector<unsigned int>& selectedfs);
 
+private:
+  //----------------------------------------------------------------------------
+  //! Schedule file placement using the MGM's flat scheduler instance. Internal
+  //! convenience wrapper over the injectable overload above - it reaches into
+  //! the global gOFS, which is why it is private while the injectable seam
+  //! stays public for the unit tests.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //!
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int FlatSchedulerPlacement(PlacementArguments* args);
+
+  //----------------------------------------------------------------------------
+  //! Schedule file access using the MGM's flat scheduler instance. Private for
+  //! the same reason as FlatSchedulerPlacement above.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //!
+  //! @return 0 if access successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int FlatSchedulerAccess(AccessArguments* args);
+
+  //----------------------------------------------------------------------------
+  //! Schedule file placement using the legacy geotree engine. The fallback
+  //! branch of Placement, kept behind the facade so no MGM code outside
+  //! this class names an engine for a placement decision.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //!
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int GeoTreePlacement(PlacementArguments* args);
+
+  //----------------------------------------------------------------------------
+  //! Schedule file access using the legacy geotree engine. The fallback branch
+  //! of Access, kept behind the facade for the same reason.
+  //!
+  //! @param args the structure holding all the input and output arguments
+  //!
+  //! @return 0 if access successful, otherwise a non-zero value
+  //----------------------------------------------------------------------------
+  static int GeoTreeAccess(AccessArguments* args);
+
 protected:
-
-  static XrdSysMutex pMapMutex; //< protect the following scheduling state maps
-
-  //! Points to the current scheduling group where to start scheduling =>
-  //! std::string = <grouptag>|<uid>:<gid>
+  static std::mutex sMapMutex; //< Mutex to protect the map below
   static std::map<std::string, FsGroup*> schedulingGroup;
 };
 
@@ -347,5 +460,3 @@ inline Scheduler::PlacementArguments::BookingSize BookingSize(unsigned long long
 } // namespace scheduler
 
 EOSMGMNAMESPACE_END
-
-#endif

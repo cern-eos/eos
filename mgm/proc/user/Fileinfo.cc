@@ -372,7 +372,6 @@ ProcCommand::FileInfo(const char* path)
         if (Monitoring || !outputFilter) {
           eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
           bool showFullpath = (option.find("-fullpath") != STR_NPOS);
-          bool showProxygroup = (option.find("-proxy") != STR_NPOS);
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
           eos::IFileMD::ctime_t btime {0, 0};
@@ -526,15 +525,7 @@ ProcCommand::FileInfo(const char* path)
 
           eos::IFileMD::LocationVector::const_iterator lociter;
           eos::IFileMD::LocationVector loc_vect = fmd_copy->getLocations();
-          std::vector<unsigned int> selectedfs;
-          std::vector<std::string> proxys;
-          std::vector<std::string> firewalleps;
-          std::vector<unsigned int> unavailfs;
-          std::vector<unsigned int> replacedfs;
-          size_t fsIndex;
-          Scheduler::AccessArguments acsargs;
           int i = 0;
-          int schedretc = -1;
           TableHeader table_mq_header;
           TableData table_mq_data;
           TableFormatterBase table_mq;
@@ -567,10 +558,6 @@ ProcCommand::FileInfo(const char* path)
               if (!Monitoring) {
                 std::string format =
                   "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=local.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
-
-                if (showProxygroup) {
-                  format += "|key=proxygroup:width=24:format=s";
-                }
 
                 filesystem->Print(table_mq_header, table_mq_data, format);
 
@@ -615,56 +602,6 @@ ProcCommand::FileInfo(const char* path)
                   table_mq_data_temp.clear();
                 }
 
-                if ((filesystem->GetString("proxygroup").size()) &&
-                    (filesystem->GetString("proxygroup") != "<none>") &&
-                    filesystem->GetString("filestickyproxydepth").size() &&
-                    filesystem->GetLongLong("filestickyproxydepth") >= 0) {
-                  // we do the scheduling only once when we meet a filesystem that requires it
-                  if (schedretc == -1) {
-                    acsargs.bookingsize = fmd_copy->getSize();
-                    acsargs.dataproxys = &proxys;
-                    acsargs.firewallentpts = NULL;
-                    acsargs.forcedfsid = 0;
-                    std::string space = filesystem->GetString("schedgroup");
-                    space.resize(space.rfind("."));
-                    acsargs.forcedspace = space.c_str();
-                    acsargs.fsindex = &fsIndex;
-                    acsargs.isRW = false;
-                    acsargs.lid = lid;
-                    acsargs.inode = (ino64_t) fmd_copy->getId();
-                    acsargs.locationsfs = &selectedfs;
-
-                    for (auto it = loc_vect.begin(); it != loc_vect.end(); it++) {
-                      selectedfs.push_back(*it);
-                    }
-
-                    std::string stried_cgi = "";
-                    acsargs.tried_cgi = &stried_cgi;
-                    acsargs.unavailfs = &unavailfs;
-                    acsargs.vid = &vid;
-
-                    if (!acsargs.isValid()) {
-                      // there is something wrong in the arguments of file access
-                      eos_static_err("msg=\"open - invalid access argument\"");
-                    }
-
-                    schedretc = Scheduler::FileAccess(&acsargs);
-
-                    if (schedretc) {
-                      eos_static_warning("msg=\"cannot schedule the proxy\"");
-                    }
-                  }
-
-                  if (schedretc) {
-                    out << "     sticky to undefined";
-                  } else {
-                    size_t k;
-
-                    for (k = 0; k < loc_vect.size() && selectedfs[k] != loc_vect[i]; k++);
-
-                    out << "sticky to " << proxys[k];
-                  }
-                }
               } else {
                 out << "fsid=" << location << " ";
 

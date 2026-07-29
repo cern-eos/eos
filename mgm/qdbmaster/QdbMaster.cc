@@ -22,30 +22,31 @@
  ************************************************************************/
 
 #include "mgm/qdbmaster/QdbMaster.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/quota/Quota.hh"
+#include "common/IntervalStopwatch.hh"
+#include "common/ShellCmd.hh"
+#include "common/plugin_manager/PluginManager.hh"
 #include "mgm/access/Access.hh"
-#include "mgm/wfe/WFE.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/lru/LRU.hh"
-#include "mgm/recycle/Recycle.hh"
-#include "mgm/devices/Devices.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/devices/Devices.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/lru/LRU.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/wfe/WFE.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IQuota.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/interface/INamespaceGroup.hh"
-#include "common/plugin_manager/PluginManager.hh"
-#include "common/IntervalStopwatch.hh"
+#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include <qclient/QClient.hh>
-#include "common/ShellCmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -431,6 +432,11 @@ QdbMaster::SlaveToMaster()
   // Trigger a geotree refresh to make sure all the file systems are
   // marked as available in the GeoTree after the failover.
   gOFS->mGeoTreeEngine->forceRefresh();
+  // Rebuild the flat scheduler topology from the current view for the same
+  // reason - this re-reads every file system's availability and re-stamps the
+  // per-space fill limits and disabled branches onto the fresh snapshot. Both
+  // schedulers are kept in sync so either can serve after the failover.
+  gOFS->mFsScheduler->UpdateClusterData();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);

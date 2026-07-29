@@ -179,7 +179,6 @@ void com_fs_help()
       << "      the given proxy group. The special value \"<none>\" is the"
       << std::endl
       << "      same as no value and means no proxy scheduling" << std::endl
-      << "    filestickyproxydepth=<depth>" << std::endl
       << "      depth of the subtree to be considered for file-stickyness. A"
       << std::endl
       << "      negative value means no file-stickyness" << std::endl

@@ -76,9 +76,10 @@ target_link_libraries(eos-threadid-microbenchmark PRIVATE
 
 if (NOT CLIENT AND Linux)
   add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
-    ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterDataFormatter.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMgr.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
-    ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinPlacementStrategy.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinStrategy.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRandomStrategy.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)

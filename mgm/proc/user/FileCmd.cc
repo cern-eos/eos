@@ -1852,7 +1852,7 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
             retc = EINVAL;
           } else {
             for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-              errno = Scheduler::FileAccess(&acsargs);
+              errno = Scheduler::Access(&acsargs);
 
               if (!errno) {
                 unsigned int src_fsid = src_fs[fs_indx];

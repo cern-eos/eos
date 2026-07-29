@@ -135,23 +135,6 @@ ProcCommand::GeoSched()
         gOFS->mGeoTreeEngine->showAccessGeotagMapping(&stdOut, monitoring);
         retc = SFS_OK;
       }
-
-      if (mSubCmd == "accesssetproxygroup") {
-        gOFS->mGeoTreeEngine->setAccessProxygroup(&stdOut, geotag.c_str(), geotag_list.c_str(),
-                                           true);
-        retc = SFS_OK;
-      }
-
-      if (mSubCmd == "accessclearproxygroup") {
-        gOFS->mGeoTreeEngine->clearAccessProxygroup(&stdOut,
-                                             geotag == "all" ? "" : geotag.c_str(), true);
-        retc = SFS_OK;
-      }
-
-      if (mSubCmd == "accessshowproxygroup") {
-        gOFS->mGeoTreeEngine->showAccessProxygroup(&stdOut, monitoring);
-        retc = SFS_OK;
-      }
     }
   } else {
     retc = EPERM;

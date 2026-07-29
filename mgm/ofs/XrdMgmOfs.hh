@@ -227,7 +227,7 @@ class MessagingRealm;
 
 namespace eos::mgm::placement
 {
-class FSScheduler;
+class FsScheduler;
 }
 
 namespace eos::mgm::FuseServer
@@ -2157,7 +2157,7 @@ public:
   std::unique_ptr<bulk::BulkRequestProcCleaner>
   mHttpTapeRestApiBulkReqProcCleaner;
 
-  std::unique_ptr<eos::mgm::placement::FSScheduler> mFsScheduler;
+  std::unique_ptr<eos::mgm::placement::FsScheduler> mFsScheduler;
 
   //! Non-persistent behaviour configuration changes
   std::unique_ptr<eos::common::BehaviourConfig> mBehaviourCfg;

@@ -331,36 +331,6 @@ public:
   int Emsg(const char*, XrdOucErrInfo&, int, const char* x,
            const char* y = "");
 
-  //----------------------------------------------------------------------------
-  //! Target connection parameters for redirection
-  //----------------------------------------------------------------------------
-  struct targetParams {
-    int          targetport;
-    int          targethttpport;
-    std::string  targethost;
-    std::string  redirectionsuffix;
-    std::string  redirectionhost;
-
-    bool validPort(int port) const {
-      return port > 0 && port < 65536;
-    }
-
-    bool valid() const {
-      return !targethost.empty() &&
-             validPort(targetport) && validPort(targethttpport);
-    }
-  };
-  //----------------------------------------------------------------------------
-  //! Handle Proxy and Firewall Entrypoint scheduling
-  //! This function may be deprecated in future versions
-  static targetParams setProxyFwEntrypoint(
-    const std::vector<std::string>& firewalleps,
-    const std::vector<std::string>& proxys,
-    size_t fsIndex,
-    std::string_view fs_hostport,
-    std::string_view fs_prefix
-  );
-
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -427,12 +397,8 @@ private:
   //! Dump scheduling info
   //!
   //! @param selected_fs list of selected file systems
-  //! @param proxys list of data proxy endpoints
-  //! @param fwall_eps firewall entrypoints
   //----------------------------------------------------------------------------
-  void LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
-                         const std::vector<std::string>& proxy_eps,
-                         const std::vector<std::string>& fwall_eps) const;
+  void LogSchedulingInfo(const std::vector<unsigned int>& selected_fs) const;
 
   //----------------------------------------------------------------------------
   //! Get file system ids excluded from scheduling

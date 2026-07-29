@@ -1,168 +1,159 @@
+//------------------------------------------------------------------------------
+//! @file WeightedRandomStrategy.cc
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #include "mgm/placement/WeightedRandomStrategy.hh"
-#include "common/Logging.hh"
+#include "mgm/placement/InlinedVector.hh"
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <random>
-#include <shared_mutex>
 
 namespace eos::mgm::placement
 {
 
-struct WeightedRandomPlacement::Impl {
-  PlacementResult placeFiles(const ClusterData& data,
-                             Args args);
+namespace {
 
-  void populateWeights(const ClusterData& data);
-  std::shared_mutex mtx;
-  std::discrete_distribution<> mBucketWeights;
-  std::map<item_id_t, std::discrete_distribution<>> mDiskWeights;
+//------------------------------------------------------------------------------
+//! Struct ScoredItem - candidate together with its rendezvous score
+//------------------------------------------------------------------------------
+struct ScoredItem {
+  ItemIdT id;   ///< Item identifier
+  double score; ///< Rendezvous score, lower wins
+
+  //----------------------------------------------------------------------------
+  //! Less than operator, orders by score
+  //!
+  //! @param other right hand side
+  //!
+  //! @return true if this item sorts before other, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  operator<(const ScoredItem& other) const
+  {
+    return score < other.score;
+  }
 };
 
-void WeightedRandomPlacement::Impl::populateWeights(const ClusterData& data)
+//------------------------------------------------------------------------------
+//! Draw a uniform value in (0, 1) out of a 64 bit hash
+//!
+//! @param h hash value
+//!
+//! @return uniform value, never exactly 0 so that its logarithm is finite
+//------------------------------------------------------------------------------
+double
+Uniform01(uint64_t h)
 {
-  std::vector<int> weights(data.buckets.size());
-  std::vector<int> item_weights;
-
-  // TODO optimize single element lists! no need to use a random distrib!
-  for (const auto& bucket : data.buckets) {
-    weights.at(-bucket.id) = bucket.total_weight;
-
-    for (const auto& item_id : bucket.items) {
-      if (item_id > 0) {
-        item_weights.push_back(data.disks.at(item_id - 1).weight);
-      } else {
-        item_weights.push_back(data.buckets.at(-item_id).total_weight);
-      }
-    }
-
-    mDiskWeights.emplace(bucket.id,
-                         std::discrete_distribution<>(item_weights.begin(),
-                             item_weights.end()));
-    item_weights.clear();
-  }
-
-  mBucketWeights = std::discrete_distribution<>(weights.begin(), weights.end());
+  const double u = (h >> 11) * 0x1.0p-53;
+  return (u > 0.0) ? u : std::numeric_limits<double>::min();
 }
 
-PlacementResult WeightedRandomPlacement::Impl::placeFiles(
-  const ClusterData& data,
-  Args args)
+} // anonymous namespace
+
+//------------------------------------------------------------------------------
+// Select the disks holding the replicas of a new file
+//------------------------------------------------------------------------------
+PlacementResult
+WeightedRandomStrategy::Placement(const ClusterData& data,
+                                  const PlacementArgs& args) const
 {
   PlacementResult result(args.n_replicas);
-  static thread_local std::random_device rd;
-  static thread_local std::mt19937 gen(rd());
-  std::shared_lock rlock(mtx);
 
-  // This is only called at initialization
-  if (mBucketWeights.max() == 0) {
-    rlock.unlock();
-    std::unique_lock wlock(mtx);
-
-    if (mBucketWeights.max() == 0) {
-      try {
-        populateWeights(data);
-      } catch (std::exception& e) {
-        eos_static_crit("msg=\"exception while populating weights\" ec=%d emsg=\"%s\"",
-                        EINVAL, e.what());
-        result.err_msg = e.what();
-        result.ret_code = EINVAL;
-        return result;
-      }
-    }
+  if (!ValidateArgs(data, args, result)) {
+    return result;
   }
 
-  int32_t bucket_index = -args.bucket_id;
-  int items_added = 0;
+  // Weighted rendezvous hashing (Efraimidis-Spirakis): draw u in (0, 1) from a
+  // hash of (fid, item, salt) and score the item by -log(u) / weight. The
+  // n_replicas lowest scores are the selection, distributed proportionally to
+  // the weights. Every candidate is inspected exactly once, so unlike sampling
+  // there is no attempt loop, no duplicate to skip, and no state to carry
+  // between calls - the result depends only on the snapshot and the arguments.
+  // A request without a file identity cannot be placed deterministically: every
+  // such file would hash to the same disks. Fall back to a per-call random draw
+  // so that those callers still get a weighted spread.
+  uint64_t identity = args.fid;
 
-  for (int i = 0; items_added < args.n_replicas && i < MAX_PLACEMENT_ATTEMPTS;
-       i++) {
-    auto item_index = mDiskWeights[args.bucket_id](gen);
-    item_id_t item_id = data.buckets[bucket_index].items[item_index];
-    eos_static_debug("Got item_index=%d item_id=%d",
-                     item_index, item_id);
+  if (identity == 0) {
+    static thread_local std::mt19937_64 gen(std::random_device{}());
+    identity = gen();
+  }
 
-    if (result.contains(item_id)) {
-      eos_static_info("msg=\"Skipping duplicate result\" item_id=%d", item_id);
-      continue;
-    }
+  const auto& bucket = data.buckets[-args.bucket_id];
+  // Per-visit scratch: inline for the common small bucket, spilling to the heap
+  // only for an unusually large one, so the hot path never hits the allocator
+  InlinedVector<ScoredItem, 64> ranked;
+  ranked.reserve(bucket.items.size());
+
+  for (const auto item_id : bucket.items) {
+    uint32_t weight = 0;
 
     if (item_id > 0) {
+      // An id past the end of the disks array means the bucket contents and the
+      // disks array of the same snapshot disagree - a hard error, not a skip.
       if ((size_t)item_id > data.disks.size()) {
         result.err_msg = "Disk ID out of range";
         result.ret_code = ERANGE;
         return result;
       }
 
-      if (!PlacementStrategy::validDiskPlct(item_id, data, args.excludefs, args.status)) {
+      if (!ValidPlacementDisk(item_id, data, args.excludefs, args.status,
+                              args.bookingsize)) {
         continue;
       }
+
+      weight = GetEffectiveWeight(data.disks[item_id - 1], data.fill_limits);
+    } else {
+      weight = data.buckets.at(-item_id).total_weight;
     }
 
-    result.ids[items_added++] = item_id;
+    if (weight == 0) {
+      // a zero weight item can never be selected, and would divide by zero
+      continue;
+    }
+
+    const double u =
+        Uniform01(HashFid(identity, static_cast<uint64_t>(item_id), args.salt));
+    ranked.push_back({item_id, -std::log(u) / weight});
+  }
+
+  const size_t n_wanted = std::min(static_cast<size_t>(args.n_replicas), ranked.size());
+  std::partial_sort(ranked.begin(), ranked.begin() + n_wanted, ranked.end());
+
+  for (size_t i = 0; i < n_wanted; ++i) {
+    result.Add(ranked[i].id);
+  }
+
+  if (result.n_filled != args.n_replicas) {
+    result.err_msg = "Could not find enough items to place replicas, added=" +
+                     std::to_string(result.n_filled) +
+                     " requested=" + std::to_string(args.n_replicas);
+    result.ret_code = ENOSPC;
+    return result;
   }
 
   result.ret_code = 0;
   return result;
 }
-
-WeightedRandomPlacement::WeightedRandomPlacement(PlacementStrategyT strategy,
-    size_t max_buckets) :
-  mImpl(std::make_unique<Impl>())
-{
-}
-
-PlacementResult WeightedRandomPlacement::placeFiles(const ClusterData& data,
-    Args args)
-{
-  PlacementResult result(args.n_replicas);
-
-  if (!validateArgs(data, args, result)) {
-    return result;
-  }
-
-  return mImpl->placeFiles(data, std::move(args));
-}
-
-int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments& args)
-{
-
-  //TODO move all of the common validation to base class!
-  if (args.selectedfs.empty()) {
-    return ENOENT;
-  }
-
-  uint64_t best_score = 0;
-  size_t best_index = std::numeric_limits<size_t>::max();
-
-  for (const auto& fsid: args.selectedfs) {
-    if ((size_t)fsid > data.disks.size()) {
-      eos_static_info("msg=\"FlatScheduler Access - Skipping invalid fsid\" fsid=%u", fsid);
-      continue;
-    }
-    const auto& disk = data.disks[fsid - 1];
-
-    if (!validDiskPlct(fsid, data, args.unavailfs ? *args.unavailfs : std::vector<uint32_t>{},
-                        eos::common::ConfigStatus::kRO)) {
-      continue;
-    }
-
-    auto h = hashFid(args.inode, fsid);
-    auto wt = disk.weight.load(std::memory_order_relaxed);
-    uint64_t score = h/wt;
-    if (best_index == std::numeric_limits<size_t>::max() ||
-        score < best_score) {
-      best_score = score;
-      best_index = fsid;
-    }
-
-  }
-
-  if (best_index <= args.selectedfs.size()) {
-    args.selectedIndex = best_index;
-    return 0;
-  }
-
-  return ENOENT;
-}
-
-WeightedRandomPlacement::~WeightedRandomPlacement() = default;
 
 } // namespace eos::mgm::placement

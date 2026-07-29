@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ClusterMapFixture.hh
+// File: ClusterMgrFixture.hh
 // Author: Abhishek Lekshmanan - CERN
 // ----------------------------------------------------------------------
 
@@ -25,24 +25,25 @@
 #ifndef EOS_CLUSTERMAPFIXTURE_HH
 #define EOS_CLUSTERMAPFIXTURE_HH
 
-#include "mgm/placement/ClusterMap.hh"
+#include "mgm/placement/ClusterMgr.hh"
 #include "gtest/gtest.h"
 
 class SimpleClusterF : public ::testing::Test {
 protected:
   void SetUp() override {
     using namespace eos::mgm::placement;
-    auto sh = mgr.getStorageHandler();
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -2, 0));
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -101, -1));
-    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -102, -2));
+    auto sh = mgr.GetSnapshotBuilder();
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -2, 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -101, -1));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -102, -2));
 
     // Every group has 10 disks!
     for (int i=0; i < 30; i++) {
-      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100 - i/10));
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             -100 - i / 10));
     }
 
   }

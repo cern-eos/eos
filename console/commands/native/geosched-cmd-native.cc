@@ -28,7 +28,7 @@ std::string MakeGeoschedHelp()
          "  updater pause|resume                       pause/resume tree updater\n"
          "  forcerefresh                               force refresh\n"
          "  disabled add|rm|show <geotag> <optype> <group>\n"
-         "  access setdirect|showdirect|cleardirect|setproxygroup|showproxygroup|clearproxygroup ...\n\n"
+         "  access setdirect|showdirect|cleardirect ...\n\n"
          "Options:\n"
          "  -c  enable color display\n"
          "  -m  list in monitoring format\n\n"
@@ -273,8 +273,7 @@ public:
       XrdOucString subcmd = subtokenizer.GetToken();
       XrdOucString geotag, geotag_list, optype;
       if ((subcmd != "setdirect") && (subcmd != "showdirect") &&
-          (subcmd != "cleardirect") && (subcmd != "setproxygroup") &&
-          (subcmd != "showproxygroup") && (subcmd != "clearproxygroup")) {
+          (subcmd != "cleardirect")) {
         printHelp();
         global_retc = EINVAL;
         return 0;
@@ -287,7 +286,7 @@ public:
         geotag_list = token;
       }
       in += ("&mgm.subcmd=access" + subcmd);
-      if (subcmd == "showdirect" || subcmd == "showproxygroup") {
+      if (subcmd == "showdirect") {
         if (geotag.length()) {
           if (geotag != "-m" || geotag_list.length()) {
             printHelp();
@@ -298,7 +297,7 @@ public:
           }
         }
       } else {
-        if (subcmd == "setdirect" || subcmd == "setproxygroup") {
+        if (subcmd == "setdirect") {
           if (!geotag.length() || !geotag_list.length()) {
             printHelp();
             global_retc = EINVAL;

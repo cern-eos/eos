@@ -1,150 +1,139 @@
+//------------------------------------------------------------------------------
+//! @file WeightedRoundRobinStrategy.cc
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #include "mgm/placement/WeightedRoundRobinStrategy.hh"
-#include "common/utils/ContainerUtils.hh"
 #include "common/Logging.hh"
-#include <mutex>
+#include "mgm/placement/InlinedVector.hh"
+#include <algorithm>
 
 namespace eos::mgm::placement {
 
-
-struct WeightedRoundRobinPlacement::Impl {
-  PlacementResult placeFiles(const ClusterData& data,
-                             Args args);
-
-  void fill_weights(const ClusterData& data)
-  {
-    total_wt = 0;
-    std::for_each(data.buckets.begin(),
-                  data.buckets.end(),
-                  [this](const Bucket& bucket) {
-                    mItemWeights[bucket.id] = bucket.total_weight;
-                    total_wt += bucket.total_weight;
-                  });
-    total_disk_wt = 0;
-    std::for_each(data.disks.begin(),
-                  data.disks.end(),
-                  [this](const Disk& disk) {
-                    auto disk_wt = disk.weight.load(std::memory_order_acquire);
-                    mItemWeights[disk.id] = disk_wt;
-                    total_disk_wt += disk_wt;
-                  });
-  }
-
-  std::map<item_id_t, int> mItemWeights;
-  std::atomic<epoch_id_t> mCurrentEpoch;
-  std::map<item_id_t, int> mBucketIndex;
-  std::atomic<int64_t> total_wt {0};
-  std::atomic<int64_t> total_disk_wt{0};
-  std::mutex wt_mtx;
-};
-
-
-
+//------------------------------------------------------------------------------
+// Select the disks holding the replicas of a new file
+//------------------------------------------------------------------------------
 PlacementResult
-WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
-                                              Args args)
+WeightedRoundRobinStrategy::Placement(const ClusterData& cluster_data,
+                                      const PlacementArgs& args) const
 {
-  std::scoped_lock lock(wt_mtx);
-  //NOTE: when 2 requests reach at the same point when near 0, we'll end up
-  //granting all of them... in spite of near 0 weights.. this is fine as the
-  //weighting is still an approximate means and there is no need for exactness,
-  //the next cycle should refresh the weights correctly
-
-  if (total_wt < (args.n_replicas)) {
-    eos_static_info("%s","msg=\"Refilling weights\"");
-    fill_weights(cluster_data);
-  }
-
   PlacementResult result(args.n_replicas);
 
-  auto bucket_index_kv = mBucketIndex[args.bucket_id]++;
-  int32_t bucket_index = -args.bucket_id;
-  const auto& bucket = cluster_data.buckets[bucket_index];
-  int items_added = 0;
-  for (int i = 0;
-       (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
-    item_id_t item_id = eos::common::pickIndexRR(bucket.items, bucket_index_kv++);
+  if (!ValidateArgs(cluster_data, args, result)) {
+    return result;
+  }
 
-    if (result.contains(item_id)) {
-      continue;
-    }
+  // The scheduler grows the seeder to the topology before descending, so this
+  // only catches a hierarchy past what the seeder can ever hold. Reporting it
+  // is the point: the cursor lookup below would otherwise throw out of the
+  // placement path.
+  if (cluster_data.buckets.size() > mSeed->GetNumSeeds()) {
+    result.err_msg =
+        "More buckets than random seeds! seeds=" + std::to_string(mSeed->GetNumSeeds()) +
+        " buckets=" + std::to_string(cluster_data.buckets.size());
+    result.ret_code = ERANGE;
+    return result;
+  }
+
+  // Build the cumulative weight table of the candidates that can actually take
+  // a replica. Selecting a position in that table and resolving it back to an
+  // item picks proportionally to the weights, and derives everything from the
+  // snapshot in front of us rather than from counters kept between calls.
+  const int32_t bucket_index = -args.bucket_id;
+  const auto& bucket = cluster_data.buckets[bucket_index];
+  // Per-visit scratch: inline for the common small bucket, spilling to the heap
+  // only for an unusually large one, so the hot path never hits the allocator
+  InlinedVector<ItemIdT, 64> ids;
+  InlinedVector<uint64_t, 64> cumulative;
+  ids.reserve(bucket.items.size());
+  cumulative.reserve(bucket.items.size());
+  uint64_t total_weight = 0;
+
+  for (const auto item_id : bucket.items) {
+    uint32_t weight = 0;
 
     if (item_id > 0) {
-      if ((mItemWeights[args.bucket_id] < args.n_replicas)
-          || mItemWeights[args.bucket_id] == mItemWeights[item_id]) {
-        fill_weights(cluster_data);
-      }
-
-      if (--mItemWeights[item_id] < 0) {
-        eos_static_debug("msg=\"Skipping scheduling 0 wt item at\" item_id=%d total_wt=%llu",
-                         item_id, total_wt.load(std::memory_order_relaxed));
-        continue;
-      }
-
-      if (std::find(args.excludefs.begin(),
-                    args.excludefs.end(), item_id) != args.excludefs.end()) {
-        continue;
-      }
-
+      // An id past the end of the disks array means the bucket contents and the
+      // disks array of the same snapshot disagree - a hard error, not a skip.
       if ((size_t)item_id > cluster_data.disks.size()) {
         result.err_msg = "Disk ID unknown!";
         result.ret_code = ERANGE;
         return result;
       }
 
-      const auto& disk = cluster_data.disks[item_id - 1];
-      if (disk.active_status.load(std::memory_order_acquire) !=
-          eos::common::ActiveStatus::kOnline) {
+      if (!ValidPlacementDisk(item_id, cluster_data, args.excludefs, args.status,
+                              args.bookingsize)) {
         continue;
       }
 
-      auto disk_status = disk.config_status.load(std::memory_order_relaxed);
-      if (disk_status < args.status) {
-        continue;
-      }
-
-
-      item_id = disk.id;
-      --total_wt;
-      --mItemWeights[args.bucket_id];
-
-
+      weight =
+          GetEffectiveWeight(cluster_data.disks[item_id - 1], cluster_data.fill_limits);
     } else {
-      // We're dealing with a bucket, make sure we've enough wt left!
-      if (mItemWeights[item_id] < args.n_replicas) {
-        continue;
-      }
+      weight = cluster_data.buckets.at(-item_id).total_weight;
     }
-    result.ids[items_added++] = item_id;
+
+    if (weight == 0) {
+      // a zero weight item can never take a replica
+      continue;
+    }
+
+    total_weight += weight;
+    ids.push_back(item_id);
+    cumulative.push_back(total_weight);
   }
-  if (items_added != args.n_replicas) {
-    result.err_msg = "Failed to place files!";
+
+  if (total_weight == 0) {
+    result.err_msg = "No item with a non-zero weight to place on";
     result.ret_code = ENOSPC;
     return result;
   }
-  result.ret_code = 0;
-  return result;
-}
 
-WeightedRoundRobinPlacement::WeightedRoundRobinPlacement(PlacementStrategyT strategy,
-                                                         size_t max_buckets):
-  mImpl(std::make_unique<Impl>())
-{}
+  // Walk the weight space in strides so that the picks of one request spread
+  // out instead of landing repeatedly inside the same heavy item. The cursor
+  // advances across requests, which is what makes this round-robin.
+  const uint64_t cursor = mSeed->Get(bucket_index, args.n_replicas, args.fid);
+  const uint64_t stride = std::max<uint64_t>(1, total_weight / args.n_replicas);
 
-PlacementResult WeightedRoundRobinPlacement::placeFiles(const ClusterData& data,
-                                                        Args args)
-{
-  PlacementResult result(args.n_replicas);
-  if (!validateArgs(data, args, result)) {
+  for (int i = 0; (result.n_filled < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS);
+       ++i) {
+    const uint64_t pos = (cursor + static_cast<uint64_t>(i) * stride) % total_weight;
+    const auto it = std::upper_bound(cumulative.begin(), cumulative.end(), pos);
+    const ItemIdT item_id = ids[it - cumulative.begin()];
+
+    if (result.Contains(item_id)) {
+      continue;
+    }
+
+    result.Add(item_id);
+  }
+
+  if (result.n_filled != args.n_replicas) {
+    result.err_msg = "Could not find enough items to place replicas, added=" +
+                     std::to_string(result.n_filled) +
+                     " requested=" + std::to_string(args.n_replicas);
+    result.ret_code = ENOSPC;
     return result;
   }
 
-  return mImpl->placeFiles(data, std::move(args));
+  result.ret_code = 0;
+  return result;
 }
-
-int WeightedRoundRobinPlacement::access(const ClusterData &data, AccessArguments& args)
-{
-  return EINVAL;
-}
-
-WeightedRoundRobinPlacement::~WeightedRoundRobinPlacement() = default;
-} // eos::mgm::placement
+} // namespace eos::mgm::placement

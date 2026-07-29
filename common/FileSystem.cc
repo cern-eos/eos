@@ -415,9 +415,7 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mUuid = "";
   mHost = "";
   mHostPort = "";
-  mProxyGroup = "";
   mS3Credentials = "";
-  mFileStickyProxyDepth = -1;
   mPort = 0;
   mErrMsg = "";
   mGeoTag = "";
@@ -1180,14 +1178,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mUuid = hash.get("uuid");
   fs.mHost = mLocator.getHost();
   fs.mHostPort = mLocator.getHostPort();
-  fs.mProxyGroup = hash.get("proxygroup");
   fs.mS3Credentials = hash.get("s3credentials");
-  fs.mFileStickyProxyDepth = -1;
   fs.mSharedFs = hash.get("sharedfs");
-
-  if (hash.get("filestickyproxydepth").size()) {
-    fs.mFileStickyProxyDepth = hash.getLongLong("filestickyproxydepth");
-  }
 
   fs.mPort = mLocator.getPort();
   GroupLocator groupLocator;

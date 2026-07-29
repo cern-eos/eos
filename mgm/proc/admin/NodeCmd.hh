@@ -115,20 +115,6 @@ private:
   void SetSubcmd(const eos::console::NodeProto_SetProto& set,
                  eos::console::ReplyProto& reply);
 
-  //----------------------------------------------------------------------------
-  //! Update the proxygroup list of a node
-  //!
-  //! NodeProto no longer carries a proxygroup subcommand, so this is reached
-  //! through 'node config <node> proxygroup=<value>' where the value encodes
-  //! the operation: '+<group>' adds, '-<group>' removes and 'clear' drops the
-  //! whole list.
-  //!
-  //! @param nodename node to configure
-  //! @param value operation to apply to the proxygroup list
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void ProxygroupConfig(const std::string& nodename, const std::string& value,
-                        eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END

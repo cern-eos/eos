@@ -36,6 +36,7 @@
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
+#include "mgm/scheduler/Scheduler.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/utils/AttrHelper.hh"
@@ -2649,9 +2650,7 @@ Server::OpSetFile(const std::string& id,
       }
 
       {
-        std::string nogroup;
-        uint64_t phys_space = gOFS->mGeoTreeEngine->placementSpace(space.c_str(),
-                              nogroup);
+        uint64_t phys_space = Scheduler::GetPlacementCapacity(space);
         eos_info("msg=\"writable-space=%lu\"", phys_space);
 
         // check physical space

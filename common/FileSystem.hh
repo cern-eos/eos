@@ -417,10 +417,8 @@ public:
     std::string mUuid;
     std::string mHost;
     std::string mHostPort;
-    std::string mProxyGroup;
     std::string mSharedFs;
     std::string mS3Credentials;
-    int8_t      mFileStickyProxyDepth;
     int32_t mPort;
     std::string mGeoTag;
     std::string mForceGeoTag;

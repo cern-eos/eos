@@ -2337,13 +2337,58 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   mGeoTreeEngine->forceRefresh();
   mGeoTreeEngine->StartUpdater();
-  mFsScheduler->updateClusterData();
+  mFsScheduler->UpdateClusterData();
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
     for (const auto& space : FsView::gFsView.mSpaceView) {
-      mFsScheduler->setPlacementStrategy(space.first,
+      mFsScheduler->SetPlacementStrategy(space.first,
                                          space.second->GetConfigMember("scheduler.type"));
+      // Restore the configured fill thresholds, falling back to the default
+      // for whichever of the two is not set. Applied as a pair so that the
+      // restore cannot trip over the warn < cap ordering.
+      const std::string cap_str =
+          space.second->GetConfigMember("scheduler.fillratiolimit");
+      const std::string warn_str =
+          space.second->GetConfigMember("scheduler.fillratiowarn");
+
+      if (!cap_str.empty() || !warn_str.empty()) {
+        const uint8_t cap = cap_str.empty()
+                                ? eos::mgm::placement::kDefaultFillCapPercent
+                                : static_cast<uint8_t>(std::atoi(cap_str.c_str()));
+        const uint8_t warn = warn_str.empty()
+                                 ? eos::mgm::placement::kDefaultFillWarnPercent
+                                 : static_cast<uint8_t>(std::atoi(warn_str.c_str()));
+
+        if (!mFsScheduler->SetFillLimits(space.first, cap, warn)) {
+          eos_static_err("msg=\"ignoring invalid fill thresholds\" space=\"%s\" "
+                         "fillratiolimit=\"%s\" fillratiowarn=\"%s\"",
+                         space.first.c_str(), cap_str.c_str(), warn_str.c_str());
+        }
+      }
+
+      // Restore the disabled scheduler branches, kept as one comma separated
+      // geotag list per operation, see SchedCmd::DisabledSubCmd
+      auto restore_disabled = [&](const char* key, uint8_t op_mask) {
+        const std::string list = space.second->GetConfigMember(key);
+
+        if (list.empty()) {
+          return;
+        }
+
+        const auto geotags =
+            eos::common::StringTokenizer::split<std::vector<std::string>>(list, ',');
+
+        for (const auto& geotag : geotags) {
+          if (!mFsScheduler->AddDisabledBranch(space.first, geotag, op_mask)) {
+            eos_static_err("msg=\"ignoring invalid disabled branch\" "
+                           "space=\"%s\" key=\"%s\" geotag=\"%s\"",
+                           space.first.c_str(), key, geotag.c_str());
+          }
+        }
+      };
+      restore_disabled("scheduler.disabled.plct", eos::mgm::placement::kDisabledPlct);
+      restore_disabled("scheduler.disabled.access", eos::mgm::placement::kDisabledAccess);
     }
   }
 
