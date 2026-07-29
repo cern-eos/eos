@@ -718,7 +718,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = EIO;
       } else {
         applied = true;
-        gOFS->mFsScheduler->setPlacementStrategy(space->mName, value);
+        gOFS->mFsScheduler->SetPlacementStrategy(space->mName, value);
         std_out.str("success: configured scheduler.type in space='" +
                     space_name + "' as " + value + "\n");
         ret_c = 0;
@@ -808,6 +808,39 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_out.str("success: configured " + key + " in space='" + space_name +
                     "' as '" + value + "'\n");
         ret_c = 0;
+      }
+    } else if ((key == "scheduler.fillratiolimit") ||
+               (key == "scheduler.fillratiowarn")) {
+      applied = true;
+      char* endptr = nullptr;
+      const long pct = strtol(value.c_str(), &endptr, 10);
+
+      if (value.empty() || (endptr && *endptr != '\0') || (pct < 0) || (pct > 100)) {
+        std_err.str("error: '" + value + "' is not a percentage between 0 and 100");
+        ret_c = EINVAL;
+      } else {
+        // Validate against the currently configured pair before persisting
+        const bool ok = (key == "scheduler.fillratiolimit")
+                            ? gOFS->mFsScheduler->SetFillRatioLimit(
+                                  space->mName, static_cast<uint8_t>(pct))
+                            : gOFS->mFsScheduler->SetFillRatioWarn(
+                                  space->mName, static_cast<uint8_t>(pct));
+
+        if (!ok) {
+          const auto limits = gOFS->mFsScheduler->GetFillLimits(space->mName);
+          std_err.str("error: fillratiowarn must stay below fillratiolimit "
+                      "(currently warn=" +
+                      std::to_string(limits.warn) +
+                      " limit=" + std::to_string(limits.cap) + ")");
+          ret_c = EINVAL;
+        } else if (!space->SetConfigMember(key, value)) {
+          std_err.str("error: cannot set space config value");
+          ret_c = EIO;
+        } else {
+          std_out.str("success: configured " + key + " in space='" + space_name +
+                      "' as " + value + "\n");
+          ret_c = 0;
+        }
       }
     } else if (!key.compare(0, 5, "atime")) {
       applied = true;

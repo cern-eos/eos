@@ -176,8 +176,9 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
   std::shared_ptr<eos::mq::FsChangeListener> fs_listener =
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
-  const std::set<std::string> interests {"stat.errc", "stat.geotag",
-                                         "configstatus", "stat.boot"};
+  const std::set<std::string> interests{"stat.errc",          "stat.geotag",
+                                        "configstatus",       "stat.boot",
+                                        "stat.statfs.filled", "stat.statfs.freebytes"};
 
   // Register all the interests for this listener so that new file systems
   // are properly registered with this listener based on it's interests
@@ -193,6 +194,33 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
     if (fs_listener->fetch(assistant, event) && !event.isDeletion()) {
       if (event.key == "stat.geotag") {
         ProcessGeotagChange(event.fileSystemQueue);
+      } else if ((event.key == "stat.statfs.filled") ||
+                 (event.key == "stat.statfs.freebytes")) {
+        // Keep the scheduler's view of how full a disk is up to date. Both
+        // keys come out of the same FST publish cycle, so either one refreshes
+        // both the fill level and the free space in one lookup. This fires on
+        // every heartbeat that moves the numbers, so it must stay cheap: a
+        // lookup and a few atomic stores, no snapshot rebuild.
+        if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          FileSystem* fs =
+              FsView::gFsView.mIdView.lookupByQueuePath(event.fileSystemQueue);
+
+          if (fs) {
+            const auto fsid = (eos::common::FileSystem::fsid_t)fs->GetLongLong("id");
+            const std::string space = fs->getCoreParams().getSpace();
+
+            if (fsid && !space.empty()) {
+              // filled is published as a percentage between 0 and 100
+              const double filled = fs->GetDouble("stat.statfs.filled");
+              gOFS->mFsScheduler->SetDiskPercentUsed(
+                  space, fsid,
+                  static_cast<uint8_t>(std::max(0.0, std::min(100.0, filled))));
+              gOFS->mFsScheduler->SetDiskFreeSpace(
+                  space, fsid, eos::mgm::placement::GetUsableFreeBytes(*fs));
+            }
+          }
+        }
       } else {
         // This is a filesystem status error
         if (gOFS->mMaster->IsMaster()) {
@@ -225,11 +253,10 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
               continue;
             }
 
-            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->isRunning()) {
-              bool status = gOFS->mFsScheduler->setDiskStatus(space,
-                            fsid, cfgstatus);
-              bool act_status = gOFS->mFsScheduler->setDiskStatus(space,
-                                fsid, fs->GetActiveStatus(), bstatus);
+            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
+              bool status = gOFS->mFsScheduler->SetDiskStatus(space, fsid, cfgstatus);
+              bool act_status = gOFS->mFsScheduler->SetDiskStatus(
+                  space, fsid, fs->GetActiveStatus(), bstatus);
 
               if (!status || !act_status) {
                 eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",
@@ -244,10 +271,10 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
 
-            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->isRunning()) {
-              bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                            fsid,
-                            eos::common::ConfigStatus::kDrain);
+            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
+              bool status =
+                  gOFS->mFsScheduler->SetDiskStatus(fs->getCoreParams().getSpace(), fsid,
+                                                    eos::common::ConfigStatus::kDrain);
 
               if (!status) {
                 eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",

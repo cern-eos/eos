@@ -58,6 +58,9 @@ private:
 
   eos::console::ReplyProto
   RefreshSubCmd(const eos::console::SchedProto_RefreshProto& refresh);
+
+  eos::console::ReplyProto
+  DisabledSubCmd(const eos::console::SchedProto_DisabledProto& disabled);
 };
 
 

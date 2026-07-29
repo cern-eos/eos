@@ -39,7 +39,7 @@ bool NodeHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  // one of { ls, set, status, txgw, proxygroupadd|proxygrouprm|proxygroupclear, rm, config, register }
+  // one of { ls, set, status, rm, config, register }
   if (token == "ls") {
     eos::console::NodeProto_LsProto* ls = node->mutable_ls();
 
@@ -116,38 +116,6 @@ bool NodeHelper::ParseCommand(const char* arg)
       config->set_node_value(token.substr(pos + 1, token.length() - 1));
     } else {
       return false;
-    }
-  } else if (token == "proxygroupadd" || token == "proxygrouprm" ||
-             token == "proxygroupclear") {
-    eos::console::NodeProto_ProxygroupProto* proxygroup =
-      node->mutable_proxygroup();
-
-    if (token == "proxygroupadd") {
-      proxygroup->set_node_action(eos::console::NodeProto_ProxygroupProto::ADD);
-    } else if (token == "proxygrouprm") {
-      proxygroup->set_node_action(eos::console::NodeProto_ProxygroupProto::RM);
-    } else if (token == "proxygroupclear") {
-      proxygroup->set_node_action(eos::console::NodeProto_ProxygroupProto::CLEAR);
-    }
-
-    if (token == "proxygroupclear") {
-      if (tokenizer.NextToken(token)) {
-        proxygroup->set_node(token);
-      } else {
-        return false;
-      }
-    } else {
-      if (tokenizer.NextToken(token)) {
-        proxygroup->set_node_proxygroup(token);
-
-        if (tokenizer.NextToken(token)) {
-          proxygroup->set_node(token);
-        } else {
-          return false;
-        }
-      } else {
-        return false;
-      }
     }
   } else { // no proper subcommand
     return false;

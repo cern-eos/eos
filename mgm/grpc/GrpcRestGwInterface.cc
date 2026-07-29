@@ -13,6 +13,7 @@
 #include "mgm/acl/Acl.hh"
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -25,6 +26,7 @@
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
@@ -32,7 +34,6 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -1543,7 +1544,6 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
       XrdOucString output = "";
       std::string geotag = req.geosched().access().geotag();
       std::string geotag_list = req.geosched().access().geotag_list();
-      std::string proxy_group = req.geosched().access().proxy_group();
       bool monitoring = req.geosched().access().monitoring();
 
       if (!geotag.empty()) {
@@ -1558,13 +1558,6 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 
       if (subcmd == "cleardirect") {
         if (gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&output,
-            geotag == "all" ? "" : geotag)) {
-          reply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "clearproxygroup") {
-        if (gOFS->mGeoTreeEngine->clearAccessProxygroup(&output,
             geotag == "all" ? "" : geotag)) {
           reply->set_retc(SFS_OK);
         }
@@ -1590,20 +1583,8 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
         }
       }
 
-      if (subcmd == "setproxygroup") {
-        if (gOFS->mGeoTreeEngine->setAccessProxygroup(&output, geotag, proxy_group)) {
-          reply->set_retc(SFS_OK);
-        }
-      }
-
       if (subcmd == "showdirect") {
         if (gOFS->mGeoTreeEngine->showAccessGeotagMapping(&output, monitoring)) {
-          reply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "showproxygroup") {
-        if (gOFS->mGeoTreeEngine->showAccessProxygroup(&output, monitoring)) {
           reply->set_retc(SFS_OK);
         }
       }
@@ -2180,6 +2161,21 @@ grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
   req.mutable_recycle()->CopyFrom(*recycleRequest);
   eos::mgm::RecycleCmd recyclecmd(std::move(req), vid);
   *reply = recyclecmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcRestGwInterface::SchedCall(VirtualIdentity& vid, const SchedProto* schedRequest,
+                               ReplyProto* reply)
+{
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*schedRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
+  // wrap the SchedProto object into a RequestProto object
+  eos::console::RequestProto req;
+  req.mutable_sched()->CopyFrom(*schedRequest);
+  eos::mgm::SchedCmd schedcmd(std::move(req), vid);
+  *reply = schedcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

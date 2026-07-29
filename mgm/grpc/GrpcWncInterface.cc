@@ -8,18 +8,20 @@
 
 #include "GrpcWncInterface.hh"
 #include "common/Fmd.hh"
-#include "common/Utils.hh"
 #include "common/StringTokenizer.hh"
+#include "common/Utils.hh"
 #include "common/json/Json.hh"
-#include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
+#include "console/commands/HealthCommand.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -27,15 +29,14 @@
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -185,6 +186,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kRoute:
     return Route();
+    break;
+
+  case eos::console::RequestProto::kSched:
+    return Sched();
     break;
 
   case eos::console::RequestProto::kSpace:
@@ -1418,7 +1423,7 @@ grpc::Status GrpcWncInterface::File()
 
   case eos::console::FileProto::kResync: {
     auto fsid = mRequest->file().resync().fsid();
-    
+
     if (gOFS->QueryResync(fid, fsid)) {
       std_out = "info: resynced fid=" + std::to_string(fid);
       std_out += " on fs=" + std::to_string(fsid);
@@ -1755,7 +1760,6 @@ grpc::Status GrpcWncInterface::Geosched()
       XrdOucString output = "";
       std::string geotag = mRequest->geosched().access().geotag();
       std::string geotag_list = mRequest->geosched().access().geotag_list();
-      std::string proxy_group = mRequest->geosched().access().proxy_group();
       bool monitoring = mRequest->geosched().access().monitoring();
 
       if (!geotag.empty()) {
@@ -1770,13 +1774,6 @@ grpc::Status GrpcWncInterface::Geosched()
 
       if (subcmd == "cleardirect") {
         if (gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&output,
-            geotag == "all" ? "" : geotag)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "clearproxygroup") {
-        if (gOFS->mGeoTreeEngine->clearAccessProxygroup(&output,
             geotag == "all" ? "" : geotag)) {
           mReply->set_retc(SFS_OK);
         }
@@ -1802,20 +1799,8 @@ grpc::Status GrpcWncInterface::Geosched()
         }
       }
 
-      if (subcmd == "setproxygroup") {
-        if (gOFS->mGeoTreeEngine->setAccessProxygroup(&output, geotag, proxy_group)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
       if (subcmd == "showdirect") {
         if (gOFS->mGeoTreeEngine->showAccessGeotagMapping(&output, monitoring)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "showproxygroup") {
-        if (gOFS->mGeoTreeEngine->showAccessProxygroup(&output, monitoring)) {
           mReply->set_retc(SFS_OK);
         }
       }
@@ -2332,6 +2317,15 @@ grpc::Status GrpcWncInterface::Recycle()
   eos::console::RequestProto req = *mRequest;
   eos::mgm::RecycleCmd recyclecmd(std::move(req), *mVid);
   *mReply = recyclecmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Sched()
+{
+  eos::console::RequestProto req = *mRequest;
+  eos::mgm::SchedCmd schedcmd(std::move(req), *mVid);
+  *mReply = schedcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

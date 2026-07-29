@@ -31,7 +31,7 @@ static void BM_RRSeed(benchmark::State& state) {
   eos::mgm::placement::RRSeed seed(10);
   for (auto _ : state) {
     for (int i=0;i<10; ++i)
-    benchmark::DoNotOptimize(seed.get(1,0));
+      benchmark::DoNotOptimize(seed.Get(1, 0));
   }
   state.counters["frequency"] = Counter(state.iterations()*10,
                                         benchmark::Counter::kIsRate);
@@ -39,10 +39,10 @@ static void BM_RRSeed(benchmark::State& state) {
 
 static void BM_ThreadLocalRRSeed(benchmark::State& state) {
   using namespace eos::mgm::placement;
-  ThreadLocalRRSeed::init(10);
+  ThreadLocalRRSeed::Init(10);
   for (auto _ : state) {
     for (int i=0;i<10; ++i)
-    benchmark::DoNotOptimize(ThreadLocalRRSeed::get(1,0));
+      benchmark::DoNotOptimize(ThreadLocalRRSeed::Get(1, 0));
   }
   state.counters["frequency"] = Counter(state.iterations()*10,
                                         benchmark::Counter::kIsRate);

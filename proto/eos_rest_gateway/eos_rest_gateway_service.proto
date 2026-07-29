@@ -38,6 +38,7 @@ import "Recycle.proto";
 import "Rm.proto";
 import "Rmdir.proto";
 import "Route.proto";
+import "Sched.proto";
 import "Space.proto";
 import "StatWnc.proto";
 import "Status.proto";
@@ -344,6 +345,15 @@ service EosRestGatewayService {
 	rpc RouteRequest(eos.console.RouteProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/route_cmd"
+			body: "*"
+		};
+	}
+
+	// SchedRequest method receives a request for an eos sched command
+	// and returns the result of the command
+	rpc SchedRequest(eos.console.SchedProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/eos/rest/gateway/sched_cmd"
 			body: "*"
 		};
 	}

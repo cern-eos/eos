@@ -101,12 +101,14 @@ set(MGM_UT_SRCS
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
   mgm/TrafficShapingTests.cc
-  mgm/placement/ClusterMapTests.cc
+  mgm/placement/ClusterBuilderTests.cc
+  mgm/placement/ClusterMgrTests.cc
   mgm/placement/RRSeedTests.cc
   mgm/placement/SchedulerTests.cc
   mgm/placement/ThreadLocalRRSeedTests.cc
   mgm/placement/FsSchedulerTests.cc
-  mgm/placement/PlacementStrategyTests.cc)
+  mgm/placement/SelectionStrategyTests.cc
+  mgm/scheduler/SchedulerBridgeTests.cc)
 
 set(COMMON_UT_SRCS
   common/AssistedThreadTests.cc

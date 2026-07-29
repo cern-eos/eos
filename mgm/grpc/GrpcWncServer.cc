@@ -152,6 +152,10 @@ class WncService final : public EosWnc::Service
       command = "Route";
       break;
 
+    case eos::console::RequestProto::kSched:
+      command = "Sched";
+      break;
+
     case eos::console::RequestProto::kSpace:
       command = "Space";
       break;

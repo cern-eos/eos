@@ -125,6 +125,8 @@ private:
 
   grpc::Status Route();
 
+  grpc::Status Sched();
+
   grpc::Status Space();
 
   grpc::Status Stat();

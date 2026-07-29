@@ -43,6 +43,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/policy/Policy.hh"
+#include "mgm/scheduler/Scheduler.hh"
 #include "mgm/shaping/TrafficShaping.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/zmq/ZMQ.hh"
@@ -70,8 +71,7 @@ void setFsStatus(FileSystem* fs,
   }
 
   fs->SetActiveStatus(status);
-  gOFS->mFsScheduler->setDiskStatus(fs->GetSpace(), fs->GetId(),
-                                    status, bstatus);
+  gOFS->mFsScheduler->SetDiskStatus(fs->GetSpace(), fs->GetId(), status, bstatus);
 }
 }
 
@@ -1954,6 +1954,12 @@ FsView::Register(FileSystem* fs,
 
   mSpaceGroupView[coreParams.getSpace()].insert
   (mGroupView[coreParams.getGroup()]);
+  // Mirror the registration into the flat scheduler's snapshot. Best effort:
+  // a failure leaves that snapshot stale until the next refresh rather than
+  // rolling back the registration the way the geotree engine above does.
+  gOFS->mFsScheduler->InsertFs(
+      coreParams.getSpace(),
+      placement::DescribeFs(*fs, coreParams.getGroupLocator().getIndex()));
 
   // Align view by spacename
   if (mSpaceView.count(coreParams.getSpace())) {
@@ -2088,6 +2094,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group_name)
           return false;
         }
 
+        // Mirror the removal into the flat scheduler's snapshot, best effort
+        gOFS->mFsScheduler->RemoveFs(snapshot1.mSpace, snapshot1.mId);
         group->erase(snapshot1.mId);
 
         if (!group->size() && (group->mName != "spare")) {
@@ -2144,6 +2152,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group_name)
       }
 
       mSpaceGroupView[tgt_space].insert(mGroupView[tgt_group]);
+      // Mirror the move into the flat scheduler's snapshot, best effort
+      gOFS->mFsScheduler->InsertFs(tgt_space, placement::DescribeFs(*fs, grp_index));
 
       // Check if we have already a space view
       if (mSpaceView.count(tgt_space)) {
@@ -2210,6 +2220,8 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
       return false;
     }
 
+    // Mirror the removal into the flat scheduler's snapshot, best effort
+    gOFS->mFsScheduler->RemoveFs(snapshot.mSpace, snapshot.mId);
     group->erase(snapshot.mId);
     eos_debug("msg=\"unregister group %s from group view\"",
               group->GetMember("name").c_str());
@@ -2687,8 +2699,8 @@ FsView::ReapplyDrainStatus()
         (cs == eos::common::ConfigStatus::kDrainDead) ||
         (cs == eos::common::ConfigStatus::kGroupDrain)) {
       it->second->SetConfigStatus(cs);
-      gOFS->mFsScheduler->setDiskStatus(mIdView.lookupSpaceByID(it->first),
-                                        it->first, cs);
+      gOFS->mFsScheduler->SetDiskStatus(mIdView.lookupSpaceByID(it->first), it->first,
+                                        cs);
     }
   }
 }
@@ -4086,10 +4098,8 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 
         if (formattags.count("geosched")) {
           if (formattags["geosched"] == "totalspace") {
-            std::string nogroup;
-            table_data.back().push_back(
-              TableCell((long long)gOFS->mGeoTreeEngine->placementSpace(mName, nogroup),
-                        format, unit));
+            table_data.back().push_back(TableCell(
+                (long long)Scheduler::GetPlacementCapacity(mName), format, unit));
             table_header.push_back(std::make_tuple("sched.capacity", width, format));
           }
         }

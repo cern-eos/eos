@@ -494,7 +494,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
   mDeviceTracker.reset(new eos::mgm::Devices());
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
-  mFsScheduler.reset(new eos::mgm::placement::FSScheduler());
+  mFsScheduler.reset(new eos::mgm::placement::FsScheduler());
 }
 
 //------------------------------------------------------------------------------

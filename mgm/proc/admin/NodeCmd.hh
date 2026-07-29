@@ -115,15 +115,6 @@ private:
   void SetSubcmd(const eos::console::NodeProto_SetProto& set,
                  eos::console::ReplyProto& reply);
 
-  //----------------------------------------------------------------------------
-  //! Execute proxygroup subcommand
-  //!
-  //! @param proxygroup proxygroup subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& proxygroup,
-                        eos::console::ReplyProto& reply);
-
 };
 
 EOSMGMNAMESPACE_END

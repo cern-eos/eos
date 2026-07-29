@@ -14,15 +14,25 @@
 namespace {
 std::string MakeSchedHelp()
 {
-  return "Usage: sched configure|ls [OPTIONS]\n\n"
+  return "Usage: sched configure|show|disable|ls [OPTIONS]\n\n"
          "  configure type <schedtype>\n"
          "    <schedtype>: roundrobin, weightedrr, tlrr, random, weightedrandom, geo\n"
          "  configure weight <space> <fsid> <weight>\n"
          "    configure weight for fsid in space\n"
-         "  configure show type [spacename]\n"
-         "    show configured scheduler\n"
          "  configure forcerefresh\n"
          "    force refresh scheduler internal state\n"
+         "  show type [spacename]\n"
+         "    show configured scheduler\n"
+         "  show state [spacename]\n"
+         "    show per-space state summary: strategy, fill thresholds, topology\n"
+         "    health (all spaces if no spacename is given)\n"
+         "  disable add <space> <geotag> [plct|access|all]\n"
+         "    exclude a geotag branch from placement, access or both\n"
+         "    (default all); survives an MGM restart\n"
+         "  disable rm <space> <geotag> [plct|access|all]\n"
+         "    re-enable a previously disabled branch\n"
+         "  disable ls [space]\n"
+         "    list the disabled branches (all spaces if no space is given)\n"
          "  ls <spacename> <bucket|disk|all>\n";
 }
 
@@ -41,6 +51,27 @@ void ConfigureSchedApp(CLI::App& app)
 struct SchedHelper : public ICmdHelper {
   SchedHelper(const GlobalOptions& opts) : ICmdHelper(opts) { mIsAdmin = true; }
   ~SchedHelper() override = default;
+  bool
+  ParseShow(eos::common::StringTokenizer& tokenizer,
+            eos::console::SchedProto_ConfigureProto* config)
+  {
+    auto* showp = config->mutable_show();
+    std::string token;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+    if (token == "type") {
+      showp->set_option(eos::console::SchedProto_ShowProto::TYPE);
+    } else if (token == "state") {
+      showp->set_option(eos::console::SchedProto_ShowProto::STATE);
+    } else {
+      return false;
+    }
+    if (tokenizer.NextToken(token)) {
+      showp->set_spacename(token);
+    }
+    return true;
+  }
   bool
   ParseCommand(const char* arg) override
   {
@@ -80,18 +111,56 @@ struct SchedHelper : public ICmdHelper {
         w->set_weight(weight);
         w->set_spacename(space);
       } else if (token == "show") {
-        auto* showp = config->mutable_show();
-        if (!tokenizer.NextToken(token))
+        if (!ParseShow(tokenizer, config)) {
           return false;
-        if (token == "type") {
-          showp->set_option(eos::console::SchedProto_ShowProto::TYPE);
-          if (tokenizer.NextToken(token))
-            showp->set_spacename(token);
         }
       } else if (token == "forcerefresh") {
         config->mutable_refresh();
       } else {
         return false;
+      }
+    } else if (token == "show") {
+      // top level alias for "configure show", the request is identical
+      if (!ParseShow(tokenizer, sched->mutable_config())) {
+        return false;
+      }
+    } else if (token == "disable" || token == "disabled") {
+      // "disabled" is what the geotree engine called it, accept both
+      auto* disabled = sched->mutable_disabled();
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+      if (token == "add") {
+        disabled->set_op(eos::console::SchedProto_DisabledProto::ADD);
+      } else if (token == "rm") {
+        disabled->set_op(eos::console::SchedProto_DisabledProto::RM);
+      } else if (token == "ls") {
+        disabled->set_op(eos::console::SchedProto_DisabledProto::LS);
+      } else {
+        return false;
+      }
+      if (disabled->op() == eos::console::SchedProto_DisabledProto::LS) {
+        if (tokenizer.NextToken(token)) {
+          disabled->set_spacename(token);
+        }
+      } else {
+        std::string space, geotag;
+        if (!(tokenizer.NextToken(space) && tokenizer.NextToken(geotag))) {
+          return false;
+        }
+        disabled->set_spacename(space);
+        disabled->set_geotag(geotag);
+        if (tokenizer.NextToken(token)) {
+          if (token == "plct") {
+            disabled->set_optype(eos::console::SchedProto_DisabledProto::PLCT);
+          } else if (token == "access") {
+            disabled->set_optype(eos::console::SchedProto_DisabledProto::ACCESS);
+          } else if (token == "all") {
+            disabled->set_optype(eos::console::SchedProto_DisabledProto::ALL);
+          } else {
+            return false;
+          }
+        }
       }
     } else if (token == "ls") {
       auto* ls = sched->mutable_ls();

@@ -23,12 +23,14 @@
 
 #include "mgm/placement/ThreadLocalRRSeed.hh"
 #include "gtest/gtest.h"
+#include <thread>
 
+using eos::mgm::placement::kDefaultMaxRRSeeds;
 using eos::mgm::placement::ThreadLocalRRSeed;
 
 TEST(ThreadLocalRRSeed, random)
 {
-  if (ThreadLocalRRSeed::getNumSeeds() < 10) {
+  if (ThreadLocalRRSeed::GetNumSeeds() < 10) {
     std::cout << "Not enough seeds, initializing with 10 seeds";
   } else {
     std::cout << "Already initialized!";
@@ -41,7 +43,32 @@ TEST(ThreadLocalRRSeed, random)
   }
   std::cout << "\n";
 
-  EXPECT_EQ(ThreadLocalRRSeed::get(0, 0), seeds[0]);
-  EXPECT_EQ(ThreadLocalRRSeed::get(0, 1), seeds[0]);
-  EXPECT_EQ(ThreadLocalRRSeed::get(0, 0), seeds[0] + 1);
+  EXPECT_EQ(ThreadLocalRRSeed::Get(0, 0), seeds[0]);
+  EXPECT_EQ(ThreadLocalRRSeed::Get(0, 1), seeds[0]);
+  EXPECT_EQ(ThreadLocalRRSeed::Get(0, 0), seeds[0] + 1);
+}
+
+// A thread other than the one that called Init() must also start with
+// randomized cursors, otherwise every scheduling thread begins at bucket 0
+// and the anti-thundering-herd randomization applies to one thread only.
+TEST(ThreadLocalRRSeed, WorkerThreadSeedsAreRandomized)
+{
+  ThreadLocalRRSeed::Init(kDefaultMaxRRSeeds, true);
+  size_t num_seeds = 0;
+  bool all_zero = true;
+  std::thread worker([&num_seeds, &all_zero]() {
+    num_seeds = ThreadLocalRRSeed::GetNumSeeds();
+
+    for (size_t i = 0; i < num_seeds; ++i) {
+      // Get(i, 0) reads the cursor without advancing it
+      if (ThreadLocalRRSeed::Get(i, 0) != 0) {
+        all_zero = false;
+        break;
+      }
+    }
+  });
+  worker.join();
+  EXPECT_EQ(num_seeds, kDefaultMaxRRSeeds);
+  // 1024 seeds drawn from [0, 1024] are all zero with probability ~0
+  EXPECT_FALSE(all_zero);
 }

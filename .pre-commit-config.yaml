@@ -32,7 +32,10 @@ repos:
         # We pipe 'git diff' to the python script.
         # -p1 strips the a/ b/ prefixes from the diff so the script finds the files.
         # -i applies the edits in-place.
-        entry: bash -c 'git diff -U0 --no-color --cached | python3 utils/clang-format-diff.py -p1 -i'
+        # ':(exclude)*.proto' drops .proto files from the diff: clang-format-diff.py
+        # matches them by default but clang-format hard-errors on Proto unless the
+        # .clang-format config declares a Proto style, which it does not.
+        entry: bash -c 'git diff -U0 --no-color --cached -- . ":(exclude)*.proto" | python3 utils/clang-format-diff.py -p1 -i'
         language: system
         types_or: [ c, c++ ]
         pass_filenames: false

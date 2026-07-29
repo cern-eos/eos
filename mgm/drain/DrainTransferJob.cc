@@ -22,17 +22,17 @@
  ************************************************************************/
 
 #include "mgm/drain/DrainTransferJob.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/proc/proc_fs.hh"
-#include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
+#include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/proc_fs.hh"
+#include "mgm/scheduler/Scheduler.hh"
+#include "mgm/stat/Stat.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/Prefetcher.hh"
 
 namespace
 {
@@ -579,9 +579,6 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 bool
 DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
 {
-  unsigned int nfilesystems = 1;
-  unsigned int ncollocatedfs = 0;
-  std::vector<FileSystem::fsid_t> new_repl;
   eos::common::FileSystem::fs_snapshot_t source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::FileSystem* source_fs = FsView::gFsView.mIdView.lookupByID(
@@ -600,9 +597,15 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   }
 
   source_fs->SnapShotFileSystem(source_snapshot);
-  FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
+  // Note: a plain mGroupView[...] would insert a null entry for an unknown
+  // group, and it would do it while only holding the view read lock
+  FsGroup* group = nullptr;
+
+  if (auto it = FsView::gFsView.mGroupView.find(source_snapshot.mGroup);
+      it != FsView::gFsView.mGroupView.end()) {
+    group = it->second;
+  }
   // Check other replicas for the file
-  std::vector<std::string> fsid_geotags;
   std::vector<FileSystem::fsid_t> existing_repl;
 
   for (auto elem : fdrain.mProto.locations()) {
@@ -612,47 +615,28 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     }
   }
 
-  if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0,
-      0)) {
-    eos_err("msg=\"failed to retrieve info for existing replicas\" fxid=%08llx",
-            mFileId.load());
+  if (group == nullptr) {
+    eos_err("msg=\"unknown scheduling group\" fxid=%08llx group=\"%s\"", mFileId.load(),
+            source_snapshot.mGroup.c_str());
     return false;
   }
 
-  bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-               group, nfilesystems,
-               &new_repl,
-               (ino64_t) fdrain.mProto.id(),
-               NULL, // entrypoints
-               NULL, // firewall
-               // This methods is only called for drain functionality, for
-               // balance we already provide the destination file system
-               GeoTreeEngine::draining,
-               &existing_repl,
-               &fsid_geotags,
-               fdrain.mProto.size(),
-               "",// start from geotag
-               "",// client geo tag
-               ncollocatedfs,
-               &mExcludeDsts,
-               &fsid_geotags); // excludeGeoTags
+  // Route the destination selection through the scheduler facade, which picks
+  // the flat scheduler or the geotree engine depending on how the space is
+  // configured - the drain job itself no longer names an engine
+  eos::common::FileSystem::fsid_t target =
+      Scheduler::PlaceDrainReplica(source_snapshot.mSpace, group, fdrain.mProto.id(),
+                                   fdrain.mProto.size(), existing_repl, mExcludeDsts);
 
-  if (!res || new_repl.empty())  {
+  if (target == 0) {
     eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId.load());
     return false;
   }
 
-  std::ostringstream oss;
-
-  for (auto elem : new_repl) {
-    oss << " " << (unsigned long)(elem);
-  }
-
-  // Return only one fs now
-  mFsIdTarget = new_repl[0];
+  mFsIdTarget = target;
   mExcludeDsts.push_back(mFsIdTarget);
-  eos_static_debug("msg=\"schedule placement retc=%d with fsids=%s\" ",
-                   (int)res, oss.str().c_str());
+  eos_static_debug("msg=\"scheduled drain destination fsid=%u\" fxid=%08llx",
+                   mFsIdTarget.load(), mFileId.load());
   return true;
 }
 

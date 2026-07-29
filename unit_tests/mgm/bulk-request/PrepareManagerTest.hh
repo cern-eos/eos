@@ -78,12 +78,20 @@ class ErrorWrapper
 public:
   ErrorWrapper(const std::string user, const int code, const std::string& message)
   {
-    eos::auth::XrdOucErrInfoProto errorProto;
-    errorProto.set_user(user);
-    errorProto.set_code(code);
-    errorProto.set_message(message);
-    mError = eos::auth::utils::GetXrdOucErrInfo(errorProto);
+    mErrorProto.set_user(user);
+    mErrorProto.set_code(code);
+    mErrorProto.set_message(message);
+    mError = eos::auth::utils::GetXrdOucErrInfo(mErrorProto);
   }
+
+  // XrdOucErrInfo stores the user string as a bare pointer into "stable
+  // storage" (only the message is copied), so the source proto must outlive
+  // mError. Keep it as a member and forbid copy/move so the aliased pointer
+  // never dangles.
+  ErrorWrapper(const ErrorWrapper&) = delete;
+  ErrorWrapper& operator=(const ErrorWrapper&) = delete;
+  ErrorWrapper(ErrorWrapper&&) = delete;
+  ErrorWrapper& operator=(ErrorWrapper&&) = delete;
 
   XrdOucErrInfo* getError()
   {
@@ -98,6 +106,7 @@ public:
     }
   }
 private:
+  eos::auth::XrdOucErrInfoProto mErrorProto;
   XrdOucErrInfo* mError;
 };
 
