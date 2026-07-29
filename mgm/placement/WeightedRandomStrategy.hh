@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-//! @file: WeightedPlacementStrategy.hh
-//! @author: Abhishek Lekshmanan - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file WeightedRandomStrategy.hh
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2023 CERN/Switzerland                           *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,23 +22,41 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/placement/PlacementStrategy.hh"
+#include "mgm/placement/SelectionStrategy.hh"
+
 namespace eos::mgm::placement {
 
-/**
- * A placement strategy that places files on nodes based on a weighted
- * random distribution. The weights are currently based on the disk sizes
- */
-class WeightedRandomPlacement : public PlacementStrategy {
+//------------------------------------------------------------------------------
+//! Class WeightedRandomStrategy - places files by weighted rendezvous hashing
+//! (Efraimidis-Spirakis): every candidate is scored once from a hash of
+//! (fid, item, salt) and its weight, which currently reflects the disk
+//! capacity, and the lowest scores win. The access path uses weighted
+//! rendezvous (HRW) hashing as well, so that a given file consistently
+//! prefers the same replica.
+//------------------------------------------------------------------------------
+class WeightedRandomStrategy : public SelectionStrategy {
 public:
-  WeightedRandomPlacement(PlacementStrategyT strategy, size_t max_buckets);
-  virtual PlacementResult placeFiles(const ClusterData& data,
-                                     Args args) override;
-  virtual int access(const ClusterData& data, AccessArguments& args) override;
-  ~WeightedRandomPlacement();
-private:
-  struct Impl;
-  std::unique_ptr<Impl> mImpl;
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param strategy placement strategy type
+  //! @param max_buckets maximum number of buckets in the hierarchy
+  //!
+  //! @note both are unused, the strategy holds no state; the signature is kept
+  //!       uniform across strategies for MakeSelectionStrategy()
+  //----------------------------------------------------------------------------
+  WeightedRandomStrategy(PlacementStrategyT strategy, size_t max_buckets) {}
+
+  //----------------------------------------------------------------------------
+  //! Select the disks holding the replicas of a new file
+  //!
+  //! @param data topology snapshot to place on
+  //! @param args placement arguments
+  //!
+  //! @return placement result, convertible to false if placement failed
+  //----------------------------------------------------------------------------
+  virtual PlacementResult Placement(const ClusterData& data,
+                                    const PlacementArgs& args) const override;
 };
 
 } // namespace eos::mgm::placement

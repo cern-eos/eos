@@ -33,12 +33,6 @@
 #include <grpc++/security/credentials.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::ServerWriter;
-using grpc::Status;
-using eos::rest::gateway::service::EosRestGatewayService;
 using eos::console::AccessProto;
 using eos::console::AclProto;
 using eos::console::ArchiveProto;
@@ -47,23 +41,22 @@ using eos::console::BackupProto;
 using eos::console::ChmodProto;
 using eos::console::ChownProto;
 using eos::console::ConfigProto;
-using eos::console::ConfigProto;
 using eos::console::ConvertProto;
 using eos::console::CpProto;
 using eos::console::DebugProto;
 using eos::console::EvictProto;
-using eos::console::FileProto;
 using eos::console::FileinfoProto;
+using eos::console::FileProto;
 using eos::console::FindProto;
-using eos::console::FsProto;
 using eos::console::FsckProto;
+using eos::console::FsProto;
 using eos::console::GeoschedProto;
 using eos::console::GroupProto;
 using eos::console::HealthProto;
-using eos::console::MapProto;
-using eos::console::MemberProto;
 using eos::console::IoProto;
 using eos::console::LsProto;
+using eos::console::MapProto;
+using eos::console::MemberProto;
 using eos::console::MkdirProto;
 using eos::console::MoveProto;
 using eos::console::NodeProto;
@@ -71,9 +64,10 @@ using eos::console::NsProto;
 using eos::console::QuotaProto;
 using eos::console::RecycleProto;
 using eos::console::ReplyProto;
-using eos::console::RmProto;
 using eos::console::RmdirProto;
+using eos::console::RmProto;
 using eos::console::RouteProto;
+using eos::console::SchedProto;
 using eos::console::SpaceProto;
 using eos::console::StatProto;
 using eos::console::StatusProto;
@@ -81,8 +75,14 @@ using eos::console::TokenProto;
 using eos::console::TouchProto;
 using eos::console::VersionProto;
 using eos::console::VidProto;
-using eos::console::WhoProto;
 using eos::console::WhoamiProto;
+using eos::console::WhoProto;
+using eos::rest::gateway::service::EosRestGatewayService;
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
+using grpc::ServerWriter;
+using grpc::Status;
 
 #endif // EOS_GRPC_GATEWAY
 
@@ -512,6 +512,16 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RouteCall(vid, request, reply);
+  }
+
+  Status
+  SchedRequest(ServerContext* context, const SchedProto* request,
+               ReplyProto* reply) override
+  {
+    eos::common::VirtualIdentity vid;
+    GrpcRestGwServer::Vid(context, vid);
+    GrpcRestGwInterface restGwInterface;
+    return restGwInterface.SchedCall(vid, request, reply);
   }
 
   Status SpaceRequest(ServerContext* context, const SpaceProto* request,

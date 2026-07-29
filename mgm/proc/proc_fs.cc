@@ -417,12 +417,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == eos::common::SCAN_ALTXS_INTERVAL_NAME) ||
             (key == eos::common::ALTXS_SYNC) ||
             (key == eos::common::ALTXS_SYNC_INTERVAL) ||
-            (key == "max.ropen" || (key == "max.wopen")) ||
-            (key == "headroom") || (key == "graceperiod") ||
-            (key == "drainperiod") || (key == "proxygroup") ||
-            (key == "filestickyproxydepth") || (key == "forcegeotag") ||
-            (key == "sharedfs") ||
-            (key == "s3credentials")))) {
+            (key == "max.ropen" || (key == "max.wopen")) || (key == "headroom") ||
+            (key == "graceperiod") || (key == "drainperiod") || (key == "forcegeotag") ||
+            (key == "sharedfs") || (key == "s3credentials")))) {
         // Check permissions
         size_t dpos = 0;
         std::string nodename = fs->GetString("host");

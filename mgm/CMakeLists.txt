@@ -357,11 +357,12 @@ add_library(
   bulk-request/prepare/query-prepare/QueryPrepareResult.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc
-  placement/ClusterMap.cc
+  placement/ClusterBuilder.cc
+  placement/ClusterDataFormatter.cc
+  placement/ClusterMgr.cc
   placement/FsScheduler.cc
   placement/FlatScheduler.cc
-  placement/PlacementStrategy.cc
-  placement/RoundRobinPlacementStrategy.cc
+  placement/RoundRobinStrategy.cc
   placement/WeightedRoundRobinStrategy.cc
   placement/WeightedRandomStrategy.cc
   placement/ThreadLocalRRSeed.cc

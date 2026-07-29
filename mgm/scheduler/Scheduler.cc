@@ -29,67 +29,148 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-
-XrdSysMutex Scheduler::pMapMutex;
+std::mutex Scheduler::sMapMutex;
 std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
 
 //------------------------------------------------------------------------------
-// Constructor
+// Get the number of replicas that should stay in the client's geolocation
 //------------------------------------------------------------------------------
-Scheduler::Scheduler() { }
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-Scheduler::~Scheduler() { }
-
-//------------------------------------------------------------------------------
-// Write placement routine - the caller routine has to lock via =>
-// eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
-//------------------------------------------------------------------------------
-uint8_t Scheduler::getRequiredReplicas(unsigned long lid)
+unsigned int
+Scheduler::GetCollocatedReplicas(tPlctPolicy plctpolicy, unsigned long lid,
+                                 bool has_geolocation)
 {
-  uint64_t n_replicas = eos::common::LayoutId::GetStripeNumber(lid) + 1;
-  return static_cast<uint8_t>(n_replicas);
-}
+  const unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1;
 
+  switch (plctpolicy) {
+  case kScattered:
+    // one replica next to the client, the rest as far away as possible
+    return has_geolocation ? 1 : 0;
 
-int Scheduler::FlatSchedulerFilePlacement(PlacementArguments *args)
-{
-  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(*args->spacename);
-  if (args->sched_strategy_cstr != nullptr) {
-    strategy = placement::strategy_from_str(args->sched_strategy_cstr);
-  }
-  if (strategy == placement::PlacementStrategyT::kGeoScheduler) {
-    return EINVAL;
-  }
+  case kHybrid:
+    switch (eos::common::LayoutId::GetLayoutType(lid)) {
+    case eos::common::LayoutId::kPlain:
+      return 1;
 
-  uint8_t n_replicas = getRequiredReplicas(args->lid);
-  placement::PlacementArguments plct_args{n_replicas, placement::ConfigStatus::kRW, strategy};
+    case eos::common::LayoutId::kReplica:
+      return nfilesystems - 1;
 
-  plct_args.excludefs.assign(args->exclude_filesystems->begin(),
-                             args->exclude_filesystems->end());
-  plct_args.forced_group_index = args->forced_scheduling_group_index;
+    default:
+      return nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(lid);
+    }
 
-  auto ret = gOFS->mFsScheduler->schedule(*args->spacename, plct_args);
-  if (!ret) {
-    eos_static_err("unable to place files with FlatScheduler err=%s",
-                   ret.error_string().c_str());
-    return ENOSPC;
+  // we only do geolocations for replica layouts
+  case kGathered:
+    return nfilesystems;
   }
 
-  args->selected_filesystems->assign(ret.ids.begin(), ret.ids.begin()+n_replicas);
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Map the MGM placement policy onto the flat scheduler one
+//------------------------------------------------------------------------------
+static placement::PlacementPolicyT
+toPlacementPolicy(Scheduler::tPlctPolicy policy)
+{
+  switch (policy) {
+  case Scheduler::kGathered:
+    return placement::PlacementPolicyT::kGathered;
+
+  case Scheduler::kHybrid:
+    return placement::PlacementPolicyT::kHybrid;
+
+  case Scheduler::kScattered:
+    [[fallthrough]];
+  default:
+    return placement::PlacementPolicyT::kScattered;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Schedule file placement using the flat scheduler of the MGM
+//------------------------------------------------------------------------------
+int
+Scheduler::FlatSchedulerPlacement(PlacementArguments* args)
+{
+  return FlatSchedulerPlacement(args, *gOFS->mFsScheduler);
+}
+
+//------------------------------------------------------------------------------
+// Schedule file placement using the given flat scheduler
+//------------------------------------------------------------------------------
+int
+Scheduler::FlatSchedulerPlacement(PlacementArguments* args,
+                                  placement::FsScheduler& fs_sched)
+{
+  auto strategy = fs_sched.GetPlacementStrategy(*args->spacename);
+
+  if (args->sched_strategy_cstr != nullptr) {
+    strategy = placement::StrategyFromStr(args->sched_strategy_cstr);
+  }
+  // The one way left to ask for the legacy engine, kept as an escape hatch
+  // while the flat scheduler soaks
+  if (strategy == placement::PlacementStrategyT::kGeoTreeLegacy) {
+    return EINVAL;
+  }
+
+  uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(args->lid) + 1;
+  placement::PlacementArgs plct_args{n_replicas, placement::ConfigStatus::kRW, strategy};
+
+  plct_args.excludefs.assign(args->exclude_filesystems->begin(),
+                             args->exclude_filesystems->end());
+
+  // The file systems already holding a replica are just as ineligible as the
+  // explicitly excluded ones - placing a second replica of a file on a disk
+  // that already has one silently costs the redundancy the layout asked for
+  if (args->alreadyused_filesystems) {
+    plct_args.excludefs.insert(plct_args.excludefs.end(),
+                               args->alreadyused_filesystems->begin(),
+                               args->alreadyused_filesystems->end());
+  }
+
+  plct_args.forced_group_index = args->forced_scheduling_group_index;
+  plct_args.fid = args->inode;
+  plct_args.bookingsize = args->bookingsize;
+  plct_args.plctpolicy = toPlacementPolicy(args->plctpolicy);
+  // A forced target geotag replaces the client's geolocation as the anchor the
+  // collocated replicas gather around, which is what the geotree engine does
+  // with its startFromGeoTag argument
+  const bool has_target_geotag =
+      (args->plctTrgGeotag != nullptr) && !args->plctTrgGeotag->empty();
+  plct_args.geolocation =
+      has_target_geotag ? *args->plctTrgGeotag : args->vid->geolocation;
+  plct_args.ncollocatedfs = static_cast<uint8_t>(
+      GetCollocatedReplicas(args->plctpolicy, args->lid, !plct_args.geolocation.empty()));
+
+  auto ret = fs_sched.Schedule(*args->spacename, plct_args);
+  if (!ret) {
+    eos_static_err("unable to place files with FlatScheduler err=%s",
+                   ret.ErrorString().c_str());
+    return ENOSPC;
+  }
+
+  args->selected_filesystems->assign(ret.ids.begin(), ret.ids.begin() + n_replicas);
+  return 0;
+}
 
 int
-Scheduler::FilePlacement(PlacementArguments* args)
+Scheduler::Placement(PlacementArguments* args)
 {
-  if (!FlatSchedulerFilePlacement(args)) {
+  // The one place that decides which engine schedules a placement: the flat
+  // scheduler first, the legacy geotree engine as the fallback.
+  if (!FlatSchedulerPlacement(args)) {
     return 0;
   }
 
+  return GeoTreePlacement(args);
+}
+
+//------------------------------------------------------------------------------
+// Schedule file placement using the legacy geotree engine
+//------------------------------------------------------------------------------
+int
+Scheduler::GeoTreePlacement(PlacementArguments* args)
+{
   eos_static_debug("requesting file placement from geolocation %s",
                    args->vid->geolocation.c_str());
   // The caller routine has to lock via =>
@@ -100,41 +181,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
   // fill the avoid list from the selected_filesystems input vector
   unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
                                 args->lid) + 1;
-  unsigned int ncollocatedfs = 0;
-
-  switch (args->plctpolicy) {
-  case kScattered:
-    if (!(args->vid->geolocation.empty())) {
-      ncollocatedfs = 1;
-    } else {
-      ncollocatedfs = 0;
-    }
-
-    break;
-
-  case kHybrid:
-    switch (eos::common::LayoutId::GetLayoutType(args->lid)) {
-    case eos::common::LayoutId::kPlain:
-      ncollocatedfs = 1;
-      break;
-
-    case eos::common::LayoutId::kReplica:
-      ncollocatedfs = nfilesystems - 1;
-      break;
-
-    default:
-      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
-                        args->lid);
-      break;
-    }
-
-    break;
-
-  // we only do geolocations for replica layouts
-  case kGathered:
-    ncollocatedfs = nfilesystems;
-  }
-
+  unsigned int ncollocatedfs =
+      GetCollocatedReplicas(args->plctpolicy, args->lid, !args->vid->geolocation.empty());
   eos_static_debug("checking placement policy : policy is %d, nfilesystems is"
                    " %d and ncollocated is %d", (int)args->plctpolicy, (int)nfilesystems,
                    (int)ncollocatedfs);
@@ -191,7 +239,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
     eos_static_debug("forced scheduling group index %d",
                      args->forced_scheduling_group_index);
   } else {
-    XrdSysMutexHelper scope_lock(pMapMutex);
+    std::lock_guard lock(sMapMutex);
 
     if (schedulingGroup.count(indextag)) {
       git = FsView::gFsView.mSpaceGroupView[*args->spacename].find(
@@ -227,21 +275,12 @@ Scheduler::FilePlacement(PlacementArguments* args)
                      group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(),
                      groupsToTry.size());
     bool placeRes = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-                      group, nfilesystems,
-                      args->selected_filesystems,
-                      args->inode,
-                      args->dataproxys,
-                      args->firewallentpts,
-                      GeoTreeEngine::regularRW,
-                      // file systems to avoid are assumed to already host a replica
-                      args->alreadyused_filesystems,
-                      &fsidsgeotags,
-                      args->bookingsize,
-                      args->plctTrgGeotag ? *args->plctTrgGeotag : "",
-                      args->vid->geolocation,
-                      ncollocatedfs,
-                      args->exclude_filesystems,
-                      NULL);
+        group, nfilesystems, args->selected_filesystems, args->inode, nullptr, nullptr,
+        GeoTreeEngine::regularRW,
+        // file systems to avoid are assumed to already host a replica
+        args->alreadyused_filesystems, &fsidsgeotags, args->bookingsize,
+        args->plctTrgGeotag ? *args->plctTrgGeotag : "", args->vid->geolocation,
+        ncollocatedfs, args->exclude_filesystems, NULL);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
@@ -280,9 +319,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
       }
 
       // remember the last group for that indextag
-      pMapMutex.Lock();
+      std::lock_guard lock(sMapMutex);
       schedulingGroup[indextag] = *git;
-      pMapMutex.UnLock();
     }
 
     if (placeRes) {
@@ -307,34 +345,53 @@ static GeoTreeEngine::SchedType toGeoTreeSchedtype(Scheduler::tSchedType in_type
   return out_type;
 }
 
-int Scheduler::FlatSchedulerFileAccess(AccessArguments *args) {
-  std::string spaceName(args->forcedspace);
-  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(spaceName);
-  if (strategy == placement::PlacementStrategyT::kGeoScheduler) {
-    return EINVAL;
+//------------------------------------------------------------------------------
+// Add the locations the client already tried to the unavailable list, so that
+// a retry is not handed straight back to the host that just failed it. This
+// matters for RAID layouts in particular, where the driver has to be told which
+// stripes are online.
+//
+// @note the caller has to hold a read lock on FsView::gFsView.ViewMutex
+//------------------------------------------------------------------------------
+static void
+MarkTriedLocationsUnavailable(Scheduler::AccessArguments* args)
+{
+  if (!args->tried_cgi || args->tried_cgi->empty() || !args->unavailfs) {
+    return;
   }
 
-  placement::AccessArguments access_args{*args->fsindex,  args->inode,
-                                         strategy,        args->vid->geolocation,
-                                         args->unavailfs, *args->locationsfs};
+  for (const auto fsid : *args->locationsfs) {
+    auto fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  return gOFS->mFsScheduler->access(spaceName, access_args);
+    if (!fs) {
+      continue;
+    }
+
+    // tried_cgi is a comma terminated list of host names, so match on the
+    // separator rather than on a prefix
+    const std::string host = fs->GetHost();
+
+    if (!host.empty() && (args->tried_cgi->find(host + ",") != std::string::npos)) {
+      args->unavailfs->push_back(fsid);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
 // File access method
 //------------------------------------------------------------------------------
-int Scheduler::FileAccess(AccessArguments* args)
+int
+Scheduler::Access(AccessArguments* args)
 {
-  size_t nReqStripes = (args->isRW ?
-                        eos::common::LayoutId::GetOnlineStripeNumber(args->lid) :
-                        eos::common::LayoutId::GetMinOnlineReplica(args->lid));
+  size_t req_stripes =
+      (args->isRW ? eos::common::LayoutId::GetOnlineStripeNumber(args->lid)
+                  : eos::common::LayoutId::GetMinOnlineReplica(args->lid));
   // pre-checks before deciding the scheduler
 
-  if (nReqStripes > args->locationsfs->size()) {
+  if (req_stripes > args->locationsfs->size()) {
     eos_static_debug("not enough filesystems available for access: "
-                     "required=%zu, available=%zu", nReqStripes,
-                     args->locationsfs->size());
+                     "required=%zu, available=%zu",
+                     req_stripes, args->locationsfs->size());
     return EROFS;
   }
 
@@ -348,82 +405,219 @@ int Scheduler::FileAccess(AccessArguments* args)
   }
 
   int rc = 0;
+  // Both engines need this, so it happens before either of them is asked
+  MarkTriedLocationsUnavailable(args);
 
-  if (!FlatSchedulerFileAccess(args)) {
+  if (!FlatSchedulerAccess(args)) {
     eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
                      *args->fsindex);
   } else {
     eos_static_info("%s", "msg=\"Failed access via FlatScheduler, falling back to geotree\"");
-    eos_static_debug("requesting file access from geolocation %s",
-                     args->vid->geolocation.c_str());
-    GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
-
-    // make sure we have the matching geo location before the not matching one
-    if (!args->tried_cgi->empty()) {
-      std::vector<std::string> hosts;
-
-      if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->locationsfs, 0, &hosts, 0)) {
-        eos_static_debug("could not retrieve host for all the avoided fsids");
-      }
-
-      size_t idx = 0;
-
-      // we store unavailable filesystems in the unavail vector
-      for (auto it = hosts.begin(); it != hosts.end(); it++) {
-        if ((!it->empty()) && args->tried_cgi->find((*it) + ",") != std::string::npos) {
-          // - this matters for RAID layouts because we have to remove there URLs
-          // to let the RAID driver use only online stripes
-          args->unavailfs->push_back((*args->locationsfs)[idx]);
-        }
-
-        idx++;
-      }
-    }
-
-    rc = gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(
-        nReqStripes, *args->fsindex, *args->locationsfs, args->inode, args->dataproxys,
-        args->firewallentpts, st, args->vid->geolocation, args->forcedfsid,
-        args->unavailfs);
+    rc = GeoTreeAccess(args);
   }
 
-  // Honour the exclusion list: if the chosen file system is excluded, try to
-  // find another suitable location that is neither excluded nor unavailable.
-  // If no such location exists then the access request can not be satisfied.
-  if (rc == 0 && args->exclude_filesystems && !args->exclude_filesystems->empty() &&
-      *args->fsindex < args->locationsfs->size()) {
-    auto chosen = (*args->locationsfs)[*args->fsindex];
-    bool is_excluded =
-        std::find(args->exclude_filesystems->begin(), args->exclude_filesystems->end(),
-                  chosen) != args->exclude_filesystems->end();
-    if (is_excluded) {
-      bool found = false;
-
-      for (size_t i = 0; i < args->locationsfs->size(); ++i) {
-        auto fsid = (*args->locationsfs)[i];
-        bool excluded = std::find(args->exclude_filesystems->begin(),
-                                  args->exclude_filesystems->end(),
-                                  fsid) != args->exclude_filesystems->end();
-        bool unavail =
-            args->unavailfs && std::find(args->unavailfs->begin(), args->unavailfs->end(),
-                                         fsid) != args->unavailfs->end();
-        if (!excluded && !unavail) {
-          *args->fsindex = i;
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        eos_static_err("%s", "msg=\"no accessible file system location left after "
-                             "applying the eos.excludefsid exclusion list\"");
-        rc = ENODATA;
-      }
-    }
+  if (rc == 0) {
+    rc = ApplyAccessExclusionFilter(args);
   }
 
   return rc;
 }
 
+//------------------------------------------------------------------------------
+// Schedule file access using the legacy geotree engine
+//------------------------------------------------------------------------------
+int
+Scheduler::GeoTreeAccess(AccessArguments* args)
+{
+  eos_static_debug("requesting file access from geolocation %s",
+                   args->vid->geolocation.c_str());
+  const size_t req_stripes =
+      (args->isRW ? eos::common::LayoutId::GetOnlineStripeNumber(args->lid)
+                  : eos::common::LayoutId::GetMinOnlineReplica(args->lid));
+  GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
+  return gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(
+      req_stripes, *args->fsindex, *args->locationsfs, args->inode, nullptr, nullptr, st,
+      args->vid->geolocation, args->forcedfsid, args->unavailfs);
+}
+
+//------------------------------------------------------------------------------
+// Honour the eos.excludefsid exclusion list on an already selected location
+//------------------------------------------------------------------------------
+int
+Scheduler::ApplyAccessExclusionFilter(AccessArguments* args)
+{
+  // If the chosen file system is excluded, try to find another suitable
+  // location that is neither excluded nor unavailable. If no such location
+  // exists then the access request can not be satisfied.
+  if (!args->exclude_filesystems || args->exclude_filesystems->empty() ||
+      (*args->fsindex >= args->locationsfs->size())) {
+    return 0;
+  }
+
+  auto chosen = (*args->locationsfs)[*args->fsindex];
+  bool is_excluded =
+      std::find(args->exclude_filesystems->begin(), args->exclude_filesystems->end(),
+                chosen) != args->exclude_filesystems->end();
+
+  if (!is_excluded) {
+    return 0;
+  }
+
+  for (size_t i = 0; i < args->locationsfs->size(); ++i) {
+    auto fsid = (*args->locationsfs)[i];
+    bool excluded =
+        std::find(args->exclude_filesystems->begin(), args->exclude_filesystems->end(),
+                  fsid) != args->exclude_filesystems->end();
+    bool unavail = args->unavailfs &&
+                   std::find(args->unavailfs->begin(), args->unavailfs->end(), fsid) !=
+                       args->unavailfs->end();
+
+    if (!excluded && !unavail) {
+      *args->fsindex = i;
+      return 0;
+    }
+  }
+
+  eos_static_err("%s", "msg=\"no accessible file system location left after "
+                       "applying the eos.excludefsid exclusion list\"");
+  return ENODATA;
+}
+
+//------------------------------------------------------------------------------
+// Schedule file access using the flat scheduler of the MGM
+//------------------------------------------------------------------------------
+int
+Scheduler::FlatSchedulerAccess(AccessArguments* args)
+{
+  return FlatSchedulerAccess(args, *gOFS->mFsScheduler);
+}
+
+//------------------------------------------------------------------------------
+// Schedule file access using the given flat scheduler
+//------------------------------------------------------------------------------
+int
+Scheduler::FlatSchedulerAccess(AccessArguments* args, placement::FsScheduler& fs_sched)
+{
+  // A request without a forced space falls back to the global default strategy
+  const std::string spaceName(args->forcedspace ? args->forcedspace : "");
+  auto strategy = fs_sched.GetPlacementStrategy(spaceName);
+
+  if (strategy == placement::PlacementStrategyT::kGeoTreeLegacy) {
+    return EINVAL;
+  }
+
+  placement::AccessArgs access_args{
+      *args->fsindex,           args->inode,     strategy,
+      args->vid->geolocation,   args->unavailfs, *args->locationsfs,
+      args->exclude_filesystems};
+  access_args.forcedfsid = args->forcedfsid;
+  // A read is content with a read-only replica, a write or an update is not
+  access_args.status =
+      args->isRW ? placement::ConfigStatus::kRW : placement::ConfigStatus::kRO;
+  // The layout decides how many stripes have to be reachable: one for a plain
+  // or replica read, the reconstruction minimum for a RAIN layout
+  size_t req_stripes =
+      (args->isRW ? eos::common::LayoutId::GetOnlineStripeNumber(args->lid)
+                  : eos::common::LayoutId::GetMinOnlineReplica(args->lid));
+  access_args.n_replicas = static_cast<uint8_t>(req_stripes);
+  return fs_sched.Access(spaceName, access_args);
+}
+
+//------------------------------------------------------------------------------
+// Get the writable placement capacity of a space in bytes, from whichever
+// engine actually schedules it
+//------------------------------------------------------------------------------
+uint64_t
+Scheduler::GetPlacementCapacity(const std::string& spacename)
+{
+  if (auto capacity = gOFS->mFsScheduler->GetPlacementCapacity(spacename)) {
+    return *capacity;
+  }
+
+  const std::string nogroup;
+  return gOFS->mGeoTreeEngine->placementSpace(spacename, nogroup);
+}
+
+//------------------------------------------------------------------------------
+// Select a drain destination file system for a single replica
+//------------------------------------------------------------------------------
+eos::common::FileSystem::fsid_t
+Scheduler::PlaceDrainReplica(
+    const std::string& spacename, FsGroup* group, unsigned long long fid,
+    unsigned long long bookingsize,
+    const std::vector<eos::common::FileSystem::fsid_t>& existing_repl,
+    const std::vector<eos::common::FileSystem::fsid_t>& exclude_dsts)
+{
+  if (group == nullptr) {
+    return 0;
+  }
+
+  // Flat scheduler first - a drain replica is just a normal kRW placement of a
+  // single stripe pinned to its source group
+  auto strategy = gOFS->mFsScheduler->GetPlacementStrategy(spacename);
+
+  if (strategy != placement::PlacementStrategyT::kGeoTreeLegacy) {
+    placement::PlacementArgs args(1, placement::ConfigStatus::kRW, strategy);
+    args.fid = fid;
+    args.bookingsize = bookingsize;
+    args.forced_group_index = group->GetIndex();
+    // Avoid both the file systems already holding the file and the ones this
+    // job has already tried
+    args.excludefs.assign(existing_repl.begin(), existing_repl.end());
+    args.excludefs.insert(args.excludefs.end(), exclude_dsts.begin(), exclude_dsts.end());
+    auto result = gOFS->mFsScheduler->Schedule(spacename, args);
+
+    if (result && (result.n_filled >= 1)) {
+      eos_static_debug("msg=\"flat scheduler selected drain destination\" "
+                       "fxid=%08llx fsid=%u",
+                       fid, result.ids[0]);
+      return result.ids[0];
+    }
+
+    eos_static_warning("msg=\"flat scheduler could not place a drain replica, "
+                       "falling back to the geotree engine\" fxid=%08llx "
+                       "err=\"%s\"",
+                       fid, result.ErrorString().c_str());
+  }
+
+  // Geotree engine (draining policy) fallback - kept behaviour-identical to the
+  // legacy path so it remains a viable backup
+  std::vector<std::string> fsid_geotags;
+  std::vector<eos::common::FileSystem::fsid_t> new_repl;
+  std::vector<eos::common::FileSystem::fsid_t> avoid(existing_repl.begin(),
+                                                     existing_repl.end());
+  std::vector<eos::common::FileSystem::fsid_t> excludes(exclude_dsts.begin(),
+                                                        exclude_dsts.end());
+
+  if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(avoid, &fsid_geotags, 0, 0)) {
+    eos_static_err("msg=\"failed to retrieve info for existing replicas\" "
+                   "fxid=%08llx",
+                   fid);
+    return 0;
+  }
+
+  bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
+      group, 1, &new_repl, (ino64_t)fid,
+      NULL, // entrypoints
+      NULL, // firewall
+      GeoTreeEngine::draining, &avoid, &fsid_geotags, bookingsize,
+      "", // start from geotag
+      "", // client geo tag
+      0,  // ncollocatedfs
+      &excludes,
+      &fsid_geotags); // excludeGeoTags
+
+  if (!res || new_repl.empty()) {
+    eos_static_err("msg=\"could not place new drain replica\" fxid=%08llx", fid);
+    return 0;
+  }
+
+  return new_repl[0];
+}
+
+//------------------------------------------------------------------------------
+// Reshuffle the selected file system ids
+//------------------------------------------------------------------------------
 void Scheduler::ReshuffleFs(std::vector<unsigned int> &selectedfs)
 {
   if (selectedfs.size() > 0) {

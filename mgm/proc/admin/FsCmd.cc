@@ -122,7 +122,7 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   XrdOucString out, err;
   mRetc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue,
                       mountpoint, space, configstatus, sharedfs, out, err, mVid);
-  gOFS->mFsScheduler->updateClusterData();
+  gOFS->mFsScheduler->UpdateClusterData();
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return mRetc;
@@ -445,7 +445,7 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
                        gOFS->mMessagingRealm.get());
     // do a blanket refresh of internal state
     // TODO fine grain to group/disk status here
-    gOFS->mFsScheduler->updateClusterData();
+    gOFS->mFsScheduler->UpdateClusterData();
     mOut = out.c_str() != nullptr ? out.c_str() : "";
     mErr = err.c_str() != nullptr ? err.c_str() : "";
   } else {
@@ -488,7 +488,7 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
     eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
     mRetc = proc_fs_rm(nodequeue, mountpoint, id, out, err, mVid);
   }
-  gOFS->mFsScheduler->updateClusterData();
+  gOFS->mFsScheduler->UpdateClusterData();
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return mRetc;

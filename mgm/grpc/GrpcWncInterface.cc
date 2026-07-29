@@ -29,6 +29,7 @@
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FileCmd.hh"
@@ -190,6 +191,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kRoute:
     return Route();
+    break;
+
+  case eos::console::RequestProto::kSched:
+    return Sched();
     break;
 
   case eos::console::RequestProto::kSpace:
@@ -1456,7 +1461,6 @@ grpc::Status GrpcWncInterface::Geosched()
       XrdOucString output = "";
       std::string geotag = mRequest->geosched().access().geotag();
       std::string geotag_list = mRequest->geosched().access().geotag_list();
-      std::string proxy_group = mRequest->geosched().access().proxy_group();
       bool monitoring = mRequest->geosched().access().monitoring();
 
       if (!geotag.empty()) {
@@ -1471,13 +1475,6 @@ grpc::Status GrpcWncInterface::Geosched()
 
       if (subcmd == "cleardirect") {
         if (gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&output,
-            geotag == "all" ? "" : geotag)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "clearproxygroup") {
-        if (gOFS->mGeoTreeEngine->clearAccessProxygroup(&output,
             geotag == "all" ? "" : geotag)) {
           mReply->set_retc(SFS_OK);
         }
@@ -1503,20 +1500,8 @@ grpc::Status GrpcWncInterface::Geosched()
         }
       }
 
-      if (subcmd == "setproxygroup") {
-        if (gOFS->mGeoTreeEngine->setAccessProxygroup(&output, geotag, proxy_group)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
       if (subcmd == "showdirect") {
         if (gOFS->mGeoTreeEngine->showAccessGeotagMapping(&output, monitoring)) {
-          mReply->set_retc(SFS_OK);
-        }
-      }
-
-      if (subcmd == "showproxygroup") {
-        if (gOFS->mGeoTreeEngine->showAccessProxygroup(&output, monitoring)) {
           mReply->set_retc(SFS_OK);
         }
       }
@@ -2033,6 +2018,15 @@ grpc::Status GrpcWncInterface::Recycle()
   eos::console::RequestProto req = *mRequest;
   eos::mgm::RecycleCmd recyclecmd(std::move(req), *mVid);
   *mReply = recyclecmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Sched()
+{
+  eos::console::RequestProto req = *mRequest;
+  eos::mgm::SchedCmd schedcmd(std::move(req), *mVid);
+  *mReply = schedcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

@@ -441,7 +441,7 @@ if (Linux)
             --cpp_out=../
             --grpc_out=../
             ${REST_GW_PROTOS}
-    DEPENDS GoogleApis-Target EosCliProto-Objects)
+    DEPENDS GoogleApis-Target EosCliProto-Objects ${REST_GW_PROTOS})
 
   set_source_files_properties(
     ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}

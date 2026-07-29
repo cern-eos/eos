@@ -572,8 +572,6 @@ public:
   //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
-  //! @param dataproxys if non null, schedule dataproxys for each fs
-  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
   //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
   //!                      should be placed

@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-//! @file: WeightedRoundRobinPlacementStrategy.hh
-//! @author: Abhishek Lekshmanan - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file WeightedRoundRobinStrategy.hh
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2023 CERN/Switzerland                           *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,23 +22,58 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/placement/PlacementStrategy.hh"
+#include "mgm/placement/RoundRobinStrategy.hh"
+#include "mgm/placement/SelectionStrategy.hh"
+
 namespace eos::mgm::placement {
 
-/**
- * A placement strategy that places files on nodes based on a weighted
- * random distribution. The weights are currently based on the disk sizes
- */
-class WeightedRoundRobinPlacement : public PlacementStrategy {
+//------------------------------------------------------------------------------
+//! Class WeightedRoundRobinStrategy - places files round-robin while
+//! honouring the item weights, which currently reflect the disk capacities. Per
+//! item weight counters are decremented as items get chosen and refilled once
+//! depleted. Access requests do not go through the strategy at all; a reachable
+//! replica is picked uniformly at random by a free function in FlatScheduler.cc.
+//------------------------------------------------------------------------------
+class WeightedRoundRobinStrategy : public SelectionStrategy {
 public:
-  WeightedRoundRobinPlacement(PlacementStrategyT strategy, size_t max_buckets);
-  virtual PlacementResult placeFiles(const ClusterData& data,
-                                     Args args) override;
-  virtual int access(const ClusterData& data, AccessArguments& args) override;
-  ~WeightedRoundRobinPlacement();
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param strategy placement strategy type
+  //! @param max_buckets maximum number of buckets in the hierarchy
+  //----------------------------------------------------------------------------
+  WeightedRoundRobinStrategy(PlacementStrategyT strategy, size_t max_buckets)
+      : mSeed(MakeRRSeeder(PlacementStrategyT::kRoundRobin, max_buckets))
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Select the disks holding the replicas of a new file
+  //!
+  //! @param data topology snapshot to place on
+  //! @param args placement arguments
+  //!
+  //! @return placement result, convertible to false if placement failed
+  //----------------------------------------------------------------------------
+  virtual PlacementResult Placement(const ClusterData& data,
+                                    const PlacementArgs& args) const override;
+
+  //----------------------------------------------------------------------------
+  //! Grow the seeder so that it can serve a topology of the given size
+  //!
+  //! @param n_buckets number of buckets in the topology
+  //----------------------------------------------------------------------------
+  void
+  EnsureCapacity(size_t n_buckets) override
+  {
+    mSeed->EnsureCapacity(n_buckets);
+  }
+
 private:
-  struct Impl;
-  std::unique_ptr<Impl> mImpl;
+  //! Per bucket round-robin cursor. This is the only state the strategy keeps
+  //! and it is deliberately not derived from any topology snapshot, so it stays
+  //! valid across snapshot swaps. The seeder synchronises itself.
+  std::unique_ptr<RRSeeder> mSeed;
 };
 
 } // namespace eos::mgm::placement

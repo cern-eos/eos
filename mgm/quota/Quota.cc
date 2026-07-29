@@ -2088,7 +2088,7 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
   eos_static_debug("%s", "nominal quota ok");
 
   // Call the scheduler implementation
-  return Scheduler::FilePlacement(args);
+  return Scheduler::Placement(args);
 }
 
 //------------------------------------------------------------------------------

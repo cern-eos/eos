@@ -76,15 +76,6 @@ std::string MakeNodeHelp()
       << "node txgw <queue-name>|<host:port> <on|off> : enable (on) or "
          "disable (off) node as a transfer gateway\n"
       << std::endl
-      << "node proxygroupadd <group-name> <queue-name>|<host:port> : add a "
-         "node to a proxy group\n"
-      << std::endl
-      << "node proxygrouprm <group-name> <queue-name>|<host:port> : rm a node "
-         "from a proxy group\n"
-      << std::endl
-      << "node proxygroupclear <queue-name>|<host:port> : clear the list of "
-         "groups a node belongs to\n"
-      << std::endl
       << "node status <queue-name>|<host:port> : print's all defined "
          "variables for a node\n"
       << std::endl;

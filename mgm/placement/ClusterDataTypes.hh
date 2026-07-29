@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: ClusterDataTypes
-// Author: Abhishek Lekshmanan - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file ClusterDataTypes.hh
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2023 CERN/Switzerland                           *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,33 +21,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CLUSTERDATATYPES_HH
-#define EOS_CLUSTERDATATYPES_HH
+#pragma once
 
 #include "common/FileSystem.hh"
-#include "common/table_formatter/TableFormatterBase.hh"
-#include "table_formatter/TableFormatterBase.hh"
+#include <algorithm>
 #include <array>
+#include <limits>
+#include <map>
 #include <unordered_map>
+#include <xxhash.h>
 
 namespace eos::mgm::placement
 {
 
 using fsid_t = eos::common::FileSystem::fsid_t;
 
-// We use a item_id to represent a storage element, negative numbers represent
-// storage elements in the hierarchy, ie. groups/racks/room/site etc.
-using item_id_t = int32_t;
-using epoch_id_t = uint64_t;
+//! Identifier of a storage element. Positive values are disks, negative ones
+//! are buckets of the hierarchy ie. groups/racks/rooms/sites, 0 is the root.
+using ItemIdT = int32_t;
+using EpochIdT = uint64_t; //!< Version of a topology snapshot
 using ConfigStatus = eos::common::ConfigStatus;
 using ActiveStatus = eos::common::ActiveStatus;
-// A struct representing a disk, this is the lowest level of the hierarchy,
-// disk ids map 1:1 to fsids, however it is necessary that the last bit of fsid_t
-// is not used, as we use a int32_t for the rest of the placement hierarchy.
-// the struct is packed to 8 bytes, so upto 8192 disks
-// can fit in a single 64kB cache, it is recommended to keep this struct aligned
-inline ActiveStatus getActiveStatus(ActiveStatus status,
-                                    eos::common::BootStatus bstatus)
+
+//------------------------------------------------------------------------------
+//! Fold the boot status into the active status, a file system that is online
+//! but not booted is of no use to the scheduler
+//!
+//! @param status active status of the file system
+//! @param bstatus boot status of the file system
+//!
+//! @return effective active status
+//------------------------------------------------------------------------------
+inline ActiveStatus
+GetActiveStatus(ActiveStatus status, eos::common::BootStatus bstatus)
 {
   if (status == ActiveStatus::kOnline) {
     if (bstatus != eos::common::BootStatus::kBooted) {
@@ -58,34 +64,96 @@ inline ActiveStatus getActiveStatus(ActiveStatus status,
   return status;
 }
 
+//------------------------------------------------------------------------------
+//! Struct Disk - lowest level of the hierarchy, disk ids map 1:1 to fsids.
+//! The struct is packed to 16 bytes so that 4000 disks fit in a single
+//! 64 kB cache, it is recommended to keep it aligned. The atomics allow status,
+//! weight and space updates without rebuilding the topology.
+//!
+//! @note the top bit of fsid_t must stay unused, the rest of the placement
+//!       hierarchy is addressed with an int32_t
+//------------------------------------------------------------------------------
 struct Disk {
-  fsid_t id;
+  fsid_t id; ///< File system identifier
+  //! Configuration status of the file system
   mutable std::atomic<ConfigStatus> config_status {ConfigStatus::kUnknown};
+  //! Active status of the file system
   mutable std::atomic<ActiveStatus> active_status {ActiveStatus::kUndefined};
+  //! Relative weight, no floating point precision needed
+  mutable std::atomic<uint8_t> weight{0};
+  mutable std::atomic<uint8_t> percent_used{0}; ///< Fill level in percent
+  //! Free space in GiB. percent_used says how attractive a disk is, this says
+  //! whether a given file actually fits on it - the two are not
+  //! interchangeable, a 1% margin means something very different on a 500 GB
+  //! disk and on a 20 TB one. Capped rather than wrapped, see kFreeSpaceUnit.
+  //! Decremented on every successful placement, so that the placements between
+  //! two FST publishes see each other's bookings, see BookSpace.
+  mutable std::atomic<uint32_t> free_gib{0};
+  //! Space booked by placements since the last FST publish, in GiB. What has
+  //! been placed but not yet written is invisible to the FST's statfs, so this
+  //! is subtracted from the next published figure - and only from that one,
+  //! after which the FST's own numbers are the truth again. That retires a
+  //! booking whose file never got written after one publish interval instead
+  //! of leaking it forever, see ClusterData::SetDiskFreeSpace.
+  mutable std::atomic<uint32_t> booked_gib{0};
 
-  mutable std::atomic<uint8_t> weight{0}; // we really don't need floating point precision
-  mutable std::atomic<uint8_t> percent_used{0};
-
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   Disk() : id(0) {}
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param _id file system identifier
+  //----------------------------------------------------------------------------
   explicit Disk(fsid_t _id) : id(_id) {}
 
-  Disk(fsid_t _id, ConfigStatus _config_status,
-       ActiveStatus _active_status, uint8_t _weight, uint8_t _percent_used = 0)
-    : id(_id), config_status(_config_status), active_status(_active_status),
-      weight(_weight), percent_used(_percent_used)
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param _id file system identifier
+  //! @param _config_status configuration status
+  //! @param _active_status active status
+  //! @param _weight relative weight
+  //! @param _percent_used fill level in percent
+  //! @param _free_gib free space in GiB
+  //----------------------------------------------------------------------------
+  Disk(fsid_t _id, ConfigStatus _config_status, ActiveStatus _active_status,
+       uint8_t _weight, uint8_t _percent_used = 0, uint32_t _free_gib = 0)
+      : id(_id)
+      , config_status(_config_status)
+      , active_status(_active_status)
+      , weight(_weight)
+      , percent_used(_percent_used)
+      , free_gib(_free_gib)
   {}
 
-  // TODO future: these copy constructors must only be used at construction time
-  // explicit copy constructor as atomic types are not copyable
+  //----------------------------------------------------------------------------
+  //! Copy constructor, explicit as atomic types are not copyable
+  //!
+  //! @param other object to copy from
+  //!
+  //! @note TODO future: this must only be used at construction time
+  //----------------------------------------------------------------------------
   Disk(const Disk& other)
-    : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
-           other.active_status.load(std::memory_order_relaxed),
-           other.weight.load(std::memory_order_relaxed),
-           other.percent_used.load(std::memory_order_relaxed))
+      : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
+             other.active_status.load(std::memory_order_relaxed),
+             other.weight.load(std::memory_order_relaxed),
+             other.percent_used.load(std::memory_order_relaxed),
+             other.free_gib.load(std::memory_order_relaxed))
   {
+    booked_gib.store(other.booked_gib.load(std::memory_order_relaxed),
+                     std::memory_order_relaxed);
   }
 
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //!
+  //! @param other object to copy from
+  //!
+  //! @return reference to the current object
+  //----------------------------------------------------------------------------
   Disk& operator=(const Disk& other)
   {
     id = other.id;
@@ -97,344 +165,1353 @@ struct Disk {
                  std::memory_order_relaxed);
     percent_used.store(other.percent_used.load(std::memory_order_relaxed),
                        std::memory_order_relaxed);
+    free_gib.store(other.free_gib.load(std::memory_order_relaxed),
+                   std::memory_order_relaxed);
+    booked_gib.store(other.booked_gib.load(std::memory_order_relaxed),
+                     std::memory_order_relaxed);
     return *this;
   }
 
+  //----------------------------------------------------------------------------
+  //! Less than operator, orders by identifier
+  //!
+  //! @param l left hand side
+  //! @param r right hand side
+  //!
+  //! @return true if l sorts before r, otherwise false
+  //----------------------------------------------------------------------------
   friend bool
   operator<(const Disk& l, const Disk& r)
   {
     return l.id < r.id;
   }
+};
 
-  std::string to_string() const
+static_assert(sizeof(Disk) == 16, "Disk data type not aligned to 16 bytes!");
+
+//! Unit the free space of a disk is recorded in. Anything smaller than this is
+//! rounded down to zero, so a booking is refused on a disk with less than one
+//! unit left - which is the safe direction to be wrong in.
+constexpr uint64_t kFreeSpaceUnit = 1ULL << 30;
+
+//------------------------------------------------------------------------------
+//! Convert a free space in bytes to the unit stored on a disk, saturating
+//! rather than wrapping
+//!
+//! @param free_bytes free space in bytes
+//!
+//! @return free space in GiB, clamped to what the field can hold
+//------------------------------------------------------------------------------
+inline uint32_t
+FreeSpaceToGiB(uint64_t free_bytes)
+{
+  return static_cast<uint32_t>(std::min<uint64_t>(free_bytes / kFreeSpaceUnit,
+                                                  std::numeric_limits<uint32_t>::max()));
+}
+
+//------------------------------------------------------------------------------
+//! Convert a booking size in bytes to whole free space units, rounding up -
+//! the free space is only known to kFreeSpaceUnit granularity, and up is the
+//! safe direction to round a booking in
+//!
+//! @param bookingsize size to book in bytes
+//!
+//! @return number of units the booking occupies, clamped to what a disk's
+//!         free space field can hold
+//------------------------------------------------------------------------------
+inline uint32_t
+BookingToUnits(uint64_t bookingsize)
+{
+  const uint64_t units = (bookingsize + kFreeSpaceUnit - 1) / kFreeSpaceUnit;
+  return static_cast<uint32_t>(
+      std::min<uint64_t>(units, std::numeric_limits<uint32_t>::max()));
+}
+
+//------------------------------------------------------------------------------
+//! Check whether a file of the given size still fits on a disk
+//!
+//! @param disk disk to check
+//! @param bookingsize size to book in bytes, 0 books nothing
+//!
+//! @return true if the disk has room, otherwise false
+//!
+//! @note see BookingToUnits for the granularity of the check
+//------------------------------------------------------------------------------
+inline bool
+HasRoomFor(const Disk& disk, uint64_t bookingsize)
+{
+  if (bookingsize == 0) {
+    return true;
+  }
+
+  return disk.free_gib.load(std::memory_order_relaxed) >= BookingToUnits(bookingsize);
+}
+
+//------------------------------------------------------------------------------
+//! Book space on a disk for a file that was just placed on it. The free space
+//! is debited immediately so that concurrent placements see each other's
+//! bookings rather than all fitting into the same last gigabytes, and the
+//! booking is remembered so that the next FST publish, which cannot see bytes
+//! not yet written, gets it subtracted, see ClusterData::SetDiskFreeSpace.
+//!
+//! @param disk disk to book on
+//! @param bookingsize size to book in bytes, 0 books nothing
+//------------------------------------------------------------------------------
+inline void
+BookSpace(const Disk& disk, uint64_t bookingsize)
+{
+  if (bookingsize == 0) {
+    return;
+  }
+
+  const uint32_t units = BookingToUnits(bookingsize);
+  // Both counters saturate rather than wrap, hence the CAS loops: the free
+  // space clamps at zero when a raced check let one booking too many through,
+  // the booked total clamps at the ceiling it cannot meaningfully exceed
+  uint32_t free = disk.free_gib.load(std::memory_order_relaxed);
+
+  while (!disk.free_gib.compare_exchange_weak(free, (free > units) ? free - units : 0,
+                                              std::memory_order_relaxed)) {
+  }
+
+  uint32_t booked = disk.booked_gib.load(std::memory_order_relaxed);
+  constexpr uint32_t max_booked = std::numeric_limits<uint32_t>::max();
+
+  while (!disk.booked_gib.compare_exchange_weak(
+      booked, (booked <= max_booked - units) ? booked + units : max_booked,
+      std::memory_order_relaxed)) {
+  }
+}
+
+//! Default fill level in percent at which a disk stops attracting new
+//! replicas, the equivalent of the geotree fillratiolimit
+constexpr uint8_t kDefaultFillCapPercent = 95;
+//! Default fill level in percent at which a disk's weight starts to decay
+constexpr uint8_t kDefaultFillWarnPercent = 80;
+
+//------------------------------------------------------------------------------
+//! Struct FillLimits - the runtime configurable fill thresholds of one
+//! topology snapshot. Atomics so that a "space config" change lands on the
+//! live snapshot without an epoch bump, copyable so that ClusterData keeps
+//! its implicit copy semantics.
+//------------------------------------------------------------------------------
+struct FillLimits {
+  //! Fill level in percent at which a disk stops attracting new replicas
+  std::atomic<uint8_t> cap{kDefaultFillCapPercent};
+  //! Fill level in percent at which a disk's weight starts to decay
+  std::atomic<uint8_t> warn{kDefaultFillWarnPercent};
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FillLimits() = default;
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor, explicit as atomic types are not copyable
+  //!
+  //! @param other object to copy from
+  //----------------------------------------------------------------------------
+  FillLimits(const FillLimits& other)
   {
-    std::stringstream ss;
-    ss << "id: " << id << "\n"
-       << "ConfigStatus: "
-       << common::FileSystem::GetConfigStatusAsString(config_status.load(
-             std::memory_order_relaxed))
-       << "\n"
-       << "ActiveStatus: "
-       << common::FileSystem::GetActiveStatusAsString(active_status.load(
-             std::memory_order_relaxed))
-       << "\n"
-       << "Weight: " << static_cast<uint16_t>(weight.load(std::memory_order_relaxed))
-       << "\n"
-       << "UsedPercent: " << static_cast<uint16_t>(percent_used.load(
-             std::memory_order_relaxed));
-    return ss.str();
+    cap.store(other.cap.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    warn.store(other.warn.load(std::memory_order_relaxed), std::memory_order_relaxed);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //!
+  //! @param other object to copy from
+  //!
+  //! @return reference to the current object
+  //----------------------------------------------------------------------------
+  FillLimits&
+  operator=(const FillLimits& other)
+  {
+    cap.store(other.cap.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    warn.store(other.warn.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    return *this;
   }
 };
 
-static_assert(sizeof(Disk) == 8, "Disk data type not aligned to 8 bytes!");
+//------------------------------------------------------------------------------
+//! Struct PlctDisabledFlag - whether any disabled-branch rule of the snapshot
+//! currently closes a branch for placement. Atomic so a rule change lands on
+//! the live snapshot without an epoch bump, copyable so that ClusterData keeps
+//! its implicit copy semantics - the same pattern as FillLimits. Read on the
+//! scheduling hot path, see FlatScheduler::PlaceInBucket.
+//------------------------------------------------------------------------------
+struct PlctDisabledFlag {
+  std::atomic<uint8_t> value{0}; ///< Non-zero while a placement rule is active
 
-// some common storage elements, these could be user defined in the future
-enum class StdBucketType : uint8_t {
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  PlctDisabledFlag() = default;
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor, explicit as atomic types are not copyable
+  //!
+  //! @param other object to copy from
+  //----------------------------------------------------------------------------
+  PlctDisabledFlag(const PlctDisabledFlag& other)
+  {
+    value.store(other.value.load(std::memory_order_relaxed), std::memory_order_relaxed);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //!
+  //! @param other object to copy from
+  //!
+  //! @return reference to the current object
+  //----------------------------------------------------------------------------
+  PlctDisabledFlag&
+  operator=(const PlctDisabledFlag& other)
+  {
+    value.store(other.value.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    return *this;
+  }
+};
+
+//------------------------------------------------------------------------------
+//! Get the effective placement weight of a disk: its capacity weight scaled
+//! down as the disk fills, reaching zero at the fill cap so that a nearly
+//! full disk stops attracting new replicas
+//!
+//! @param disk disk to weigh
+//! @param limits fill thresholds of the snapshot the disk belongs to
+//!
+//! @return effective weight, 0 if the disk should take no further replicas
+//------------------------------------------------------------------------------
+inline uint32_t
+GetEffectiveWeight(const Disk& disk, const FillLimits& limits)
+{
+  const uint32_t weight = disk.weight.load(std::memory_order_relaxed);
+  const uint8_t used = disk.percent_used.load(std::memory_order_relaxed);
+  const uint8_t fill_cap = limits.cap.load(std::memory_order_relaxed);
+  const uint8_t fill_warn = limits.warn.load(std::memory_order_relaxed);
+
+  if ((weight == 0) || (used >= fill_cap)) {
+    return 0;
+  }
+
+  if (used <= fill_warn) {
+    return weight;
+  }
+
+  // Linear decay between the warning level and the cap. It never reaches zero
+  // here - that is reserved for the cap - so a disk in the decay band stays
+  // usable, just less attractive. The two branches above guarantee
+  // fill_warn < used < fill_cap here, so the span is never zero.
+  const uint32_t span = fill_cap - fill_warn;
+  const uint32_t headroom = fill_cap - used;
+  const uint32_t scaled = (weight * headroom) / span;
+  return (scaled > 0) ? scaled : 1;
+}
+
+//------------------------------------------------------------------------------
+//! Common storage elements, these could become user defined in the future
+//------------------------------------------------------------------------------
+enum class BucketType : uint8_t {
   GROUP = 0,
   RACK,
   ROOM,
   SITE,
   ROOT,
-  COUNT
+  NODE,
+  //! Synthetic flat leaf view of a scheduling group: every disk of the group's
+  //! subtree in one bucket. Never linked as anyone's child, so the normal
+  //! descent cannot reach it; only Bucket::flat_view points at it.
+  FLATVIEW,
+  COUNT,
+  //! Sentinel type of a default constructed bucket, i.e. a hole in the id
+  //! range. Kept distinct from GROUP (which is 0) so that a hole is never
+  //! mistaken for a real scheduling group, see ClusterData::GetBucket.
+  INVALID = std::numeric_limits<uint8_t>::max()
 };
 
+//------------------------------------------------------------------------------
+//! Convert a bucket type to its numeric representation
+//!
+//! @param t bucket type
+//!
+//! @return numeric bucket type
+//------------------------------------------------------------------------------
 constexpr uint8_t
-get_bucket_type(StdBucketType t)
+GetBucketType(BucketType t)
 {
   return static_cast<uint8_t>(t);
 }
 
-inline std::string BucketTypeToStr(StdBucketType t)
+//------------------------------------------------------------------------------
+//! Convert a bucket type to its string representation
+//!
+//! @param t bucket type
+//!
+//! @return string representation, "unknown" if unrecognized
+//------------------------------------------------------------------------------
+inline std::string
+BucketTypeToStr(BucketType t)
 {
   switch (t) {
-  case StdBucketType::GROUP:
+  case BucketType::GROUP:
     return "group";
 
-  case StdBucketType::RACK:
+  case BucketType::RACK:
     return "rack";
 
-  case StdBucketType::ROOM:
+  case BucketType::ROOM:
     return "room";
 
-  case StdBucketType::SITE:
+  case BucketType::SITE:
     return "site";
 
-  case StdBucketType::ROOT:
+  case BucketType::ROOT:
     return "root";
+
+  case BucketType::NODE:
+    return "node";
+
+  case BucketType::FLATVIEW:
+    return "flatview";
 
   default:
     return "unknown";
   }
 }
 
-// Constant to offset the group id, so group ids would be starting from this offset
-// in memory they'd be stored at -group_id
-constexpr int kBaseGroupOffset = -10;
+//! Maximum number of geotag levels kept below a scheduling group. A geotag with
+//! more atoms than this gets truncated, the tail atoms are folded into the
+//! deepest bucket.
+constexpr uint8_t kMaxGeoDepth = 8;
 
-
-// Return bucket index from group id, guaranteed to be -ve
-// If we have groups > INT_MAX we're in UB land, but this is mostly not possible
-inline constexpr item_id_t
-GroupIDtoBucketID(unsigned int group_index)
+//------------------------------------------------------------------------------
+//! Get the bucket type naming the given geotag level, following the usual EOS
+//! site::room::rack::node convention. Anything below the fourth level is
+//! reported as a node.
+//!
+//! @param geo_level geotag level, starting at 1 for the first atom
+//!
+//! @return bucket type of that level
+//------------------------------------------------------------------------------
+constexpr BucketType
+GeoLevelToBucketType(uint8_t geo_level)
 {
-  return kBaseGroupOffset - group_index;
+  switch (geo_level) {
+  case 1:
+    return BucketType::SITE;
+
+  case 2:
+    return BucketType::ROOM;
+
+  case 3:
+    return BucketType::RACK;
+
+  default:
+    return BucketType::NODE;
+  }
 }
 
-inline constexpr unsigned int
-BucketIDtoGroupID(item_id_t bucket_id)
+//------------------------------------------------------------------------------
+//! Hash a single geotag atom, ie. one "::" separated component of a geotag
+//!
+//! @param atom geotag atom
+//!
+//! @return hash of the atom
+//!
+//! @note only used as the geotag_index key, see GeoChildKey and FindGeoChild.
+//!       A 64 bit collision is caught by verifying Bucket::geo_atom on hit, so a
+//!       collision degrades to a correct miss, never a wrong match.
+//------------------------------------------------------------------------------
+inline uint64_t
+HashGeoAtom(std::string_view atom)
 {
-  return kBaseGroupOffset - bucket_id;
+  return XXH3_64bits(atom.data(), atom.size());
 }
 
+//------------------------------------------------------------------------------
+//! Split a geotag into its atoms
+//!
+//! @param geotag geotag, atoms separated by "::"
+//!
+//! @return atoms in hierarchy order, outermost first. Empty atoms, which a
+//!         leading, trailing or doubled separator would produce, are dropped.
+//------------------------------------------------------------------------------
+inline std::vector<std::string_view>
+SplitGeoTag(std::string_view geotag)
+{
+  std::vector<std::string_view> atoms;
+  size_t start = 0;
+
+  while (start < geotag.size()) {
+    const size_t end = geotag.find("::", start);
+    const size_t len =
+        (end == std::string_view::npos) ? geotag.size() - start : end - start;
+
+    if (len > 0) {
+      atoms.push_back(geotag.substr(start, len));
+    }
+
+    if (end == std::string_view::npos) {
+      break;
+    }
+
+    start = end + 2;
+  }
+
+  return atoms;
+}
+
+//------------------------------------------------------------------------------
+//! Get the key under which a bucket is registered in ClusterData::geotag_index.
+//! The same geotag atom appears below every scheduling group, so the parent has
+//! to be part of the key for the lookup to be unambiguous.
+//!
+//! @param parent_id identifier of the parent bucket
+//! @param atom_hash hash of the geotag atom, see HashGeoAtom
+//!
+//! @return index key
+//------------------------------------------------------------------------------
+inline uint64_t
+GeoChildKey(ItemIdT parent_id, uint64_t atom_hash)
+{
+  // Mix the parent in with the golden ratio constant, the same spread as the
+  // usual hash_combine
+  const uint64_t parent = static_cast<uint32_t>(parent_id);
+  return atom_hash ^
+         (parent * 0x9E3779B97F4A7C15ULL + (atom_hash << 6) + (atom_hash >> 2));
+}
+
+//! Operations a bucket can be administratively disabled for, kept as a bit
+//! mask so that one branch can be closed for placement, for access, or both
+constexpr uint8_t kDisabledPlct = 1 << 0;   ///< No new replicas below the branch
+constexpr uint8_t kDisabledAccess = 1 << 1; ///< No replicas served from the branch
+constexpr uint8_t kDisabledAll = kDisabledPlct | kDisabledAccess;
+
+//! Disabled branch rules of one space: canonical geotag to operations mask
+using DisabledBranchesT = std::map<std::string, uint8_t>;
+
+//------------------------------------------------------------------------------
+//! Convert a disabled operations mask to its string representation
+//!
+//! @param op_mask operations mask, see kDisabledPlct / kDisabledAccess
+//!
+//! @return string representation, "none" for an empty mask
+//------------------------------------------------------------------------------
+inline std::string
+DisabledOpsToStr(uint8_t op_mask)
+{
+  switch (op_mask & kDisabledAll) {
+  case kDisabledPlct:
+    return "plct";
+
+  case kDisabledAccess:
+    return "access";
+
+  case kDisabledAll:
+    return "all";
+
+  default:
+    return "none";
+  }
+}
+
+//------------------------------------------------------------------------------
+//! Bring a geotag into its canonical form: the atoms joined by "::" with the
+//! degenerate separators dropped, so that a rule added as "eu::ch::" can be
+//! removed as "eu::ch"
+//!
+//! @param geotag geotag to normalize
+//!
+//! @return canonical geotag, empty if no atoms survive
+//------------------------------------------------------------------------------
+inline std::string
+NormalizeGeoTag(std::string_view geotag)
+{
+  std::string tag;
+
+  for (const auto atom : SplitGeoTag(geotag)) {
+    if (!tag.empty()) {
+      tag += "::";
+    }
+
+    tag += atom;
+  }
+
+  return tag;
+}
+
+//! Group index carried by a bucket that is not a scheduling group, see
+//! Bucket::group_index. Scheduling groups used to be addressed arithmetically,
+//! at a fixed offset of their index, which meant a group added to a topology
+//! that already held geo buckets found its identifier taken - the geo buckets
+//! of the previous build had grown into the range. Groups are now allocated
+//! from the same identifier space as every other bucket and the index is
+//! resolved through ClusterData::GetGroupBucket instead.
+constexpr uint32_t kNoGroupIndex = std::numeric_limits<uint32_t>::max();
+
+//------------------------------------------------------------------------------
+//! Kind of children a bucket holds. A bucket never mixes them: the topology
+//! builder attaches a disk without a geotag to a placeholder bucket rather than
+//! directly to its scheduling group, so the placement descent can decide what to
+//! do at a level from this one byte.
+//------------------------------------------------------------------------------
+enum class ChildType : uint8_t {
+  kNone = 0,  ///< No child yet, the next append decides the kind
+  kDisks,     ///< Disks, ie. a leaf level of the hierarchy
+  kGroups,    ///< Scheduling groups, only the root holds those
+  kGeoBuckets ///< Buckets of the geo hierarchy, ie. sites/rooms/racks/nodes
+};
+
+//------------------------------------------------------------------------------
+//! Convert a child type to its numeric representation
+//!
+//! @param t child type
+//!
+//! @return numeric child type
+//------------------------------------------------------------------------------
+constexpr uint8_t
+GetChildType(ChildType t)
+{
+  return static_cast<uint8_t>(t);
+}
+
+//------------------------------------------------------------------------------
+//! Convert a child type to its string representation
+//!
+//! @param t child type
+//!
+//! @return string representation
+//------------------------------------------------------------------------------
+inline std::string
+ChildTypeToStr(ChildType t)
+{
+  switch (t) {
+  case ChildType::kDisks:
+    return "disks";
+
+  case ChildType::kGroups:
+    return "groups";
+
+  case ChildType::kGeoBuckets:
+    return "geobuckets";
+
+  default:
+    return "none";
+  }
+}
+
+//------------------------------------------------------------------------------
+//! Struct Bucket - interior node of the hierarchy. Its children are either
+//! positive disk ids or negative sub-bucket ids, never both, see ChildType.
+//------------------------------------------------------------------------------
 struct Bucket {
-  item_id_t id;
-  uint32_t total_weight;
-  uint8_t bucket_type;
-  std::vector<item_id_t> items;
-  std::string location;
-  std::string full_geotag;
+  ItemIdT id{0};     ///< Bucket identifier, never positive
+  ItemIdT parent{0}; ///< Parent bucket, its own id for the root
+  //! Flat leaf view of a scheduling group: the id of a synthetic FLATVIEW
+  //! bucket holding every disk of the group's subtree, 0 when there is none -
+  //! either this is not a group, or the group holds its disks directly and
+  //! already is its own leaf level. Maintained by the SnapshotBuilder; what
+  //! lets a placement with no geo preference skip the geo levels of the group,
+  //! see FlatScheduler::PlaceInBucket.
+  ItemIdT flat_view{0};
+  //! Index of the scheduling group this bucket is, kNoGroupIndex for every
+  //! other bucket. The identifier carries no index of its own any more, see
+  //! ClusterData::GetGroupBucket for the way in; this is the way back out, and
+  //! it fits in the padding before geo_atom, hence the position.
+  uint32_t group_index{kNoGroupIndex};
+  //! Geotag atom naming this bucket, e.g. "rack3". Empty for the root and for
+  //! the scheduling groups, which are not part of the geo hierarchy. Kept as the
+  //! plain string so the geotag reassembles and matches without a side registry;
+  //! buckets are few and copied only at rebuild, so the string cost is
+  //! negligible.
+  std::string geo_atom;
+  uint32_t total_weight{0};     ///< Sum of the weights of all children
+  //! Type of the bucket, see BucketType. Defaults to the INVALID sentinel so
+  //! that a default constructed hole in the id range is never taken for a real
+  //! GROUP (which is type 0), see ClusterData::GetBucket.
+  uint8_t bucket_type{GetBucketType(BucketType::INVALID)};
+  uint8_t level{0};             ///< Distance from the root, which sits at 0
+  //! Operations the branch below is disabled for, see kDisabledPlct. Set only
+  //! on the bucket a rule resolved to, not pushed down its subtree - the
+  //! placement descent and the access walk up both pass through it. Atomic so
+  //! a rule change lands on the live snapshot without an epoch bump.
+  mutable std::atomic<uint8_t> disabled_ops{0};
+  //! Kind of the children below, see ChildType. Maintained by the topology
+  //! builder, which refuses an append of the other kind, so that the descent
+  //! knows what a level is without looking at a child. Fits in the padding
+  //! after disabled_ops, hence the position.
+  uint8_t child_type{GetChildType(ChildType::kNone)};
+  std::vector<ItemIdT> items; ///< Children, either disks or sub-buckets
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   Bucket() = default;
 
-  Bucket(item_id_t _id, uint8_t type)
-    : id(_id), total_weight(0), bucket_type(type)
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param _id bucket identifier
+  //! @param type type of the bucket
+  //! @param _parent parent bucket identifier
+  //! @param _geo_atom geotag atom naming the bucket
+  //! @param _level distance from the root
+  //----------------------------------------------------------------------------
+  Bucket(ItemIdT _id, uint8_t type, ItemIdT _parent = 0, std::string _geo_atom = {},
+         uint8_t _level = 0)
+      : id(_id)
+      , parent(_parent)
+      , geo_atom(std::move(_geo_atom))
+      , total_weight(0)
+      , bucket_type(type)
+      , level(_level)
   {
   }
 
+  //----------------------------------------------------------------------------
+  //! Copy constructor, explicit as atomic types are not copyable
+  //!
+  //! @param other object to copy from
+  //----------------------------------------------------------------------------
+  Bucket(const Bucket& other)
+      : id(other.id)
+      , parent(other.parent)
+      , flat_view(other.flat_view)
+      , group_index(other.group_index)
+      , geo_atom(other.geo_atom)
+      , total_weight(other.total_weight)
+      , bucket_type(other.bucket_type)
+      , level(other.level)
+      , child_type(other.child_type)
+      , items(other.items)
+  {
+    disabled_ops.store(other.disabled_ops.load(std::memory_order_relaxed),
+                       std::memory_order_relaxed);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //!
+  //! @param other object to copy from
+  //!
+  //! @return reference to the current object
+  //----------------------------------------------------------------------------
+  Bucket&
+  operator=(const Bucket& other)
+  {
+    id = other.id;
+    parent = other.parent;
+    flat_view = other.flat_view;
+    group_index = other.group_index;
+    geo_atom = other.geo_atom;
+    total_weight = other.total_weight;
+    bucket_type = other.bucket_type;
+    level = other.level;
+    child_type = other.child_type;
+    disabled_ops.store(other.disabled_ops.load(std::memory_order_relaxed),
+                       std::memory_order_relaxed);
+    items = other.items;
+    return *this;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if the bucket is disabled for the given operations
+  //!
+  //! @param op_mask operations to test, see kDisabledPlct / kDisabledAccess
+  //!
+  //! @return true if disabled for any of them, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  IsDisabledFor(uint8_t op_mask) const
+  {
+    return disabled_ops.load(std::memory_order_acquire) & op_mask;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if the bucket holds disks rather than sub-buckets. A bucket is never
+  //! populated with both, the topology builder attaches a disk without a geotag
+  //! to a placeholder bucket rather than directly to its scheduling group.
+  //!
+  //! @return true if the children are disks, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  HoldsDisks() const
+  {
+    return !items.empty() && (items.front() > 0);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Record the kind of children this bucket holds, on the way to appending one
+  //! of them. The first child decides the kind, every later one has to agree -
+  //! that is what turns the never-mix invariant behind HoldsDisks into an
+  //! enforced one, see the SnapshotBuilder append paths.
+  //!
+  //! @param type kind of the child about to be appended
+  //!
+  //! @return true if the child may be appended, false if the bucket already
+  //!         holds children of another kind
+  //----------------------------------------------------------------------------
+  bool
+  RecordChildType(ChildType type)
+  {
+    if (child_type == GetChildType(ChildType::kNone)) {
+      child_type = GetChildType(type);
+      return true;
+    }
+
+    return child_type == GetChildType(type);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Less than operator, orders by identifier
+  //!
+  //! @param l left hand side
+  //! @param r right hand side
+  //!
+  //! @return true if l sorts before r, otherwise false
+  //----------------------------------------------------------------------------
   friend bool
   operator<(const Bucket& l, const Bucket& r)
   {
     return l.id < r.id;
   }
-
-  std::string to_string() const
-  {
-    std::string group_str;
-
-    if (bucket_type == get_bucket_type(StdBucketType::GROUP)) {
-      group_str = "Group Index: " +
-                  std::to_string(BucketIDtoGroupID(id)) + "\n";
-    }
-
-    std::stringstream ss;
-    ss << "id: " << id << "\n"
-       << group_str
-       << "Total Weight: " << total_weight << "\n"
-       << "Bucket Type: "
-       << BucketTypeToStr(static_cast<StdBucketType>(bucket_type))
-       << "\nItem List: ";
-
-    for (const auto& it : items) {
-      ss << it << ", ";
-    }
-
-    return ss.str();
-  }
 };
 
-static constexpr size_t kMaxItemsInline = 12;
-static inline std::string
-FormatItemList(const std::vector<item_id_t>& items)
-{
-  if (items.empty()) {
-    return "-";
-  }
-
-  std::string out;
-  const size_t limit = std::min(items.size(), kMaxItemsInline);
-
-  for (size_t i = 0; i < limit; ++i) {
-    if (i > 0) {
-      out += ", ";
-    }
-
-    out += std::to_string(items[i]);
-  }
-
-  if (items.size() > kMaxItemsInline) {
-    out += " ... (";
-    out += std::to_string(items.size());
-    out += " total)";
-  }
-
-  return out;
-}
+//------------------------------------------------------------------------------
+//! Struct ClusterData - immutable topology snapshot of one space. The whole
+//! hierarchy is a pair of contiguous arrays, parent to child links are just
+//! integers in Bucket::items, navigable by the sign of the identifier.
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! Struct ClusterStateSummary - aggregate health picture of one topology
+//! snapshot, the printInfo numbers. Plain values so that any admin surface
+//! (the CLI now, gRPC later) can format them as it likes.
+//------------------------------------------------------------------------------
+struct ClusterStateSummary {
+  uint32_t n_groups = 0;         ///< Scheduling groups
+  uint32_t n_disks = 0;          ///< Disks, holes in the fsid range excluded
+  uint32_t n_online = 0;         ///< Disks with an online active status
+  uint32_t n_offline = 0;        ///< Disks with any other active status
+  uint32_t n_rw = 0;             ///< Disks in a writable config status (rw, wo)
+  uint32_t n_ro = 0;             ///< Disks in config status ro
+  uint32_t n_drain = 0;          ///< Disks in one of the drain statuses
+  uint32_t n_other = 0;          ///< Disks off, empty or unknown
+  uint64_t capacity_weight = 0;  ///< Sum of the configured disk weights
+  uint64_t effective_weight = 0; ///< Same sum after the fill decay
+  uint64_t free_gib = 0;         ///< Total free space in GiB
+  //! Free space on the disks placement can actually use, see
+  //! ClusterData::GetWritableFreeGiB
+  uint64_t writable_free_gib = 0;
+  uint64_t booked_gib = 0;       ///< Space booked since the last FST publishes
+  EpochIdT epoch = 0;            ///< Epoch of the snapshot, see ClusterMgr
+};
 
 struct ClusterData {
-  std::vector<Disk> disks;
-  std::vector<Bucket> buckets;
-  std::vector<std::vector<uint64_t>> disk_tags;
-
-  // Diagnostic data structures. Not used in hot path
-  std::unordered_map<fsid_t, std::string> disk_tag_map;
-  std::unordered_map<uint64_t, std::string> geo_hash_registry;
-
-  bool setDiskStatus(fsid_t id, ConfigStatus status)
-  {
-    if (id > disks.size()) {
-      return false;
-    }
-
-    disks[id - 1].config_status.store(status, std::memory_order_release);
-    return true;
-  }
-
-  bool setDiskStatus(fsid_t id, ActiveStatus status)
-  {
-    if (id > disks.size()) {
-      return false;
-    }
-
-    disks[id - 1].active_status.store(status, std::memory_order_release);
-    return true;
-  }
-
-  bool setDiskWeight(fsid_t id, uint8_t weight)
-  {
-    if (id > disks.size()) {
-      return false;
-    }
-
-    disks[id - 1].weight.store(weight, std::memory_order_release);
-    return true;
-  }
+  std::vector<Disk> disks;     ///< Disks, the one with fsid n sits at index n - 1
+  //! Bucket each disk hangs from, indexed like disks. Kept in step with disks
+  //! by the SnapshotBuilder; 0 marks a hole in the fsid range. This is what lets
+  //! the access path resolve a replica's geo position without walking the
+  //! whole hierarchy.
+  std::vector<ItemIdT> disk_parents;
+  std::vector<Bucket> buckets; ///< Buckets, the one with id -n sits at index n
+  //! Bucket of each scheduling group, indexed by group index, 0 where the
+  //! index names no group. Groups are allocated from the same identifier space
+  //! as every other bucket - which is what lets one be added to a topology
+  //! that already holds geo buckets - so this is the only way from the index a
+  //! request carries to the bucket it means, see GetGroupBucket.
+  std::vector<ItemIdT> group_buckets;
+  //! Geo bucket per (parent, geotag atom) pair, see GeoChildKey. Lets a descent
+  //! follow a client geotag one atom at a time without scanning the children.
+  //! A hash collision is caught by verifying Bucket::geo_atom on hit, see
+  //! FindGeoChild, so it degrades to a correct miss, never a wrong match.
+  std::unordered_map<uint64_t, ItemIdT> geotag_index;
+  //! Fill thresholds every disk of this snapshot is weighed against. Fresh
+  //! snapshots start at the defaults; the FsScheduler re-stamps the configured
+  //! values after every rebuild.
+  FillLimits fill_limits;
+  //! Whether any disabled-branch rule currently closes a branch for placement,
+  //! kept in step by ApplyDisabledBranches. What tells the flat-view fast path
+  //! of the scheduler to take the full descent instead, which is where an
+  //! interior disabled bucket is honoured.
+  PlctDisabledFlag plct_disabled;
 
   //----------------------------------------------------------------------------
-  //! Return the disk list as a formatted table.
+  //! Get the bucket with the given identifier, the one validity definition
+  //! shared by the scheduler and the topology builder.
   //!
-  //! Columns: fsid | config | active | weight | used% | geotag
+  //! @param id bucket identifier, 0 is the root; a positive id names a disk
+  //!
+  //! @return pointer to the bucket, nullptr if the id is positive, out of
+  //!         range, a hole in the id range (INVALID sentinel type) or does not
+  //!         match the bucket stored at that slot
   //----------------------------------------------------------------------------
-  std::string getDisksAsString() const
+  const Bucket*
+  GetBucket(ItemIdT id) const
   {
-    TableFormatterBase table;
-
-    table.SetHeader({
-        std::make_tuple("fsid", 9, "l"),
-        std::make_tuple("config", 15, "s"),
-        std::make_tuple("active", 15, "s"),
-        std::make_tuple("weight", 10, "l"),
-        std::make_tuple("used%", 8, "l"),
-        std::make_tuple("geotag", 30, "s"),
-    });
-
-    for (const auto& d : disks) {
-      auto cs = d.config_status.load(std::memory_order_relaxed);
-      auto as = d.active_status.load(std::memory_order_relaxed);
-      uint8_t pct = d.percent_used.load(std::memory_order_relaxed);
-
-      std::string configStr = common::FileSystem::GetConfigStatusAsString(cs);
-      std::string activeStr = common::FileSystem::GetActiveStatusAsString(as);
-
-      TableFormatterColor configColor = NONE;
-      switch (cs) {
-      case ConfigStatus::kRW:
-        configColor = BGREEN;
-        break;
-      case ConfigStatus::kRO:
-        configColor = BYELLOW;
-        break;
-      case ConfigStatus::kDrain:
-      case ConfigStatus::kDrainDead:
-      case ConfigStatus::kOff:
-        configColor = BRED;
-        break;
-      default:
-        break;
-      }
-
-      TableFormatterColor activeColor = NONE;
-      if (as == ActiveStatus::kOnline) {
-        activeColor = BGREEN;
-      } else if (as == ActiveStatus::kOffline) {
-        activeColor = BRED;
-      }
-
-      // warn at >=80%, alert at >=95%
-      TableFormatterColor pctColor = NONE;
-      if (pct >= 95) {
-        pctColor = BRED;
-      } else if (pct >= 80) {
-        pctColor = BYELLOW;
-      }
-
-      std::string geotag;
-      if (auto it = disk_tag_map.find(d.id); it != disk_tag_map.end()) {
-        geotag = it->second;
-      }
-
-      TableRow row;
-      row.emplace_back(static_cast<long long int>(d.id), "l");
-      row.emplace_back(configStr, "s", "", false, configColor);
-      row.emplace_back(activeStr, "s", "", false, activeColor);
-      row.emplace_back(
-          static_cast<long long int>(d.weight.load(std::memory_order_relaxed)), "l");
-      row.emplace_back(static_cast<long long int>(pct), "l", "%", false, pctColor);
-      row.emplace_back(geotag, "s-");
-
-      table.AddRows({row});
+    if (id > 0) {
+      return nullptr;
     }
 
-    return table.GenerateTable(HEADER);
+    const size_t index = static_cast<size_t>(-id);
+
+    if (index >= buckets.size()) {
+      return nullptr;
+    }
+
+    const Bucket& bucket = buckets[index];
+
+    // A hole carries the INVALID sentinel type, and a real bucket - the root
+    // included - always stores its own id at this slot
+    if ((bucket.bucket_type == GetBucketType(BucketType::INVALID)) || (bucket.id != id)) {
+      return nullptr;
+    }
+
+    return &bucket;
   }
 
   //----------------------------------------------------------------------------
-  //! Return the bucket hierarchy as a formatted table.
+  //! Get the bucket of the scheduling group with the given index
   //!
-  //! Columns: type | id | group | weight | item_count | items
+  //! @param group_index scheduling group index, as the FsView numbers them
+  //!
+  //! @return bucket identifier, 0 if the index names no group of this topology
   //----------------------------------------------------------------------------
-  std::string getBucketsAsString() const
+  ItemIdT
+  GetGroupBucket(int64_t group_index) const
   {
-    TableFormatterBase table;
+    if ((group_index < 0) || (static_cast<size_t>(group_index) >= group_buckets.size())) {
+      return 0;
+    }
 
-    table.SetHeader({
-        std::make_tuple("type", 10, "s"),
-        std::make_tuple("id", 9, "l"),
-        std::make_tuple("group", 9, "l"),
-        std::make_tuple("weight", 10, "l"),
-        std::make_tuple("item_count", 8, "l"),
-        std::make_tuple("items", 57, "s"),
-    });
+    return group_buckets[group_index];
+  }
 
-    for (const auto& b : buckets) {
-      if (b.id == 0 && b.bucket_type == 0) {
+  //----------------------------------------------------------------------------
+  //! Get the disk with the given file system identifier
+  //!
+  //! @param id file system identifier, disks sit at index id - 1
+  //!
+  //! @return pointer to the disk, nullptr if the id is 0, out of range or a
+  //!         hole in the fsid range
+  //----------------------------------------------------------------------------
+  const Disk*
+  GetDisk(fsid_t id) const
+  {
+    if ((id == 0) || (id > disks.size())) {
+      return nullptr;
+    }
+
+    const Disk& disk = disks[id - 1];
+    return (disk.id == 0) ? nullptr : &disk;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the child of a bucket matching one geotag atom
+  //!
+  //! @param parent_id identifier of the bucket to look below
+  //! @param atom geotag atom to match
+  //!
+  //! @return identifier of the matching bucket, 0 if there is none
+  //----------------------------------------------------------------------------
+  ItemIdT
+  FindGeoChild(ItemIdT parent_id, std::string_view atom) const
+  {
+    auto it = geotag_index.find(GeoChildKey(parent_id, HashGeoAtom(atom)));
+
+    if (it == geotag_index.end()) {
+      return 0;
+    }
+
+    // Verify the atom so a 64 bit hash collision degrades to a correct miss
+    // rather than resolving to the wrong bucket
+    const Bucket* bucket = GetBucket(it->second);
+    return (bucket && (bucket->geo_atom == atom)) ? it->second : 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the geotag of a bucket, reassembled by walking up to the scheduling
+  //! group it belongs to
+  //!
+  //! @param bucket_id identifier of the bucket
+  //!
+  //! @return geotag, empty if the bucket is not part of the geo hierarchy
+  //----------------------------------------------------------------------------
+  std::string
+  GetGeoTag(ItemIdT bucket_id) const
+  {
+    std::vector<std::string_view> atoms;
+    ItemIdT id = bucket_id;
+
+    // Bounded rather than "until the root" so that a malformed parent chain
+    // cannot spin here. The bound matches the path-building loops elsewhere
+    // (i < kMaxGeoDepth), which cap the geo hierarchy at kMaxGeoDepth atoms.
+    for (uint8_t i = 0; (i < kMaxGeoDepth) && (id < 0); ++i) {
+      if ((size_t)(-id) >= buckets.size()) {
+        break;
+      }
+
+      const auto& bucket = buckets[-id];
+
+      if (bucket.geo_atom.empty()) {
+        break;
+      }
+
+      atoms.push_back(bucket.geo_atom);
+      id = bucket.parent;
+    }
+
+    std::string tag;
+
+    for (auto it = atoms.rbegin(); it != atoms.rend(); ++it) {
+      if (!tag.empty()) {
+        tag += "::";
+      }
+
+      tag += *it;
+    }
+
+    return tag;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the number of leading geotag atoms a disk shares with a client
+  //!
+  //! @param disk_id file system identifier of the disk
+  //! @param client_atoms client geotag atoms, outermost first, see SplitGeoTag
+  //!
+  //! @return number of matching leading atoms, 0 if the disk is unknown or
+  //!         sits outside the geo hierarchy
+  //----------------------------------------------------------------------------
+  uint8_t
+  GetGeoOverlap(fsid_t disk_id, const std::vector<std::string_view>& client_atoms) const
+  {
+    if (client_atoms.empty() || (disk_id == 0) || (disk_id > disk_parents.size())) {
+      return 0;
+    }
+
+    // Collect the geo path of the disk walking up, innermost atom first.
+    // Bounded rather than "until the root" so that a malformed parent chain
+    // cannot spin here. The views alias the immutable snapshot's bucket atoms.
+    std::array<std::string_view, kMaxGeoDepth> path;
+    uint8_t depth = 0;
+    ItemIdT id = disk_parents[disk_id - 1];
+
+    for (uint8_t i = 0; (i < kMaxGeoDepth) && (id < 0); ++i) {
+      if ((size_t)(-id) >= buckets.size()) {
+        break;
+      }
+
+      const auto& bucket = buckets[-id];
+
+      if (bucket.geo_atom.empty()) {
+        // reached the scheduling group above the geo levels
+        break;
+      }
+
+      path[depth++] = bucket.geo_atom;
+      id = bucket.parent;
+    }
+
+    // The collected path is innermost first, the client atoms outermost first
+    uint8_t overlap = 0;
+
+    while ((overlap < depth) && (overlap < client_atoms.size()) &&
+           (path[depth - 1 - overlap] == client_atoms[overlap])) {
+      ++overlap;
+    }
+
+    return overlap;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the bucket each disk is attached to
+  //!
+  //! @return map of disk identifier to bucket identifier
+  //----------------------------------------------------------------------------
+  std::unordered_map<ItemIdT, ItemIdT>
+  GetDiskParents() const
+  {
+    std::unordered_map<ItemIdT, ItemIdT> parents;
+
+    for (size_t i = 0; i < disk_parents.size(); ++i) {
+      if (disk_parents[i] != 0) {
+        parents.emplace(static_cast<ItemIdT>(i + 1), disk_parents[i]);
+      }
+    }
+
+    return parents;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the configuration status of a disk
+  //!
+  //! @param id file system identifier
+  //! @param status new configuration status
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  SetDiskStatus(fsid_t id, ConfigStatus status)
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    disk->config_status.store(status, std::memory_order_release);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the active status of a disk
+  //!
+  //! @param id file system identifier
+  //! @param status new active status
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  SetDiskStatus(fsid_t id, ActiveStatus status)
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    disk->active_status.store(status, std::memory_order_release);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the fill level of a disk
+  //!
+  //! @param id file system identifier
+  //! @param percent_used fill level in percent, clamped to 100
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  SetDiskPercentUsed(fsid_t id, uint8_t percent_used)
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    disk->percent_used.store(std::min<uint8_t>(percent_used, 100),
+                             std::memory_order_release);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Book space on a disk for a file that was just placed on it, see BookSpace
+  //!
+  //! @param id file system identifier
+  //! @param bookingsize size to book in bytes, 0 books nothing
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  BookDiskSpace(fsid_t id, uint64_t bookingsize) const
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    BookSpace(*disk, bookingsize);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the free space of a disk from an FST publish. The published figure
+  //! cannot include bytes that are booked but not yet written, so the bookings
+  //! accumulated since the last publish are subtracted from it - and retired,
+  //! every booking discounts exactly one publish. A booking whose write landed
+  //! before the publish is subtracted once too often, which errs on the safe
+  //! side for one publish interval; one whose file never got written stops
+  //! haunting the disk after the same interval.
+  //!
+  //! @param id file system identifier
+  //! @param free_bytes free space in bytes
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  SetDiskFreeSpace(fsid_t id, uint64_t free_bytes)
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    const uint32_t booked = disk->booked_gib.exchange(0, std::memory_order_acq_rel);
+    const uint32_t reported = FreeSpaceToGiB(free_bytes);
+    disk->free_gib.store((reported > booked) ? reported - booked : 0,
+                         std::memory_order_release);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the free space placement can actually use: the sum of Disk::free_gib
+  //! over every disk that is a placement candidate - online, in a writable
+  //! config status and not below a branch disabled for placement. The same
+  //! criteria SelectionStrategy::ValidDisk applies, so the figure agrees with
+  //! what a placement descent will actually do. The flat equivalent of the
+  //! geotree totalWritableSpace aggregate behind placementSpace; bookings are
+  //! already discounted since BookSpace debits free_gib directly.
+  //!
+  //! @return writable free space in GiB
+  //----------------------------------------------------------------------------
+  uint64_t
+  GetWritableFreeGiB() const
+  {
+    uint64_t total = 0;
+
+    for (const auto& disk : disks) {
+      if (disk.id == 0) {
+        continue; // hole in the fsid range
+      }
+
+      if ((disk.active_status.load(std::memory_order_relaxed) != ActiveStatus::kOnline) ||
+          (disk.config_status.load(std::memory_order_relaxed) < ConfigStatus::kRW)) {
         continue;
       }
 
-      auto btype = static_cast<StdBucketType>(b.bucket_type);
-
-      long long groupIndex = -1;
-      if (btype == StdBucketType::GROUP) {
-        groupIndex = static_cast<long long>(BucketIDtoGroupID(b.id));
+      if (IsBranchDisabled(disk.id, kDisabledPlct)) {
+        continue;
       }
 
-      TableRow row;
-      row.emplace_back(BucketTypeToStr(btype), "s");
-      row.emplace_back(static_cast<long long int>(b.id), "l");
-
-      if (groupIndex >= 0) {
-        row.emplace_back(groupIndex, "l");
-      } else {
-        row.emplace_back(std::string("-"), "s");
-      }
-
-      row.emplace_back(static_cast<long long int>(b.total_weight), "l");
-      row.emplace_back(static_cast<long long int>(b.items.size()), "l");
-      row.emplace_back(FormatItemList(b.items), "s-");
-
-      table.AddRows({row});
+      total += disk.free_gib.load(std::memory_order_relaxed);
     }
 
-    return table.GenerateTable(HEADER);
+    return total;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the aggregate health picture of the snapshot in one pass over the
+  //! disks. The epoch is not known at this level, the ClusterMgr fills it in.
+  //!
+  //! @return state summary
+  //----------------------------------------------------------------------------
+  ClusterStateSummary
+  GetStateSummary() const
+  {
+    ClusterStateSummary summary;
+
+    for (const auto& bucket : buckets) {
+      // Holes carry the INVALID sentinel type, so a GROUP type is always a real
+      // scheduling group
+      if (bucket.bucket_type == GetBucketType(BucketType::GROUP)) {
+        ++summary.n_groups;
+      }
+    }
+
+    for (const auto& disk : disks) {
+      if (disk.id == 0) {
+        continue; // hole in the fsid range
+      }
+
+      ++summary.n_disks;
+
+      if (disk.active_status.load(std::memory_order_relaxed) == ActiveStatus::kOnline) {
+        ++summary.n_online;
+      } else {
+        ++summary.n_offline;
+      }
+
+      switch (disk.config_status.load(std::memory_order_relaxed)) {
+      case ConfigStatus::kRW:
+      case ConfigStatus::kWO:
+        ++summary.n_rw;
+        break;
+
+      case ConfigStatus::kRO:
+        ++summary.n_ro;
+        break;
+
+      case ConfigStatus::kDrain:
+      case ConfigStatus::kDrainDead:
+      case ConfigStatus::kGroupDrain:
+        ++summary.n_drain;
+        break;
+
+      default:
+        ++summary.n_other;
+        break;
+      }
+
+      summary.capacity_weight += disk.weight.load(std::memory_order_relaxed);
+      summary.effective_weight += GetEffectiveWeight(disk, fill_limits);
+      summary.free_gib += disk.free_gib.load(std::memory_order_relaxed);
+      summary.booked_gib += disk.booked_gib.load(std::memory_order_relaxed);
+    }
+
+    summary.writable_free_gib = GetWritableFreeGiB();
+    return summary;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the fill thresholds of the snapshot. Validation is the caller's
+  //! job, see FsScheduler::SetFillLimits - here the values are only stored.
+  //!
+  //! @param cap fill level in percent at which a disk stops taking replicas
+  //! @param warn fill level in percent at which the weight starts to decay
+  //----------------------------------------------------------------------------
+  void
+  SetFillLimits(uint8_t cap, uint8_t warn)
+  {
+    fill_limits.cap.store(cap, std::memory_order_release);
+    fill_limits.warn.store(warn, std::memory_order_release);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Re-resolve the disabled branch rules onto the buckets. Every mask is
+  //! cleared first, so the rules passed in are always the complete set - one
+  //! code path serves add, remove and the restamp after a rebuild alike. The
+  //! geo hierarchy repeats below every scheduling group, so a rule flags its
+  //! branch under each of them. A geotag matching no bucket is silently
+  //! skipped: the rule may simply predate the part of the topology it names.
+  //!
+  //! @param rules canonical geotag to operations mask, see kDisabledPlct
+  //----------------------------------------------------------------------------
+  void
+  ApplyDisabledBranches(const DisabledBranchesT& rules)
+  {
+    bool any_plct = false;
+
+    for (const auto& [geotag, op_mask] : rules) {
+      any_plct = any_plct || (op_mask & kDisabledPlct);
+    }
+
+    // Raised before any mask is touched and lowered only after the clearing
+    // pass, so a placement running concurrently with the restamp errs towards
+    // the full descent, never towards a shortcut past a mask in flux
+    if (any_plct) {
+      plct_disabled.value.store(1, std::memory_order_release);
+    }
+
+    for (const auto& bucket : buckets) {
+      bucket.disabled_ops.store(0, std::memory_order_release);
+    }
+
+    for (const auto& [geotag, op_mask] : rules) {
+      const auto atoms = SplitGeoTag(geotag);
+
+      if (atoms.empty()) {
+        continue;
+      }
+
+      for (const auto& bucket : buckets) {
+        // Holes carry the INVALID sentinel type, so only real scheduling
+        // groups pass this filter
+        if (bucket.bucket_type != GetBucketType(BucketType::GROUP)) {
+          continue;
+        }
+
+        ItemIdT id = bucket.id;
+
+        for (const auto atom : atoms) {
+          id = FindGeoChild(id, atom);
+
+          if (id == 0) {
+            break;
+          }
+        }
+
+        if (id != 0) {
+          buckets[-id].disabled_ops.fetch_or(op_mask, std::memory_order_release);
+        }
+      }
+    }
+
+    if (!any_plct) {
+      plct_disabled.value.store(0, std::memory_order_release);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check whether any disabled-branch rule currently closes a branch for
+  //! placement, see ApplyDisabledBranches
+  //!
+  //! @return true if a placement rule is active, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  HasPlctDisabledBranches() const
+  {
+    return plct_disabled.value.load(std::memory_order_acquire) != 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check whether a disk sits below a branch disabled for the given
+  //! operations. Only the bucket a rule resolved to carries the mask, so the
+  //! walk visits every geo ancestor of the disk.
+  //!
+  //! @param disk_id file system identifier of the disk
+  //! @param op_mask operations to test, see kDisabledPlct / kDisabledAccess
+  //!
+  //! @return true if any geo ancestor is disabled for one of the operations
+  //----------------------------------------------------------------------------
+  bool
+  IsBranchDisabled(fsid_t disk_id, uint8_t op_mask) const
+  {
+    if ((disk_id == 0) || (disk_id > disk_parents.size())) {
+      return false;
+    }
+
+    // Bounded rather than "until the root" so that a malformed parent chain
+    // cannot spin here
+    ItemIdT id = disk_parents[disk_id - 1];
+
+    for (uint8_t i = 0; (i < kMaxGeoDepth) && (id < 0); ++i) {
+      if ((size_t)(-id) >= buckets.size()) {
+        break;
+      }
+
+      const auto& bucket = buckets[-id];
+
+      if (bucket.geo_atom.empty()) {
+        // reached the scheduling group above the geo levels
+        break;
+      }
+
+      if (bucket.IsDisabledFor(op_mask)) {
+        return true;
+      }
+
+      id = bucket.parent;
+    }
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the weight of a disk
+  //!
+  //! @param id file system identifier
+  //! @param weight new weight
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  SetDiskWeight(fsid_t id, uint8_t weight)
+  {
+    const Disk* disk = GetDisk(id);
+
+    if (disk == nullptr) {
+      return false;
+    }
+
+    disk->weight.store(weight, std::memory_order_release);
+    return true;
   }
 
 };
 
-inline bool isValidBucketId(item_id_t id, const ClusterData& data)
-{
-  return id < 0 && (-id < (int)data.buckets.size());
-}
-
-
 } // eos::mgm::placement
-
-#endif // EOS_CLUSTERDATATYPES_HH
