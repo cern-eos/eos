@@ -16,6 +16,15 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.38 Diopside``
+====================
+
+2026-07-29
+
+* Update dependency to xrootd/eos-xrootd 5.9.5 release which addresses a memory consumption issue:
+  [XrdHttpTPC] Share one parsed CA/CRL store across transfers
+
+
 ``v5.3.37 Diopside``
 ====================
 
