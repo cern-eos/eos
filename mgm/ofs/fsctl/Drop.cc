@@ -67,6 +67,10 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
+    // FSTs to notify once the namespace lock is released - DeleteExternal takes
+    // the FsView lock and does a network call, neither of which may happen
+    // while holding eosViewRWMutex (lock order is FsView -> eosView)
+    std::vector<eos::common::FileSystem::fsid_t> external_deletions;
     eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
         gOFS->eosFsView, fsid);
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
@@ -132,9 +136,10 @@ XrdMgmOfs::Drop(const char* path,
 
             if (fmd->hasUnlinkedLocation(id)) {
               // Make sure to also send a delete requests for the stripes/
-              // replicas, otherwise we're left with orphans - best effort
+              // replicas, otherwise we're left with orphans - best effort. The
+              // FSTs are notified only after the namespace lock is released
               if (drop_all) {
-                (void) DeleteExternal(id, fid);
+                external_deletions.push_back(id);
               }
 
               fmd->removeLocation(id);
@@ -186,6 +191,10 @@ XrdMgmOfs::Drop(const char* path,
           eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
         }
       }
+    }
+
+    for (const auto& id : external_deletions) {
+      (void)DeleteExternal(id, fid);
     }
 
     if (report) {
