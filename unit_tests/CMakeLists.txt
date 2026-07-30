@@ -175,6 +175,7 @@ set(FST_UT_SRCS
   fst/WalkDirTreeTests.cc
   fst/HttpHandlerFstFileCacheTests.cc
   fst/NfsIoTests.cc
+  fst/BlockXsMapTests.cc
   fst/SparseJournalTests.cc)
 
 #-------------------------------------------------------------------------------
