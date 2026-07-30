@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.4.10 Diopside``
+===================
+
+2026-07-30
+
+Bug
+----
+
+MGM: Fix eosView/FsView lock inversion in Drop
+
+
 ``v5.4.9 Diopside``
 ===================
 
