@@ -1,5 +1,6 @@
 #include "mgm/monitoring/MgmStatusCollector.hh"
 
+#include "common/BuildVersion.hh"
 #include "prometheus/client_metric.h"
 #include "prometheus/metric_type.h"
 
@@ -29,9 +30,16 @@ AddGauge(prometheus::MetricFamily& family,
 
 } // namespace
 
+std::string
+LocalEosVersion()
+{
+  return std::string(VERSION) + "-" + eos::common::kBuildRelease;
+}
+
 std::vector<MgmStatusSnapshot>
 BuildMgmStatusSnapshots(const std::string& local_id, const bool local_is_master,
-                        const std::string& master_id, const int mgm_port,
+                        const std::string& master_id,
+                        const std::string& local_eos_version, const int mgm_port,
                         const std::vector<std::string>& candidate_hosts)
 {
   std::vector<MgmStatusSnapshot> snapshots;
@@ -50,14 +58,14 @@ BuildMgmStatusSnapshots(const std::string& local_id, const bool local_is_master,
       continue;
     }
     const bool is_local = mgm_id == local_id;
-    snapshots.push_back(
-        {mgm_id, master_id, is_local ? local_is_master : mgm_id == master_id});
+    snapshots.push_back({mgm_id, master_id, is_local ? local_eos_version : std::string{},
+                         is_local ? local_is_master : mgm_id == master_id});
   }
 
   const auto local = std::find_if(snapshots.begin(), snapshots.end(),
                                   [&](const auto& s) { return s.mgm_id == local_id; });
   if (!local_id.empty() && (local == snapshots.end())) {
-    snapshots.push_back({local_id, master_id, local_is_master});
+    snapshots.push_back({local_id, master_id, local_eos_version, local_is_master});
   }
 
   return snapshots;
@@ -72,6 +80,10 @@ BuildMgmStatusMetricFamilies(const std::vector<MgmStatusSnapshot>& snapshots,
   role.help = "Configured MGM candidates and role (1 master, 0 follower); master_id is "
               "the lease holder observed by the exporting process.";
   role.type = prometheus::MetricType::Gauge;
+  prometheus::MetricFamily info;
+  info.name = "eos_mgm_info";
+  info.help = "Build information for the local MGM.";
+  info.type = prometheus::MetricType::Gauge;
 
   for (const auto& snapshot : snapshots) {
     AddGauge(
@@ -80,9 +92,16 @@ BuildMgmStatusMetricFamilies(const std::vector<MgmStatusSnapshot>& snapshots,
          {"master_id", snapshot.master_id.empty() ? kUnknownMgm : snapshot.master_id},
          {"mgm_id", snapshot.mgm_id.empty() ? kUnknownMgm : snapshot.mgm_id}},
         snapshot.is_master ? 1.0 : 0.0);
+    if (!snapshot.eos_version.empty()) {
+      AddGauge(info,
+               {{"cluster", cluster},
+                {"eos_version", snapshot.eos_version},
+                {"mgm_id", snapshot.mgm_id.empty() ? kUnknownMgm : snapshot.mgm_id}},
+               1.0);
+    }
   }
 
-  return {std::move(role)};
+  return {std::move(role), std::move(info)};
 }
 
 MgmStatusCollector::MgmStatusCollector(

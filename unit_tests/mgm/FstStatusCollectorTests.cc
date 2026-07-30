@@ -33,8 +33,9 @@ Labels(const prometheus::ClientMetric& metric)
 TEST(FstStatusCollector, PreservesIndependentStatusDimensions)
 {
   FstStatusSnapshot snapshot;
-  snapshot.nodes = {{"/eos/fst-01.example:1095/fst", "online", "on", "site::rack", 2},
-                    {"/eos/fst-02.example:1095/fst", "offline", "off", "", 1}};
+  snapshot.nodes = {
+      {"/eos/fst-01.example:1095/fst", "online", "on", "site::rack", "5.5.0-test", 2},
+      {"/eos/fst-02.example:1095/fst", "offline", "off", "", "", 1}};
   snapshot.filesystems = {
       {"/eos/fst-01.example:1095/fst", 1, "online", "rw", "nodrain", "booted", 1000, 250},
       {"/eos/fst-01.example:1095/fst", 2, "online", "draindead", "failed", "bootfailure",
@@ -59,6 +60,7 @@ TEST(FstStatusCollector, PreservesIndependentStatusDimensions)
   const auto node_labels = Labels(nodes->metric[1]);
   EXPECT_EQ(node_labels.at("active_status"), "offline");
   EXPECT_EQ(node_labels.at("config_status"), "off");
+  EXPECT_EQ(Labels(nodes->metric[0]).at("eos_version"), "5.5.0-test");
   EXPECT_EQ(node_labels.at("node_id"), "/eos/fst-02.example:1095/fst");
   EXPECT_DOUBLE_EQ(nodes->metric[1].gauge.value, 1.0);
 

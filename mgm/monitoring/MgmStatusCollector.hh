@@ -12,12 +12,16 @@ namespace eos::mgm::monitoring {
 struct MgmStatusSnapshot {
   std::string mgm_id;
   std::string master_id;
+  std::string eos_version;
   bool is_master = false;
 };
 
+std::string LocalEosVersion();
+
 std::vector<MgmStatusSnapshot>
 BuildMgmStatusSnapshots(const std::string& local_id, bool local_is_master,
-                        const std::string& master_id, int mgm_port,
+                        const std::string& master_id,
+                        const std::string& local_eos_version, int mgm_port,
                         const std::vector<std::string>& candidate_hosts);
 
 std::vector<prometheus::MetricFamily>

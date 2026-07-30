@@ -19,6 +19,7 @@ struct FstNodeStatusSnapshot {
   std::string active_status;
   std::string config_status;
   std::string geotag;
+  std::string eos_version;
   std::size_t filesystem_count = 0;
 };
 

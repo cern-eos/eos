@@ -7,6 +7,7 @@
 #include "mgm/monitoring/CachedCollectable.hh"
 #include "mgm/monitoring/FstStatusCollector.hh"
 #include "mgm/monitoring/MgmStatusCollector.hh"
+#include "mgm/monitoring/QdbStatusCollector.hh"
 #include "prometheus/client_metric.h"
 #include "prometheus/collectable.h"
 #include "prometheus/exposer.h"
@@ -42,6 +43,7 @@ using eos::mgm::traffic_shaping::TrafficShapingPolicy;
 constexpr std::size_t kPrometheusExporterThreads = 8;
 constexpr std::size_t kMaxAllTagsMetricEntries = 50000;
 constexpr std::chrono::milliseconds kFstStatusCacheTtl{5000};
+constexpr std::chrono::milliseconds kQdbStatusCacheTtl{15000};
 
 class MasterOnlyCollectable : public prometheus::Collectable {
 public:
@@ -1241,7 +1243,8 @@ private:
 PrometheusExporter::PrometheusExporter(
     std::string bind_address, TrafficShapingEngine& engine, std::string cluster,
     const std::chrono::milliseconds cache_ttl, std::function<bool()> should_collect,
-    std::function<std::vector<MgmStatusSnapshot>()> mgm_status_snapshot)
+    std::function<std::vector<MgmStatusSnapshot>()> mgm_status_snapshot,
+    std::function<std::vector<std::string>()> qdb_raft_info_snapshot)
     : mExposer(std::make_unique<prometheus::Exposer>(std::move(bind_address),
                                                      kPrometheusExporterThreads))
 {
@@ -1256,6 +1259,13 @@ PrometheusExporter::PrometheusExporter(
       std::make_shared<CachedCollectable>(std::make_shared<FstStatusCollector>(cluster),
                                           fst_status_cache_ttl),
       should_collect);
+  // raft-info is a small read but still network I/O. Cache it independently so
+  // viewer count and Prometheus concurrency cannot increase QuarkDB load.
+  auto qdb_status_collector = std::make_shared<MasterOnlyCollectable>(
+      std::make_shared<CachedCollectable>(std::make_shared<QdbStatusCollector>(
+                                              cluster, std::move(qdb_raft_info_snapshot)),
+                                          std::max(cache_ttl, kQdbStatusCacheTtl)),
+      should_collect);
   auto traffic_shaping_collector = std::make_shared<MasterOnlyCollectable>(
       std::make_shared<CachedCollectable>(
           std::make_shared<TrafficShapingCollector>(engine, std::move(cluster)),
@@ -1267,6 +1277,7 @@ PrometheusExporter::PrometheusExporter(
   mCollectors.emplace_back(std::move(mgm_status_collector));
   mCollectors.emplace_back(std::move(monitoring_collector));
   mCollectors.emplace_back(std::move(fst_status_collector));
+  mCollectors.emplace_back(std::move(qdb_status_collector));
   mCollectors.emplace_back(std::move(traffic_shaping_collector));
 
   for (const auto& collector : mCollectors) {

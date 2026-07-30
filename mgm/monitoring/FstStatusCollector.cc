@@ -159,7 +159,8 @@ CollectFstStatusSnapshot()
   snapshot.nodes.reserve(node_sources.size());
   snapshot.filesystems.reserve(filesystem_sources.size());
 
-  static const std::vector<std::string> node_keys{"status", "stat.geotag"};
+  static const std::vector<std::string> node_keys{"status", "stat.geotag",
+                                                  "stat.sys.eos.version"};
   for (const auto& source : node_sources) {
     std::map<std::string, std::string> values;
     mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), source.hash_locator, true,
@@ -170,6 +171,8 @@ CollectFstStatusSnapshot()
          source.active_status.empty() ? kUnknownStatus : source.active_status,
          ValueOrUnknown(values, "status"),
          values.count("stat.geotag") ? values["stat.geotag"] : std::string{},
+         values.count("stat.sys.eos.version") ? values["stat.sys.eos.version"]
+                                              : std::string{},
          source.filesystem_count});
   }
 
@@ -228,6 +231,7 @@ BuildFstStatusMetricFamilies(const FstStatusSnapshot& snapshot,
     const std::map<std::string, std::string> labels{{"active_status", node.active_status},
                                                     {"cluster", cluster},
                                                     {"config_status", node.config_status},
+                                                    {"eos_version", node.eos_version},
                                                     {"geotag", node.geotag},
                                                     {"node_id", node.node_id}};
     AddGauge(node_status, labels, 1.0);

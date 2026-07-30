@@ -81,6 +81,7 @@
 #include "mgm/monitoring/Monitoring.hh"
 #include "mgm/monitoring/MonitoringConfig.hh"
 #include "mgm/monitoring/PrometheusExporter.hh"
+#include "mgm/monitoring/QdbStatusCollector.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/ofs/XrdMgmOfsSecurity.hh"
@@ -604,8 +605,9 @@ XrdMgmOfs::ApplyMonitoringConfig(std::string* err)
           const std::string mgm_id = ManagerId.c_str();
 
           if (!mMaster) {
-            return monitoring::BuildMgmStatusSnapshots(mgm_id, false, {}, ManagerPort,
-                                                       mgm_candidate_hosts);
+            return monitoring::BuildMgmStatusSnapshots(mgm_id, false, {},
+                                                       monitoring::LocalEosVersion(),
+                                                       ManagerPort, mgm_candidate_hosts);
           }
 
           // Match the established ns-stat snapshot order. Reading the observed
@@ -614,7 +616,13 @@ XrdMgmOfs::ApplyMonitoringConfig(std::string* err)
           const std::string master_id = mMaster->GetMasterId();
           const bool is_master = mMaster->IsMaster();
           return monitoring::BuildMgmStatusSnapshots(mgm_id, is_master, master_id,
+                                                     monitoring::LocalEosVersion(),
                                                      ManagerPort, mgm_candidate_hosts);
+        },
+        [this]() {
+          return namespaceGroup && namespaceGroup->isInMemory()
+                     ? std::vector<std::string>{}
+                     : monitoring::CollectQdbRaftInfo(mQdbContactDetails);
         });
     mPrometheusExporterBindAddress = bind_address;
     mPrometheusExporterCacheTtlSeconds = cache_ttl_seconds;

@@ -279,6 +279,8 @@ add_library(
   monitoring/FstStatusCollector.hh
   monitoring/MgmStatusCollector.cc
   monitoring/MgmStatusCollector.hh
+  monitoring/QdbStatusCollector.cc
+  monitoring/QdbStatusCollector.hh
   monitoring/Monitoring.cc
   monitoring/Monitoring.hh
   monitoring/MonitoringConfig.hh
