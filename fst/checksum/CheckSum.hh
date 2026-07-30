@@ -332,6 +332,21 @@ public:
 private:
   virtual bool SetXSMap(off_t offset);
 
+  //----------------------------------------------------------------------------
+  //! Check if the checksum stored in the map for the given block is all zeros
+  //! i.e. the block is a hole. The mmapped map access is guarded against
+  //! SIGBUS, which can be raised for example when the filesystem holding the
+  //! map file runs out of space.
+  //!
+  //! @param block_idx index of the block inside the map
+  //! @param xs_len length in bytes of one checksum entry
+  //! @param is_zero out, true if the block has no checksum stored
+  //!
+  //! @return true if the map could be inspected, false if the access is out of
+  //!         bounds or raised a SIGBUS, in which case is_zero is not set
+  //----------------------------------------------------------------------------
+  bool IsXSBlockZero(size_t block_idx, size_t xs_len, bool& is_zero);
+
   unsigned int mNumRd; ///< number of reader references
   unsigned int mNumWr; ///< number of writer references
 };

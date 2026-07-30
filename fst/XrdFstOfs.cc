@@ -391,6 +391,10 @@ XrdFstOfs::XrdFstOfs() :
     // where abrtd is not configured
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
+    // Note: CheckSum::OpenMap installs its own SIGBUS handler later on to
+    // recover from faults on the mmapped block checksum map. It remembers the
+    // disposition set here and chains to it for any other SIGBUS, therefore
+    // this handler must not be re-installed after the first OpenMap call.
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
 

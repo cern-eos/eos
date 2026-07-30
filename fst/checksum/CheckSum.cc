@@ -22,6 +22,10 @@
  ************************************************************************/
 
 #include "fst/checksum/CheckSum.hh"
+#include "common/CloExec.hh"
+#include "common/Logging.hh"
+#include "common/Path.hh"
+#include "common/XattrCompat.hh"
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/BLAKE3.hh"
 #include "fst/checksum/CRC32.hh"
@@ -30,39 +34,157 @@
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
 #include "fst/utils/ScanRate.hh"
-#include "common/XattrCompat.hh"
-#include "common/Path.hh"
-#include "common/Logging.hh"
-#include "common/CloExec.hh"
-#include <sys/types.h>
+#include <cstring>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/mman.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <thread>
-
-#ifdef __APPLE__
-#define SYSGETTID (std::hash<std::thread::id>()(std::this_thread::get_id()))
-#else
-#include "common/thread_id.hh"
-#include <sys/syscall.h>
-#define SYSGETTID (eos::common::thread_id())
-#endif
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-// Static variable + sig handler to deal with SIGBUS error
+// Per-thread state + sig handler to deal with SIGBUS errors triggered by
+// accesses to the mmapped block checksum map. A SIGBUS is raised for example
+// when the underlying filesystem runs out of space: ChangeMap extends the map
+// file sparsely with ftruncate and the first store into a freshly mapped page
+// can then not allocate a block anymore.
+//
+// The jump buffer must be per-thread and it must only be used while a thread
+// has explicitly armed it around an mmap access. Anything else corrupts the
+// control flow: an unconditional siglongjmp lands in a buffer that was either
+// never initialized or was saved by a stack frame that has meanwhile returned.
 /*----------------------------------------------------------------------------*/
-static sigjmp_buf sj_env[65536];
+namespace {
+//! Per-thread recovery point for a guarded block checksum map access
+struct SigBusState {
+  sigjmp_buf env;
+  volatile sig_atomic_t armed;
+};
+
+//! The state itself uses the default TLS model, it is only ever allocated from
+//! SigBusScope below i.e. outside of the signal handler
+thread_local SigBusState tlSigBusState;
+
+// Only this pointer lives in the initial-exec TLS block, so that the signal
+// handler can read it without going through __tls_get_addr, which is not
+// async-signal-safe. Keeping just a pointer there also keeps the static TLS
+// footprint at 8 bytes, which matters because the FST plugin is dlopen'ed and
+// the static TLS surplus is a limited, process wide resource. It stays null for
+// any thread which never armed a guarded region.
+thread_local SigBusState* tlSigBus __attribute__((tls_model("initial-exec"))) = nullptr;
+
+//! SIGBUS disposition which was in place before we installed our own handler
+struct sigaction sPrevSigBusAct;
+//! Flag to install the SIGBUS handler only once
+std::once_flag sSigBusOnce;
+//! Outcome of the one and only SIGBUS handler installation
+bool sSigBusInstalled = false;
+} // namespace
 
 /*----------------------------------------------------------------------------*/
 static void
 sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 {
-  // jump to the saved program state to catch SIGBUS caused by illegal mmapped memory access
-  siglongjmp(sj_env[ SYSGETTID % 65536], 1);
+  SigBusState* state = tlSigBus;
+
+  if (state && state->armed) {
+    // Jump to the saved program state to catch a SIGBUS caused by an illegal
+    // mmapped memory access. Disarm first so that a subsequent SIGBUS which is
+    // not covered by a guarded region is not swallowed.
+    state->armed = 0;
+    siglongjmp(state->env, 1);
+  }
+
+  // This SIGBUS has nothing to do with the block checksum map - hand it over to
+  // whoever was handling it before us, typically the EOS stacktrace handler.
+  if (sPrevSigBusAct.sa_flags & SA_SIGINFO) {
+    if (sPrevSigBusAct.sa_sigaction) {
+      sPrevSigBusAct.sa_sigaction(sig, siginfo, ptr);
+      return;
+    }
+  } else if ((sPrevSigBusAct.sa_handler != SIG_DFL) &&
+             (sPrevSigBusAct.sa_handler != SIG_ERR) &&
+             (sPrevSigBusAct.sa_handler != SIG_IGN) &&
+             (sPrevSigBusAct.sa_handler != nullptr)) {
+    sPrevSigBusAct.sa_handler(sig);
+    return;
+  }
+
+  // Nobody else to defer to - restore the default action and re-raise so that
+  // the process still dies with a core instead of silently ignoring the fault.
+  (void)signal(sig, SIG_DFL);
+  (void)raise(sig);
 }
+
+/*----------------------------------------------------------------------------*/
+//! RAII helper arming the per-thread SIGBUS jump buffer for the duration of an
+//! mmap access to the block checksum map. It saves and restores any already
+//! armed buffer of the same thread and always disarms on scope exit, also when
+//! the scope is left through the siglongjmp path, so that a retired stack frame
+//! can never be jumped into.
+//!
+//! Usage:
+//!   SigBusScope scope;
+//!
+//!   if (!sigsetjmp(scope.Env(), 1)) {
+//!     scope.Arm();
+//!     ... mmap accesses ...
+//!     scope.Disarm();
+//!   } else {
+//!     ... recovery, the handler already disarmed ...
+//!   }
+/*----------------------------------------------------------------------------*/
+class SigBusScope {
+public:
+  SigBusScope()
+  {
+    // Touching the TLS state here makes sure it is allocated outside of the
+    // signal handler, which can then just read the initial-exec pointer
+    tlSigBus = &tlSigBusState;
+    mPrevArmed = tlSigBusState.armed;
+
+    if (mPrevArmed) {
+      memcpy(&mPrevEnv, &tlSigBusState.env, sizeof(sigjmp_buf));
+    }
+  }
+
+  ~SigBusScope()
+  {
+    if (mPrevArmed) {
+      memcpy(&tlSigBusState.env, &mPrevEnv, sizeof(sigjmp_buf));
+    }
+
+    tlSigBusState.armed = mPrevArmed;
+  }
+
+  SigBusScope(const SigBusScope&) = delete;
+  SigBusScope& operator=(const SigBusScope&) = delete;
+
+  //! Get the jump buffer to be passed to sigsetjmp
+  sigjmp_buf&
+  Env()
+  {
+    return tlSigBusState.env;
+  }
+
+  void
+  Arm()
+  {
+    tlSigBusState.armed = 1;
+  }
+
+  void
+  Disarm()
+  {
+    tlSigBusState.armed = 0;
+  }
+
+private:
+  sig_atomic_t mPrevArmed;
+  sigjmp_buf mPrevEnv;
+};
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -427,13 +549,19 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
-  // instantiate a signal handler for SIGBUS
-  struct sigaction act;
-  memset(&act, 0, sizeof(act));
-  act.sa_sigaction = eos::fst::sigbus_hdl;
-  act.sa_flags = SA_SIGINFO;
+  // Instantiate the signal handler for SIGBUS. This is a process wide setting
+  // so it's done only once and it remembers the previous disposition, which we
+  // chain to for any SIGBUS not raised by a guarded XS map access.
+  std::call_once(sSigBusOnce, []() {
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    memset(&sPrevSigBusAct, 0, sizeof(sPrevSigBusAct));
+    act.sa_sigaction = eos::fst::sigbus_hdl;
+    act.sa_flags = SA_SIGINFO;
+    sSigBusInstalled = (sigaction(SIGBUS, &act, &sPrevSigBusAct) == 0);
+  });
 
-  if (sigaction(SIGBUS, &act, 0)) {
+  if (!sSigBusInstalled) {
     fprintf(stderr, "Fatal: [CheckSum::OpenMap] sigaction failed\n");
     close(ChecksumMapFd);
     return false;
@@ -712,16 +840,40 @@ CheckSum::SetXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
+  if ((mapoffset < 0) || (len < 0) || ((size_t)(mapoffset + len) > ChecksumMapSize)) {
+    fprintf(stderr,
+            "Fatal: [CheckSum::SetXSMap] out of map bounds [ len=%d mapoffset=%llu "
+            "offset=%llu mapsize=%llu ]\n",
+            (int)len, (unsigned long long)mapoffset, (unsigned long long)offset,
+            (unsigned long long)ChecksumMapSize);
+    return false;
+  }
+
+  // Only volatile objects are guaranteed to hold their value after a
+  // siglongjmp, therefore the recovery branch below must not touch "this" or
+  // any other non-volatile local.
+  volatile int vlen = len;
+  volatile unsigned long long vmapoffset = (unsigned long long)mapoffset;
+  volatile unsigned long long voffset = (unsigned long long)offset;
+  volatile unsigned long long vmap = (unsigned long long)ChecksumMap;
+  volatile unsigned long long vmapsize = (unsigned long long)ChecksumMapSize;
+  SigBusScope scope;
+
+  if (!sigsetjmp(scope.Env(), 1)) {
+    scope.Arm();
+
     for (int i = 0; i < len; i++) {
       ChecksumMap[i + mapoffset] = cks[i];
     }
+
+    scope.Disarm();
   } else {
     // return point from signal handler
-    fprintf(stderr,
-            "Fatal: [CheckSum::SetXSMap] recovered SIGBUS by illegal write access to mmaped XS map file [ len=%d mapoffset=%llu offset=%llu map=%llu mapsize=%llu ]\n",
-            (int) len, (unsigned long long) mapoffset, (unsigned long long) offset,
-            (unsigned long long) ChecksumMap, (unsigned long long) ChecksumMapSize);
+    fprintf(
+        stderr,
+        "Fatal: [CheckSum::SetXSMap] recovered SIGBUS by illegal write access to mmaped "
+        "XS map file [ len=%d mapoffset=%llu offset=%llu map=%llu mapsize=%llu ]\n",
+        (int)vlen, vmapoffset, voffset, vmap, vmapsize);
     return false;
   }
 
@@ -742,24 +894,97 @@ CheckSum::VerifyXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
+  if ((mapoffset < 0) || (len < 0) || ((size_t)(mapoffset + len) > ChecksumMapSize)) {
+    fprintf(stderr,
+            "Fatal: [CheckSum::VerifyXSMap] out of map bounds [ len=%d mapoffset=%llu "
+            "offset=%llu mapsize=%llu ]\n",
+            (int)len, (unsigned long long)mapoffset, (unsigned long long)offset,
+            (unsigned long long)ChecksumMapSize);
+    return false;
+  }
+
+  // Only volatile objects are guaranteed to hold their value after a
+  // siglongjmp, therefore the recovery branch below must not touch "this" or
+  // any other non-volatile local.
+  volatile unsigned long long voffset = (unsigned long long)offset;
+  volatile unsigned long long vmapoffset = (unsigned long long)mapoffset;
+  volatile int vfd = ChecksumMapFd;
+  volatile unsigned long long vmap = (unsigned long long)ChecksumMap;
+  volatile unsigned long long vmapsize = (unsigned long long)ChecksumMapSize;
+  volatile bool matches = true;
+  SigBusScope scope;
+
+  if (!sigsetjmp(scope.Env(), 1)) {
+    scope.Arm();
+
     for (int i = 0; i < len; i++) {
       //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
       if ((ChecksumMap[i + mapoffset]) && ((ChecksumMap[i + mapoffset] != cks[i]))) {
         //      fprintf(stderr,"Failed %llu %llu %llu\n", offset + i, ChecksumMap[i+mapoffset], cks[i]);
-        return false;
+        matches = false;
+        break;
       }
     }
+
+    scope.Disarm();
   } else {
     // return point from signal handler
-    fprintf(stderr,
-            "Fatal: [CheckSum::VerifyXSMap] recovered SIGBUS by illegal read access to mmaped XS map file [ offset=%llu mapoffset=%llu fd=%d map=%llu mapsize=%llu ]\n",
-            (unsigned long long) offset, (unsigned long long) mapoffset,
-            (int) ChecksumMapFd, (unsigned long long) ChecksumMap,
-            (unsigned long long) ChecksumMapSize);
+    fprintf(
+        stderr,
+        "Fatal: [CheckSum::VerifyXSMap] recovered SIGBUS by illegal read access to "
+        "mmaped XS map file [ offset=%llu mapoffset=%llu fd=%d map=%llu mapsize=%llu ]\n",
+        voffset, vmapoffset, (int)vfd, vmap, vmapsize);
     return false;
   }
 
+  return matches;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+CheckSum::IsXSBlockZero(size_t block_idx, size_t xs_len, bool& is_zero)
+{
+  const size_t mapoffset = block_idx * xs_len;
+
+  if ((mapoffset + xs_len) > ChecksumMapSize) {
+    fprintf(stderr,
+            "Fatal: [CheckSum::IsXSBlockZero] out of map bounds [ mapoffset=%llu "
+            "len=%llu mapsize=%llu ]\n",
+            (unsigned long long)mapoffset, (unsigned long long)xs_len,
+            (unsigned long long)ChecksumMapSize);
+    return false;
+  }
+
+  // Only volatile objects are guaranteed to hold their value after a
+  // siglongjmp, therefore the recovery branch below must not touch "this" or
+  // any other non-volatile local.
+  volatile unsigned long long vmapoffset = (unsigned long long)mapoffset;
+  volatile unsigned long long vmap = (unsigned long long)ChecksumMap;
+  volatile unsigned long long vmapsize = (unsigned long long)ChecksumMapSize;
+  volatile bool vis_zero = true;
+  SigBusScope scope;
+
+  if (!sigsetjmp(scope.Env(), 1)) {
+    scope.Arm();
+
+    for (size_t n = 0; n < xs_len; n++) {
+      if (ChecksumMap[mapoffset + n]) {
+        vis_zero = false;
+        break;
+      }
+    }
+
+    scope.Disarm();
+  } else {
+    // return point from signal handler
+    fprintf(stderr,
+            "Fatal: [CheckSum::IsXSBlockZero] recovered SIGBUS by illegal read access to "
+            "mmaped XS map file [ mapoffset=%llu map=%llu mapsize=%llu ]\n",
+            vmapoffset, vmap, vmapsize);
+    return false;
+  }
+
+  is_zero = vis_zero;
   return true;
 }
 
@@ -789,46 +1014,38 @@ CheckSum::AddBlockSumHoles(int fd)
       size_t nblocks = ChecksumMapSize / len;
       bool iszero;
 
-      if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
-        for (size_t i = 0; i < nblocks; i++) {
-          iszero = true;
-
-          for (size_t n = 0; n < len; n++) {
-            if (ChecksumMap[(i * len) + n ]) {
-              iszero = false;
-              break;
-            }
-          }
-
-          if (iszero) {
-            int nrbytes = pread(fd, buffer, BlockSize, i * BlockSize);
-
-            if (nrbytes < 0) {
-              continue;
-            }
-
-            if (nrbytes < (int) BlockSize) {
-              // fill the last block
-              memset(buffer + nrbytes, 0, BlockSize - nrbytes);
-              nrbytes = BlockSize;
-            }
-
-            if (!AddBlockSum(i * BlockSize, buffer, nrbytes)) {
-              //            fprintf(stderr,"AddBlockSumHoles: checksumming failed\n");
-              free(buffer);
-              return false;
-            }
-
-            nXSBlocksWrittenHoles++;
-          }
+      for (size_t i = 0; i < nblocks; i++) {
+        // Note: the SIGBUS guarded region must stay confined to the map access
+        // inside IsXSBlockZero. It must in particular not span the AddBlockSum
+        // call below, which arms the same per-thread jump buffer for its own
+        // map accesses - a nested arming used to leave the buffer pointing at
+        // an already retired stack frame.
+        if (!IsXSBlockZero(i, len, iszero)) {
+          free(buffer);
+          return false;
         }
-      } else {
-        // return point from signal handler
-        fprintf(stderr,
-                "Fatal: [CheckSum::AddBlockSumHoles] recovered SIGBUS by illegal write access to mmaped XS map file [ nblocks=%u map=%llu ]\n",
-                (unsigned int) nblocks, (unsigned long long) ChecksumMapSize);
-        free(buffer);
-        return false;
+
+        if (iszero) {
+          int nrbytes = pread(fd, buffer, BlockSize, i * BlockSize);
+
+          if (nrbytes < 0) {
+            continue;
+          }
+
+          if (nrbytes < (int)BlockSize) {
+            // fill the last block
+            memset(buffer + nrbytes, 0, BlockSize - nrbytes);
+            nrbytes = BlockSize;
+          }
+
+          if (!AddBlockSum(i * BlockSize, buffer, nrbytes)) {
+            //            fprintf(stderr,"AddBlockSumHoles: checksumming failed\n");
+            free(buffer);
+            return false;
+          }
+
+          nXSBlocksWrittenHoles++;
+        }
       }
 
       free(buffer);
