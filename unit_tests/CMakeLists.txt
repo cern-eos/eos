@@ -159,6 +159,7 @@ set(FST_UT_SRCS
   fst/ResponseCollectorTests.cc
   fst/WalkDirTreeTests.cc
   fst/HttpHandlerFstFileCacheTests.cc
+  fst/ChecksumGroupTests.cc
   fst/NfsIoTests.cc)
 
 #-------------------------------------------------------------------------------

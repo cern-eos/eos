@@ -900,12 +900,14 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
 
-  const uint64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  // Must stay signed - Layout::Read returns -1 on error and an unsigned type
+  // would turn this into a huge positive value corrupting all the checks below
+  const int64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rc);
   }
-  eos_debug("layout read %d checkSum %d", rc,
-            mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
+  eos_debug("msg=\"layout read\" rc=%lli xs=%p", rc,
+            mChecksumGroup ? mChecksumGroup->GetDefault() : nullptr);
 
   if (gOFS.mSimReadDelay) {
     eos_warning("msg=\"apply read delay\" delay=%is fxid=%08llx",
@@ -939,16 +941,15 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   if (rc < 0) {
     // Here we might take some other action
     int envlen = 0;
-    eos_crit("block-read error=%d offset=%llu len=%llu file=%s",
-             error.getErrInfo(),
-             static_cast<unsigned long long>(fileOffset),
-             static_cast<unsigned long long>(buffer_size),
-             FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
+    eos_crit("block-read error=%d offset=%llu len=%llu file=%s cap=%s",
+             error.getErrInfo(), static_cast<unsigned long long>(fileOffset),
+             static_cast<unsigned long long>(buffer_size), FName(),
+             mCapOpaque ? mCapOpaque->Env(envlen) : FName());
     // Used to understand if a reconstruction of a RAIN file worked
     mHasReadErr = true;
   }
 
-  eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset,
+  eos_debug("rc=%lli offset=%lu size=%llu", rc, fileOffset,
             static_cast<unsigned long long>(buffer_size));
 
   if ((fileOffset + buffer_size) >= mOpenSize) {
@@ -969,7 +970,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   AddLayoutReadTime();
-  return rc;
+  return static_cast<XrdSfsXferSize>(rc);
 }
 
 //----------------------------------------------------------------------------
