@@ -967,12 +967,12 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  // Must stay signed - Layout::Read returns -1 on error and an unsigned type
-  // would turn this into a huge positive value corrupting all the checks below
-  int64_t rc = 0;
   gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
-  rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  // Must stay signed - Layout::Read returns -1 on error and an unsigned type
+  // would turn this into a huge positive value corrupting all the checks below
+  const int64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
@@ -1019,7 +1019,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     mHasReadErr = true;
   }
 
-  eos_debug("rc=%lli offset=%lu size=%llu", static_cast<long long>(rc), fileOffset,
+  eos_debug("rc=%lli offset=%lu size=%llu", rc, fileOffset,
             static_cast<unsigned long long>(buffer_size));
 
   if ((fileOffset + buffer_size) >= mOpenSize) {
