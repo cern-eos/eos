@@ -22,7 +22,29 @@
 #include "namespace/utils/FileListRandomPicker.hh"
 #include "common/Assert.hh"
 
+#include "common/Logging.hh"
+
 EOSNSNAMESPACE_BEGIN
+
+//! Limit the number of file list loads happening in parallel
+qclient::Semaphore FileSystemHandler::sLoadSem(FileSystemHandler::sMaxParallelLoads);
+
+namespace {
+//------------------------------------------------------------------------------
+//! RAII helper releasing the load semaphore on destruction
+//------------------------------------------------------------------------------
+struct SemaphoreGuard {
+  explicit SemaphoreGuard(qclient::Semaphore& sem)
+      : mSem(sem)
+  {
+    mSem.down();
+  }
+
+  ~SemaphoreGuard() { mSem.up(); }
+
+  qclient::Semaphore& mSem;
+};
+} // namespace
 
 //------------------------------------------------------------------------------
 // Constructor.
@@ -114,6 +136,13 @@ std::string FileSystemHandler::getRedisKey() const
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemHandler::triggerCacheLoad()
 {
+  using namespace std::chrono;
+  // Throttle the number of loads running in parallel. Note that no lock is
+  // held while waiting here, therefore inserts/erases on this handler and any
+  // operation on the already cached handlers keep making progress.
+  auto start = steady_clock::now();
+  SemaphoreGuard guard(sLoadSem);
+  auto wait_ms = duration_cast<milliseconds>(steady_clock::now() - start).count();
   pFlusher->synchronize();
   IFsView::FileList temporaryContents;
   temporaryContents.set_deleted_key(0);
@@ -122,6 +151,12 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad()
   for (auto it = getStreamingFileList(); it->valid(); it->next()) {
     temporaryContents.insert(it->getElement());
   }
+
+  auto total_ms = duration_cast<milliseconds>(steady_clock::now() - start).count();
+  eos_static_info("msg=\"loaded file list from backend\" key=\"%s\" "
+                  "num_entries=%llu wait_ms=%lli load_ms=%lli",
+                  getRedisKey().c_str(), (unsigned long long)temporaryContents.size(),
+                  (long long)wait_ms, (long long)(total_ms - wait_ms));
 
   // Now merge under lock, and additionally apply all entries we might have
   // missed between triggering the cache load, and receiving the contents.

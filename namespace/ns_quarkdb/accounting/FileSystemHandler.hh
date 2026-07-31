@@ -29,6 +29,9 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
 #include "qclient/structures/QSet.hh"
+
+#include "qclient/Semaphore.hh"
+
 #include <folly/futures/FutureSplitter.h>
 #include <folly/executors/Async.h>
 #include "common/Assert.hh"
@@ -256,10 +259,21 @@ public:
   void clearCache(std::chrono::seconds inactive_timeout =
                     std::chrono::seconds(30 * 60));
 
+  //! Maximum number of file list load operations running in parallel. Each
+  //! such operation can stream several million entries from QuarkDB and takes
+  //! tens of seconds, therefore we cap them so that they don't monopolize the
+  //! executor threads and the shared QClient connection, which would stall all
+  //! the other namespace operations.
+  static constexpr int64_t sMaxParallelLoads = 4;
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+  //! Semaphore shared by all handlers limiting the number of file list load
+  //! operations that run in parallel.
+  static qclient::Semaphore sLoadSem;
+
   //----------------------------------------------------------------------------
   //! Cache status states
   //----------------------------------------------------------------------------
