@@ -71,8 +71,13 @@ XrdMgmOfs::Drop(const char* path,
     // the FsView lock and does a network call, neither of which may happen
     // while holding eosViewRWMutex (lock order is FsView -> eosView)
     std::vector<eos::common::FileSystem::fsid_t> external_deletions;
-    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
-        gOFS->eosFsView, fsid);
+    // Note: we deliberately do NOT prefetch the file system file list here.
+    // The only fsview operation done below is eraseEntry which never requires
+    // the contents to be cached - it either updates an already loaded cache or
+    // is simply forwarded to the backend flusher. Loading the file list of a
+    // file system holding several million entries takes tens of seconds and
+    // many concurrent drop requests would trigger many such parallel loads,
+    // starving the namespace of resources.
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     {
       eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
