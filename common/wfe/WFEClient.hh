@@ -41,24 +41,24 @@ public:
 
 class RequestSenderConfig {
 public:
-  WFEndpoint endpoint;
-  std::string ssi_resource;
-  std::optional<std::string> root_certs;
-  std::optional<std::string> token_path;
-  std::optional<std::string> client_cert_path;
-  std::optional<std::string> client_key_path;
+  WFEndpoint m_endpoint;
+  std::string m_ssiResource;
+  std::optional<std::string> m_rootCerts;
+  std::optional<std::string> m_tokenPath;
+  std::optional<std::string> m_clientCertPath;
+  std::optional<std::string> m_clientKeyPath;
 
   RequestSenderConfig(WFEndpoint endpoint_, std::string resource,
-                      std::optional<std::string> root_certs,
-                      std::optional<std::string> token_path,
-                      std::optional<std::string> client_cert_path,
-                      std::optional<std::string> client_key_path)
-      : endpoint(endpoint_)
-      , ssi_resource(resource)
-      , root_certs(root_certs)
-      , token_path(token_path)
-      , client_cert_path(client_cert_path)
-      , client_key_path(client_key_path)
+                      std::optional<std::string> rootCerts,
+                      std::optional<std::string> tokenPath,
+                      std::optional<std::string> clientCertPath,
+                      std::optional<std::string> clientKeyPath)
+      : m_endpoint(endpoint_)
+      , m_ssiResource(resource)
+      , m_rootCerts(rootCerts)
+      , m_tokenPath(tokenPath)
+      , m_clientCertPath(clientCertPath)
+      , m_clientKeyPath(clientKeyPath)
   {
   }
 };
@@ -66,23 +66,23 @@ public:
 class WFEGrpcClient : public WFEClient {
 public:
   // GRPCS_JWT: TLS with root certs and JWT token
-  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& root_certs,
-                const std::string& token_path_str);
+  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& rootCerts,
+                const std::string& tokenPathStr);
 
   // GRPCS_MTLS: TLS with root certs and client certificates
-  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& root_certs,
-                const std::string& cert_path_str, const std::string& key_path_str);
+  WFEGrpcClient(const WFEndpoint endpoint, const std::optional<std::string>& rootCerts,
+                const std::string& certPathStr, const std::string& keyPathStr);
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
   cta::xrd::Response::ResponseType send(const cta::xrd::Request& request,
                                         cta::xrd::Response& response) override;
 
 private:
-  WFEndpoint endpoint;
-  std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
-  std::optional<std::string> token_path;
-  std::optional<std::string> cert_path;
-  std::optional<std::string> key_path;
+  WFEndpoint m_endpoint;
+  std::unique_ptr<cta::xrd::CtaRpc::Stub> m_clientStub;
+  std::optional<std::string> m_tokenPath;
+  std::optional<std::string> m_certPath;
+  std::optional<std::string> m_keyPath;
 };
 
 class WFEXrdClient : public WFEClient {
