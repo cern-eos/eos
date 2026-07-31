@@ -396,9 +396,7 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   bool found = false;
   uint64_t fsid_size = 0ull;
   eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   std::vector<eos::common::FileSystem::fsid_t>& validFs = mGeotagFs[geotag];
-  // TODO(gbitzes): Add prefetching here.
 
   while (validFs.size() > 0) {
     rndIndex = eos::common::getRandom(0ul, validFs.size() - 1);

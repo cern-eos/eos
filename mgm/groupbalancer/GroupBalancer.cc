@@ -145,36 +145,38 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   int rndIndex;
   bool found = false;
-  uint64_t fsid_size = 0ull;
   eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-  // TODO(gbitzes): Add prefetching, make more efficient.
-  std::vector<int> validFsIndexes(group->size());
+  // Snapshot the eligible file systems. This is the only step that requires
+  // the FsView lock and it does no I/O at all.
+  std::vector<eos::common::FileSystem::fsid_t> candidates;
+  {
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    candidates.reserve(group->size());
 
-  for (size_t i = 0; i < group->size(); i++) {
-    validFsIndexes[i] = (int) i;
-  }
+    for (auto it = group->begin(); it != group->end(); ++it) {
+      // Accept only active file systems
+      FileSystem* target = FsView::gFsView.mIdView.lookupByID(*it);
 
-  eos::mgm::BaseView::const_iterator fs_it;
-
-  while (validFsIndexes.size() > 0) {
-    fs_it = group->begin();
-    rndIndex = common::getRandom(0ul, validFsIndexes.size() - 1);
-    std::advance(fs_it, validFsIndexes[rndIndex]);
-    fsid = *fs_it;
-    // Accept only active file systems
-    FileSystem* target = FsView::gFsView.mIdView.lookupByID(fsid);
-
-    if (target && target->GetActiveStatus() == eos::common::ActiveStatus::kOnline) {
-      fsid_size = gOFS->eosFsView->getNumFilesOnFs(fsid);
-
-      if (fsid_size) {
-        found = true;
-        break;
+      if (target && (target->GetActiveStatus() == eos::common::ActiveStatus::kOnline)) {
+        candidates.push_back(*it);
       }
     }
+  }
 
-    validFsIndexes.erase(validFsIndexes.begin() + rndIndex);
+  // The namespace calls below can block for a long time - a SCARD round-trip
+  // to QuarkDB, or even a full file list load taking tens of seconds - and
+  // must therefore never run while holding the FsView lock, otherwise any
+  // pending writer and all the readers queued behind it are stalled too.
+  while (candidates.size() > 0) {
+    rndIndex = common::getRandom(0ul, candidates.size() - 1);
+    fsid = candidates[rndIndex];
+
+    if (gOFS->eosFsView->getNumFilesOnFs(fsid)) {
+      found = true;
+      break;
+    }
+
+    candidates.erase(candidates.begin() + rndIndex);
   }
 
   // Check if we have any files to transfer
