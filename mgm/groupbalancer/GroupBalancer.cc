@@ -96,19 +96,18 @@ GroupBalancer::UpdateTransferList()
 // sourceGroup, to the targetGroup (and updates the cache structures)
 //------------------------------------------------------------------------------
 void
-GroupBalancer::scheduleTransfer(const FileInfo& file_info,
-                                FsGroup* sourceGroup, FsGroup* targetGroup)
+GroupBalancer::scheduleTransfer(const FileInfo& file_info, const std::string& sourceGroup,
+                                const std::string& targetGroup)
 {
-  if (sourceGroup == nullptr || targetGroup == nullptr) {
+  if (sourceGroup.empty() || targetGroup.empty()) {
     return;
   }
 
   auto mGroupSizes = mEngine->get_group_sizes();
 
-  if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
-      (mGroupSizes.count(targetGroup->mName) == 0)) {
+  if ((mGroupSizes.count(sourceGroup) == 0) || (mGroupSizes.count(targetGroup) == 0)) {
     eos_static_err("msg=\"no src/trg group in map\" src_group=%s trg_group=%s",
-                   sourceGroup->mName.c_str(), targetGroup->mName.c_str());
+                   sourceGroup.c_str(), targetGroup.c_str());
     return;
   }
 
@@ -121,13 +120,12 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
 
   if (gOFS->mConverterEngine->ScheduleJob(file_info.fid, conv_tag, err_msg)) {
     eos_static_info("msg=\"group balancer scheduled job\" file=\"%s\" "
-                    "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
-                    sourceGroup->mName.c_str(), targetGroup->mName.c_str());
+                    "src_grp=\"%s\" dst_grp=\"%s\"",
+                    conv_tag.c_str(), sourceGroup.c_str(), targetGroup.c_str());
   } else {
     eos_static_err("msg=\"group balancer could not schedule job\" "
                    "file=\"%s\" src_grp=\"%s\" dst_grp=\"%s\"",
-                   conv_tag.c_str(), sourceGroup->mName.c_str(),
-                   targetGroup->mName.c_str());
+                   conv_tag.c_str(), sourceGroup.c_str(), targetGroup.c_str());
   }
 
   mTransfers[file_info.fid] = file_info.filename;
@@ -137,20 +135,27 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
 // Chooses a random file ID from a random filesystem in the given group
 //------------------------------------------------------------------------------
 eos::common::FileId::fileid_t
-GroupBalancer::chooseFidFromGroup(FsGroup* group)
+GroupBalancer::chooseFidFromGroup(const std::string& group_name)
 {
-  if (group == nullptr) {
-    return {};
-  }
-
   int rndIndex;
   bool found = false;
   eos::common::FileSystem::fsid_t fsid = 0;
-  // Snapshot the eligible file systems. This is the only step that requires
-  // the FsView lock and it does no I/O at all.
+  // Snapshot the eligible file systems. The FsGroup object is owned by the
+  // FsView which can delete it at any moment, therefore it is looked up by
+  // name and dereferenced only while holding the FsView lock. This is also
+  // the only step that requires the lock and it does no I/O at all.
   std::vector<eos::common::FileSystem::fsid_t> candidates;
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    auto group_it = FsView::gFsView.mGroupView.find(group_name);
+
+    if (group_it == FsView::gFsView.mGroupView.end()) {
+      eos_static_info("msg=\"group no longer in the FsView\" group=\"%s\"",
+                      group_name.c_str());
+      return {};
+    }
+
+    const FsGroup* group = group_it->second;
     candidates.reserve(group->size());
 
     for (auto it = group->begin(); it != group->end(); ++it) {
@@ -199,14 +204,10 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 }
 
 GroupBalancer::FileInfo
-GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
-                                   int attempts)
+GroupBalancer::chooseFileFromGroup(const std::string& from_group,
+                                   const std::string& to_group, int attempts)
 {
-  if (from_group == nullptr || to_group == nullptr) {
-    return {};
-  }
-
-  if (from_group->size() == 0) {
+  if (from_group.empty() || to_group.empty()) {
     return {};
   }
 
@@ -219,10 +220,8 @@ GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
       continue;
     }
 
-    auto filename = group_balancer::getFileProcTransferNameAndSize(fid,
-                    to_group->mName,
-                    &filesize,
-                    mProcFilter);
+    auto filename = group_balancer::getFileProcTransferNameAndSize(
+        fid, to_group, &filesize, mProcFilter);
 
     if (filename.empty() ||
         (mCfg.mMinFileSize > filesize) ||
@@ -255,7 +254,10 @@ printSizes(const group_size_map& group_sizes)
 void
 GroupBalancer::prepareTransfer()
 {
-  FsGroup* fromGroup, *toGroup;
+  // Note that the groups are handled by name all the way down. The FsGroup
+  // objects are owned by the FsView and must not be dereferenced outside of
+  // the FsView lock, therefore they are looked up by name in the places that
+  // do hold the lock.
   auto&& [over_it, under_it] = mEngine->pickGroupsforTransfer();
 
   if (over_it.empty() || under_it.empty()) {
@@ -265,29 +267,16 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  {
-    eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
-    auto from_group_it = FsView::gFsView.mGroupView.find(over_it);
-    auto to_group_it = FsView::gFsView.mGroupView.find(under_it);
-
-    if (from_group_it == FsView::gFsView.mGroupView.end() ||
-        to_group_it == FsView::gFsView.mGroupView.end()) {
-      return;
-    }
-
-    fromGroup = from_group_it->second;
-    toGroup = to_group_it->second;
-  }
-
-  auto file_info = chooseFileFromGroup(fromGroup, toGroup, mCfg.file_attempts);
+  auto file_info = chooseFileFromGroup(over_it, under_it, mCfg.file_attempts);
 
   if (!file_info) {
     eos_static_info("msg=\"failed to choose any fid to schedule\" "
-                    "failedgroup=%s", fromGroup->mName.c_str());
+                    "failedgroup=%s",
+                    over_it.c_str());
     return;
   }
 
-  scheduleTransfer(file_info, fromGroup, toGroup);
+  scheduleTransfer(file_info, over_it, under_it);
 }
 
 //------------------------------------------------------------------------------

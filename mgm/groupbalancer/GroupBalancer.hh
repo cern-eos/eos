@@ -164,23 +164,25 @@ private:
   //----------------------------------------------------------------------------
   //! Chooses a random file ID from a random filesystem in the given group
   //!
-  //! @param group the group from which the file id will be chosen
+  //! @param group_name name of the group from which the file id will be chosen.
+  //!        The group is looked up in the FsView while holding the FsView lock,
+  //!        since the FsGroup object must never be dereferenced without it.
   //!
   //! @return the chosen file ID
   //----------------------------------------------------------------------------
-  eos::common::FileId::fileid_t chooseFidFromGroup(FsGroup* group);
+  eos::common::FileId::fileid_t chooseFidFromGroup(const std::string& group_name);
 
   //----------------------------------------------------------------------------
   //! Chooses a random file from a random filesystem in the given group, but makes
   //! a few attempts to pick a file within the configured size limits.
-  //! @param from_group the group from which the file id will be chosen
-  //! @param to_group the group to which file will be moved to
+  //! @param from_group name of the group from which the file id will be chosen
+  //! @param to_group name of the group to which file will be moved to
   //! @param no of attempts (default :50)
   //!
   //! @return FileInfo for the chosen file
   //----------------------------------------------------------------------------
-  GroupBalancer::FileInfo chooseFileFromGroup(FsGroup* from_group,
-      FsGroup* to_group, int attempts);
+  GroupBalancer::FileInfo chooseFileFromGroup(const std::string& from_group,
+                                              const std::string& to_group, int attempts);
 
   void prepareTransfers(int nrTransfers);
 
@@ -195,11 +197,11 @@ private:
   //! sourceGroup, to the targetGroup (and updates the cache structures)
   //!
   //! @param file_info, the FileInfo struct of the file to be transferred
-  //! @param sourceGroup the group where the file is currently located
-  //! @param targetGroup the group to which the file is will be transferred
+  //! @param sourceGroup name of the group where the file is currently located
+  //! @param targetGroup name of the group to which the file will be transferred
   //----------------------------------------------------------------------------
-  void scheduleTransfer(const FileInfo& file_info,
-                        FsGroup* sourceGroup, FsGroup* targetGroup);
+  void scheduleTransfer(const FileInfo& file_info, const std::string& sourceGroup,
+                        const std::string& targetGroup);
 
   //----------------------------------------------------------------------------
   //! Check if the sizes cache should be updated (based on the time passed since
