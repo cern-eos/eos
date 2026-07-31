@@ -2021,14 +2021,6 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
-
-    // need to set the storage_class and archive_file_id attributes (not just the extended ones)
-    if (attribute.first == ARCHIVE_STORAGE_CLASS_ATTR_NAME) {
-      notification->mutable_file()->set_storage_class(attribute.second);
-    }
-    if (attribute.first == ARCHIVE_FILE_ID_ATTR_NAME) {
-      notification->mutable_file()->set_archive_file_id(std::strtoul(attribute.second.c_str(), nullptr, 10));
-    }
   }
 
   if (prepareActivity.length()) {
@@ -2048,11 +2040,6 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
     notification->mutable_file()->set_archive_file_id
     (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
-  }
-
-  if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {
-    notification->mutable_file()->set_storage_class(
-      xAttrs[ARCHIVE_STORAGE_CLASS_ATTR_NAME]);
   }
 
   if (xAttrs.count(EOS_BTIME)) {
