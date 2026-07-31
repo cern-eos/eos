@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #pragma once
+#include "common/Logging.hh"
 #include "fst/Load.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -134,9 +135,34 @@ public:
   //! @param xs buffer pointer to data buffer
   //! @param length size of the data chunk in bytes
   //! @param offset offst of the data chunk within the overall data stream
+  //!
+  //! @return true if the chunk was added to all checksums, false if the
+  //!         arguments were rejected as invalid
   //----------------------------------------------------------------------------
   bool Add(const char* buffer, size_t length, off_t offset)
   {
+    // Sanity check on the arguments - the checksum implementations pass the
+    // length straight to the underlying C routines, therefore a bogus value
+    // e.g. a negative read return value cast to size_t, makes them run off
+    // the end of the buffer and crash the daemon. XrdSfsXferSize is 32-bit
+    // so any legitimate chunk is far below this bound.
+    static constexpr size_t sMaxChunkLength = (1ull << 32);
+
+    if ((buffer == nullptr) || (length > sMaxChunkLength)) {
+      eos_static_crit("msg=\"refusing checksum update with invalid arguments\" "
+                      "buffer=%p length=%llu offset=%lld",
+                      buffer, static_cast<unsigned long long>(length),
+                      static_cast<long long>(offset));
+
+      // Mark the checksums dirty so that we never report a value computed
+      // from partial data as a genuine checksum mismatch
+      for (auto& [_, xs] : mChecksums) {
+        xs->SetDirty();
+      }
+
+      return false;
+    }
+
     for (auto& [_, xs] : mChecksums) {
       xs->Add(buffer, length, offset);
     }
