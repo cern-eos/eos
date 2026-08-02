@@ -24,24 +24,20 @@ trigger_cta_regression_tests:
       artifacts: false
   variables:
     CTA_BRANCH: main
-    PIPELINE_TYPE: REGR_AGAINST_CTA_VERSION
-    # Direct references to predefined CI variables are expanded in the upstream pipeline,
-    # while references through another custom variable are re-evaluated downstream.
-    # As a result, CUSTOM_EOS_IMAGE_TAG must refer to $CI_COMMIT_SHORT_SHA directly
-    # and cannot refer to another variable that contains $CI_COMMIT_SHORT_SHA.
-    # For this reason, we also cannot cleanly !reference the existing rules.
-    # Basically, GitLab doesn't do transitive variable expansion.
-    CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_SHORT_SHA.el9
+    EOS_IMAGE_TAG_INPUT: $CI_COMMIT_SHORT_SHA.el9
   trigger:
     project: cta/CTA
     branch: $CTA_BRANCH
     strategy: mirror
     forward:
       pipeline_variables: false # Prevent accidentally overwriting CTA pipeline variables
+    inputs:
+      pipeline-type: REGR_AGAINST_CTA_VERSION
+      custom-eos-image-tag: $EOS_IMAGE_TAG_INPUT
   rules:
     # Auto-run on schedules and tags, manual otherwise
     - if: $CI_COMMIT_TAG
       variables:
-        CUSTOM_EOS_IMAGE_TAG: $CI_COMMIT_TAG.el9
+        EOS_IMAGE_TAG_INPUT: $CI_COMMIT_TAG.el9
     - !reference [.rules-schedules-and-tags, rules]
     - !reference [.rules-manual, rules]
