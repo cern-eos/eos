@@ -39,6 +39,5 @@ trigger_cta_regression_tests:
     - if: $CI_COMMIT_TAG
       variables:
         EOS_IMAGE_TAG_INPUT: $CI_COMMIT_TAG.el9
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - when: manual
-      allow_failure: true
+    - !reference [.rules-schedules-and-tags, rules]
+    - !reference [.rules-manual, rules]
