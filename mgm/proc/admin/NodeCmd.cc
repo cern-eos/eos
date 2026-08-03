@@ -242,14 +242,20 @@ void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
     nodename.append("/fst");
   }
 
-  if (!FsView::gFsView.mNodeView.count(nodename)) {
+  // This subcommand only reads the view, therefore a read lock is enough. Note
+  // it must also cover the node lookup below, otherwise the node could be
+  // removed in between and we would end up dereferencing a dangling pointer.
+  eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+  auto it_node = FsView::gFsView.mNodeView.find(nodename);
+
+  if (it_node == FsView::gFsView.mNodeView.end()) {
     reply.set_std_err("error: cannot find node - no node with name '" + nodename +
                       "'");
     reply.set_retc(ENOENT);
     return;
   }
 
-  eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
+  const FsNode* node = it_node->second;
   std::string std_out;
   std::vector<std::string> keylist;
   std_out +=
@@ -257,12 +263,12 @@ void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
   std_out += "# Node Variables\n";
   std_out +=
     "# ....................................................................................\n";
-  FsView::gFsView.mNodeView[nodename]->GetConfigKeys(keylist);
+  node->GetConfigKeys(keylist);
   std::sort(keylist.begin(), keylist.end());
 
   for (auto& i : keylist) {
     char line[2048];
-    std::string val = FsView::gFsView.mNodeView[nodename]->GetConfigMember(i);
+    std::string val = node->GetConfigMember(i);
 
     if (val.substr(0, 7) == "base64:") {
       val = "base64:...";

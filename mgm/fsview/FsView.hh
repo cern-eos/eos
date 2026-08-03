@@ -447,7 +447,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return all configuration keys
   //----------------------------------------------------------------------------
-  bool GetConfigKeys(std::vector<std::string>& keys);
+  bool GetConfigKeys(std::vector<std::string>& keys) const;
 
   //----------------------------------------------------------------------------
   //! Set the heartbeat time

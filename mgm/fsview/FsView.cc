@@ -2969,7 +2969,7 @@ BaseView::DeleteConfigMember(std::string key) const
 // GetConfigKeys
 //------------------------------------------------------------------------------
 bool
-BaseView::GetConfigKeys(std::vector<std::string>& keys)
+BaseView::GetConfigKeys(std::vector<std::string>& keys) const
 {
   return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
                                mLocator).getKeys(keys);
