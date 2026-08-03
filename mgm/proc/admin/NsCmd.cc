@@ -631,6 +631,14 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       oss << "uid=all gid=all ns.qdb.leader=" << qdb_ha_status.leader << "\n"
           << "uid=all gid=all ns.qdb.followers="
           << JoinValuesOrNone(qdb_ha_status.followers) << "\n";
+      qclient::BackpressureStats bp = qdb_group->getQClient()->getBackpressureStats();
+      oss << "uid=all gid=all ns.qclient.backlog.pending=" << bp.pendingRequests
+          << std::endl
+          << "uid=all gid=all ns.qclient.backlog.peak=" << bp.peakPendingRequests
+          << std::endl
+          << "uid=all gid=all ns.qclient.backlog.limit=" << bp.requestLimit << std::endl
+          << "uid=all gid=all ns.qclient.backlog.free_slots=" << bp.availableSlots
+          << std::endl;
 
       if (info.find("rtt_min") != info.end()) {
         oss << "uid=all gid=all ns.qclient.rtt_ms.min="
@@ -834,6 +842,13 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
       oss << "ALL      QClient Persistency              "
           << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
+      qclient::BackpressureStats bp = qdb_group->getQClient()->getBackpressureStats();
+      // free_slots is the backpressure semaphore itself. It is not simply
+      // limit - pending, since only some staging paths decrement it - the gap
+      // between the two is the accounting drift.
+      oss << "ALL      QClient request backlog          " << bp.pendingRequests
+          << " (current) " << bp.peakPendingRequests << " (peak) " << bp.requestLimit
+          << " (limit) " << bp.availableSlots << " (free slots)" << std::endl;
 
       if (info.find("rtt_min") != info.end()) {
         oss << "ALL      QClient overall RTT              "
