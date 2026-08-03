@@ -173,6 +173,16 @@ Vid::Set(const char* value, bool storeConfig)
       XrdOucString setting = val;
 
       if (setting == "true") {
+        // Never grant sudo rights to "nobody". This is what the uid ends up
+        // being whenever the given user name can not be resolved or the
+        // source uid is missing altogether.
+        if (uid == eos::common::VirtualIdentity::kNobodyUid) {
+          eos_static_err("msg=\"refusing to add nobody to the sudoer list\" "
+                         "key=\"%s\" value=\"%s\"",
+                         skey.c_str(), value);
+          return false;
+        }
+
         eos::common::Mapping::gSudoerMap[uid] = 1;
 
         if (storeConfig) {

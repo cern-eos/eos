@@ -53,6 +53,7 @@ set(MGM_UT_SRCS
   mgm/LRUTests.cc
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
+  mgm/VidTests.cc
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
