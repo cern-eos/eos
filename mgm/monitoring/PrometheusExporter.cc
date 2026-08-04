@@ -372,6 +372,9 @@ public:
     auto report_queue_depth = MakeGaugeFamily(
         "eos_io_shaping_report_queue_depth",
         "Current number of FST IO reports waiting for traffic shaping processing.");
+    auto report_queue_oldest_age = MakeGaugeFamily(
+        "eos_io_shaping_report_queue_oldest_age_seconds",
+        "Age in seconds of the oldest FST IO report awaiting or undergoing processing.");
     auto report_queue_estimated_bytes =
         MakeGaugeFamily("eos_io_shaping_report_queue_estimated_bytes",
                         "Estimated memory footprint of queued FST IO reports.");
@@ -543,9 +546,10 @@ public:
     AddSystemFamilies(
         *manager, system_loop_duration, fsview_lock_duration, loop_iterations,
         loop_last_completed, slow_iterations, reports_processed, report_queue_depth,
-        report_queue_estimated_bytes, reports_dropped, stream_state_estimated_bytes,
-        estimated_memory_bytes, memory_limit_bytes, stream_state_limit_entries,
-        stream_states_rejected, garbage_collection_removed_entries, map_cardinality);
+        report_queue_oldest_age, report_queue_estimated_bytes, reports_dropped,
+        stream_state_estimated_bytes, estimated_memory_bytes, memory_limit_bytes,
+        stream_state_limit_entries, stream_states_rejected,
+        garbage_collection_removed_entries, map_cardinality);
     AddPolicyFamilies(*manager, policy_bytes);
     AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
@@ -591,6 +595,7 @@ public:
         std::move(slow_iterations),
         std::move(reports_processed),
         std::move(report_queue_depth),
+        std::move(report_queue_oldest_age),
         std::move(report_queue_estimated_bytes),
         std::move(reports_dropped),
         std::move(stream_state_estimated_bytes),
@@ -774,6 +779,7 @@ private:
                     prometheus::MetricFamily& slow_iterations,
                     prometheus::MetricFamily& reports_processed,
                     prometheus::MetricFamily& report_queue_depth,
+                    prometheus::MetricFamily& report_queue_oldest_age,
                     prometheus::MetricFamily& report_queue_estimated_bytes,
                     prometheus::MetricFamily& reports_dropped,
                     prometheus::MetricFamily& stream_state_estimated_bytes,
@@ -811,6 +817,8 @@ private:
              manager.GetFstReportsProcessedPerSecondMean());
     AddGauge(report_queue_depth, {{"cluster", mCluster}},
              static_cast<double>(manager.GetFstReportQueueDepth()));
+    AddGauge(report_queue_oldest_age, {{"cluster", mCluster}},
+             manager.GetFstReportQueueOldestAgeSeconds());
     const auto memory = manager.GetMemoryStats();
     AddGauge(report_queue_estimated_bytes, {{"cluster", mCluster}},
              static_cast<double>(memory.report_queue_estimated_bytes));

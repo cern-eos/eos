@@ -2814,36 +2814,14 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
                      "value=\"%s\"", upd.value.c_str());
     }
   } else if (eos::common::FST_TRAFFIC_SHAPING_IO_REPORT == upd.key) {
-    std::string serialized_report;
-    const bool is_base64 = upd.value.compare(0, 7, "base64:") == 0;
-    const size_t maximum_input_bytes =
-        is_base64 ? eos::mgm::traffic_shaping::kMaxBase64EncodedFstIoReportBytes
-                  : eos::mgm::traffic_shaping::kMaxSerializedFstIoReportBytes;
-    if (upd.value.size() > maximum_input_bytes) {
-      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(
-          "encoded report exceeds pre-decode size limit");
-      return;
-    }
-
-    try {
-      if (!eos::common::SymKey::DeBase64(upd.value, serialized_report)) {
-        gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking("base64 decode failed");
-        return;
-      }
-    } catch (const std::exception& error) {
-      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(error.what());
-      return;
-    } catch (...) {
-      gOFS->mTrafficShapingEngine.RejectFstIoReportNonBlocking(
-          "base64 decode raised unknown exception");
-      return;
-    }
-
-    gOFS->mTrafficShapingEngine.ProcessSerializedFstIoReportNonBlocking(
-        serialized_report);
+    // qclient invokes this callback synchronously from its subscription loop.
+    // Move the untouched payload into bounded ingress storage and leave all
+    // decoding, parsing, validation and logging to the estimator thread.
+    gOFS->mTrafficShapingEngine.TryEnqueueEncodedFstIoReport(std::move(upd.value));
   } else {
     eos_static_debug("msg=\"ignore node shared hash update\" key=\"%s\" "
-                     "value=\"%s\"", upd.key.c_str(), upd.value.c_str());
+                     "value_bytes=%zu",
+                     upd.key.c_str(), upd.value.size());
   }
 }
 //------------------------------------------------------------------------------
