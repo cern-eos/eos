@@ -158,8 +158,8 @@ void RegisterNativeConsoleCommands()
   extern void RegisterSchedProtoNativeCommand();
   RegisterSchedProtoNativeCommand();
   // file/fuse/fusex
-  extern void RegisterFileNativeCommand();
-  RegisterFileNativeCommand();
+  extern void RegisterFileProtoNativeCommand();
+  RegisterFileProtoNativeCommand();
   extern void RegisterFileInfoAliasCommand();
   RegisterFileInfoAliasCommand();
   extern void RegisterFuseNativeCommand();
