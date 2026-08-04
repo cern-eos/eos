@@ -967,6 +967,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  RegulateBandwidth();
   gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
@@ -987,7 +988,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   /* maintaining a checksum is tricky if there have been writes,
    * but the read + append case can be supported in "Add" */
-  if ((rc > 0) && (mChecksumGroup->HasChecksums()) && (!mHasWrite)) {
+  if (rc > 0 && mChecksumGroup->HasChecksums() && !mHasWrite) {
     mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
                         static_cast<off_t>(fileOffset));
   }
@@ -1106,16 +1107,12 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   RegulateBandwidth();
-  int64_t rv = 0;
   gOFS.mIoDelayConfig.WaitForRead(vid, total_read);
-
-  rv = mLayout->ReadV(chunkList, total_read);
-  if (rv > 0) {
-    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
-  }
+  const int64_t rv = mLayout->ReadV(chunkList, total_read);
 
   if (rv > 0) {
     totalBytes += rv;
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
   }
 
   if (EOS_LOGS_DEBUG) {
@@ -1195,7 +1192,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-
   // if the write position moves the checksum is dirty
   if (mChecksumGroup->HasChecksums()) {
     if (mWritePosition != fileOffset) {
@@ -1223,16 +1219,15 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
             static_cast<unsigned long>(buffer_size));
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients
-  if ((rc < 0) && mIsCreation && !mFusex &&
-      eos::common::LayoutId::IsReplica(mLid) &&
-      (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO)) {
+  if (rc < 0 && mIsCreation && !mFusex && eos::common::LayoutId::IsReplica(mLid) &&
+      mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) {
     mRepairOnClose = true;
     rc = buffer_size;
   }
 
   // In case we have a remote write error for a replica, the local replica is still ok!
-  if ((rc < 0) && (eos::common::LayoutId::IsReplica(mLid) &&
-                   (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO))) {
+  if (rc < 0 && eos::common::LayoutId::IsReplica(mLid) &&
+      mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) {
     rc = buffer_size;
   }
 
@@ -2309,7 +2304,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (mFsId) {
     if (!gOFS.Storage->mFsMap.count(mFsId)) {
-      return gOFS.Emsg("readeofs", error, EBADF,
+      return gOFS.Emsg("readofs", error, EBADF,
                        "read file - filesystem has been unregistered");
     }
   }
