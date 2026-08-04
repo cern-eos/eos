@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
-#include <deque>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -702,11 +701,15 @@ public:
   double GetFstReportsProcessedPerSecondMean() const;
 
   void UpdateFstReportQueueStats(uint64_t depth, uint64_t estimated_bytes,
-                                 uint64_t dropped);
+                                 uint64_t dropped, uint64_t oldest_monotonic_ns = 0);
+
+  void RecordFstReportsDropped(uint64_t count = 1) noexcept;
 
   uint64_t GetFstReportQueueDepth() const;
 
   uint64_t GetFstReportQueueEstimatedBytes() const;
+
+  double GetFstReportQueueOldestAgeSeconds() const;
 
   uint64_t GetFstReportsDroppedTotal() const;
 
@@ -1027,6 +1030,7 @@ private:
 
   std::atomic<uint64_t> mFstReportQueueDepth{0};
   std::atomic<uint64_t> mFstReportQueueEstimatedBytes{0};
+  std::atomic<uint64_t> mFstReportQueueOldestMonotonicNs{0};
   std::atomic<uint64_t> mFstReportsDroppedTotal{0};
 
   std::atomic<bool> mLimitsEnabled{true};
@@ -1068,10 +1072,7 @@ public:
 
   std::shared_ptr<TrafficShapingManager> GetManager() const;
 
-  void
-  ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report) noexcept;
-
-  void RejectFstIoReportNonBlocking(const char* reason) noexcept;
+  bool TryEnqueueEncodedFstIoReport(std::string&& encoded_report) noexcept;
 
   uint32_t
   GetEstimatorsUpdateThreadPeriodMilliseconds() const
@@ -1255,9 +1256,10 @@ private:
 
   void FstTrafficShapingEnabledUpdate(ThreadAssistant&);
 
-  void AddReportToQueue(eos::traffic_shaping::FstIoReport report) noexcept;
+  void RecordRejectedFstReport(uint64_t count = 1) noexcept;
 
-  void RecordRejectedFstReport() noexcept;
+  bool ParseFstIoReport(const std::string& serialized_report,
+                        eos::traffic_shaping::FstIoReport& report) noexcept;
 
   void ProcessAllQueuedReports();
 
@@ -1298,12 +1300,23 @@ private:
   std::atomic<uint32_t> mGarbageCollectionIdleSeconds{kDefaultGarbageCollectionIdleSec};
 
   struct QueuedFstIoReport {
-    eos::traffic_shaping::FstIoReport report;
+    std::string encoded_report;
+    size_t estimated_bytes = 0;
+    uint64_t enqueued_monotonic_ns = 0;
+  };
+  struct FstIoReportQueue {
+    std::vector<QueuedFstIoReport> slots{};
+    size_t head = 0;
+    size_t size = 0;
     size_t estimated_bytes = 0;
   };
-  std::deque<QueuedFstIoReport> mReportQueue{};
-  size_t mReportQueueEstimatedBytes = 0;
+  void ClearFstIoReportQueue(FstIoReportQueue& queue) noexcept;
+  void EvictOldestFstIoReport(FstIoReportQueue& queue) noexcept;
+  uint64_t GetOldestQueuedReportMonotonicNsLocked() const noexcept;
+  FstIoReportQueue mReportQueue{};
+  FstIoReportQueue mReportProcessingQueue{};
   std::mutex mReportQueueMutex{};
+  std::atomic<uint64_t> mPendingReportQueueWarnings{0};
   std::atomic<uint64_t> mLastReportQueueWarningMonotonicNs{0};
 };
 

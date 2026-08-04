@@ -55,7 +55,10 @@ constexpr int64_t kFilesystemPressureMaxAgeMs = 45'000;
 constexpr int64_t kFilesystemPressureMaxFutureSkewMs = 5'000;
 constexpr int64_t kFstReportMaxFutureSkewMs = 5'000;
 constexpr auto kReportQueueWarningInterval = std::chrono::seconds(1);
-constexpr std::size_t kMaxQueuedReports = 2000;
+constexpr std::size_t kMaxQueuedReports = 32'768;
+constexpr uint64_t kMinQueuedReportAgeMs = 1'000;
+constexpr uint64_t kMaxQueuedReportAgeMs = 10'000;
+constexpr uint64_t kQueuedReportAgePeriods = 3;
 constexpr std::size_t kMaxFstReportEntries = 8192;
 constexpr std::size_t kMaxFstReportIdentityBytes =
     eos::common::TRAFFIC_SHAPING_FST_IDENTITY_MAX_BYTES;
@@ -76,17 +79,21 @@ constexpr uint64_t kMaxFstStreamStateEstimatedBytes = 8ULL * 1024ULL * 1024ULL *
 // admitted baselines into an unbounded allocation burst.
 constexpr uint64_t kEstimatedFstStreamStateBaseBytes = 128ULL * 1024ULL;
 constexpr uint64_t kEstimatedFstStreamIdentityByteCopies = 8;
-constexpr uint64_t kMaxQueuedReportEstimatedBytes = 64ULL * 1024ULL * 1024ULL;
-constexpr std::size_t kEstimatedFstReportEntryOverheadBytes = 128;
-constexpr std::size_t kReportQueueHighWater = kMaxQueuedReports * 4 / 5;
-constexpr std::size_t kReportQueueEstimatedBytesHighWater =
-    kMaxQueuedReportEstimatedBytes * 4 / 5;
-static_assert(kReportQueueHighWater < kMaxQueuedReports);
+constexpr uint64_t kMaxQueuedReportEstimatedBytes = 512ULL * 1024ULL * 1024ULL;
 constexpr double kRateQuotaDemandThreshold = 0.80;
 constexpr double kRateQuotaDemandHeadroom = 1.25;
 constexpr uint64_t kRateQuotaMinimumDemandBytesPerSecond = 1024ULL * 1024ULL;
 
 uint64_t ClampRateToUint64(long double value);
+
+uint64_t
+MaxQueuedReportAgeNs(const uint32_t report_period_ms)
+{
+  const uint64_t age_ms = std::clamp<uint64_t>(
+      static_cast<uint64_t>(report_period_ms) * kQueuedReportAgePeriods,
+      kMinQueuedReportAgeMs, kMaxQueuedReportAgeMs);
+  return age_ms * 1'000'000ULL;
+}
 
 struct RateQuotaDemand {
   std::string node_id;
@@ -4396,7 +4403,7 @@ TrafficShapingManager::GetMemoryStats() const
   stats.stream_state_limit_entries = kMaxFstStreamStates;
   stats.report_queue_estimated_bytes =
       mFstReportQueueEstimatedBytes.load(std::memory_order_relaxed);
-  stats.report_queue_limit_bytes = kMaxQueuedReportEstimatedBytes;
+  stats.report_queue_limit_bytes = 2 * kMaxQueuedReportEstimatedBytes;
   stats.estimated_bytes =
       stats.stream_state_estimated_bytes + stats.report_queue_estimated_bytes;
   stats.limit_bytes = stats.stream_state_limit_bytes + stats.report_queue_limit_bytes;
@@ -4431,11 +4438,19 @@ TrafficShapingManager::GetFstReportsProcessedPerSecondMean() const
 void
 TrafficShapingManager::UpdateFstReportQueueStats(const uint64_t depth,
                                                  const uint64_t estimated_bytes,
-                                                 const uint64_t dropped)
+                                                 const uint64_t dropped,
+                                                 const uint64_t oldest_monotonic_ns)
 {
   mFstReportQueueDepth.store(depth, std::memory_order_relaxed);
   mFstReportQueueEstimatedBytes.store(estimated_bytes, std::memory_order_relaxed);
+  mFstReportQueueOldestMonotonicNs.store(oldest_monotonic_ns, std::memory_order_relaxed);
   mFstReportsDroppedTotal.fetch_add(dropped, std::memory_order_relaxed);
+}
+
+void
+TrafficShapingManager::RecordFstReportsDropped(const uint64_t count) noexcept
+{
+  mFstReportsDroppedTotal.fetch_add(count, std::memory_order_relaxed);
 }
 
 uint64_t
@@ -4448,6 +4463,17 @@ uint64_t
 TrafficShapingManager::GetFstReportQueueEstimatedBytes() const
 {
   return mFstReportQueueEstimatedBytes.load(std::memory_order_relaxed);
+}
+
+double
+TrafficShapingManager::GetFstReportQueueOldestAgeSeconds() const
+{
+  const uint64_t oldest_ns =
+      mFstReportQueueOldestMonotonicNs.load(std::memory_order_relaxed);
+  const uint64_t now_ns = MonotonicNowNs();
+  return oldest_ns == 0 || now_ns < oldest_ns
+             ? 0.0
+             : static_cast<double>(now_ns - oldest_ns) / 1'000'000'000.0;
 }
 
 uint64_t
@@ -4606,6 +4632,8 @@ TrafficShapingEngine::TrafficShapingEngine()
     , mGarbageCollectionIdleSeconds(kDefaultGarbageCollectionIdleSec)
 {
   mManager = std::make_shared<TrafficShapingManager>();
+  mReportQueue.slots.resize(kMaxQueuedReports);
+  mReportProcessingQueue.slots.resize(kMaxQueuedReports);
 }
 
 TrafficShapingEngine::~TrafficShapingEngine() { Stop(); }
@@ -5465,9 +5493,12 @@ TrafficShapingEngine::StopRuntime() noexcept
     }
     {
       std::lock_guard lock(mReportQueueMutex);
-      mReportQueue.clear();
-      mReportQueueEstimatedBytes = 0;
+      std::swap(mReportQueue, mReportProcessingQueue);
     }
+    // Destroy queued payloads after releasing the ingress lock.
+    ClearFstIoReportQueue(mReportProcessingQueue);
+    ClearFstIoReportQueue(mReportQueue);
+    mPendingReportQueueWarnings.store(0, std::memory_order_relaxed);
     mLastReportQueueWarningMonotonicNs.store(0, std::memory_order_relaxed);
 
     if (mManager != nullptr) {
@@ -5506,232 +5537,225 @@ TrafficShapingEngine::GetManager() const
 }
 
 void
-TrafficShapingEngine::ProcessSerializedFstIoReportNonBlocking(
-    const std::string& serialized_report) noexcept
+TrafficShapingEngine::ClearFstIoReportQueue(FstIoReportQueue& queue) noexcept
+{
+  for (size_t i = 0; i < queue.size; ++i) {
+    queue.slots[(queue.head + i) % queue.slots.size()] = {};
+  }
+  queue.head = 0;
+  queue.size = 0;
+  queue.estimated_bytes = 0;
+}
+
+void
+TrafficShapingEngine::EvictOldestFstIoReport(FstIoReportQueue& queue) noexcept
+{
+  if (queue.size == 0) {
+    return;
+  }
+  auto& oldest = queue.slots[queue.head];
+  queue.estimated_bytes -= std::min(queue.estimated_bytes, oldest.estimated_bytes);
+  oldest = {};
+  queue.head = (queue.head + 1) % queue.slots.size();
+  if (--queue.size == 0) {
+    queue.head = 0;
+  }
+}
+
+uint64_t
+TrafficShapingEngine::GetOldestQueuedReportMonotonicNsLocked() const noexcept
+{
+  uint64_t oldest_ns = 0;
+  const auto include_queue = [&oldest_ns](const FstIoReportQueue& queue) {
+    if (queue.size == 0) {
+      return;
+    }
+    const uint64_t candidate = queue.slots[queue.head].enqueued_monotonic_ns;
+    if (oldest_ns == 0 || candidate < oldest_ns) {
+      oldest_ns = candidate;
+    }
+  };
+  include_queue(mReportProcessingQueue);
+  include_queue(mReportQueue);
+  return oldest_ns;
+}
+
+bool
+TrafficShapingEngine::TryEnqueueEncodedFstIoReport(std::string&& encoded_report) noexcept
 try {
-  if (!mRunning) {
-    return;
+  if (!mRunning.load(std::memory_order_acquire)) {
+    return false;
   }
 
-  if (serialized_report.size() > kMaxSerializedFstIoReportBytes) {
+  const bool is_base64 = encoded_report.compare(0, 7, "base64:") == 0;
+  const size_t maximum_input_bytes =
+      is_base64 ? kMaxBase64EncodedFstIoReportBytes : kMaxSerializedFstIoReportBytes;
+  if (encoded_report.size() > maximum_input_bytes) {
     RecordRejectedFstReport();
-    if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-      eos_static_warning(
-          "msg=\"Rejecting oversized Traffic Shaping FST report\" bytes=%zu "
-          "max_bytes=%zu",
-          serialized_report.size(), kMaxSerializedFstIoReportBytes);
-    }
-    return;
+    return false;
   }
 
-  if (mManager != nullptr &&
-      (mManager->GetFstReportQueueDepth() >= kReportQueueHighWater ||
-       mManager->GetFstReportQueueEstimatedBytes() >=
-           kReportQueueEstimatedBytesHighWater)) {
+  if (encoded_report.capacity() >
+      kMaxQueuedReportEstimatedBytes - sizeof(QueuedFstIoReport)) {
     RecordRejectedFstReport();
-    if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-      eos_static_warning("%s", "msg=\"Dropping Traffic Shaping FST report before "
-                               "parse while report queue is overloaded\"");
-    }
-    return;
+    return false;
+  }
+  const size_t estimated_bytes = encoded_report.capacity() + sizeof(QueuedFstIoReport);
+  const uint64_t now_ns = MonotonicNowNs();
+  std::unique_lock lock(mReportQueueMutex, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    RecordRejectedFstReport();
+    return false;
   }
 
-  if (!ValidateFstIoReportWire(serialized_report)) {
-    RecordRejectedFstReport();
-    if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-      eos_static_warning("%s", "msg=\"Rejecting Traffic Shaping FST report during "
-                               "allocation-free wire preflight\"");
-    }
-    return;
+  if (!mRunning.load(std::memory_order_acquire)) {
+    return false;
   }
 
-  eos::traffic_shaping::FstIoReport report;
-  if (!report.ParseFromString(serialized_report)) {
+  uint64_t evicted = 0;
+  while (
+      mReportQueue.size > 0 &&
+      (mReportQueue.size >= kMaxQueuedReports ||
+       mReportQueue.estimated_bytes > kMaxQueuedReportEstimatedBytes - estimated_bytes)) {
+    EvictOldestFstIoReport(mReportQueue);
+    ++evicted;
+  }
+
+  const size_t tail = (mReportQueue.head + mReportQueue.size) % mReportQueue.slots.size();
+  mReportQueue.slots[tail] = {std::move(encoded_report), estimated_bytes, now_ns};
+  ++mReportQueue.size;
+  mReportQueue.estimated_bytes += estimated_bytes;
+  if (evicted > 0) {
+    RecordRejectedFstReport(evicted);
+  }
+  if (mManager != nullptr) {
+    mManager->UpdateFstReportQueueStats(mReportQueue.size + mReportProcessingQueue.size,
+                                        mReportQueue.estimated_bytes +
+                                            mReportProcessingQueue.estimated_bytes,
+                                        0, GetOldestQueuedReportMonotonicNsLocked());
+  }
+  return true;
+} catch (...) {
+  RecordRejectedFstReport();
+  return false;
+}
+
+void
+TrafficShapingEngine::RecordRejectedFstReport(const uint64_t count) noexcept
+{
+  if (mManager != nullptr) {
+    mManager->RecordFstReportsDropped(count);
+  }
+  mPendingReportQueueWarnings.fetch_add(count, std::memory_order_relaxed);
+}
+
+bool
+TrafficShapingEngine::ParseFstIoReport(const std::string& serialized_report,
+                                       eos::traffic_shaping::FstIoReport& report) noexcept
+try {
+  if (serialized_report.size() > kMaxSerializedFstIoReportBytes ||
+      !ValidateFstIoReportWire(serialized_report) ||
+      !report.ParseFromString(serialized_report)) {
     RecordRejectedFstReport();
-    if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-      eos_static_warning("%s", "msg=\"failed to parse FstIoReport from string\"");
-    }
-    return;
+    return false;
   }
   report.DiscardUnknownFields();
-  AddReportToQueue(std::move(report));
-} catch (const std::exception& error) {
-  RecordRejectedFstReport();
-  if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-    try {
-      eos_static_err("msg=\"Traffic Shaping FST report parsing aborted by exception\" "
-                     "error=\"%s\"",
-                     error.what());
-    } catch (...) {
-    }
-  }
+  return true;
 } catch (...) {
   RecordRejectedFstReport();
-  if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-    try {
-      eos_static_err("%s", "msg=\"Traffic Shaping FST report parsing aborted by "
-                           "unknown exception\"");
-    } catch (...) {
-    }
-  }
-}
-
-void
-TrafficShapingEngine::RejectFstIoReportNonBlocking(const char* reason) noexcept
-{
-  RecordRejectedFstReport();
-  if (!ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-    return;
-  }
-  try {
-    eos_static_warning("msg=\"Rejecting Traffic Shaping FST report before parsing\" "
-                       "reason=\"%s\"",
-                       reason == nullptr ? "unspecified" : reason);
-  } catch (...) {
-    // Rejection accounting must never depend on telemetry allocation.
-  }
-}
-
-void
-TrafficShapingEngine::RecordRejectedFstReport() noexcept
-{
-  try {
-    std::lock_guard lock(mReportQueueMutex);
-    if (mManager != nullptr) {
-      mManager->UpdateFstReportQueueStats(mReportQueue.size(), mReportQueueEstimatedBytes,
-                                          1);
-    }
-  } catch (...) {
-    // Queue accounting is atomic and best effort if even mutex acquisition fails.
-    if (mManager != nullptr) {
-      mManager->UpdateFstReportQueueStats(0, 0, 1);
-    }
-  }
-}
-
-void
-TrafficShapingEngine::AddReportToQueue(eos::traffic_shaping::FstIoReport report) noexcept
-try {
-  bool report_valid = report.node_id().size() <= kMaxFstReportIdentityBytes &&
-                      static_cast<size_t>(report.entries_size()) <= kMaxFstReportEntries;
-  if (report_valid) {
-    for (const auto& entry : report.entries()) {
-      if (entry.app_name().size() > kMaxFstReportIdentityBytes) {
-        report_valid = false;
-        break;
-      }
-    }
-  }
-  const size_t serialized_bytes = report_valid ? report.ByteSizeLong() : 0;
-  report_valid &= serialized_bytes <= kMaxSerializedFstIoReportBytes;
-  const size_t estimated_bytes =
-      report_valid ? serialized_bytes + static_cast<size_t>(report.entries_size()) *
-                                            kEstimatedFstReportEntryOverheadBytes
-                   : 0;
-  report_valid &= estimated_bytes <= kMaxQueuedReportEstimatedBytes;
-
-  uint64_t dropped = 0;
-  bool emit_warning = false;
-  size_t queue_depth = 0;
-  size_t queue_bytes = 0;
-  {
-    std::lock_guard lock(mReportQueueMutex);
-    // StopRuntime clears the queue under this same lock. Recheck the runtime
-    // state here so a report parsed concurrently with shutdown cannot enqueue
-    // after that clear and leave stale work or queue metrics behind.
-    if (!mRunning.load(std::memory_order_acquire)) {
-      report_valid = false;
-    }
-    if (!report_valid) {
-      dropped = 1;
-    } else {
-      // Enqueue before eviction so an allocation failure cannot discard
-      // already-accepted reports and then lose their drop accounting.
-      mReportQueue.push_back({std::move(report), estimated_bytes});
-      mReportQueueEstimatedBytes += estimated_bytes;
-      while (mReportQueue.size() > kMaxQueuedReports ||
-             mReportQueueEstimatedBytes > kMaxQueuedReportEstimatedBytes) {
-        mReportQueueEstimatedBytes -=
-            std::min(mReportQueueEstimatedBytes, mReportQueue.front().estimated_bytes);
-        mReportQueue.pop_front();
-        ++dropped;
-      }
-    }
-    const bool queue_overloaded =
-        dropped > 0 || mReportQueue.size() >= kReportQueueHighWater ||
-        mReportQueueEstimatedBytes >= kReportQueueEstimatedBytesHighWater;
-    const uint64_t now_ns = queue_overloaded ? MonotonicNowNs() : 0;
-    if (dropped > 0) {
-      uint64_t previous_warning_ns =
-          mLastReportQueueWarningMonotonicNs.load(std::memory_order_relaxed);
-      constexpr uint64_t warning_interval_ns =
-          static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                    kReportQueueWarningInterval)
-                                    .count());
-      if ((previous_warning_ns == 0 ||
-           (now_ns >= previous_warning_ns &&
-            now_ns - previous_warning_ns >= warning_interval_ns)) &&
-          mLastReportQueueWarningMonotonicNs.compare_exchange_strong(
-              previous_warning_ns, now_ns, std::memory_order_relaxed)) {
-        emit_warning = true;
-      }
-    }
-    queue_depth = mReportQueue.size();
-    queue_bytes = mReportQueueEstimatedBytes;
-    if (mManager != nullptr) {
-      mManager->UpdateFstReportQueueStats(queue_depth, queue_bytes, dropped);
-    }
-  }
-  if (emit_warning) {
-    eos_static_warning("msg=\"Traffic Shaping FST report rejected or evicted by queue "
-                       "safety bounds\" dropped=%llu size=%zu estimated_bytes=%zu",
-                       static_cast<unsigned long long>(dropped), queue_depth,
-                       queue_bytes);
-  }
-} catch (const std::exception& error) {
-  RecordRejectedFstReport();
-  if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-    try {
-      eos_static_err(
-          "msg=\"Traffic Shaping FST report enqueue aborted by exception; report "
-          "dropped\" error=\"%s\"",
-          error.what());
-    } catch (...) {
-    }
-  }
-} catch (...) {
-  RecordRejectedFstReport();
-  if (ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
-    try {
-      eos_static_err("%s", "msg=\"Traffic Shaping FST report enqueue aborted by "
-                           "unknown exception; report dropped\"");
-    } catch (...) {
-    }
-  }
+  return false;
 }
 
 void
 TrafficShapingEngine::ProcessAllQueuedReports()
 {
-  std::deque<QueuedFstIoReport> local_queue;
+  uint64_t abandoned = 0;
   {
     std::lock_guard lock(mReportQueueMutex);
-    std::swap(mReportQueue, local_queue);
-    mReportQueueEstimatedBytes = 0;
+    abandoned = mReportProcessingQueue.size;
+    ClearFstIoReportQueue(mReportProcessingQueue);
+    std::swap(mReportQueue, mReportProcessingQueue);
     if (mManager != nullptr) {
-      mManager->UpdateFstReportQueueStats(0, 0, 0);
+      mManager->UpdateFstReportQueueStats(mReportQueue.size + mReportProcessingQueue.size,
+                                          mReportQueue.estimated_bytes +
+                                              mReportProcessingQueue.estimated_bytes,
+                                          0, GetOldestQueuedReportMonotonicNsLocked());
+    }
+  }
+  if (abandoned > 0) {
+    RecordRejectedFstReport(abandoned);
+  }
+
+  uint64_t processed = 0;
+  uint64_t expired = 0;
+  const uint64_t now_ns = MonotonicNowNs();
+  const uint64_t max_age_ns = MaxQueuedReportAgeNs(
+      mFstIoStatsReportThreadPeriodMilliseconds.load(std::memory_order_relaxed));
+  if (mManager != nullptr) {
+    for (size_t i = 0; i < mReportProcessingQueue.size; ++i) {
+      auto& queued_report =
+          mReportProcessingQueue.slots[(mReportProcessingQueue.head + i) %
+                                       mReportProcessingQueue.slots.size()];
+      if (now_ns >= queued_report.enqueued_monotonic_ns &&
+          now_ns - queued_report.enqueued_monotonic_ns > max_age_ns) {
+        ++expired;
+        continue;
+      }
+      std::string serialized_report;
+      try {
+        if (!eos::common::SymKey::DeBase64(queued_report.encoded_report,
+                                           serialized_report)) {
+          RecordRejectedFstReport();
+          continue;
+        }
+      } catch (...) {
+        RecordRejectedFstReport();
+        continue;
+      }
+
+      eos::traffic_shaping::FstIoReport report;
+      if (!ParseFstIoReport(serialized_report, report)) {
+        continue;
+      }
+      mManager->ProcessReport(report);
+      ++processed;
     }
   }
 
-  if (local_queue.empty() || mManager == nullptr) {
-    return;
+  const size_t processing_head = mReportProcessingQueue.head;
+  const size_t processing_size = mReportProcessingQueue.size;
+  {
+    std::lock_guard lock(mReportQueueMutex);
+    mReportProcessingQueue.head = 0;
+    mReportProcessingQueue.size = 0;
+    mReportProcessingQueue.estimated_bytes = 0;
+    if (mManager != nullptr) {
+      mManager->UpdateFstReportQueueStats(mReportQueue.size + mReportProcessingQueue.size,
+                                          mReportQueue.estimated_bytes +
+                                              mReportProcessingQueue.estimated_bytes,
+                                          0, GetOldestQueuedReportMonotonicNsLocked());
+    }
+  }
+  for (size_t i = 0; i < processing_size; ++i) {
+    mReportProcessingQueue
+        .slots[(processing_head + i) % mReportProcessingQueue.slots.size()] = {};
+  }
+  if (expired > 0) {
+    RecordRejectedFstReport(expired);
+  }
+  if (processed > 0 && mManager != nullptr) {
+    mManager->UpdateFstReportsProcessed(processed);
   }
 
-  for (const auto& queued_report : local_queue) {
-    mManager->ProcessReport(queued_report.report);
+  if (mPendingReportQueueWarnings.load(std::memory_order_relaxed) > 0 &&
+      ShouldEmitRateLimitedWarning(mLastReportQueueWarningMonotonicNs)) {
+    const uint64_t dropped =
+        mPendingReportQueueWarnings.exchange(0, std::memory_order_relaxed);
+    eos_static_warning(
+        "msg=\"Traffic Shaping FST reports dropped by ingress or parser safety "
+        "checks\" dropped=%llu",
+        static_cast<unsigned long long>(dropped));
   }
-
-  mManager->UpdateFstReportsProcessed(local_queue.size());
 }
 
 void
