@@ -78,6 +78,15 @@ void SharedHashWrapper::Batch::SetLocal(const std::string& key,
 }
 
 //------------------------------------------------------------------------------
+// Check if there is anything at all to send
+//------------------------------------------------------------------------------
+bool
+SharedHashWrapper::Batch::empty() const
+{
+  return (mDurableUpdates.empty() && mTransientUpdates.empty() && mLocalUpdates.empty());
+}
+
+//------------------------------------------------------------------------------
 // Constructor SharedHashWrapper
 //------------------------------------------------------------------------------
 SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
@@ -124,7 +133,8 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
 //------------------------------------------------------------------------------
 // Set key-value batch
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::set(const Batch& batch)
+bool
+SharedHashWrapper::set(const Batch& batch, bool wait)
 {
   if (!mSharedHash) {
     return false;
@@ -148,7 +158,11 @@ bool SharedHashWrapper::set(const Batch& batch)
   }
 
   std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
-  reply.wait();
+
+  if (wait) {
+    reply.wait();
+  }
+
   return true;
 }
 

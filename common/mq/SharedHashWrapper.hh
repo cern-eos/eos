@@ -82,6 +82,11 @@ public:
     //--------------------------------------------------------------------------
     void SetLocal(const std::string& key, const std::string& value);
 
+    //--------------------------------------------------------------------------
+    //! Check if there is anything at all to send
+    //--------------------------------------------------------------------------
+    bool empty() const;
+
   private:
     friend class SharedHashWrapper;
     std::map<std::string, std::string> mDurableUpdates;
@@ -131,8 +136,15 @@ public:
 
   //----------------------------------------------------------------------------
   //! Set key-value batch
+  //!
+  //! @param batch updates to apply
+  //! @param wait whether to block until QuarkDB has answered the durable part
+  //!        of the batch. Waiting buys no guarantee - the reply is discarded
+  //!        and this method returns true either way, while the local copy of
+  //!        the hash is updated before the command is even sent. Pass false
+  //!        wherever the wait would happen under a lock.
   //----------------------------------------------------------------------------
-  bool set(const Batch& batch);
+  bool set(const Batch& batch, bool wait = true);
 
   //----------------------------------------------------------------------------
   //! Query the given key

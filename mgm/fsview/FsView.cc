@@ -2841,13 +2841,14 @@ void
 FsNode::SetNodeConfigDefault()
 {
   eos_static_info("msg=\"set defaults\" node=%s", mName.c_str());
+  mq::SharedHashWrapper::Batch batch;
 
   // Define the manager ID
   if (!(GetConfigMember("manager").length())) {
     const std::string master_id = gOFS->mMaster->GetMasterId();
 
     if (!master_id.empty()) {
-      SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
+      batch.SetDurable("manager", master_id);
     }
   }
 
@@ -2857,18 +2858,31 @@ FsNode::SetNodeConfigDefault()
 
   if (old_key.empty() ||
       (old_key != std::string(symkey->GetKey64()))) {
-    SetConfigMember("symkey", symkey->GetKey64(), true);
+    batch.SetDurable("symkey", symkey->GetKey64());
   }
 
   // Set the default debug level to notice
   if (!(GetConfigMember("debug.level").length())) {
-    SetConfigMember("debug.level", "info", true);
+    batch.SetDurable("debug.level", "info");
   }
 
   // Set by default the MGM domain e.g. same geographical position as the MGM
   if (!(GetConfigMember("domain").length())) {
-    SetConfigMember("domain", "MGM", true);
+    batch.SetDurable("domain", "MGM");
   }
+
+  if (batch.empty()) {
+    return;
+  }
+
+  // This runs while the caller holds the FsView write lock - both call sites
+  // create a node inside one. Sent as a single batch, and without waiting for
+  // the reply: the wait would hold up every reader and writer of the view for
+  // as long as QuarkDB takes to answer, while guaranteeing nothing. The reply
+  // is discarded in any case, and the local copy of the hash is already
+  // updated by the time the command goes out, so a GetConfigMember right after
+  // this reads the new values either way.
+  mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).set(batch, false);
 }
 //------------------------------------------------------------------------------
 // Get member

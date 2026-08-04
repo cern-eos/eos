@@ -447,8 +447,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == eos::common::ALTXS_SYNC_INTERVAL) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod")) {
-          fs->SetLongLong(key.c_str(),
-                          eos::common::StringConversion::GetSizeFromString(value.c_str()));
+          eos::common::FileSystemUpdateBatch batch;
+          batch.setLongLongDurable(
+              key, eos::common::StringConversion::GetSizeFromString(value.c_str()));
+          fs->applyBatch(batch, false);
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "configstatus") {
           if (value == "empty") {
@@ -476,27 +478,17 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             }
           }
 
-          if (!fs->SetString(key.c_str(), value.c_str())) {
+          // Go through SetConfigStatus so that the change starts or stops the
+          // draining. The status and its comment are one logical change, so
+          // they go out as one batch. An empty comment removes the key - a
+          // durable update with an empty value is a deletion.
+          const auto new_status =
+              eos::common::FileSystem::GetConfigStatusFromString(value.c_str());
+
+          if (!fs->SetConfigStatus(new_status, statusComment, false)) {
             stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
             return retc;
-          }
-
-          std::string operation;
-          bool success;
-
-          if (statusComment.empty()) {
-            success = fs->RemoveKey("statuscomment");
-            operation = "remove";
-          } else {
-            success = fs->SetString("statuscomment", statusComment.c_str());
-            operation = "save";
-          }
-
-          if (!success) {
-            eos_static_warning("failed to %s config status comment "
-                               "fs_identifier=%s comment=%s", operation.c_str(),
-                               identifier.c_str(), statusComment.c_str());
           }
 
           FsView::gFsView.StoreFsConfig(fs);
@@ -517,7 +509,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             }
           }
 
-          fs->SetString(key.c_str(), value.c_str());
+          eos::common::FileSystemUpdateBatch batch;
+          batch.setStringDurable(key, value);
+          fs->applyBatch(batch, false);
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "forcegeotag") {
           std::string geotag = eos::common::SanitizeGeoTag(value);
@@ -528,11 +522,15 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             return retc;
           }
 
-          fs->SetString(key.c_str(), value.c_str());
+          eos::common::FileSystemUpdateBatch batch;
+          batch.setStringDurable(key, value);
+          fs->applyBatch(batch, false);
           FsView::gFsView.StoreFsConfig(fs);
         } else {
           // Other proxy* key set
-          fs->SetString(key.c_str(), value.c_str());
+          eos::common::FileSystemUpdateBatch batch;
+          batch.setStringDurable(key, value);
+          fs->applyBatch(batch, false);
           FsView::gFsView.StoreFsConfig(fs);
         }
       } else {

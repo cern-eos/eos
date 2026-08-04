@@ -206,40 +206,69 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
 bool
 FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
 {
-  using eos::mgm::FsView;
+  return DoSetConfigStatus(new_status, nullptr, true);
+}
+
+//----------------------------------------------------------------------------
+// Set the configuration status of a file system together with the comment
+// describing the change
+//----------------------------------------------------------------------------
+bool
+FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status,
+                            const std::string& status_comment, bool wait)
+{
+  return DoSetConfigStatus(new_status, &status_comment, wait);
+}
+
+//----------------------------------------------------------------------------
+// Trigger the drain transition, if any, and store the new configuration status
+//----------------------------------------------------------------------------
+bool
+FileSystem::DoSetConfigStatus(eos::common::ConfigStatus new_status,
+                              const std::string* status_comment, bool wait)
+{
   using eos::common::DrainStatus;
   eos::common::ConfigStatus old_status = GetConfigStatus();
   int drain_tx = IsDrainTransition(old_status, new_status);
 
   // Only master drains and updates the configuration status
-  if (ShouldBroadCast()) {
-    std::string out_msg;
-
-    if (drain_tx > 0) {
-      if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-        eos_static_err("%s", out_msg.c_str());
-        return false;
-      }
-    } else {
-      if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-        eos_static_debug("%s", out_msg.c_str());
-        // Drain already stopped make sure we also update the drain status
-        // if this was a finished drain ie. has status drained or failed
-        DrainStatus st = GetDrainStatus();
-
-        if ((st == DrainStatus::kDrained) ||
-            (st == DrainStatus::kDrainFailed) ||
-            (st == DrainStatus::kDrainExpired)) {
-          SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-        }
-      }
-    }
-
-    std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
-    return eos::common::FileSystem::SetString("configstatus", val.c_str());
+  if (!ShouldBroadCast()) {
+    return true;
   }
 
-  return true;
+  std::string out_msg;
+
+  if (drain_tx > 0) {
+    if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+      eos_static_err("%s", out_msg.c_str());
+      return false;
+    }
+  } else {
+    if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+      eos_static_debug("%s", out_msg.c_str());
+      // Drain already stopped make sure we also update the drain status
+      // if this was a finished drain ie. has status drained or failed
+      DrainStatus st = GetDrainStatus();
+
+      if ((st == DrainStatus::kDrained) || (st == DrainStatus::kDrainFailed) ||
+          (st == DrainStatus::kDrainExpired)) {
+        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+      }
+    }
+  }
+
+  eos::common::FileSystemUpdateBatch batch;
+  batch.setStringDurable("configstatus",
+                         eos::common::FileSystem::GetConfigStatusAsString(new_status));
+
+  if (status_comment) {
+    // The status and its comment are one logical change, so they go out as one
+    // batch. An empty comment removes the key - a durable update with an empty
+    // value is a deletion.
+    batch.setStringDurable("statuscomment", *status_comment);
+  }
+
+  return applyBatch(batch, wait);
 }
 
 //------------------------------------------------------------------------------

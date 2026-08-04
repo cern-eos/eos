@@ -809,9 +809,10 @@ FileSystem::SetActiveStatus(ActiveStatus active)
 //------------------------------------------------------------------------------
 // Apply the given batch of updates
 //------------------------------------------------------------------------------
-bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
+bool
+FileSystem::applyBatch(const FileSystemUpdateBatch& batch, bool wait)
 {
-  return mq::SharedHashWrapper(mRealm, mHashLocator).set(batch.getBatch());
+  return mq::SharedHashWrapper(mRealm, mHashLocator).set(batch.getBatch(), wait);
 }
 
 //------------------------------------------------------------------------------

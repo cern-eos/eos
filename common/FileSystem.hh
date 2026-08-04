@@ -569,8 +569,13 @@ public:
 
   //----------------------------------------------------------------------------
   //! Apply the given batch of updates
+  //!
+  //! @param batch updates to apply
+  //! @param wait whether to block until QuarkDB has answered the durable part
+  //!        of the batch. See SharedHashWrapper::set - waiting guarantees
+  //!        nothing, so pass false wherever it would happen under a lock.
   //----------------------------------------------------------------------------
-  bool applyBatch(const FileSystemUpdateBatch& batch);
+  bool applyBatch(const FileSystemUpdateBatch& batch, bool wait = true);
 
   //----------------------------------------------------------------------------
   //! Apply the given core parameters

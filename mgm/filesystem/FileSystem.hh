@@ -119,6 +119,22 @@ public:
   bool SetConfigStatus(eos::common::ConfigStatus status);
 
   //----------------------------------------------------------------------------
+  //! Set the configuration status of a file system together with the comment
+  //! describing the change. This can be used to trigger the draining. The two
+  //! keys form one logical change and are sent out as a single batch.
+  //! @note Must be called with a lock on FsView::ViewMutex
+  //!
+  //! @param status file system status
+  //! @param status_comment comment describing the change, an empty value
+  //!        removes the key
+  //! @param wait if true wait for the update to be acknowledged by QuarkDB
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetConfigStatus(eos::common::ConfigStatus status,
+                       const std::string& status_comment, bool wait = true);
+
+  //----------------------------------------------------------------------------
   //! Set a 'key' describing the filesystem
   //! @note Must be called with a lock on FsView::ViewMutex
   //!
@@ -152,6 +168,20 @@ private:
   mMapListeners;
   //! Mutex protecting the listener's map
   eos::common::RWMutex mRWMutex;
+
+  //----------------------------------------------------------------------------
+  //! Trigger the drain transition, if any, and store the new configuration
+  //! status. Implementation shared by the two SetConfigStatus flavours.
+  //!
+  //! @param status file system status
+  //! @param status_comment comment describing the change, nullptr leaves the
+  //!        currently stored comment untouched
+  //! @param wait if true wait for the update to be acknowledged by QuarkDB
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool DoSetConfigStatus(eos::common::ConfigStatus status,
+                         const std::string* status_comment, bool wait);
 
   //----------------------------------------------------------------------------
   //! Process shared hash update
