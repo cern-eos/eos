@@ -125,7 +125,6 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
   closeTime.tv_sec = closeTime.tv_usec = 0;
   cacheITime.tv_sec = cacheITime.tv_usec = 0;
-  currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
   totalBytes = 0;
   msSleep = 0;
@@ -886,6 +885,51 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
 }
 
 //------------------------------------------------------------------------------
+// Compute the sleep time needed to respect the bandwidth limit
+//------------------------------------------------------------------------------
+int64_t
+XrdFstOfsFile::GetBandwidthSleepMs(int bandwidth_mb, unsigned long long total_bytes,
+                                   int64_t elapsed_ms)
+{
+  if (bandwidth_mb <= 0) {
+    return 0;
+  }
+
+  // Milliseconds this stream should have taken for the bytes transferred so
+  // far given the bandwidth limit expressed in MB/s
+  const int64_t expected_ms = (int64_t)total_bytes / ((int64_t)bandwidth_mb * 1000ll);
+  // Sleep only the deficit with respect to the schedule, never an accumulated
+  // total, otherwise the stalls grow without bound over the transfer while
+  // the stream runs unthrottled in between them
+  return (elapsed_ms < expected_ms) ? (expected_ms - elapsed_ms) : 0;
+}
+
+//------------------------------------------------------------------------------
+// Regulate the IO bandwidth of the current stream
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::RegulateBandwidth()
+{
+  if (mBandwidth <= 0) {
+    return;
+  }
+
+  struct timeval now;
+  gettimeofday(&now, &tz);
+  const int64_t elapsed_ms =
+      ((now.tv_sec - openTime.tv_sec) * 1000000ll + (now.tv_usec - openTime.tv_usec)) /
+      1000ll;
+  const int64_t sleep_ms = GetBandwidthSleepMs(mBandwidth, totalBytes, elapsed_ms);
+
+  if (sleep_ms > 0) {
+    // msSleep is a lifetime accumulator reported in the io report, it must
+    // not be used as the sleep duration itself
+    msSleep += sleep_ms;
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+  }
+}
+
+//------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
 XrdSfsXferSize
@@ -893,6 +937,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
   gettimeofday(&rStart, &tz);
+  // Throttle before grabbing the scheduling mutex so that a limited stream
+  // does not block the other streams of the same application
+  RegulateBandwidth();
   // use RR scheduling if there is a round-robin app name
   std::mutex* mutex = nullptr;
 
@@ -920,21 +967,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  if (mBandwidth) {
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
-    float exp_time = totalBytes / mBandwidth / 1000.0;
-
-    if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
-      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
-    }
-  }
-
+  RegulateBandwidth();
   gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
@@ -955,7 +988,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   /* maintaining a checksum is tricky if there have been writes,
    * but the read + append case can be supported in "Add" */
-  if ((rc > 0) && (mChecksumGroup->HasChecksums()) && (!mHasWrite)) {
+  if (rc > 0 && mChecksumGroup->HasChecksums() && !mHasWrite) {
     mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
                         static_cast<off_t>(fileOffset));
   }
@@ -1073,14 +1106,14 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  int64_t rv = 0;
+  RegulateBandwidth();
   gOFS.mIoDelayConfig.WaitForRead(vid, total_read);
+  const int64_t rv = mLayout->ReadV(chunkList, total_read);
 
-  rv = mLayout->ReadV(chunkList, total_read);
   if (rv > 0) {
+    totalBytes += rv;
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
   }
-  totalBytes += rv;
 
   if (EOS_LOGS_DEBUG) {
     output_final = print_readv_request(readV, readCount);
@@ -1124,6 +1157,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     return buffer_size;
   }
 
+  // Throttle before grabbing the scheduling mutexes so that a limited stream
+  // does not block the other streams of the same application
+  RegulateBandwidth();
   {
     // use global RR serialization (we just use fsid 0 for that)
     std::mutex* mutex = nullptr;
@@ -1156,21 +1192,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-  if (mBandwidth) {
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
-    float exp_time = totalBytes / mBandwidth / 1000.0;
-
-    if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
-      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
-    }
-  }
-
   // if the write position moves the checksum is dirty
   if (mChecksumGroup->HasChecksums()) {
     if (mWritePosition != fileOffset) {
@@ -1198,16 +1219,15 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
             static_cast<unsigned long>(buffer_size));
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients
-  if ((rc < 0) && mIsCreation && !mFusex &&
-      eos::common::LayoutId::IsReplica(mLid) &&
-      (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO)) {
+  if (rc < 0 && mIsCreation && !mFusex && eos::common::LayoutId::IsReplica(mLid) &&
+      mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) {
     mRepairOnClose = true;
     rc = buffer_size;
   }
 
   // In case we have a remote write error for a replica, the local replica is still ok!
-  if ((rc < 0) && (eos::common::LayoutId::IsReplica(mLid) &&
-                   (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO))) {
+  if (rc < 0 && eos::common::LayoutId::IsReplica(mLid) &&
+      mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) {
     rc = buffer_size;
   }
 
@@ -2284,7 +2304,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (mFsId) {
     if (!gOFS.Storage->mFsMap.count(mFsId)) {
-      return gOFS.Emsg("readeofs", error, EBADF,
+      return gOFS.Emsg("readofs", error, EBADF,
                        "read file - filesystem has been unregistered");
     }
   }
