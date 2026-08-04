@@ -23,27 +23,28 @@
 
 #include "GrpcNsInterface.hh"
 #include "common/LayoutId.hh"
+#include "common/LinuxFds.hh"
+#include "common/LinuxMemConsumption.hh"
+#include "common/LinuxStat.hh"
+#include "common/Path.hh"
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
-#include "common/Path.hh"
-#include "common/LinuxFds.hh"
-#include "common/LinuxStat.hh"
-#include "common/LinuxMemConsumption.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/proc/IProcCommand.hh"
-#include "mgm/proc/user/AclCmd.hh"
-#include "mgm/proc/admin/QuotaCmd.hh"
-#include "mgm/proc/user/RmCmd.hh"
-#include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
-#include "mgm/recycle/Recycle.hh"
+#include "mgm/proc/IProcCommand.hh"
+#include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
-#include "namespace/Prefetcher.hh"
+#include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "namespace/MDException.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
-#include "namespace/utils/Etag.hh"
 #include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Etag.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -1432,6 +1433,10 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     return Recycle(vid, reply->mutable_recycle(), &(request->recycle()));
     break;
 
+  case eos::rpc::NSRequest::kFile:
+    return File(vid, reply->mutable_file(), &(request->file()));
+    break;
+
   case eos::rpc::NSRequest::kChown:
     return Chown(vid, reply->mutable_error(), &(request->chown()));
     break;
@@ -2315,6 +2320,29 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
+grpc::Status
+GrpcNsInterface::File(eos::common::VirtualIdentity& vid,
+                      eos::rpc::NSResponse::FileResponse* reply,
+                      const eos::console::FileProto* request)
+{
+  eos_static_info("msg=\"processing file cmd\" vid.uid=%i vid.gid=%i "
+                  "vid.sudoer=%i vid.prot=%s",
+                  vid.uid, vid.gid, vid.sudoer, vid.prot.c_str());
+  eos::console::RequestProto req;
+  req.mutable_file()->CopyFrom(*request);
+  eos::mgm::FileCmd cmd(std::move(req), vid);
+  eos::console::ReplyProto reply_proto = cmd.ProcessRequest();
+
+  if (reply_proto.retc()) {
+    reply->set_code(reply_proto.retc());
+    reply->set_msg(reply_proto.std_err());
+  } else {
+    reply->set_code(0);
+    reply->set_msg(reply_proto.std_out());
+  }
+
+  return grpc::Status::OK;
+}
 
 grpc::Status
 GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,

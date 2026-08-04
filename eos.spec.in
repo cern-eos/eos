@@ -867,6 +867,8 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-acl-concurrent
 %{_sbindir}/eos-grpc-test
+%{_sbindir}/eos-grpc-file-test
+%{_sbindir}/eos-file-dual-protocol-test
 %{_sbindir}/eos-groupdrain-test
 %{_sbindir}/eos-traffic-shaping-test
 %{_sbindir}/eos-token-test
