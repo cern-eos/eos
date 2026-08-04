@@ -76,14 +76,25 @@ private:
 class ErrorWrapper
 {
 public:
-  ErrorWrapper(const std::string user, const int code, const std::string& message)
+  ErrorWrapper(const std::string& user, const int code, const std::string& message)
+      : mUser(user)
   {
     eos::auth::XrdOucErrInfoProto errorProto;
-    errorProto.set_user(user);
+    errorProto.set_user(mUser);
     errorProto.set_code(code);
     errorProto.set_message(message);
     mError = eos::auth::utils::GetXrdOucErrInfo(errorProto);
+    // XrdOucErrInfo keeps the user string by pointer and expects it to live in
+    // stable storage, but it is owned by errorProto which dies at the end of
+    // this constructor. Re-point it to our own member which outlives it.
+    mError->setErrUser(mUser.c_str());
   }
+
+  // Holds a raw owning pointer and hands out a pointer to a member, so it must
+  // not be copied. All uses return it by value from a prvalue, which C++17
+  // elides, so no copy or move constructor is needed.
+  ErrorWrapper(const ErrorWrapper&) = delete;
+  ErrorWrapper& operator=(const ErrorWrapper&) = delete;
 
   XrdOucErrInfo* getError()
   {
@@ -98,6 +109,7 @@ public:
     }
   }
 private:
+  std::string mUser;
   XrdOucErrInfo* mError;
 };
 
