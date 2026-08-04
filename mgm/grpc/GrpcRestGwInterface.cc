@@ -13,6 +13,7 @@
 #include "mgm/acl/Acl.hh"
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -27,12 +28,12 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -646,8 +647,24 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_file()->CopyFrom(*fileRequest);
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
+
+  // Delegate every subcommand implemented server-side to FileCmd (the same
+  // code path used by the console and the NS gRPC interface), so the opaque-CGI
+  // translation is no longer duplicated here. Only 'check' (a client-side FST
+  // query with no server-side counterpart) and 'resync' (no FileCmd handler
+  // yet) still take the legacy path below.
+  switch (req.file().FileCommand_case()) {
+  case eos::console::FileProto::kCheck:
+  case eos::console::FileProto::kResync:
+    break;
+
+  default: {
+    eos::mgm::FileCmd filecmd(std::move(req), vid);
+    *reply = filecmd.ProcessRequest();
+    return grpc::Status::OK;
+  }
+  }
+
   std::string path = req.file().md().path();
   uint64_t fid = 0;
 
@@ -683,32 +700,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
   std::string cmd_in = "mgm.cmd=file";
 
   switch (req.file().FileCommand_case()) {
-  case eos::console::FileProto::kAdjustreplica: {
-    cmd_in += "&mgm.subcmd=adjustreplica";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    if (!req.file().adjustreplica().space().empty()) {
-      cmd_in += "&mgm.file.desiredspace=" + req.file().adjustreplica().space();
-
-      if (!req.file().adjustreplica().subgroup().empty()) {
-        cmd_in += "&mgm.file.desiredsubgroup=" +
-                  req.file().adjustreplica().subgroup();
-      }
-    }
-
-    if (req.file().adjustreplica().nodrop()) {
-      cmd_in += "&mgm.file.option=--nodrop";
-    }
-
-    break;
-  }
-
   case eos::console::FileProto::kCheck: {
     cmd_in += "&mgm.subcmd=getmdlocation";
     cmd_in += "&mgm.format=fuse";
@@ -1024,162 +1015,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     return grpc::Status::OK;
   }
 
-  case eos::console::FileProto::kConvert: {
-    cmd_in += "&mgm.subcmd=convert";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    if (!req.file().convert().layout().empty()) {
-      cmd_in += "&mgm.convert.layout=" + req.file().convert().layout();
-    }
-
-    if (!req.file().convert().target_space().empty()) {
-      cmd_in += "&mgm.convert.space=" + req.file().convert().target_space();
-    }
-
-    if (!req.file().convert().placement_policy().empty()) {
-      cmd_in += "&mgm.convert.placementpolicy=" +
-                req.file().convert().placement_policy();
-    }
-
-    if (req.file().convert().sync()) {
-      reply->set_std_err("error: --sync is currently not supported");
-      reply->set_retc(EINVAL);
-      return grpc::Status::OK;
-    }
-
-    if (req.file().convert().rewrite()) {
-      cmd_in += "&mgm.option=rewrite";
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kCopy: {
-    cmd_in += "&mgm.subcmd=copy";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.file.target=" + req.file().copy().dst();
-
-    if (req.file().copy().force() || req.file().copy().clone() ||
-        req.file().copy().silent()) {
-      cmd_in += "&mgm.file.option=";
-
-      if (req.file().copy().force()) {
-        cmd_in += "-f";
-      }
-
-      if (req.file().copy().clone()) {
-        cmd_in += "-c";
-      }
-
-      if (req.file().copy().silent()) {
-        cmd_in += "-s";
-      }
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kDrop: {
-    cmd_in += "&mgm.subcmd=drop";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.file.fsid=" + std::to_string(req.file().drop().fsid());
-
-    if (req.file().drop().force()) {
-      cmd_in += "&mgm.file.force=1";
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kLayout: {
-    cmd_in += "&mgm.subcmd=layout";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    if (req.file().layout().stripes()) {
-      cmd_in += "&mgm.file.layout.stripes=" + std::to_string(
-                  req.file().layout().stripes());
-    }
-
-    if (!req.file().layout().checksum().empty()) {
-      cmd_in += "&mgm.file.layout.checksum=" + req.file().layout().checksum();
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kMove: {
-    cmd_in += "&mgm.subcmd=move";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.file.sourcefsid=" + std::to_string(req.file().move().fsid1());
-    cmd_in += "&mgm.file.targetfsid=" + std::to_string(req.file().move().fsid2());
-    break;
-  }
-
-  case eos::console::FileProto::kPurge: {
-    cmd_in += "&mgm.subcmd=purge";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.purge.version=" + std::to_string(
-                req.file().purge().purge_version());
-    break;
-  }
-
-  case eos::console::FileProto::kReplicate: {
-    cmd_in += "&mgm.subcmd=replicate";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.file.sourcefsid=" + std::to_string(
-                req.file().replicate().fsid1());
-    cmd_in += "&mgm.file.targetfsid=" + std::to_string(
-                req.file().replicate().fsid2());
-    break;
-  }
-
   case eos::console::FileProto::kResync: {
     auto fsid = req.file().resync().fsid();
 
@@ -1197,138 +1032,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     return grpc::Status::OK;
   }
 
-  case eos::console::FileProto::kSymlink: {
-    std::string target = req.file().symlink().target_path();
-
-    if (target.empty()) {
-      reply->set_std_err("error:target is empty");
-      reply->set_retc(EINVAL);
-      return grpc::Status::OK;
-    }
-
-    XrdOucErrInfo error;
-    errno = 0;
-
-    if (gOFS->_symlink(path.c_str(), target.c_str(), error, vid)) {
-      reply->set_std_err(error.getErrText());
-      reply->set_retc(errno);
-      return grpc::Status::OK;
-    }
-
-    std::string msg = "info: symlinked '";
-    msg += path.c_str();
-    msg += "' to '";
-    msg += target.c_str();
-    msg += "'";
-    reply->set_std_out(msg);
-    reply->set_retc(0);
-    return grpc::Status::OK;
-  }
-
-  case eos::console::FileProto::kTag: {
-    cmd_in += "&mgm.subcmd=tag";
-    cmd_in += "&mgm.path=" + path;
-    cmd_in += "&mgm.file.tag.fsid=";
-
-    if (req.file().tag().add()) {
-      cmd_in += "+";
-    }
-
-    if (req.file().tag().remove()) {
-      cmd_in += "-";
-    }
-
-    if (req.file().tag().unlink()) {
-      cmd_in += "~";
-    }
-
-    cmd_in += std::to_string(req.file().tag().fsid());
-    break;
-  }
-
-  case eos::console::FileProto::kVerify: {
-    cmd_in += "&mgm.subcmd=verify";
-    cmd_in += "&mgm.path=" + path;
-    cmd_in += "&mgm.file.verify.filterid=" + std::to_string(
-                req.file().verify().fsid());
-
-    if (req.file().verify().checksum()) {
-      cmd_in += "&mgm.file.compute.checksum=1";
-    }
-
-    if (req.file().verify().commitchecksum()) {
-      cmd_in += "&mgm.file.commit.checksum=1";
-    }
-
-    if (req.file().verify().commitsize()) {
-      cmd_in += "&mgm.file.commit.size=1";
-    }
-
-    if (req.file().verify().commitfmd()) {
-      cmd_in += "&mgm.file.commit.fmd=1";
-    }
-
-    if (req.file().verify().rate()) {
-      cmd_in += "&mgm.file.verify.rate=" + std::to_string(
-                  req.file().verify().rate());
-    }
-
-    if (req.file().verify().resync()) {
-      cmd_in += "&mgm.file.resync=1";
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kVersion: {
-    cmd_in += "&mgm.subcmd=version";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    cmd_in += "&mgm.purge.version=" + std::to_string(
-                req.file().version().purge_version());
-    break;
-  }
-
-  case eos::console::FileProto::kVersions: {
-    cmd_in += "&mgm.subcmd=versions";
-
-    if (fid) {
-      cmd_in += "&mgm.file.id=" + std::to_string(fid);
-    } else {
-      // this has a problem with '&' encoding, prefer to use create by fid ..
-      cmd_in += "&mgm.path=" + path;
-    }
-
-    if (!req.file().versions().grab_version().empty()) {
-      cmd_in += "&mgm.grab.version=" + req.file().versions().grab_version();
-    } else {
-      cmd_in += "&mgm.grab.version=-1";
-    }
-
-    break;
-  }
-
-  case eos::console::FileProto::kShare: {
-    cmd_in += "&mgm.subcmd=share";
-    cmd_in += "&mgm.path=" + path;
-    cmd_in += "&mgm.file.expires=" + std::to_string(req.file().share().expires());
-    break;
-  }
-
-  case eos::console::FileProto::kWorkflow: {
-    cmd_in += "&mgm.subcmd=workflow";
-    cmd_in += "&mgm.path=" + path;
-    cmd_in += "&mgm.workflow=" + req.file().workflow().workflow();
-    cmd_in += "&mgm.event=" + req.file().workflow().event();
-    break;
-  }
-
   default: {
     reply->set_std_err("error: subcommand is not supported");
     reply->set_retc(EINVAL);
@@ -1336,7 +1039,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
   }
   }
 
-  ExecProcCmd(vid, reply, cmd_in, false);
   return grpc::Status::OK;
 }
 
