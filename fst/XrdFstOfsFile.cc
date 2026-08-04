@@ -124,7 +124,6 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
   closeTime.tv_sec = closeTime.tv_usec = 0;
   cacheITime.tv_sec = cacheITime.tv_usec = 0;
-  currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
   totalBytes = 0;
   msSleep = 0;
@@ -839,6 +838,51 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
 }
 
 //------------------------------------------------------------------------------
+// Compute the sleep time needed to respect the bandwidth limit
+//------------------------------------------------------------------------------
+int64_t
+XrdFstOfsFile::GetBandwidthSleepMs(int bandwidth_mb, unsigned long long total_bytes,
+                                   int64_t elapsed_ms)
+{
+  if (bandwidth_mb <= 0) {
+    return 0;
+  }
+
+  // Milliseconds this stream should have taken for the bytes transferred so
+  // far given the bandwidth limit expressed in MB/s
+  const int64_t expected_ms = (int64_t)total_bytes / ((int64_t)bandwidth_mb * 1000ll);
+  // Sleep only the deficit with respect to the schedule, never an accumulated
+  // total, otherwise the stalls grow without bound over the transfer while
+  // the stream runs unthrottled in between them
+  return (elapsed_ms < expected_ms) ? (expected_ms - elapsed_ms) : 0;
+}
+
+//------------------------------------------------------------------------------
+// Regulate the IO bandwidth of the current stream
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::RegulateBandwidth()
+{
+  if (mBandwidth <= 0) {
+    return;
+  }
+
+  struct timeval now;
+  gettimeofday(&now, &tz);
+  const int64_t elapsed_ms =
+      ((now.tv_sec - openTime.tv_sec) * 1000000ll + (now.tv_usec - openTime.tv_usec)) /
+      1000ll;
+  const int64_t sleep_ms = GetBandwidthSleepMs(mBandwidth, totalBytes, elapsed_ms);
+
+  if (sleep_ms > 0) {
+    // msSleep is a lifetime accumulator reported in the io report, it must
+    // not be used as the sleep duration itself
+    msSleep += sleep_ms;
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+  }
+}
+
+//------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
 XrdSfsXferSize
@@ -846,6 +890,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
   gettimeofday(&rStart, &tz);
+  // Throttle before grabbing the scheduling mutex so that a limited stream
+  // does not block the other streams of the same application
+  RegulateBandwidth();
   // use RR scheduling if there is a round-robin app name
   std::mutex* mutex = nullptr;
 
@@ -877,21 +924,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
           gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid);
       sleep_time_micro_sec > 0) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
-  }
-
-  if (mBandwidth) {
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
-    float exp_time = totalBytes / mBandwidth / 1000.0;
-
-    if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
-      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
-    }
   }
 
   if (const uint64_t sleep_time_micro_sec =
@@ -1041,9 +1073,11 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
 
+  RegulateBandwidth();
   const int64_t rv = mLayout->ReadV(chunkList, total_read);
-  totalBytes += rv;
+
   if (rv > 0) {
+    totalBytes += rv;
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rv);
   }
 
@@ -1089,6 +1123,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     return buffer_size;
   }
 
+  // Throttle before grabbing the scheduling mutexes so that a limited stream
+  // does not block the other streams of the same application
+  RegulateBandwidth();
   {
     // use global RR serialization (we just use fsid 0 for that)
     std::mutex* mutex = nullptr;
@@ -1125,21 +1162,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
           gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
       sleep_time_micro_sec > 0) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
-  }
-
-  if (mBandwidth) {
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
-    float exp_time = totalBytes / mBandwidth / 1000.0;
-
-    if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
-      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
-    }
   }
 
   // if the write position moves the checksum is dirty

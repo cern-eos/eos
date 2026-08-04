@@ -113,14 +113,6 @@ public:
            const char* opaque = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Regule the bandwidth with the Scaler data from the IoAggregateMap
-  //!
-  //! @param std::string "read" or "write" to know the context
-  //! @return the scaler
-  //----------------------------------------------------------------------------
-  std::uint64_t reguleBandwidth(const std::string) const;
-
-  //----------------------------------------------------------------------------
   //! Read from file
   //----------------------------------------------------------------------------
   XrdSfsXferSize read(XrdSfsFileOffset fileOffset, char* buffer,
@@ -311,6 +303,29 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+
+  //----------------------------------------------------------------------------
+  //! Compute how long the current stream has to sleep in order to respect the
+  //! bandwidth limit.
+  //!
+  //! @param bandwidth_mb bandwidth limit in MB/s, <= 0 means no limit
+  //! @param total_bytes bytes transferred so far by the current stream
+  //! @param elapsed_ms milliseconds elapsed since the file was opened
+  //!
+  //! @return milliseconds to sleep, 0 if the stream is not ahead of schedule
+  //----------------------------------------------------------------------------
+  static int64_t GetBandwidthSleepMs(int bandwidth_mb, unsigned long long total_bytes,
+                                     int64_t elapsed_ms);
+
+  //----------------------------------------------------------------------------
+  //! Regulate the IO bandwidth of the current stream by sleeping whenever the
+  //! bytes transferred so far are ahead of the schedule imposed by the
+  //! bandwidth limit (mgm.iobw in MB/s).
+  //!
+  //! @note Must be called outside of any scheduling lock since it sleeps
+  //----------------------------------------------------------------------------
+  void RegulateBandwidth();
+
   eos::common::SymKey::hmac_t mHmac;
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
@@ -397,7 +412,6 @@ public:
   long long mOpenSize; //! file size when the file was opened
   long long mCloseSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
-  struct timeval currentTime; //! time when a write occurs
   unsigned long long totalBytes; //! total bytes IO
   unsigned long long msSleep; //! total ms sleeping during io
   struct timeval closeTime; //! time when a file was closed
