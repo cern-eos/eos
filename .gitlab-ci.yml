@@ -72,9 +72,8 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       variables:
         KOJI_SCRATCH: "--scratch"
-    # Avoid duplicate pipelines: if an MR is open for this branch the MR
-    # pipeline (rule above) already covers it, so skip the branch pipeline.
-    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+    # Avoid duplicate pipelines: if an MR is open for this branch, skip the branch push pipeline.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
       when: never
     # Master branch: always run. We can't use `changes: compare_to: master` here
     # because comparing master against itself produces an empty diff that never
