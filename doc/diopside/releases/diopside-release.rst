@@ -16,6 +16,20 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.11 Diopside``
+===================
+
+2026-08-05
+
+Bug
+----
+
+* [EOS-6620] - FST crash in XrdFstOfsFile::read via unsigned read return value
+* [EOS-6621] - Drop command triggers the loading of the file list for FileSystems
+* [EOS-6622] - Avoid adding user "nobody" as sudoer
+* FST: Fix io bandwidth limitation enforcement computation
+* MGM: Fix tape REST API implementation to follow WLCG specification
+
 
 ``v5.4.10 Diopside``
 ===================
