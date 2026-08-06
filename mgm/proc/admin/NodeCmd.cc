@@ -569,8 +569,7 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
 
   if (mVid.uid == 0 || mVid.prot == "sss") {
     if (mVid.uid != 0 && mVid.prot == "sss") {
-      if (!skip_hostname_match &&
-          tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+      if (!skip_hostname_match && (tident.find(rnodename) != 0)) {
         std::ostringstream err;
         err << "error: hostname mismatch '" << tident << "'!='" << rnodename
             << "'; nodes can only be configured as 'root' "
