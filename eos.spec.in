@@ -824,6 +824,7 @@ The EOS scitoken API for C,C++ and PYTHON.
 
 %files -n eos-scitokenapi
 %{python3_sitearch}/eosscitoken*
+%{_sbindir}/eos-jwk-https
 
 %endif
 %endif
