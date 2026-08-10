@@ -967,7 +967,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  RegulateBandwidth();
   gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
