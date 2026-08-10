@@ -547,7 +547,11 @@ uint64_t GeoTreeEngine::placementSpace(const std::string& space,
                                        const std::string& schedgroup)
 {
   RWMutexReadLock lock(pTreeMapMutex);
-  uint64_t totalWritableSpace = 0;
+  double totalWritableSpace = 0;
+  // Filesystems backed by the same shared filesystem must be accounted only
+  // once, otherwise the writable space is multiplied by the number of FSTs
+  // sharing the same backend
+  std::set<std::string> seen_sharedfs;
 
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     std::string ispace;
@@ -555,14 +559,44 @@ uint64_t GeoTreeEngine::placementSpace(const std::string& space,
     eos::common::StringConversion::SplitKeyValue(it->second->group->mName, ispace,
         index, ".");
 
-    if ((ispace == space) && ((schedgroup == "") ||
-                              (schedgroup == it->second->group->mName))) {
-      totalWritableSpace +=
-        it->second->foregroundFastStruct->placementTree->getTotalWritableSpace();
+    if ((ispace != space) ||
+        ((schedgroup != "") && (schedgroup != it->second->group->mName))) {
+      continue;
+    }
+
+    const auto fast_struct = it->second->foregroundFastStruct;
+
+    // Sum up the individual filesystem contributions the same way the fast
+    // tree aggregates them, but skipping duplicate shared filesystems
+    for (auto fs_it = fast_struct->fs2TreeIdx->begin();
+         fs_it != fast_struct->fs2TreeIdx->end(); ++fs_it) {
+      const auto fsid = (*fs_it).first;
+      const auto idx = (*fs_it).second;
+      const auto& fs_data = fast_struct->placementTree->pNodes[idx].fsData;
+
+      if (((fs_data.mStatus & (SchedTreeBase::Available | SchedTreeBase::Disabled)) !=
+           SchedTreeBase::Available) ||
+          !(fs_data.mStatus & SchedTreeBase::Writable)) {
+        continue;
+      }
+
+      auto fs_it_ptr = pFsId2FsPtr.find(fsid);
+
+      if (fs_it_ptr != pFsId2FsPtr.end() && (fs_it_ptr->second != nullptr)) {
+        const std::string sharedfs = fs_it_ptr->second->GetString("sharedfs");
+
+        if (!sharedfs.empty() && (sharedfs != "none")) {
+          if (!seen_sharedfs.insert(sharedfs).second) {
+            continue;
+          }
+        }
+      }
+
+      totalWritableSpace += fs_data.totalWritableSpace;
     }
   }
 
-  return totalWritableSpace;
+  return (uint64_t)totalWritableSpace;
 }
 
 
