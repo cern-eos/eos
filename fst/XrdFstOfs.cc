@@ -107,6 +107,19 @@ XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 extern "C" void __gcov_dump(void);
 #endif
 
+namespace {
+//------------------------------------------------------------------------------
+//! Get the elapsed milliseconds since the given steady clock timestamp
+//------------------------------------------------------------------------------
+unsigned long long
+ElapsedMs(std::chrono::steady_clock::time_point since)
+{
+  auto delta = std::chrono::steady_clock::now() - since;
+  auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(delta);
+  return (unsigned long long)msec.count();
+}
+} // namespace
+
 //------------------------------------------------------------------------------
 // XRootD OFS interface implementation
 //------------------------------------------------------------------------------
@@ -240,6 +253,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 {
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
+  auto start_ts = std::chrono::steady_clock::now();
   gOFS.sShutdown = true;
   pid_t watchdog;
   pid_t ppid = getpid();
@@ -273,7 +287,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   wait(&wstatus);
   // Close all file descriptors we can sync or are sockets
   eos::common::SyncAll::AllandCloseFileSocks();
-  eos_static_warning("%s", "op=shutdown status=completed");
+  eos_static_warning("op=shutdown status=completed elapsed_ms=%llu", ElapsedMs(start_ts));
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);
   (void) signal(SIGINT,  SIG_IGN);
@@ -293,6 +307,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   pid_t watchdog;
   static XrdSysMutex grace_shutdown_mtx;
   grace_shutdown_mtx.Lock();
+  auto start_ts = std::chrono::steady_clock::now();
   gOFS.sShutdown = true;
   const char* swait = getenv("EOS_GRACEFUL_SHUTDOWN_TIMEOUT");
   std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
@@ -317,9 +332,13 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   // for in-flight redirections
   eos_static_warning("op=shutdown msg=\"wait 90 seconds for configuration "
                      "propagation\"");
+  auto config_ts = std::chrono::steady_clock::now();
   std::chrono::seconds config_timeout(60 + 30);
   std::this_thread::sleep_for(config_timeout);
+  eos_static_warning("op=shutdown phase=config_propagation elapsed_ms=%llu",
+                     ElapsedMs(config_ts));
   std::chrono::seconds io_timeout((std::int64_t)(wait * 0.9));
+  auto io_ts = std::chrono::steady_clock::now();
 
   if (gOFS.WaitForOngoingIO(io_timeout)) {
     eos_static_warning("%s", "op=shutdown msg=\"successful graceful IO shutdown\"");
@@ -327,6 +346,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     eos_static_err("%s", "op=shutdown msg=\"failed graceful IO shutdown\"");
   }
 
+  eos_static_warning("op=shutdown phase=ongoing_io elapsed_ms=%llu", ElapsedMs(io_ts));
   eos_static_warning("%s", "op=shutdown msg=\"storage object shutdown\"");
   gOFS.Storage->Shutdown();
 
@@ -338,7 +358,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   ::wait(&wstatus);
   // Close all file descriptors we can sync or are sockets
   SyncAll::AllandCloseFileSocks();
-  eos_static_warning("%s", "op=shutdown status=completed");
+  eos_static_warning("op=shutdown status=completed elapsed_ms=%llu", ElapsedMs(start_ts));
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);
   (void) signal(SIGINT,  SIG_IGN);

@@ -42,10 +42,10 @@
 #include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
 #include <math.h>
-// @note (esindril)use this when Clang (>= 6.0.0) supports it
-//#include <filesystem>
+   // @note (esindril)use this when Clang (>= 6.0.0) supports it
+   // #include <filesystem>
 
-extern eos::fst::XrdFstOss* XrdOfsOss;
+    extern eos::fst::XrdFstOss* XrdOfsOss;
 
 namespace
 {
@@ -215,6 +215,28 @@ CheckFsXattrConverted(std::string fs_path)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+//! Get the elapsed milliseconds since the given steady clock timestamp
+//------------------------------------------------------------------------------
+unsigned long long
+ElapsedMs(std::chrono::steady_clock::time_point since)
+{
+  auto delta = std::chrono::steady_clock::now() - since;
+  auto msec = std::chrono::duration_cast<std::chrono::milliseconds>(delta);
+  return (unsigned long long)msec.count();
+}
+
+//------------------------------------------------------------------------------
+//! Log how long it took to join one of the shutdown threads.
+//------------------------------------------------------------------------------
+void
+LogJoinedThread(const char* name, std::chrono::steady_clock::time_point since)
+{
+  eos_static_warning("op=shutdown msg=\"joined thread\" name=\"%s\" "
+                     "elapsed_ms=%llu",
+                     name, ElapsedMs(since));
 }
 }
 
@@ -403,14 +425,23 @@ Storage::Storage(const char* meta_dir)
 void
 Storage::Shutdown()
 {
+  auto start_ts = std::chrono::steady_clock::now();
   ShutdownThreads();
+  eos_static_warning("op=shutdown phase=threads elapsed_ms=%llu", ElapsedMs(start_ts));
   // Collect all the file systems to be deleted and then trigger the actual
   // deletion outside the mFsMutex to avoid any deadlocks
   std::set<eos::fst::FileSystem*> set_fs;
   {
+    auto lock_ts = std::chrono::steady_clock::now();
+    unsigned long long num_spins = 0ull;
+
     while (mFsMutex.TryLockWrite() != 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      ++num_spins;
     }
+
+    eos_static_warning("op=shutdown phase=fs_mutex spins=%llu elapsed_ms=%llu", num_spins,
+                       ElapsedMs(lock_ts));
 
     for (auto* ptr_fs : mFsVect) {
       set_fs.insert(ptr_fs);
@@ -425,11 +456,17 @@ Storage::Shutdown()
     mFsMutex.UnLockWrite();
   }
 
+  auto delete_ts = std::chrono::steady_clock::now();
+
   for (auto& ptr_fs : set_fs) {
     eos_static_warning("msg=\"deleting file system\" fsid=%lu",
                        ptr_fs->GetLocalId());
     delete ptr_fs;
   }
+
+  eos_static_warning("op=shutdown phase=fs_delete count=%lu elapsed_ms=%llu",
+                     (unsigned long)set_fs.size(), ElapsedMs(delete_ts));
+  eos_static_warning("op=shutdown phase=storage elapsed_ms=%llu", ElapsedMs(start_ts));
 }
 
 //------------------------------------------------------------------------------
@@ -438,14 +475,29 @@ Storage::Shutdown()
 void
 Storage::ShutdownThreads()
 {
+  auto start_ts = std::chrono::steady_clock::now();
+  auto ts = start_ts;
   mQdbCommunicatorThread.join();
+  LogJoinedThread("QDB Communicator Thread", ts);
+  ts = std::chrono::steady_clock::now();
   mPublisherThread.join();
+  LogJoinedThread("Publisher Thread", ts);
+  ts = std::chrono::steady_clock::now();
   mErrorReportThread.join();
+  LogJoinedThread("Error Report Thread", ts);
+  ts = std::chrono::steady_clock::now();
+
   if (!StopTrafficShapingThread()) {
     eos_static_err("%s", "msg=\"Traffic Shaping thread shutdown was incomplete\"");
   }
+
+  LogJoinedThread("Traffic Shaping Thread", ts);
   mFsUpdQueue.emplace(0, "ACTION", "EXIT");
+  ts = std::chrono::steady_clock::now();
   mFsConfigThread.join();
+  LogJoinedThread("FsConfigUpdate Thread", ts);
+  eos_static_warning("op=shutdown msg=\"all threads joined\" total_ms=%llu",
+                     ElapsedMs(start_ts));
   XrdSysMutexHelper scope_lock(mThreadsMutex);
 
   for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
