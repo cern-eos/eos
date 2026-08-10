@@ -150,9 +150,7 @@ check_sss_hostname_match(const eos::common::VirtualIdentity& vid,
   // hostname ... anyway we should have configured 'sss' security
   if ((vid.uid == 0) || (vid_prot == "sss")) {
     if ((vid_prot == "sss") && (vid.uid != 0)) {
-      if (!skip_hostname_match &&
-          vid_hostname.compare(0, target_host.length(), target_host, 0,
-                               target_host.length())) {
+      if (!skip_hostname_match && (vid_hostname.find(target_host) != 0)) {
         std::ostringstream err;
         err << "error: hostname mismatch '" << vid_hostname << "'!='" << target_host
             << "'; filesystems can only be configured as 'root'"
