@@ -89,10 +89,6 @@ NodeCmd::ProcessRequest() noexcept
     SetSubcmd(node.set(), reply);
     break;
 
-  case eos::console::NodeProto::kProxygroup:
-    ProxygroupSubcmd(node.proxygroup(), reply);
-    break;
-
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
@@ -337,6 +333,12 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
     reply.set_std_err("error: invalid parameters");
     reply.set_retc(EINVAL);
     return;
+  }
+
+  // The proxygroup list does its own node resolution and registration, so it
+  // is handled before the node set below is collected
+  if (config.node_key() == "proxygroup") {
+    return ProxygroupConfig(config.node_name(), config.node_value(), reply);
   }
 
   std::set<std::string> set_nodes;
@@ -627,17 +629,31 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
 }
 
 //------------------------------------------------------------------------------
-// Execute proxygroup subcommand
+// Update the proxygroup list of a node
 //------------------------------------------------------------------------------
-void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
-                               proxygroup, eos::console::ReplyProto& reply)
+void
+NodeCmd::ProxygroupConfig(const std::string& node, const std::string& value,
+                          eos::console::ReplyProto& reply)
 {
-  std::string nodename = proxygroup.node();
-  std::string status = (proxygroup.node_proxygroup().length()) ?
-                       proxygroup.node_proxygroup() : "clear";
+  enum class Action { ADD, RM, CLEAR };
+  std::string nodename = node;
   std::string key = "proxygroup";
-  eos::console::NodeProto_ProxygroupProto::Action action =
-    proxygroup.node_action();
+  std::string status;
+  Action action;
+
+  // '+<group>' adds, '-<group>' removes, 'clear' drops the whole list
+  if (value == "clear") {
+    action = Action::CLEAR;
+    status = "clear";
+  } else if (value[0] == '+' || value[0] == '-') {
+    action = (value[0] == '+') ? Action::ADD : Action::RM;
+    status = value.substr(1);
+  } else {
+    reply.set_std_err("error: proxygroup value must be '+<group>', "
+                      "'-<group>' or 'clear'");
+    reply.set_retc(EINVAL);
+    return;
+  }
 
   if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-")
       != std::string::npos) {
@@ -738,12 +754,12 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
     } while (pos2 != std::string::npos);
   }
 
-  if (action == eos::console::NodeProto_ProxygroupProto::CLEAR) {
+  if (action == Action::CLEAR) {
     proxygroups = "";
   } else {
-    if (action == eos::console::NodeProto_ProxygroupProto::ADD) {
+    if (action == Action::ADD) {
       groups.insert(status);
-    } else if (action == eos::console::NodeProto_ProxygroupProto::RM) {
+    } else if (action == Action::RM) {
       groups.erase(status);
     }
 
