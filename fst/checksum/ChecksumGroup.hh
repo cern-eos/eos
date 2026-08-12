@@ -314,6 +314,7 @@ public:
     scansize = 0ull;
     scantime = std::chrono::milliseconds::zero();
     auto open_ts = std::chrono::system_clock::now();
+    eos::fst::utils::ScanRateLimiter rate_limiter(rate, fstload, dirpath);
     Reset();
     //@todo(esindril) this should use the internal BufferPool to avoid
     // fragmentation of the memory
@@ -349,11 +350,9 @@ public:
         offset += nread;
       }
 
-      if (rate) {
-        // regulate the verification rate
-        eos::fst::utils::EnforceAndAdjustScanRate(scansize, open_ts, rate, fstload,
-                                                  dirpath.c_str());
-      }
+      // Regulate the verification rate - note this must use the running offset
+      // since scansize is only set once the whole file was scanned
+      rate_limiter.Throttle(offset);
     } while (nread == buffersize);
 
     auto current_ts = std::chrono::system_clock::now();

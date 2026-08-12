@@ -24,6 +24,7 @@
 #pragma once
 #include "fst/Namespace.hh"
 #include <chrono>
+#include <string>
 #include <sys/types.h>
 
 EOSFSTNAMESPACE_BEGIN
@@ -34,24 +35,76 @@ namespace utils
 {
 
 //------------------------------------------------------------------------------
-//! Enforce the scan rate by throttling the current thread and also adjust it
-//! depending on the IO load on the mountpoint
+//! Class ScanRateLimiter - throttles a sequential scan to a given rate in MB/s
+//! and adjusts this rate depending on the IO load of the mountpoint.
 //!
-//! @param offset current offset in file
-//! @param open_ts time point when file was opened
-//! @param scan_rate current scan rate, if 0 then then rate limiting is
-//!        disabled
-//! @param fst_load load object
-//! @param dir_path path to the directory being scanned
-//! @param max_rate maximum allowed scan rate
+//! The limiter holds a schedule deadline which is advanced only by the amount
+//! of data handed over since the previous call. Therefore a rate change never
+//! re-prices the data which was already scanned and the time spent inside one
+//! Throttle call is bounded by (chunk size / current rate). One limiter object
+//! must be used per scan i.e. it is not thread-safe.
 //------------------------------------------------------------------------------
-void EnforceAndAdjustScanRate(const off_t offset,
-                              const std::chrono::time_point
-                              <std::chrono::system_clock> open_ts,
-                              int& scan_rate,
-                              Load* fst_load = nullptr,
-                              const char* dir_path = nullptr,
-                              int max_rate = 0);
+class ScanRateLimiter {
+public:
+  //! Lowest rate in MB/s that the load based adjustment can drop to
+  static constexpr int sMinRate = 5;
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param rate initial scan rate in MB/s, if 0 or negative then the rate
+  //!        limiting is disabled
+  //! @param fst_load load object, if null then no rate adjustment is done
+  //! @param dir_path path of the mountpoint being scanned
+  //! @param max_rate maximum allowed scan rate in MB/s, restored whenever the
+  //!        disk load drops below the threshold, 0 disables the restore
+  //----------------------------------------------------------------------------
+  ScanRateLimiter(int rate, Load* fst_load = nullptr, const std::string& dir_path = "",
+                  int max_rate = 0);
+
+  //----------------------------------------------------------------------------
+  //! Throttle the calling thread so that the data handed over since the
+  //! previous call does not exceed the current rate and adjust this rate
+  //! depending on the IO load of the mountpoint.
+  //!
+  //! @param offset cumulative number of bytes processed since the scan started
+  //----------------------------------------------------------------------------
+  void Throttle(off_t offset);
+
+  //----------------------------------------------------------------------------
+  //! Get the current scan rate in MB/s
+  //----------------------------------------------------------------------------
+  inline int
+  GetRate() const
+  {
+    return mRate;
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  //! Adjust the current rate depending on the IO load of the mountpoint
+  //----------------------------------------------------------------------------
+  void AdjustRate();
+
+  //----------------------------------------------------------------------------
+  //! Reject rate values that can not be honoured - a negative rate used to
+  //! produce a negative sleep interval which, converted to an unsigned type,
+  //! blocked the scanner thread for years
+  //----------------------------------------------------------------------------
+  static inline int
+  SanitizeRate(int rate)
+  {
+    return (rate > 0) ? rate : 0;
+  }
+
+  int mRate;            ///< Current scan rate in MB/s, 0 means no rate limiting
+  int mMaxRate;         ///< Maximum allowed scan rate in MB/s
+  Load* mFstLoad;       ///< Object for providing load information
+  std::string mDirPath; ///< Mountpoint being scanned
+  off_t mOffset{0};     ///< Offset handed over by the previous call
+  //! Time by which the data handed over so far should have been scanned
+  std::chrono::steady_clock::time_point mDeadline;
+};
 
 } // namespace utils
 

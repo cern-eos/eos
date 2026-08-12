@@ -260,6 +260,7 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize,
   scansize = 0;
   scantime = std::chrono::milliseconds::zero();
   auto opentime = std::chrono::system_clock::now();
+  eos::fst::utils::ScanRateLimiter rate_limiter(rate, fstload, dirpath, max_rate);
   Reset();
   int nread = 0;
   char* buffer = 0;
@@ -294,11 +295,8 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize,
       scansize += nread;
     }
 
-    if (rate) {
-      // regulate the verification rate
-      eos::fst::utils::EnforceAndAdjustScanRate(scansize, opentime, rate,
-          fstload, dirpath.c_str(), max_rate);
-    }
+    // Regulate the verification rate
+    rate_limiter.Throttle(scansize);
   } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();
@@ -324,6 +322,7 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
   scansize = 0;
   scantime = std::chrono::milliseconds::zero();
   auto opentime = std::chrono::system_clock::now();
+  eos::fst::utils::ScanRateLimiter rate_limiter(rate, fstload, dirpath, max_rate);
   Reset();
   //move at the right location in the  file
   int nread = 0;
@@ -351,11 +350,8 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
       offset += nread;
     }
 
-    if (rate) {
-      // regulate the verification rate
-      eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
-          fstload, dirpath.c_str(), max_rate);
-    }
+    // Regulate the verification rate
+    rate_limiter.Throttle(offset);
   } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();
@@ -381,6 +377,7 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
   scansize = 0;
   scantime = std::chrono::milliseconds::zero();
   auto opentime = std::chrono::system_clock::now();
+  eos::fst::utils::ScanRateLimiter rate_limiter(rate, fstload, dirpath, max_rate);
   int fd = open(path, O_RDONLY);
 
   if (fd < 0) {
@@ -420,11 +417,8 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
       offset += nread;
     }
 
-    if (rate) {
-      // Regulate the verification rate
-      eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate, fstload,
-                                                dirpath.c_str(), max_rate);
-    }
+    // Regulate the verification rate
+    rate_limiter.Throttle(offset);
   } while (nread != 0);
 
   auto currenttime = std::chrono::system_clock::now();

@@ -1227,7 +1227,9 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
 {
   scan_size = 0ull;
   filexs_err = blockxs_err = false;
-  int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
+  eos::fst::utils::ScanRateLimiter rate_limiter(
+      mRateBandwidth.load(std::memory_order_relaxed), mFstLoad, mDirPath,
+      mRateBandwidth.load(std::memory_order_relaxed));
   std::string file_path = io->GetPath();
   struct stat info;
 
@@ -1305,9 +1307,7 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
       }
 
       offset += nread;
-      eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, scan_rate,
-          mFstLoad, mDirPath.c_str(),
-          mRateBandwidth.load());
+      rate_limiter.Throttle(offset);
     }
   } while (nread != 0);
 
@@ -1576,8 +1576,9 @@ ScanDir::IsValidStripeCombination(
   }
 
   off_t offsetXrd = 0;
-  const auto open_ts = std::chrono::system_clock::now();
-  int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
+  eos::fst::utils::ScanRateLimiter rate_limiter(
+      mRateBandwidth.load(std::memory_order_relaxed), mFstLoad, mDirPath,
+      mRateBandwidth.load(std::memory_order_relaxed));
   xs_obj->Reset();
 
   while (true) {
@@ -1594,9 +1595,7 @@ ScanDir::IsValidStripeCombination(
 
     xs_obj->Add(mBuffer, nread, offsetXrd);
     offsetXrd += nread;
-    eos::fst::utils::EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate,
-        mFstLoad, mDirPath.c_str(),
-        mRateBandwidth.load());
+    rate_limiter.Throttle(offsetXrd);
   }
 
   redundancyObj->Close();

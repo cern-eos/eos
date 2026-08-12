@@ -112,20 +112,64 @@ TEST(ScanDir, AdjustScanRate)
   off_t offset = 0;
   int rate = 75;  // MB/s
   eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, true);
-  const auto open_ts = std::chrono::system_clock::now();
-  int old_rate = rate;
-  eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, rate, &load,
-      path.c_str());
-  ASSERT_EQ(rate, old_rate);
+  eos::fst::utils::ScanRateLimiter rate_limiter(rate, &load, path);
+  int old_rate = rate_limiter.GetRate();
+  rate_limiter.Throttle(offset);
+  ASSERT_EQ(rate_limiter.GetRate(), old_rate);
 
-  while (rate > 5) {
-    old_rate = rate;
-    eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, rate,
-        &load, path.c_str());
-    ASSERT_EQ(rate, (int)(old_rate * 0.9));
+  while (rate_limiter.GetRate() > 5) {
+    old_rate = rate_limiter.GetRate();
+    rate_limiter.Throttle(offset);
+    ASSERT_EQ(rate_limiter.GetRate(), (int)(old_rate * 0.9));
   }
 
-  ASSERT_LE(rate, 5);
+  ASSERT_LE(rate_limiter.GetRate(), 5);
+}
+
+//------------------------------------------------------------------------------
+// A rate drop must only apply to the data still to be scanned, otherwise the
+// already scanned data gets re-priced at the new rate and the scanner blocks
+// for the accumulated difference - up to tens of minutes for a big file.
+//------------------------------------------------------------------------------
+TEST(ScanDir, EnforceScanRateNoRetroactiveSleep)
+{
+  using namespace std::chrono;
+  using ::testing::_;
+  using ::testing::Return;
+  // Always report a disk load above the threshold so that the rate decays
+  // from 100 MB/s down to the 5 MB/s floor
+  MockLoad load;
+  EXPECT_CALL(load, GetDiskRate(_, _)).WillRepeatedly(Return(800.0));
+  const std::string path{"/var/"};
+  eos::fst::utils::ScanRateLimiter rate_limiter(100, &load, path, 100);
+  const auto start_ts = steady_clock::now();
+  // Simulate a scan which is already 10 GB into the file and hands over 64 kB
+  // chunks while the rate is being decayed
+  off_t offset = 10ll * 1024 * 1024 * 1024;
+
+  for (int i = 0; i < 50; ++i) {
+    offset += 64 * 1024;
+    rate_limiter.Throttle(offset);
+  }
+
+  ASSERT_EQ(rate_limiter.GetRate(), 5);
+  // Throttling 3 MB, even at the 5 MB/s floor, must not take more than the
+  // fraction of a second needed for the data handed over during this test
+  ASSERT_LT(duration_cast<seconds>(steady_clock::now() - start_ts).count(), 10);
+}
+
+//------------------------------------------------------------------------------
+// A negative or zero rate must disable the throttling instead of blocking
+//------------------------------------------------------------------------------
+TEST(ScanDir, EnforceScanRateInvalidRate)
+{
+  using namespace std::chrono;
+  const auto start_ts = steady_clock::now();
+  eos::fst::utils::ScanRateLimiter no_rate(0);
+  eos::fst::utils::ScanRateLimiter bad_rate(-1276116992);
+  no_rate.Throttle(10ll * 1024 * 1024 * 1024);
+  bad_rate.Throttle(10ll * 1024 * 1024 * 1024);
+  ASSERT_LT(duration_cast<seconds>(steady_clock::now() - start_ts).count(), 5);
 }
 
 TEST_F(TmpDirTree, ScanDirSetConfig)
