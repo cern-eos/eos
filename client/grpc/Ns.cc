@@ -9,17 +9,24 @@
 
 int usage(const char* prog)
 {
-  fprintf(stderr, "usage: %s [--key <ssl-key-file> "
+  fprintf(stderr,
+          "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [--force-ssl] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode "
+          "<mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] "
+          "[--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl "
+          "<acl>] [--sysacl] [--norecycle] [--no-globbing] [--force-ssl] [-r] "
+          "[--max-version <max-version>] [--target <target>] [--year <year>] [--month "
+          "<month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] "
+          "[--position <position>] [--front] -p <path> <command>\n",
           prog);
   fprintf(stderr,
           "                                [-r] -p <path> mkdir\n"
           "                                [-r] -p <path> rmdir\n"
           "                                     -p <path> touch\n"
-          "                       [--norecycle] -p <path> rm\n"
+          "  [--norecycle] [--no-globbing] [-r] -p <path> rm\n"
           "                   --target <target> -p <path> rename\n"
           "                   --target <target> -p <path> symlink\n"
           "              [-r] --xattr <key=val> -p <path> setxattr # sets key=val\n"
@@ -37,13 +44,21 @@ int usage(const char* prog)
           "                                     -p <key>  old_recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] old_recycle purge\n"
           "                                     -p <key>  old_recycle purge\n"
-          "                                               recycle ls [<date> [<limit>]] [-m] [-n] [--all] [--rid <val>]\n"
-          "                                               recycle purge [--all] [--uid] [--rid <val>] <date> | -k <key>]\n"
-          "                                               recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
-          "                                               recycle project --path <path> [--acl <val>]\n"
-          "                                               recycle config [--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] [--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] [--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
+          "                                               recycle ls [<date> [<limit>]] "
+          "[-m] [-n] [--all] [--rid <val>]\n"
+          "                                               recycle purge [--all] [--uid] "
+          "[--rid <val>] <date> | -k <key>]\n"
+          "                                               recycle restore [-p] "
+          "[-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
+          "                                               recycle project --path <path> "
+          "[--acl <val>]\n"
+          "                                               recycle config "
+          "[--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] "
+          "[--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] "
+          "[--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
-          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project quota set\n"
+          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> "
+          "--quota user|group|project quota set\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
           "                                   [-p <path>] quota rmnode\n");
   return -1;
@@ -113,6 +128,7 @@ int main(int argc, const char* argv[])
   gid_t owner_gid = 0;
   bool recursive = false;
   bool norecycle = false;
+  bool noglobbing = false;
   bool sysacl = false;
   uint32_t position = 0;
   std::string eostoken = "";
@@ -407,6 +423,11 @@ int main(int argc, const char* argv[])
       continue;
     }
 
+    if (option == "--no-globbing") {
+      noglobbing = true;
+      continue;
+    }
+
     if (option == "--ztoken") {
       if (argc > i + 1) {
         eostoken = argv[i + 1];
@@ -548,6 +569,10 @@ int main(int argc, const char* argv[])
 
     if (recursive) {
       request.mutable_rm()->set_recursive(recursive);
+    }
+
+    if (noglobbing) {
+      request.mutable_rm()->set_noglobbing(noglobbing);
     }
   } else if (cmd == "rename") {
     request.mutable_rename()->mutable_id()->set_path(path);
