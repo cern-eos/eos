@@ -290,6 +290,9 @@ SymKey::HmacSha1(std::string& data, const char* key)
   return result;
 }
 
+//------------------------------------------------------------------------------
+// Base64 encode a vector of bytes
+//------------------------------------------------------------------------------
 std::string
 SymKey::Base64Encode(const std::vector<uint8_t>& input)
 {
@@ -297,33 +300,13 @@ SymKey::Base64Encode(const std::vector<uint8_t>& input)
     return {};
   }
 
-  BIO* b64 = BIO_new(BIO_f_base64());
+  std::string encoded;
 
-  if (b64 == nullptr) {
+  if (!Base64Encode(reinterpret_cast<const char*>(input.data()), input.size(), encoded)) {
     return {};
   }
 
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  BIO* bmem = BIO_new(BIO_s_mem());
-
-  if (bmem == nullptr) {
-    BIO_free_all(b64);
-    return {};
-  }
-
-  BIO_push(b64, bmem);
-
-  if ((BIO_write(b64, input.data(), input.size()) != static_cast<int>(input.size())) ||
-      (BIO_flush(b64) <= 0)) {
-    BIO_free_all(b64);
-    return {};
-  }
-
-  BUF_MEM* bptr = nullptr;
-  BIO_get_mem_ptr(b64, &bptr);
-  std::string result{bptr->data, bptr->length};
-  BIO_free_all(b64);
-  return result;
+  return encoded;
 }
 
 //------------------------------------------------------------------------------
@@ -343,19 +326,30 @@ SymKey::Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
   BIO* bmem = BIO_new(BIO_s_mem());
 
   if (!bmem) {
+    BIO_free_all(b64);
     return false;
   }
 
   b64 = BIO_push(b64, bmem);
-  BIO_write(b64, decoded_bytes, decoded_length);
+
+  if (BIO_write(b64, decoded_bytes, decoded_length) != static_cast<int>(decoded_length)) {
+    BIO_free_all(b64);
+    return false;
+  }
 
   if (BIO_flush(b64) != 1) {
     BIO_free_all(b64);
     return false;
   }
 
-  BUF_MEM* bptr;
+  BUF_MEM* bptr = nullptr;
   BIO_get_mem_ptr(b64, &bptr);
+
+  if (!bptr) {
+    BIO_free_all(b64);
+    return false;
+  }
+
   out.assign(bptr->data, bptr->length);
   BIO_free_all(b64);
   return true;
