@@ -36,12 +36,76 @@
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSec/XrdSecEntityAttr.hh>
+#include <arpa/inet.h>
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <vector>
 
 EOSCOMMONNAMESPACE_BEGIN
+
+namespace {
+//------------------------------------------------------------------------------
+// Check if the given string is a numeric IPv4/IPv6 address and not a host name
+//------------------------------------------------------------------------------
+bool
+IsAddressLiteral(const std::string& input)
+{
+  struct in_addr addr4;
+  struct in6_addr addr6;
+  return ((inet_pton(AF_INET, input.c_str(), &addr4) == 1) ||
+          (inet_pton(AF_INET6, input.c_str(), &addr6) == 1));
+}
+
+//------------------------------------------------------------------------------
+// Build the list of alternative representations of the client host to be used
+// when matching token origins. An origin pattern can describe either a host
+// name or an IP address, but a client is identified only by one of the two
+// depending on the protocol it came in with - XrdHttp hands over the raw
+// address formatted as an advanced IPv6 literal e.g. "[::ffff:1.2.3.4]" while
+// the xrootd protocol hands over the resolved host name. Therefore expand:
+//   address -> plain address forms + reverse resolved host name
+//   host name -> all the addresses the name resolves to
+// so that both flavours of origin work irrespective of the protocol used.
+//------------------------------------------------------------------------------
+std::vector<std::string>
+HostAliases(const std::string& host)
+{
+  std::vector<std::string> aliases;
+  std::string addr = host;
+
+  // XrdHttp formats the address as an advanced IPv6 literal e.g "[::1]"
+  if ((addr.length() > 2) && (addr.front() == '[') && (addr.back() == ']')) {
+    addr = addr.substr(1, addr.length() - 2);
+  }
+
+  if (!IsAddressLiteral(addr)) {
+    // This is a host name, expand it to the addresses that it resolves to
+    return Mapping::gIpCache.GetIps(host.c_str());
+  }
+
+  if (addr != host) {
+    aliases.push_back(addr);
+  }
+
+  // An IPv4 mapped IPv6 address is also matched in its IPv4 form
+  static const std::string ipv4_mapped = "::ffff:";
+
+  if ((addr.compare(0, ipv4_mapped.length(), ipv4_mapped) == 0) &&
+      IsAddressLiteral(addr.substr(ipv4_mapped.length()))) {
+    addr.erase(0, ipv4_mapped.length());
+    aliases.push_back(addr);
+  }
+
+  std::string name = Mapping::gIpCache.GetHostName(addr.c_str());
+
+  if (!name.empty() && (name != addr)) {
+    aliases.push_back(name);
+  }
+
+  return aliases;
+}
+} // namespace
 
 /*----------------------------------------------------------------------------*/
 // global mapping objects
@@ -1016,8 +1080,27 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // verify origin
   if (vid.token) {
     if (vid.token->Valid()) {
-      if (vid.token->VerifyOrigin(vid.host, vid.uid_string,
-                                  std::string(vid.prot.c_str()))) {
+      const std::string prot = vid.prot.c_str();
+      int origin_rc = vid.token->VerifyOrigin(vid.host, vid.uid_string, prot);
+      std::string matched_host;
+
+      if (origin_rc) {
+        // XrdHttp hands over the raw address of the client formatted as
+        // "[::ffff:1.2.3.4]" while the xrootd protocol hands over the
+        // resolved host name. Token origins are host name patterns, therefore
+        // retry the match with the plain address and with the reverse
+        // resolved name so that the same token works over both protocols.
+        for (const auto& host : HostAliases(vid.host)) {
+          origin_rc = vid.token->VerifyOrigin(host, vid.uid_string, prot);
+
+          if (!origin_rc) {
+            matched_host = host;
+            break;
+          }
+        }
+      }
+
+      if (origin_rc) {
         // invalidate this token
         eos_static_err("msg=\"invalid token due to origin mismatch\" "
                        "\"%s#%s#%s\"", vid.host.c_str(),
@@ -1025,6 +1108,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.token->Reset();
         // reset the vid to nobody if the origin does not match
         vid.toNobody();
+      } else if (!matched_host.empty()) {
+        eos_static_debug("msg=\"token origin matched the resolved client "
+                         "host\" addr=\"%s\" host=\"%s\"",
+                         vid.host.c_str(), matched_host.c_str());
       }
     } else {
       eos_static_debug("msg=\"token invalid\" host=\"%s\" uid=\"%s\" prot=\"%s\"",
@@ -1701,48 +1788,116 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
 std::string
 Mapping::ip_cache::GetIp(const char* hostname)
 {
+  std::vector<std::string> ips = GetIps(hostname);
+  return (ips.empty() ? "" : ips.front());
+}
+
+//------------------------------------------------------------------------------
+// Translate a host name to all its IP addresses
+//------------------------------------------------------------------------------
+std::vector<std::string>
+Mapping::ip_cache::GetIps(const char* hostname)
+{
   time_t now = time(NULL);
   {
     // check for an existing translation
     RWMutexReadLock guard(mLocker);
+    auto it = mHost2IpsMap.find(hostname);
 
-    if (mIp2HostMap.count(hostname) &&
-        mIp2HostMap[hostname].first > now) {
-      eos_static_debug("status=cached host=%s ip=%s", hostname,
-                       mIp2HostMap[hostname].second.c_str());
+    if ((it != mHost2IpsMap.end()) && (it->second.first > now)) {
+      eos_static_debug("status=cached host=%s nip=%i", hostname,
+                       (int)it->second.second.size());
       // give cached entry
-      return mIp2HostMap[hostname].second;
+      return it->second.second;
     }
   }
-  {
-    // refresh an entry
-    XrdNetAddr* addrs  = 0;
-    int         nAddrs = 0;
-    const char* err    = XrdNetUtils::GetAddrs(hostname, &addrs, nAddrs,
-                         XrdNetUtils::allIPv64,
-                         XrdNetUtils::NoPortRaw);
+  // refresh an entry
+  XrdNetAddr* addrs = 0;
+  int nAddrs = 0;
+  std::vector<std::string> ips;
+  const char* err = XrdNetUtils::GetAddrs(hostname, &addrs, nAddrs, XrdNetUtils::allIPv64,
+                                          XrdNetUtils::NoPortRaw);
 
-    if (err || nAddrs == 0) {
-      return "";
-    }
-
+  if (!err) {
     char buffer[64];
-    int hostlen = addrs[0].Format(buffer, sizeof(buffer),
-                                  XrdNetAddrInfo::fmtAddr,
-                                  XrdNetAddrInfo::noPortRaw);
-    delete [] addrs;
 
-    if (hostlen > 0) {
-      RWMutexWriteLock guard(mLocker);
-      std::string sip(buffer, hostlen);
-      mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
-      eos_static_debug("status=refresh host=%s ip=%s", hostname,
-                       mIp2HostMap[hostname].second.c_str());
-      return sip;
+    for (int i = 0; i < nAddrs; ++i) {
+      int hostlen = addrs[i].Format(buffer, sizeof(buffer), XrdNetAddrInfo::fmtAddr,
+                                    XrdNetAddrInfo::noPortRaw);
+
+      if (hostlen > 0) {
+        ips.emplace_back(buffer, hostlen);
+      }
     }
-
-    return "";
   }
+
+  delete[] addrs;
+
+  if (ips.empty()) {
+    // Don't cache failures for the forward direction as this is also used to
+    // decide the geo location of a client
+    return ips;
+  }
+
+  {
+    RWMutexWriteLock guard(mLocker);
+    mHost2IpsMap[hostname] = std::make_pair(now + mLifeTime, ips);
+  }
+  eos_static_debug("status=refresh host=%s ip=%s", hostname, ips.front().c_str());
+  return ips;
+}
+
+//------------------------------------------------------------------------------
+// Translate an IP address to the corresponding host name
+//------------------------------------------------------------------------------
+std::string
+Mapping::ip_cache::GetHostName(const char* ip)
+{
+  time_t now = time(NULL);
+  {
+    // check for an existing translation
+    RWMutexReadLock guard(mLocker);
+    auto it = mAddr2NameMap.find(ip);
+
+    if ((it != mAddr2NameMap.end()) && (it->second.first > now)) {
+      eos_static_debug("status=cached ip=%s host=%s", ip, it->second.second.c_str());
+      return it->second.second;
+    }
+  }
+  // refresh the entry
+  XrdNetAddr addr;
+  std::string name;
+
+  if (!addr.Set(ip, 0)) {
+    const char* resolved = addr.Name();
+
+    if (resolved) {
+      name = resolved;
+    }
+  }
+
+  if (!name.empty()) {
+    // Forward confirm the reverse resolution: the name must point back to the
+    // address we started from, otherwise anyone controlling the PTR record of
+    // their own address could claim to be any host name.
+    std::vector<std::string> ips = GetIps(name.c_str());
+
+    if (std::find(ips.begin(), ips.end(), std::string(ip)) == ips.end()) {
+      eos_static_warning("msg=\"discard reverse resolution which is not "
+                         "forward confirmed\" ip=%s host=%s",
+                         ip, name.c_str());
+      name.clear();
+    }
+  }
+
+  {
+    // Cache also the failed resolutions so that a client which can not be
+    // resolved does not trigger a DNS lookup for each of its requests
+    RWMutexWriteLock guard(mLocker);
+    mAddr2NameMap[ip] = std::make_pair(now + mLifeTime, name);
+  }
+  eos_static_debug("status=refresh ip=%s host=%s", ip, name.c_str());
+  return name;
 }
 
 //------------------------------------------------------------------------------

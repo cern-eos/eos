@@ -88,6 +88,8 @@ public:
   public:
     // IP host entry and last resolution time pair
     typedef std::pair<time_t, std::string> entry_t;
+    // IP host entries and last resolution time pair
+    typedef std::pair<time_t, std::vector<std::string>> entries_t;
     // Constructor
 
     ip_cache(int lifetime = 300)
@@ -101,8 +103,31 @@ public:
     // Getter translates host name to IP string
     std::string GetIp(const char* hostname);
 
+    //--------------------------------------------------------------------------
+    //! Getter translating a host name to all its IP addresses
+    //!
+    //! @param hostname host name to resolve
+    //!
+    //! @return list of addresses, empty if the name can not be resolved. Failed
+    //!         resolutions are cached as well to avoid hammering the DNS.
+    //--------------------------------------------------------------------------
+    std::vector<std::string> GetIps(const char* hostname);
+
+    //--------------------------------------------------------------------------
+    //! Getter translating an IP address to the corresponding host name. The
+    //! reverse resolution is forward confirmed i.e. the returned name must
+    //! resolve back to the given address, otherwise it is discarded.
+    //!
+    //! @param ip address of the client without any brackets
+    //!
+    //! @return host name or empty string if it can not be resolved. Failed
+    //!         resolutions are cached as well to avoid hammering the DNS.
+    //--------------------------------------------------------------------------
+    std::string GetHostName(const char* ip);
+
   private:
-    std::map<std::string, entry_t> mIp2HostMap;
+    std::map<std::string, entries_t> mHost2IpsMap;
+    std::map<std::string, entry_t> mAddr2NameMap;
     RWMutex mLocker;
     int mLifeTime;
   };

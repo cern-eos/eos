@@ -226,6 +226,17 @@ using the `origins` entries.
    # all machines at CERN authenticating via unix as user kubernetes from machine k8s.cern.ch
    eos token --path /eos/myfile --origin "k8s.cern.ch#kubernetes#unix"
 
+   # a single machine given by its IP address or a whole subnet
+   eos token --path /eos/myfile --origin "137\.138\.30\.1#.*#.*"
+   eos token --path /eos/myfile --origin "137\.138\..*#.*#.*"
+
+
+The first field matches either the host name or the IP address of the client.
+The two are matched interchangeably: a client which is known by its address
+only - which is the case for HTTP(S) access - is also matched against the host
+name that the address resolves to and vice versa. A reverse resolution is only
+accepted if it is forward confirmed i.e. the host name resolves back to the
+address of the client.
 
 The default origin regexp is `.*#.*#.*` accepting all origins. If the
 regex is invalid, the command will return with an error message.
