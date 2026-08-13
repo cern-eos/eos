@@ -79,6 +79,15 @@ public:
                         const std::string& prot);
   virtual int VerifyOrigin(const std::string& host, const std::string& name,
                            const std::string& prot);
+
+  //----------------------------------------------------------------------------
+  //! Check that all the origin entries hold valid regular expressions. This is
+  //! used at token issuing time where there is no request identity to match
+  //! against, but the operator supplied patterns still need to be validated.
+  //!
+  //! @return 0 if all the origin patterns are well-formed, -EBADE otherwise
+  //----------------------------------------------------------------------------
+  virtual int ValidateOrigins() const;
   virtual int ValidatePath(const std::string& path) const;
   virtual bool Valid() const;
   virtual bool TreeToken() const;

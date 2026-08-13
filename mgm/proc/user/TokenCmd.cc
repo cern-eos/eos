@@ -307,8 +307,10 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       eostoken.AddOrigin(auth.host(), auth.name(), auth.prot());
     }
 
-    if (eostoken.VerifyOrigin(vid.host, vid.uid_string,
-                              std::string(vid.prot.c_str())) == -EBADE) {
+    // The token is normally issued for a different origin than the one of the
+    // issuer, therefore we only validate the regexps and never try to match
+    // them against the identity of the requester.
+    if (eostoken.ValidateOrigins() == -EBADE) {
       errStream << "error: one or several origin regexp's are invalid" << std::endl;
       ret_c = -EBADE;
     } else {
@@ -331,7 +333,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       }
       std::string token_path;
 
-      if ((ret_c = StoreToken(dump, voucherid, token_path, vid.uid, vid.gid))) {
+      if ((ret_c = StoreToken(dump, voucherid, token_path, mVid.uid, mVid.gid))) {
         errStream << "error: could not store the token: " << ret_c << std::endl;
       } else {
         // Routine successful issuance: log the audit-relevant claims as
@@ -355,15 +357,21 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     //   1. Expiry / generation must be enforced before any claim payload
     //      is dumped to the requester (pass ignoreerror=false so Read
     //      returns -EKEYEXPIRED / -EACCES instead of silently decoding).
-    //   2. Origin must be verified before the dump as well, so an origin
-    //      mismatch cannot leak the decoded claims to a caller that the
-    //      token was not authorized to be presented from.
+    //   2. For a regular user the origin must be verified before the dump
+    //      as well, so an origin mismatch cannot leak the decoded claims to
+    //      a caller that the token was not authorized to be presented from.
+    //      Root and sudoers are exempt: they are the ones who need to
+    //      inspect tokens and, by definition, they can not match an origin
+    //      that restricts the token to some remote client.
     // -------------------------------------------------------------------
     if (!(ret_c = eostoken.Read(token.vtoken(), key,
                                 eos::common::EosTok::sTokenGeneration.load(),
                                 false))) {
-      int origin_rc = eostoken.VerifyOrigin(vid.host, vid.uid_string,
-                                            std::string(vid.prot.c_str()));
+      const bool privileged = (mVid.sudoer || mVid.hasUid(0) || (mVid.uid == 0));
+      int origin_rc =
+          (privileged ? 0
+                      : eostoken.VerifyOrigin(mVid.host, mVid.uid_string,
+                                              std::string(mVid.prot.c_str())));
 
       if (origin_rc == -EBADE) {
         errStream << "error: one or several origin regexp's are invalid"
@@ -378,7 +386,13 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
         outStream << dump;
       }
     } else {
-      errStream << "error: cannot read token" << std::endl;
+      if (ret_c == -EKEYEXPIRED) {
+        errStream << "error: token is expired" << std::endl;
+      } else if (ret_c == -EACCES) {
+        errStream << "error: token generation mismatch - token was revoked" << std::endl;
+      } else {
+        errStream << "error: cannot read token" << std::endl;
+      }
     }
   }
 

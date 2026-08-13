@@ -335,6 +335,33 @@ EosTok::AddOrigin(const std::string& host, const std::string& name,
   return 0;
 }
 
+namespace {
+//------------------------------------------------------------------------------
+// Check if an origin pattern is usable. Empty pattern strings are treated as
+// "matches nothing" rather than malformed, matching eos_regex_match.
+//------------------------------------------------------------------------------
+bool
+OriginPatternValid(const std::string& pattern)
+{
+  return pattern.empty() || eos::common::eos_regex_valid(pattern);
+}
+} // namespace
+
+int
+EosTok::ValidateOrigins() const
+{
+  for (int i = 0; i < share->token().origins_size(); ++i) {
+    const eos::console::TokenAuth& auth = share->token().origins(i);
+
+    if (!OriginPatternValid(auth.host()) || !OriginPatternValid(auth.name()) ||
+        !OriginPatternValid(auth.prot())) {
+      return -EBADE;
+    }
+  }
+
+  return 0;
+}
+
 int
 EosTok::VerifyOrigin(const std::string& host, const std::string& name,
                      const std::string& prot)
@@ -353,21 +380,15 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
   //   0        - some entry matched
   //   -ENODATA - all entries are well-formed but none matched
   //   -EBADE   - at least one entry has a malformed regex AND no entry
-  //              matched (issuance code uses -EBADE to surface "operator
-  //              typed a bad regex pattern")
-  // Empty pattern strings are treated as "matches nothing" rather than
-  // malformed, matching the behaviour of eos_regex_match.
-  auto pattern_valid = [](const std::string& p) {
-    return p.empty() || eos::common::eos_regex_valid(p);
-  };
+  //              matched (see also ValidateOrigins which is used at issuing
+  //              time to surface "operator typed a bad regex pattern")
   bool any_invalid = false;
 
   for (int i = 0; i < share->token().origins_size(); ++i) {
     const eos::console::TokenAuth& auth = share->token().origins(i);
 
-    if (!pattern_valid(auth.host()) ||
-        !pattern_valid(auth.name()) ||
-        !pattern_valid(auth.prot())) {
+    if (!OriginPatternValid(auth.host()) || !OriginPatternValid(auth.name()) ||
+        !OriginPatternValid(auth.prot())) {
       any_invalid = true;
       continue;
     }
