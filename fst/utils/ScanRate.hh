@@ -67,6 +67,10 @@ public:
   //! previous call does not exceed the current rate and adjust this rate
   //! depending on the IO load of the mountpoint.
   //!
+  //! The first call only records the starting offset without throttling, so
+  //! that a limiter attached to a scan which is already in progress does not
+  //! charge for the data read before it existed.
+  //!
   //! @param offset cumulative number of bytes processed since the scan started
   //----------------------------------------------------------------------------
   void Throttle(off_t offset);
@@ -102,6 +106,7 @@ private:
   Load* mFstLoad;       ///< Object for providing load information
   std::string mDirPath; ///< Mountpoint being scanned
   off_t mOffset{0};     ///< Offset handed over by the previous call
+  bool mHasOffset{false}; ///< True once the starting offset was recorded
   //! Time by which the data handed over so far should have been scanned
   std::chrono::steady_clock::time_point mDeadline;
 };

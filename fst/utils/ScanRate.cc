@@ -51,8 +51,11 @@ void
 ScanRateLimiter::Throttle(off_t offset)
 {
   using namespace std::chrono;
-  const off_t delta = offset - mOffset;
+  // The first call establishes the baseline, otherwise the whole prefix given
+  // by the initial offset would be priced at the current rate
+  const off_t delta = mHasOffset ? offset - mOffset : 0;
   mOffset = offset;
+  mHasOffset = true;
 
   if (mRate && (delta > 0)) {
     // Time budget for the data handed over since the previous call. The
