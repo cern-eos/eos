@@ -1680,6 +1680,10 @@ grpc::Status GrpcNsInterface::Rm(eos::common::VirtualIdentity& vid,
     req.mutable_rm()->set_bypassrecycle(true);
   }
 
+  if (request->noglobbing()) {
+    req.mutable_rm()->set_noglobbing(true);
+  }
+
   eos::mgm::RmCmd rmcmd(std::move(req), vid);
   eos::console::ReplyProto preply = rmcmd.ProcessRequest();
 

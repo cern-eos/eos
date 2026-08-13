@@ -65,6 +65,41 @@ eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $prefix/t_grpc/level1 -r rm || exit -3
 
+# globbing
+# by default a '?' in the path is a wildcard, so removing 'glob_file?'
+# also removes the sibling entry 'glob_fileX'
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p "$prefix/t_grpc/glob_file?" touch || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $prefix/t_grpc/glob_fileX touch || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p "$prefix/t_grpc/glob_file?" rm || exit -22
+eos ls $prefix/t_grpc/ | grep -w "glob_fileX" && exit -22
+
+# with --no-globbing the path is taken literally, so only 'glob_file?' goes
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p "$prefix/t_grpc/glob_file?" touch || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $prefix/t_grpc/glob_fileX touch || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey --no-globbing -p "$prefix/t_grpc/glob_file?" rm || exit -22
+eos ls $prefix/t_grpc/ | grep -w "glob_file?" && exit -22
+eos ls $prefix/t_grpc/ | grep -w "glob_fileX" || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $prefix/t_grpc/glob_fileX rm || exit -22
+
+# same for a directory tree, which is the reported 'Folder?' case
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p "$prefix/t_grpc/glob_dir?" mkdir || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $prefix/t_grpc/glob_dirX mkdir || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey --no-globbing -r -p "$prefix/t_grpc/glob_dir?" rm || exit -22
+eos ls $prefix/t_grpc/ | grep -w "glob_dir?" && exit -22
+eos ls $prefix/t_grpc/ | grep -w "glob_dirX" || exit -22
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $prefix/t_grpc/glob_dirX -r rm || exit -22
+
 # rename
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $prefix/t_grpc/grpc_file touch || exit -4
