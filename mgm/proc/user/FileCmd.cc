@@ -65,6 +65,11 @@ FileCmd::ResolvePath(const eos::console::Metadata& md, std::string& spath,
 
   if (md.id()) {
     fid = md.id();
+  } else if (md.ino()) {
+    fid = eos::common::FileId::InodeToFid(md.ino());
+  }
+
+  if (fid) {
     std::string lpath;
     std::string err_msg;
 
