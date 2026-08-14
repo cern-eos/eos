@@ -1493,7 +1493,7 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
             } else {
               std_err << "error: failed to schedule conversion '" << conversiontag;
 
-              if (err_msg.empty()) {
+              if (!err_msg.empty()) {
                 std_err << " msg=\"" << err_msg << "\"";
               }
 
