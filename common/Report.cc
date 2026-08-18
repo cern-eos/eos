@@ -65,6 +65,7 @@ Report::Report(XrdOucEnv& report)
   lid = strtoul(report.Get("lid") ? report.Get("lid") : "0", 0, 10);
   fid = strtoull(report.Get("fid") ? report.Get("fid") : "0", 0, 16);
   fsid = strtoul(report.Get("fsid") ? report.Get("fsid") : "0", 0, 10);
+  space = report.Get("space") ? report.Get("space") : "";
   rb = strtoull(report.Get("rb") ? report.Get("rb") : "0", 0, 10);
   rb_min = strtoull(report.Get("rb_min") ? report.Get("rb_min") : "0", 0, 10);
   rb_max = strtoull(report.Get("rb_max") ? report.Get("rb_max") : "0", 0, 10);
@@ -188,16 +189,12 @@ Report::Dump(XrdOucString& out, bool dumpsec, bool dumptpc)
            "sbwdb=%llu sxlfwdb=%llu sxlbwdb=%llu nrc=%llu nwc=%llu "
            "nfwds=%llu nbwds=%llu nxlfwds=%llu nxlbwds=%llu rt=%.02f rvt=%.02f"
            "wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu "
-           "td=%s host=%s logid=%s",
-           uid, gid, rb, rb_min, rb_max, rb_sigma,
-           rv_op, rvb_min, rvb_max, rvb_sum, rvb_sigma,
-           rs_op, rsb_min, rsb_max, rsb_sum, rsb_sigma,
-           rc_min, rc_max, rc_sum, rc_sigma,
-           wb, wb_min, wb_max, wb_sigma, sfwdb,
-           sbwdb, sxlfwdb, sxlbwdb, nrc, nwc,
-           nfwds, nbwds, nxlfwds, nxlbwds, rt, rvt,
-           wt, osize, csize, ots, otms, cts, ctms,
-           td.c_str(), host.c_str(), logid.c_str());
+           "td=%s host=%s space=%s logid=%s",
+           uid, gid, rb, rb_min, rb_max, rb_sigma, rv_op, rvb_min, rvb_max, rvb_sum,
+           rvb_sigma, rs_op, rsb_min, rsb_max, rsb_sum, rsb_sigma, rc_min, rc_max, rc_sum,
+           rc_sigma, wb, wb_min, wb_max, wb_sigma, sfwdb, sbwdb, sxlfwdb, sxlbwdb, nrc,
+           nwc, nfwds, nbwds, nxlfwds, nxlbwds, rt, rvt, wt, osize, csize, ots, otms, cts,
+           ctms, td.c_str(), host.c_str(), space.c_str(), logid.c_str());
   out += dumpline;
 
   if (dumpsec) {
@@ -223,4 +220,3 @@ Report::Dump(XrdOucString& out, bool dumpsec, bool dumptpc)
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
-
