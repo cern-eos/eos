@@ -34,7 +34,6 @@
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
 #include "mgm/proc/admin/IoCmd.hh"
-#include "mgm/proc/admin/MonitCmd.hh"
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
@@ -251,10 +250,6 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new DevicesCmd(std::move(req), vid));
     break;
 
-  case RequestProto::kMonit:
-    cmd.reset(new MonitCmd(std::move(req), vid));
-    break;
-
   case RequestProto::kToken:
     cmd.reset(new TokenCmd(std::move(req), vid));
     break;
@@ -379,16 +374,6 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kConfig:
   case RequestProto::kToken:
     return false;
-
-  case RequestProto::kMonit:
-    switch (req.monit().subcmd_case()) {
-    case eos::console::MonitProto::kConfig:
-      return req.monit().config().subcmd_case() !=
-             eos::console::MonitProto_ConfigProto::kLs;
-
-    default:
-      return true;
-    }
 
   // conditional on the subcommand
   case RequestProto::kAcl:
@@ -661,7 +646,6 @@ ProcInterface::IsAdminCmd(eos::console::RequestProto::CommandCase cc)
   case R::kIo:
   case R::kSched:
   case R::kDevices:
-  case R::kMonit:
   case R::kRecord:
   case R::kFsck:
   case R::kDebug:
