@@ -23,6 +23,7 @@
 
 #include "mgm/placement/ClusterMgr.hh"
 #include "gtest/gtest.h"
+#include <algorithm>
 
 TEST(ClusterMgr, default)
 {
@@ -352,6 +353,100 @@ TEST(ClusterMgr, SnapshotBuilderDisksOutOfOrder)
   EXPECT_EQ(group_bucket3.id, -102);
   EXPECT_EQ(group_bucket3.bucket_type, GetBucketType(BucketType::GROUP));
   EXPECT_EQ(group_bucket3.items, group_items3);
+}
+
+//------------------------------------------------------------------------------
+// Two writers racing to register the same scheduling group both reach the
+// builder with identifiers the snapshot already holds, so a second AddBucket of
+// a live id has to update the topology rather than append to it. Single
+// threaded on purpose: the interleaving only decides whether the second add
+// happens, not what it does.
+//------------------------------------------------------------------------------
+TEST(ClusterMgr, ReAddingExistingBucketKeepsOneEntryInItsParent)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  constexpr ItemIdT kSite = -1;
+  constexpr ItemIdT kGroup = -101;
+
+  // First writer: a site holding one group of three disks
+  {
+    auto sh = mgr.GetSnapshotBuilder();
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), kSite, 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, kSite));
+
+    for (int i = 1; i <= 3; ++i) {
+      ASSERT_TRUE(
+          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+    }
+  }
+
+  {
+    auto seeded = mgr.GetClusterData();
+    const Bucket* site = seeded->GetBucket(kSite);
+    ASSERT_NE(site, nullptr);
+    ASSERT_EQ(site->items.size(), 1u);
+  }
+
+  // Second writer: the same group, onto a copy that already carries it
+  {
+    auto sh = mgr.GetSnapshotBuilderWithData();
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, kSite));
+
+    for (int i = 1; i <= 3; ++i) {
+      ASSERT_TRUE(
+          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+    }
+  }
+
+  auto again = mgr.GetClusterData();
+  const Bucket* site = again->GetBucket(kSite);
+  const Bucket* group = again->GetBucket(kGroup);
+  ASSERT_NE(site, nullptr);
+  ASSERT_NE(group, nullptr);
+  // The group hangs below the site once, however many times it was registered
+  EXPECT_EQ(site->items.size(), 1u);
+  EXPECT_EQ(std::count(site->items.begin(), site->items.end(), kGroup), 1);
+  // ... and still holds exactly its three disks
+  EXPECT_EQ(group->items.size(), 3u);
+  EXPECT_EQ(group->total_weight, 3u);
+}
+
+//------------------------------------------------------------------------------
+// The same for a disk re-registered into a bucket that already lists it, with
+// the bucket left alone so nothing resets it in passing
+//------------------------------------------------------------------------------
+TEST(ClusterMgr, ReAddingExistingDiskKeepsOneEntryInItsBucket)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  constexpr ItemIdT kGroup = -101;
+
+  {
+    auto sh = mgr.GetSnapshotBuilder();
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, 0));
+
+    for (int i = 1; i <= 3; ++i) {
+      ASSERT_TRUE(
+          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+    }
+  }
+
+  // Re-register a disk the group already lists
+  {
+    auto sh = mgr.GetSnapshotBuilderWithData();
+    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+  }
+
+  auto again = mgr.GetClusterData();
+  const Bucket* group = again->GetBucket(kGroup);
+  ASSERT_NE(group, nullptr);
+  EXPECT_EQ(group->items.size(), 3u);
+  EXPECT_EQ(std::count(group->items.begin(), group->items.end(), 2), 1);
+  // Weight is a sum over the children, so a duplicate inflates it
+  EXPECT_EQ(group->total_weight, 3u);
 }
 
 TEST(ClusterMgr, BM_Layout)
