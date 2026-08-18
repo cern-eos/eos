@@ -452,14 +452,18 @@ FlatScheduler::Schedule(const ClusterData& cluster_data, PlacementArgs args)
 {
   PlacementResult result;
 
+  // A rejected request carries an errno of its own, never the default -1: the
+  // retry loop in FsScheduler::Schedule only keeps trying on ENOSPC, and a zero
+  // replica request would otherwise be handed back with n_filled == n_replicas,
+  // which reads as a valid placement.
   if (args.n_replicas == 0) {
-    result.err_msg = "Zero replicas requested";
+    SetError(result, EINVAL, "Zero replicas requested");
     return result;
   } else if (args.bucket_id != 0 && cluster_data.GetBucket(args.bucket_id) == nullptr) {
     // A valid starting point is either the root (bucket_id 0) or an existing
     // bucket (negative id in range, not a hole). Reject positive (disk) ids and
     // negative ids that are out of range or name a hole.
-    result.err_msg = "Bucket id out of range";
+    SetError(result, ERANGE, "Bucket id out of range");
     return result;
   }
 
