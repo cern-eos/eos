@@ -28,6 +28,9 @@
 #include "mgm/placement/WeightedRandomStrategy.hh"
 #include "unit_tests/mgm/placement/ClusterMgrFixture.hh"
 #include "gtest/gtest.h"
+#include <algorithm>
+#include <set>
+#include <utility>
 using eos::mgm::placement::ItemIdT;
 
 TEST_F(SimpleClusterF, RoundRobinBasic)
@@ -957,6 +960,124 @@ TEST(FlatScheduler, TLNoSiteWeightedRR)
 
   // schedule one more for offby1 errors
   ASSERT_TRUE(flat_scheduler.Schedule(cluster_data(), {2}));
+}
+
+//------------------------------------------------------------------------------
+// Build a cluster of one scheduling group holding one disk per given weight
+//------------------------------------------------------------------------------
+static void
+MakeSkewedGroup(eos::mgm::placement::ClusterMgr& mgr, const std::vector<uint8_t>& weights)
+{
+  using namespace eos::mgm::placement;
+  auto sh = mgr.GetSnapshotBuilder(16);
+  ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
+  ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -1, 0));
+
+  for (size_t i = 0; i < weights.size(); ++i) {
+    ASSERT_TRUE(sh.AddDisk(
+        Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, weights[i]), -1));
+  }
+}
+
+//------------------------------------------------------------------------------
+// A bucket where one disk carries most of the weight of the group still fills
+// every request. The walk over the weight space used to probe a fixed lattice
+// of positions, one every total_weight / n_replicas, so a disk heavier than
+// that spacing took several of the picks of one request and the placement came
+// back one replica short - for these weights whatever the cursor was, which no
+// retry could recover.
+//------------------------------------------------------------------------------
+TEST(FlatScheduler, WeightedRRSkewedWeights)
+{
+  using namespace eos::mgm::placement;
+
+  for (const auto& [weights, n_replicas] :
+       std::vector<std::pair<std::vector<uint8_t>, uint8_t>>{{{200, 30, 25}, 3},
+                                                             {{200, 55}, 2},
+                                                             {{60, 40}, 2},
+                                                             {{250, 3, 2}, 3},
+                                                             {{100, 1}, 2}}) {
+    ClusterMgr mgr;
+    MakeSkewedGroup(mgr, weights);
+    FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin, 64);
+    auto cluster_data = mgr.GetClusterData();
+    std::set<ItemIdT> seen;
+
+    for (int i = 0; i < 200; ++i) {
+      auto result = flat_scheduler.Schedule(cluster_data(), {n_replicas});
+      ASSERT_TRUE(result) << result.ErrorString();
+      ASSERT_TRUE(result.IsValidPlacement(n_replicas)) << result.ResultString();
+
+      for (int j = 0; j < result.n_filled; ++j) {
+        seen.insert(result.ids[j]);
+      }
+    }
+
+    // Every disk of the bucket takes replicas, the heavy one does not starve
+    // the light ones out of the picks
+    EXPECT_EQ(seen.size(), weights.size());
+  }
+}
+
+//------------------------------------------------------------------------------
+// The heavy disks of a skewed bucket take more replicas than the light ones
+//------------------------------------------------------------------------------
+TEST(FlatScheduler, WeightedRRSkewedProportions)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  MakeSkewedGroup(mgr, {200, 100, 50, 10});
+  FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin, 64);
+  auto cluster_data = mgr.GetClusterData();
+  std::map<ItemIdT, int> picks;
+
+  for (int i = 0; i < 4000; ++i) {
+    auto result = flat_scheduler.Schedule(cluster_data(), {2});
+    ASSERT_TRUE(result) << result.ErrorString();
+    ASSERT_TRUE(result.IsValidPlacement(2));
+
+    for (int j = 0; j < result.n_filled; ++j) {
+      ++picks[result.ids[j]];
+    }
+  }
+
+  EXPECT_GT(picks[1], picks[2]);
+  EXPECT_GT(picks[2], picks[3]);
+  EXPECT_GT(picks[3], picks[4]);
+}
+
+//------------------------------------------------------------------------------
+// Consecutive requests spread over the bucket instead of handing file after
+// file the very same disks. The seeder counts items, not weight, so a cursor
+// used raw as a position crawls a couple of units per request through a space
+// of hundreds and stays inside the same pair of disks for dozens of files.
+//------------------------------------------------------------------------------
+TEST(FlatScheduler, WeightedRRConsecutiveRequestsSpread)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  MakeSkewedGroup(mgr, std::vector<uint8_t>(8, 100));
+  FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin, 64);
+  auto cluster_data = mgr.GetClusterData();
+  std::set<std::pair<ItemIdT, ItemIdT>> pairs;
+  int n_repeats = 0;
+  std::pair<ItemIdT, ItemIdT> previous{0, 0};
+
+  for (int i = 0; i < 100; ++i) {
+    auto result = flat_scheduler.Schedule(cluster_data(), {2});
+    ASSERT_TRUE(result) << result.ErrorString();
+    ASSERT_TRUE(result.IsValidPlacement(2));
+    const std::pair<ItemIdT, ItemIdT> pair{std::min(result.ids[0], result.ids[1]),
+                                           std::max(result.ids[0], result.ids[1])};
+    pairs.insert(pair);
+    n_repeats += (pair == previous);
+    previous = pair;
+  }
+
+  // 8 equal disks hold 28 distinct pairs; the strided walk over a crawling
+  // cursor used to hand back 4 of them in runs of 50 identical placements
+  EXPECT_GE(pairs.size(), 12u);
+  EXPECT_LE(n_repeats, 10);
 }
 
 void printProcessMemoryUsage() {

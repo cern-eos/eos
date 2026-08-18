@@ -103,6 +103,18 @@ public:
     mData[mSize++] = value;
   }
 
+  //----------------------------------------------------------------------------
+  //! Drop the last element. Nothing to destroy, the elements are trivially
+  //! copyable, so this only walks the size back.
+  //----------------------------------------------------------------------------
+  void
+  pop_back()
+  {
+    if (mSize > 0) {
+      --mSize;
+    }
+  }
+
   std::size_t
   size() const
   {

@@ -28,6 +28,38 @@
 
 namespace eos::mgm::placement {
 
+//! Step the round-robin cursor is scaled by to turn the item counting units of
+//! the seeder into a hop through the weight space. Knuth's multiplicative
+//! constant, a prime near 2^32 / phi, so it shares no factor with any total
+//! weight a bucket can reach: successive requests cycle through the whole
+//! space instead of crawling a couple of units at a time and handing
+//! consecutive files the very same disks. The long run stays proportional to
+//! the weights - every position is visited equally often - and the cursor
+//! wrapping around uint64 does not disturb that.
+static constexpr uint64_t kWeightHop = 2654435761ULL;
+
+//------------------------------------------------------------------------------
+//! Take one item out of the weight space, keeping the ids and the cumulative
+//! weights in step so that the next pick walks the reduced space
+//!
+//! @param ids candidate items
+//! @param cumulative running weight totals, one per candidate
+//! @param index position of the item to drop
+//! @param weight weight of the item to drop
+//------------------------------------------------------------------------------
+template <typename IdsT, typename CumulativeT>
+static void
+DropItem(IdsT& ids, CumulativeT& cumulative, size_t index, uint64_t weight)
+{
+  for (size_t i = index + 1; i < ids.size(); ++i) {
+    ids[i - 1] = ids[i];
+    cumulative[i - 1] = cumulative[i] - weight;
+  }
+
+  ids.pop_back();
+  cumulative.pop_back();
+}
+
 //------------------------------------------------------------------------------
 // Select the disks holding the replicas of a new file
 //------------------------------------------------------------------------------
@@ -106,23 +138,37 @@ WeightedRoundRobinStrategy::Placement(const ClusterData& cluster_data,
     return result;
   }
 
-  // Walk the weight space in strides so that the picks of one request spread
-  // out instead of landing repeatedly inside the same heavy item. The cursor
-  // advances across requests, which is what makes this round-robin.
-  const uint64_t cursor = mSeed->Get(bucket_index, args.n_replicas, args.fid);
-  const uint64_t stride = std::max<uint64_t>(1, total_weight / args.n_replicas);
+  // Walk the weight space one pick at a time, taking the chosen item out of it
+  // before the next pick. Drawing without replacement is what makes a request
+  // that has enough candidates always come back full: probing a fixed lattice
+  // of positions instead - one every total_weight / n_replicas - lets an item
+  // heavier than that spacing swallow several probes, and the request ends
+  // short of its replicas however many attempts it is given, for some weight
+  // distributions whatever the cursor is, which no retry can recover.
+  // Removing an item also shrinks what is left to walk, hence the stride
+  // recomputed against the remaining weight and the replicas still owed.
+  uint64_t cursor = mSeed->Get(bucket_index, args.n_replicas, args.fid) * kWeightHop;
 
-  for (int i = 0; (result.n_filled < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS);
-       ++i) {
-    const uint64_t pos = (cursor + static_cast<uint64_t>(i) * stride) % total_weight;
-    const auto it = std::upper_bound(cumulative.begin(), cumulative.end(), pos);
-    const ItemIdT item_id = ids[it - cumulative.begin()];
+  while (!ids.empty() && (total_weight > 0)) {
+    // pos < total_weight == cumulative.back(), so this never runs off the end
+    const uint64_t pos = cursor % total_weight;
+    const size_t index =
+        std::upper_bound(cumulative.begin(), cumulative.end(), pos) - cumulative.begin();
+    const uint64_t weight = cumulative[index] - ((index > 0) ? cumulative[index - 1] : 0);
 
-    if (result.Contains(item_id)) {
-      continue;
+    if (!result.Add(ids[index])) {
+      break;
     }
 
-    result.Add(item_id);
+    DropItem(ids, cumulative, index, weight);
+    total_weight -= weight;
+    const int remaining = args.n_replicas - result.n_filled;
+
+    if (remaining <= 0) {
+      break;
+    }
+
+    cursor += std::max<uint64_t>(1, total_weight / static_cast<uint64_t>(remaining));
   }
 
   if (result.n_filled != args.n_replicas) {
