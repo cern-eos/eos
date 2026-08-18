@@ -28,6 +28,10 @@
   script:
     - mkdir build; cd build; cmake .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
+    - |
+      curl -fsSL https://xrootd.web.cern.ch/xrootd.repo -o /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/enabled=/s/enabled=0/enabled=1/' /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/priority=/s/priority=30/priority=1/' /etc/yum.repos.d/xrootd.repo
     - dnf builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
     - |
       if [[ -n "$CI_COMMIT_TAG" ]]; then
@@ -145,6 +149,10 @@ rh:
     - mkdir build; cd build
     - cmake .. -DPACKAGEONLY=1 -Wno-dev; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" > /etc/yum.repos.d/eos-depend.repo
+    - |
+      curl -fsSL https://xrootd.web.cern.ch/xrootd-fedora.repo -o /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/enabled=/s/enabled=0/enabled=1/' /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/priority=/s/priority=30/priority=1/' /etc/yum.repos.d/xrootd.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - |
@@ -213,6 +221,10 @@ build_fedora_rawhide:
       else
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
       fi
+    - |
+      curl -fsSL https://xrootd.web.cern.ch/xrootd.repo -o /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/enabled=/s/enabled=0/enabled=1/' /etc/yum.repos.d/xrootd.repo
+      sed -i '/\[xrootd-testing\]/,/priority=/s/priority=30/priority=1/' /etc/yum.repos.d/xrootd.repo
     - dnf install -y dnf-plugins-core
     - dnf builddep --nogpgcheck ${BUILDDEP_OPTIONS} -y build/SRPMS/*
     - mkdir -p ${BUILD_NAME}-artifacts
