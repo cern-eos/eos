@@ -210,7 +210,7 @@ public:
     //!
     //! @return identifier of the group bucket, 0 if there is none
     //--------------------------------------------------------------------------
-    ItemIdT GetGroupBucket(unsigned int group_index) const;
+    ItemIdT GetGroupBucketId(unsigned int group_index) const;
 
     //--------------------------------------------------------------------------
     //! Get the bucket naming one geotag atom below the given parent, creating it

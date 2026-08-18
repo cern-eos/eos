@@ -169,7 +169,7 @@ TEST(ClusterBuilder, GroupIdsAreStableAndGeoIdsDoNotCollide)
   std::set<ItemIdT> ids;
 
   for (unsigned int g = 0; g < 4; ++g) {
-    const ItemIdT group_id = cluster_data->GetGroupBucket(g);
+    const ItemIdT group_id = cluster_data->GetGroupBucketId(g);
     const auto& group = cluster_data->buckets[-group_id];
     EXPECT_EQ(group.id, group_id);
     EXPECT_EQ(group.bucket_type, GetBucketType(BucketType::GROUP));
@@ -216,7 +216,7 @@ TEST(ClusterBuilder, DisksWithoutAGeoTagGetTheirOwnBucket)
   BuildClusterData(mgr, {MakeFs(1, 0, ""), MakeFs(2, 0, "site::rack")});
   auto cluster_data = mgr.GetClusterData();
 
-  const auto& group = cluster_data->buckets[-cluster_data->GetGroupBucket(0)];
+  const auto& group = cluster_data->buckets[-cluster_data->GetGroupBucketId(0)];
   EXPECT_FALSE(group.HoldsDisks());
   // the placeholder bucket of the untagged disk, and the site of the tagged one
   ASSERT_EQ(group.items.size(), 2);
@@ -259,7 +259,7 @@ TEST(ClusterBuilder, ChildTypesFollowTheHierarchy)
   }
 
   const ItemIdT site_id =
-      cluster_data->FindGeoChild(cluster_data->GetGroupBucket(0), "site");
+      cluster_data->FindGeoChild(cluster_data->GetGroupBucketId(0), "site");
   ASSERT_LT(site_id, 0);
   EXPECT_EQ(cluster_data->buckets[-site_id].child_type,
             GetChildType(ChildType::kGeoBuckets));
@@ -268,7 +268,7 @@ TEST(ClusterBuilder, ChildTypesFollowTheHierarchy)
   EXPECT_EQ(cluster_data->buckets[-room_id].child_type, GetChildType(ChildType::kDisks));
 
   const ItemIdT nogeo_id =
-      cluster_data->FindGeoChild(cluster_data->GetGroupBucket(1), kNoGeoTagBucket);
+      cluster_data->FindGeoChild(cluster_data->GetGroupBucketId(1), kNoGeoTagBucket);
   ASSERT_LT(nogeo_id, 0);
   EXPECT_EQ(cluster_data->buckets[-nogeo_id].child_type, GetChildType(ChildType::kDisks));
 
@@ -326,7 +326,7 @@ TEST(ClusterBuilder, FlatLeafViewMirrorsTheGroupDisks)
   auto cluster_data = mgr.GetClusterData();
 
   for (int g = 0; g < 2; ++g) {
-    const ItemIdT group_id = cluster_data->GetGroupBucket(g);
+    const ItemIdT group_id = cluster_data->GetGroupBucketId(g);
     const Bucket* group = cluster_data->GetBucket(group_id);
     ASSERT_NE(group, nullptr);
     ASSERT_LT(group->flat_view, 0);
@@ -364,7 +364,7 @@ TEST(ClusterBuilder, FlatLeafViewFollowsIncrementalChanges)
     ASSERT_TRUE(AddFsToCluster(sh, MakeFs(5, 0, "site2::room0")));
   }
   auto cluster_data = mgr.GetClusterData();
-  const Bucket* group = cluster_data->GetBucket(cluster_data->GetGroupBucket(0));
+  const Bucket* group = cluster_data->GetBucket(cluster_data->GetGroupBucketId(0));
   ASSERT_NE(group, nullptr);
   ASSERT_LT(group->flat_view, 0);
   std::vector<ItemIdT> actual(cluster_data->GetBucket(group->flat_view)->items);
@@ -412,7 +412,7 @@ TEST(ClusterBuilder, WeightsAggregateUpTheHierarchy)
                          MakeFs(3, 0, "site::rack1", 5 * tb)});
   auto cluster_data = mgr.GetClusterData();
 
-  const ItemIdT group_id = cluster_data->GetGroupBucket(0);
+  const ItemIdT group_id = cluster_data->GetGroupBucketId(0);
   const ItemIdT site_id = cluster_data->FindGeoChild(group_id, "site");
   ASSERT_LT(site_id, 0);
   const ItemIdT rack0_id = cluster_data->FindGeoChild(site_id, "rack0");
@@ -513,7 +513,7 @@ TEST(GeoHierarchyPlacement, ForcedGroupIndexIsHonoured)
 
     for (int j = 0; j < result.n_filled; ++j) {
       EXPECT_EQ(GroupOf(cluster_data(), parents, result.ids[j]),
-                cluster_data->GetGroupBucket(forced));
+                cluster_data->GetGroupBucketId(forced));
     }
   }
 }
@@ -602,7 +602,7 @@ TEST(GeoScheduler, ScatteredKeepsOneReplicaAtTheClient)
   FlatScheduler scheduler(PlacementStrategyT::kGeoScheduler, 1024);
   const auto parents = cluster_data->GetDiskParents();
   const ItemIdT home_site =
-      cluster_data->FindGeoChild(cluster_data->GetGroupBucket(0), "site2");
+      cluster_data->FindGeoChild(cluster_data->GetGroupBucketId(0), "site2");
   ASSERT_LT(home_site, 0);
 
   for (int i = 0; i < 100; ++i) {
@@ -638,7 +638,7 @@ TEST(GeoScheduler, GatheredKeepsEveryReplicaAtTheClient)
   FlatScheduler scheduler(PlacementStrategyT::kGeoScheduler, 1024);
   const auto parents = cluster_data->GetDiskParents();
   const ItemIdT home_site =
-      cluster_data->FindGeoChild(cluster_data->GetGroupBucket(0), "site1");
+      cluster_data->FindGeoChild(cluster_data->GetGroupBucketId(0), "site1");
   ASSERT_LT(home_site, 0);
 
   for (int i = 0; i < 100; ++i) {
@@ -663,7 +663,7 @@ TEST(GeoScheduler, DeeperAtomsAreFollowed)
   FlatScheduler scheduler(PlacementStrategyT::kGeoScheduler, 1024);
   const auto parents = cluster_data->GetDiskParents();
   const ItemIdT home_site =
-      cluster_data->FindGeoChild(cluster_data->GetGroupBucket(0), "site0");
+      cluster_data->FindGeoChild(cluster_data->GetGroupBucketId(0), "site0");
   ASSERT_LT(home_site, 0);
   const ItemIdT home_room = cluster_data->FindGeoChild(home_site, "room2");
   ASSERT_LT(home_room, 0);
@@ -1650,7 +1650,7 @@ TEST(IncrementalTopology, NewGroupRegistersIntoALiveSnapshot)
   ClusterMgr mgr;
   // fsids 1,2 in group 0, whose geo buckets are already allocated
   BuildClusterData(mgr, MakeCluster(1, 1, 1, 2));
-  ASSERT_EQ(mgr.GetClusterData()->GetGroupBucket(1), 0);
+  ASSERT_EQ(mgr.GetClusterData()->GetGroupBucketId(1), 0);
   {
     // A group the snapshot has never seen: its bucket used to be addressed
     // arithmetically and the identifier was already owned by a geo bucket of
@@ -1660,7 +1660,7 @@ TEST(IncrementalTopology, NewGroupRegistersIntoALiveSnapshot)
     ASSERT_TRUE(AddFsToCluster(sh, MakeFs(4, 1, "site1::room0")));
   }
   auto cluster_data = mgr.GetClusterData();
-  const ItemIdT group_id = cluster_data->GetGroupBucket(1);
+  const ItemIdT group_id = cluster_data->GetGroupBucketId(1);
   ASSERT_LT(group_id, 0);
   const Bucket* group = cluster_data->GetBucket(group_id);
   ASSERT_NE(group, nullptr);
@@ -1719,7 +1719,7 @@ TEST(IncrementalTopology, GroupIdentifiersDoNotCollideWithGeoBuckets)
 
   // every new group got an identifier of its own, below everything in use
   for (unsigned int g = 2; g < 6; ++g) {
-    const ItemIdT group_id = cluster_data->GetGroupBucket(g);
+    const ItemIdT group_id = cluster_data->GetGroupBucketId(g);
     ASSERT_LT(group_id, 0) << "group " << g;
     EXPECT_EQ(geo_ids.count(group_id), 0u)
         << "group " << g << " landed on a geo bucket identifier";
@@ -1905,8 +1905,8 @@ TEST(IncrementalTopology, NewGroupDoesNotDisturbExistingBuckets)
   // of its own - the hierarchy repeats below every group
   EXPECT_EQ(cluster_data->GetGeoTag(parents.at(2)), "site0::room0");
   EXPECT_EQ(cluster_data->GetGeoTag(parents.at(3)), "site0::room0");
-  EXPECT_EQ(GroupOf(cluster_data(), parents, 2), cluster_data->GetGroupBucket(2));
-  EXPECT_EQ(GroupOf(cluster_data(), parents, 3), cluster_data->GetGroupBucket(5));
+  EXPECT_EQ(GroupOf(cluster_data(), parents, 2), cluster_data->GetGroupBucketId(2));
+  EXPECT_EQ(GroupOf(cluster_data(), parents, 3), cluster_data->GetGroupBucketId(5));
   EXPECT_NE(GroupOf(cluster_data(), parents, 1), GroupOf(cluster_data(), parents, 2));
   EXPECT_NE(GroupOf(cluster_data(), parents, 2), GroupOf(cluster_data(), parents, 3));
 }
