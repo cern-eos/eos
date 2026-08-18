@@ -35,8 +35,8 @@
 %bcond_with eos_grpc_gateway
 
 # Define required dependencies
-%define eos_xrootd_version_min 0:6.1.1
-%define xrootd_version_min 1:6.1.1
+%define eos_xrootd_version_min 0:6.2~rc1
+%define xrootd_version_min 1:6.2~rc1
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
 %define eos_grpc_gateway_version 0.3.0
@@ -255,7 +255,7 @@ cd build
   %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{?xrootd_root_flag} %{build_flags}
 %else
   source /opt/rh/gcc-toolset-14/enable
-  CC=clang CXX=clang++ %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
+  CC=clang CXX=clang++ %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{?xrootd_root_flag} %{build_flags}
 %endif
 
 %{__make} %{_smp_mflags}
