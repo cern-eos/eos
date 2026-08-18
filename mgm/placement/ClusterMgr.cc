@@ -457,11 +457,42 @@ ClusterMgr::SnapshotBuilder::AddBucket(uint8_t bucket_type, ItemIdT bucket_id,
     level = mData.buckets[parent_index].level + 1;
   }
 
-  mData.buckets.at(index) = Bucket(bucket_id, bucket_type, parent_bucket_id, {}, level);
+  Bucket& bucket = mData.buckets.at(index);
+  // A bucket the snapshot already carries is re-registered, not added afresh:
+  // two writers racing to register the same scheduling group both reach here
+  // with the same identifier. Holes carry the INVALID sentinel and a real
+  // bucket stores its own id, which is how ClusterData::GetBucket tells them
+  // apart.
+  const bool exists = (bucket.bucket_type != GetBucketType(BucketType::INVALID)) &&
+                      (bucket.id == bucket_id);
 
-  // Handle special case when the parent is the root && we're adding root
-  if (parent_bucket_id != bucket_id) {
-    mData.buckets[parent_index].items.push_back(bucket_id);
+  if (!exists) {
+    bucket = Bucket(bucket_id, bucket_type, parent_bucket_id, {}, level);
+
+    // Handle special case when the parent is the root && we're adding root
+    if (parent_bucket_id != bucket_id) {
+      mData.buckets[parent_index].items.push_back(bucket_id);
+    }
+  } else {
+    // Keep the children it already holds and leave the parent's child list
+    // alone, so a repeated add leaves the topology as if it had been added
+    // once. Only a bucket actually being hung somewhere else moves.
+    if ((parent_bucket_id != bucket_id) && (bucket.parent != parent_bucket_id)) {
+      const ItemIdT old_parent = bucket.parent;
+
+      if ((old_parent < 0) && ((size_t)(-old_parent) < mData.buckets.size())) {
+        auto& old_bucket = mData.buckets[-old_parent];
+        old_bucket.items.erase(
+            std::remove(old_bucket.items.begin(), old_bucket.items.end(), bucket_id),
+            old_bucket.items.end());
+      }
+
+      mData.buckets[parent_index].items.push_back(bucket_id);
+    }
+
+    bucket.bucket_type = bucket_type;
+    bucket.parent = parent_bucket_id;
+    bucket.level = level;
   }
 
   mLowestBucketId = std::min(mLowestBucketId, bucket_id);
@@ -568,6 +599,14 @@ ClusterMgr::SnapshotBuilder::AddDisk(Disk disk, ItemIdT bucket_id)
   // Refused before anything is touched, so the topology stays as it was.
   if (!mData.buckets[-bucket_id].RecordChildType(ChildType::kDisks)) {
     return false;
+  }
+
+  // A disk the snapshot already carries is re-registered, not added afresh, so
+  // detach it from wherever it currently hangs first. That keeps the child list
+  // and the running weight of the bucket as if it had been added once, and also
+  // covers a disk named into a different bucket than the one it sat in.
+  if ((disk.id <= mData.disks.size()) && (mData.disks[disk.id - 1].id != 0)) {
+    RemoveDisk(disk.id);
   }
 
   size_t insert_pos = disk.id - 1;
