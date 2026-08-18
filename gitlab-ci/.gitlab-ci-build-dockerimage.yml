@@ -26,6 +26,29 @@ clone_docker:
   script:
     - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - |
+      cat << 'REPO_EOF' >> eos-docker/docker/repos/eos.repo.in
+
+      [xrootd-stable]
+      name=XRootD Stable Releases for Enterprise Linux $releasever
+      baseurl=https://xrootd.web.cern.ch/repo/stable/el$releasever/$basearch
+      gpgkey=https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
+      metadata_expire=7d
+      repo_gpgcheck=1
+      priority=10
+      gpgcheck=1
+      enabled=1
+
+      [xrootd-testing]
+      name=XRootD Development Branch RPMs for Enterprise Linux $releasever
+      baseurl=https://xrootd.web.cern.ch/repo/testing/el$releasever/$basearch
+      gpgkey=https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
+      metadata_expire=1d
+      repo_gpgcheck=1
+      priority=1
+      gpgcheck=1
+      enabled=1
+      REPO_EOF
   artifacts:
     expire_in: 1 day
     paths:
