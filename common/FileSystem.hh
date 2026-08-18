@@ -392,6 +392,13 @@ protected:
   SharedHashLocator mHashLocator;
   //! Messaging realm
   mq::MessagingRealm* mRealm;
+  //! Strong reference to the underlying shared hash. The SharedHashProvider
+  //! store is otherwise the only owner, so a Delete() there would destroy the
+  //! hash while the subscription registered by the derived classes is still
+  //! attached - the subscriber object survives but nothing feeds it anymore
+  //! and the updates stop without any error. Keep the hash alive here for at
+  //! least as long as this object lives.
+  std::shared_ptr<qclient::SharedHash> mSharedHash;
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
 
@@ -794,6 +801,10 @@ public:
   //! then perform also the deletion of the SharedHash object from QDB and
   //! broadcast the notification - this should be called only when an explicit
   //! removal of the file system is request though "fs rm"!
+  //!
+  //! This also releases the reference this object holds on the hash, so any
+  //! subscription registered on it stops receiving updates. Call it only when
+  //! the file system object is about to be destroyed.
   //!
   //! @param delete_from_qdb if true delete the backing SharedHash from QDB
   //----------------------------------------------------------------------------

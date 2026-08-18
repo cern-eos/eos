@@ -511,6 +511,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 //------------------------------------------------------------------------------
 void FileSystem::DeleteSharedHash(bool delete_from_qdb)
 {
+  mSharedHash.reset();
   mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator, delete_from_qdb);
 }
 

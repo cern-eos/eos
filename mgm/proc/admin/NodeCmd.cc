@@ -236,16 +236,17 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
   common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(
       nodename);
 
-  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
-                                         nodeLocator)) {
+  // Unregister the node first - the FsNode object holds a reference to the
+  // shared hash, so deleting the hash while it is still around would only
+  // detach it from the provider store and leave a copy behind.
+  if (!FsView::gFsView.UnRegisterNode(nodename.c_str())) {
+    reply.set_std_err("error: unable to unregister node '" + nodename + "'");
+  } else if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
+                                                nodeLocator)) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
     reply.set_retc(EIO);
   } else {
-    if (FsView::gFsView.UnRegisterNode(nodename.c_str())) {
-      reply.set_std_out("success: removed node '" + nodename + "'");
-    } else {
-      reply.set_std_err("error: unable to unregister node '" + nodename + "'");
-    }
+    reply.set_std_out("success: removed node '" + nodename + "'");
   }
 
   // Delete also the entry from the configuration

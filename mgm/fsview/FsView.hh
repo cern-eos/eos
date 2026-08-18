@@ -713,6 +713,7 @@ public:
 
 private:
   static std::string msRefreshTag;
+  std::shared_ptr<qclient::SharedHash> mSharedHash{nullptr};
   std::unique_ptr<qclient::SharedHashSubscription> mSubscription {nullptr};
 };
 

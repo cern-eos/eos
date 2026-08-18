@@ -125,8 +125,9 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mLocalBootStatus = eos::common::BootStatus::kDown;
   mRecoverable = false;
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
-  // Subscribe to the underlying SharedHash object to get updates
-  mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
+  mq::SharedHashWrapper hash(mRealm, mHashLocator);
+  mSharedHash = hash.getHash();
+  mSubscription = hash.subscribe();
 
   if (mSubscription) {
     using namespace std::placeholders;

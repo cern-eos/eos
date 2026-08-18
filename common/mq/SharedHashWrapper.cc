@@ -111,6 +111,15 @@ SharedHashWrapper::subscribe()
 }
 
 //------------------------------------------------------------------------------
+// Get the underlying shared hash object
+//------------------------------------------------------------------------------
+std::shared_ptr<qclient::SharedHash>
+SharedHashWrapper::getHash() const
+{
+  return mSharedHash;
+}
+
+//------------------------------------------------------------------------------
 // Make global MGM hash
 //------------------------------------------------------------------------------
 SharedHashWrapper

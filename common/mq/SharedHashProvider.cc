@@ -22,8 +22,9 @@
  ************************************************************************/
 
 #include "common/mq/SharedHashProvider.hh"
-#include "common/mq/LocalHash.hh"
 #include "common/Locators.hh"
+#include "common/Logging.hh"
+#include "common/mq/LocalHash.hh"
 #include "qclient/QClient.hh"
 #include "qclient/shared/SharedHash.hh"
 #include "qclient/shared/SharedManager.hh"
@@ -76,6 +77,19 @@ SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator,
   auto it = mStore.find(qdb_key);
 
   if (it != mStore.end()) {
+    // By the time we get here the store should be the last owner of the hash.
+    // If it is not, the hash survives this call detached from the store: it
+    // keeps serving its current subscribers while any subsequent Get() builds
+    // a brand new object for the same key, and the two copies diverge. Owners
+    // are expected to release their reference first - see
+    // FileSystem::DeleteSharedHash and the node removal in FsView::UnRegister.
+    if (it->second.use_count() > 1) {
+      eos_static_warning("msg=\"shared hash still referenced while being "
+                         "deleted, detached copy left behind\" key=\"%s\" "
+                         "use_count=%ld",
+                         qdb_key.c_str(), (long)it->second.use_count());
+    }
+
     mStore.erase(it);
   }
 

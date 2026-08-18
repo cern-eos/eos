@@ -2264,14 +2264,17 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
         mNodeView.erase(snapshot.mQueue);
         common::SharedHashLocator nodeLocator =
           common::SharedHashLocator::makeForNode(snapshot.mQueue);
+        // Delete the node first - it holds a reference to the shared hash, so
+        // dropping it here makes the deletion below destroy the hash right
+        // away instead of leaving a detached copy behind that a concurrent
+        // Get() could not reuse.
+        delete node;
 
         if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
                                                nodeLocator)) {
           eos_static_err("msg=\"failed to delete shared hash\" queue=\"%s\"",
                          snapshot.mQueue.c_str());
         }
-
-        delete node;
       }
     }
   }
@@ -2779,8 +2782,12 @@ FsNode::FsNode(const char* name) : BaseView(
   }
 
   SetConfigMember("stat.hostport", GetMember("hostport"), false);
-  mSubscription = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
-                                        mLocator).subscribe();
+  // Subscribe to the underlying SharedHash object to get updates. Hold on to
+  // the hash itself, otherwise a SharedHashProvider::Delete would tear it down
+  // and silently stop feeding the subscription below.
+  mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), mLocator);
+  mSharedHash = hash.getHash();
+  mSubscription = hash.subscribe();
 
   if (mSubscription) {
     using namespace std::placeholders;

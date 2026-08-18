@@ -46,8 +46,9 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   // Register with FsChangeListeners interested in key updates related
   // to this file system object
   RegisterWithExistingListeners();
-  // Subscribe to the underlying SharedHash object to get updates
-  mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
+  mq::SharedHashWrapper hash(mRealm, mHashLocator);
+  mSharedHash = hash.getHash();
+  mSubscription = hash.subscribe();
 
   if (mSubscription) {
     using namespace std::placeholders;

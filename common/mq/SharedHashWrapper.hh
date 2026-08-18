@@ -192,6 +192,20 @@ public:
   //----------------------------------------------------------------------------
   std::unique_ptr<qclient::SharedHashSubscription> subscribe();
 
+  //----------------------------------------------------------------------------
+  //! Get the underlying shared hash object
+  //!
+  //! The SharedHashProvider store is normally the only owner of the hash, so
+  //! anyone registering a subscription must also keep the hash alive for as
+  //! long as that subscription is used. A SharedHashSubscription only keeps
+  //! the qclient::SharedHashSubscriber alive, not the (transient/persistent)
+  //! hash objects feeding it - once the hash is gone the subscriber survives
+  //! with nothing feeding it and the updates stop silently.
+  //!
+  //! @return shared pointer to the underlying hash, may be null
+  //----------------------------------------------------------------------------
+  std::shared_ptr<qclient::SharedHash> getHash() const;
+
 private:
   common::SharedHashLocator mLocator;
   std::shared_ptr<qclient::SharedHash> mSharedHash;
