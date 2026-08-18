@@ -79,8 +79,7 @@
 #include "mgm/macros/Macros.hh"
 #include "mgm/misc/Constants.hh"
 #include "mgm/monitoring/Monitoring.hh"
-#include "mgm/monitoring/MonitoringConfig.hh"
-#include "mgm/monitoring/PrometheusExporter.hh"
+#include "mgm/monitoring/XrdMetricsCollector.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/ofs/XrdMgmOfsSecurity.hh"
@@ -343,7 +342,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
     , GRPCd(nullptr)
     , WNCd(nullptr)
     , mRestGrpcSrv(nullptr)
-    , mPrometheusExporter(nullptr)
+    , mMetricsCollector(nullptr)
     , mLRUEngine(new eos::mgm::LRU())
     , WFEPtr(new eos::mgm::WFE())
     , WFEd(*WFEPtr)
@@ -498,181 +497,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
 }
 
 //------------------------------------------------------------------------------
-// Apply monitoring configuration
-//------------------------------------------------------------------------------
-bool
-XrdMgmOfs::ApplyMonitoringConfig(std::string* err)
-{
-  using namespace eos::mgm::monitoring;
-
-  std::lock_guard<std::mutex> lock(mPrometheusExporterMutex);
-  std::string enabled = FsView::gFsView.GetGlobalConfig(kPrometheusEnabledConfig);
-  std::string port = FsView::gFsView.GetGlobalConfig(kPrometheusPortConfig);
-  std::string cache_ttl = FsView::gFsView.GetGlobalConfig(kPrometheusCacheTtlConfig);
-
-  if (enabled.empty()) {
-    if (const char* env_port = getenv("EOS_MGM_PROMETHEUS_PORT")) {
-      enabled = "true";
-
-      if (port.empty()) {
-        port = env_port;
-      }
-    }
-  }
-
-  if (cache_ttl.empty()) {
-    if (const char* env_cache_ttl = getenv("EOS_MGM_PROMETHEUS_CACHE_TTL_SECONDS")) {
-      cache_ttl = env_cache_ttl;
-    }
-  }
-
-  if (enabled.empty() || enabled == "false") {
-    if (mPrometheusExporter) {
-      mPrometheusExporter.reset();
-      mPrometheusExporterBindAddress.clear();
-      mPrometheusExporterCacheTtlSeconds = 0;
-      monitoring::LogPrometheusEndpointStopped();
-    }
-
-    return true;
-  }
-
-  if (enabled != "true") {
-    if (err) {
-      *err = SSTR("invalid value for " << kPrometheusEnabledConfig << ": " << enabled);
-    }
-
-    return false;
-  }
-
-  if (port.empty()) {
-    port = std::to_string(kDefaultPrometheusPort);
-  }
-
-  uint16_t prometheus_port = 0;
-
-  if (!ParsePortConfig(port, prometheus_port)) {
-    if (err) {
-      *err = SSTR("invalid value for " << kPrometheusPortConfig << ": "
-                                       << (port.empty() ? "<unset>" : port));
-    }
-
-    return false;
-  }
-
-  const std::string bind_address =
-      std::string("0.0.0.0:") + std::to_string(prometheus_port);
-  uint32_t cache_ttl_seconds = kDefaultPrometheusCacheTtlSeconds;
-
-  if (!cache_ttl.empty() && (!ParseUint32Config(cache_ttl, cache_ttl_seconds) ||
-                             !IsValidCacheTtl(cache_ttl_seconds))) {
-    if (err) {
-      *err = SSTR("invalid value for " << kPrometheusCacheTtlConfig << ": " << cache_ttl);
-    }
-
-    return false;
-  }
-
-  if (mPrometheusExporter && mPrometheusExporterBindAddress == bind_address &&
-      mPrometheusExporterCacheTtlSeconds == cache_ttl_seconds) {
-    return true;
-  }
-
-  mPrometheusExporter.reset();
-  mPrometheusExporterBindAddress.clear();
-  mPrometheusExporterCacheTtlSeconds = 0;
-
-  try {
-    monitoring::LogPrometheusEndpointStarting(bind_address, cache_ttl_seconds);
-    std::vector<std::string> mgm_candidate_hosts;
-    mgm_candidate_hosts.reserve(2);
-
-    // The QDB contact list identifies QDB endpoints, not MGM membership. MGM
-    // candidates are already supplied to every MGM by deployment configuration;
-    // capture them once here so collecting metrics stays lock- and I/O-free.
-    for (const char* variable : {"EOS_MGM_MASTER1", "EOS_MGM_MASTER2"}) {
-      if (const char* host = std::getenv(variable); host && *host) {
-        mgm_candidate_hosts.emplace_back(host);
-      }
-    }
-
-    mPrometheusExporter = std::make_unique<monitoring::PrometheusExporter>(
-        bind_address, mTrafficShapingEngine, MgmOfsInstanceName.c_str(),
-        std::chrono::seconds(cache_ttl_seconds),
-        [this]() { return mMaster && mMaster->IsMaster(); },
-        [this, mgm_candidate_hosts = std::move(mgm_candidate_hosts)]() {
-          const std::string mgm_id = ManagerId.c_str();
-
-          if (!mMaster) {
-            return monitoring::BuildMgmStatusSnapshots(mgm_id, false, {}, ManagerPort,
-                                                       mgm_candidate_hosts);
-          }
-
-          // Match the established ns-stat snapshot order. Reading the observed
-          // lease holder instead of deriving it from the local role preserves
-          // transient role/lease disagreement during failover.
-          const std::string master_id = mMaster->GetMasterId();
-          const bool is_master = mMaster->IsMaster();
-          return monitoring::BuildMgmStatusSnapshots(mgm_id, is_master, master_id,
-                                                     ManagerPort, mgm_candidate_hosts);
-        });
-    mPrometheusExporterBindAddress = bind_address;
-    mPrometheusExporterCacheTtlSeconds = cache_ttl_seconds;
-    monitoring::LogPrometheusEndpointStarted(bind_address, cache_ttl_seconds);
-  } catch (const std::exception& exception) {
-    if (err) {
-      *err = SSTR("failed to start Prometheus metrics endpoint at "
-                  << bind_address << ": " << exception.what());
-    }
-
-    monitoring::LogPrometheusEndpointStartFailed(bind_address, exception.what());
-    return false;
-  } catch (...) {
-    const std::string unknown_error = "unknown exception";
-
-    if (err) {
-      *err = SSTR("failed to start Prometheus metrics endpoint at "
-                  << bind_address << ": " << unknown_error);
-    }
-
-    monitoring::LogPrometheusEndpointStartFailed(bind_address, unknown_error);
-    return false;
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Get monitoring configuration
-//------------------------------------------------------------------------------
-std::string
-XrdMgmOfs::GetMonitoringConfig() const
-{
-  using namespace eos::mgm::monitoring;
-
-  std::lock_guard<std::mutex> lock(mPrometheusExporterMutex);
-  std::ostringstream out;
-  const std::string enabled = FsView::gFsView.GetGlobalConfig(kPrometheusEnabledConfig);
-  const std::string port = FsView::gFsView.GetGlobalConfig(kPrometheusPortConfig);
-  const std::string cache_ttl =
-      FsView::gFsView.GetGlobalConfig(kPrometheusCacheTtlConfig);
-
-  out << "prometheus.enabled=" << (enabled.empty() ? "false" : enabled) << '\n'
-      << "prometheus.port="
-      << (port.empty() ? std::to_string(kDefaultPrometheusPort) : port) << '\n'
-      << "prometheus.cache_ttl_seconds="
-      << (cache_ttl.empty() ? std::to_string(kDefaultPrometheusCacheTtlSeconds)
-                            : cache_ttl)
-      << '\n'
-      << "prometheus.bind="
-      << (mPrometheusExporterBindAddress.empty() ? "<stopped>"
-                                                 : mPrometheusExporterBindAddress)
-      << '\n'
-      << "prometheus.status=" << (mPrometheusExporter ? "running" : "stopped") << '\n';
-  return out.str();
-}
-
-//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 XrdMgmOfs::~XrdMgmOfs()
@@ -801,9 +625,8 @@ XrdMgmOfs::OrderlyShutdown()
     mHttpd.reset();
   }
 
-  if (mPrometheusExporter) {
-    mPrometheusExporter.reset();
-    monitoring::LogPrometheusEndpointStopped();
+  if (mMetricsCollector) {
+    mMetricsCollector.reset();
   }
 
   if (WNCd) {

@@ -288,7 +288,6 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   gOFS->zMQ->gFuseServer.Client().ApplyConfig(&FsView::gFsView);
   gOFS->mDrainEngine.ApplyConfig();
   gOFS->mTrafficShapingEngine.ApplyConfig();
-  gOFS->ApplyMonitoringConfig();
 
   if (gOFS->mConverterEngine) {
     gOFS->mConverterEngine->ApplyConfig();

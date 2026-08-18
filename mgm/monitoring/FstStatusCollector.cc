@@ -4,9 +4,8 @@
 #include "common/RWMutex.hh"
 #include "common/mq/SharedHashWrapper.hh"
 #include "mgm/fsview/FsView.hh"
+#include "mgm/monitoring/PrometheusFormatter.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "prometheus/client_metric.h"
-#include "prometheus/metric_type.h"
 
 #include <charconv>
 #include <chrono>
@@ -31,30 +30,6 @@ struct FilesystemStatusSource {
   common::SharedHashLocator hash_locator;
   common::ActiveStatus active_status = common::ActiveStatus::kUndefined;
 };
-
-prometheus::MetricFamily
-MakeGaugeFamily(const std::string& name, const std::string& help)
-{
-  prometheus::MetricFamily family;
-  family.name = name;
-  family.help = help;
-  family.type = prometheus::MetricType::Gauge;
-  return family;
-}
-
-void
-AddGauge(prometheus::MetricFamily& family,
-         const std::map<std::string, std::string>& labels, const double value)
-{
-  prometheus::ClientMetric metric;
-  metric.gauge.value = value;
-
-  for (const auto& [name, label_value] : labels) {
-    metric.label.push_back({name, label_value});
-  }
-
-  family.metric.push_back(std::move(metric));
-}
 
 std::string
 ValueOrUnknown(const std::map<std::string, std::string>& values, const std::string& key)
@@ -201,71 +176,78 @@ CollectFstStatusSnapshot()
 
 } // namespace
 
-std::vector<prometheus::MetricFamily>
-BuildFstStatusMetricFamilies(const FstStatusSnapshot& snapshot,
-                             const std::string& cluster)
+void
+EmitFstStatusMetrics(const FstStatusSnapshot& snapshot, const std::string& cluster,
+                     std::string& out)
 {
-  auto node_status =
-      MakeGaugeFamily("eos_fst_node_status_info",
-                      "Current FST node active and configured status as labels.");
-  auto node_filesystems = MakeGaugeFamily(
-      "eos_fst_node_filesystems", "Number of filesystems registered to an FST node.");
-  auto filesystem_status = MakeGaugeFamily(
-      "eos_fst_filesystem_status_info",
-      "Current filesystem active, configured, drain, and boot status as labels.");
-  auto filesystem_capacity = MakeGaugeFamily("eos_fst_filesystem_capacity_bytes",
-                                             "Current filesystem capacity in bytes.");
-  auto filesystem_used = MakeGaugeFamily("eos_fst_filesystem_used_bytes",
-                                         "Current filesystem used space in bytes.");
-  auto snapshot_timestamp = MakeGaugeFamily(
-      "eos_fst_status_snapshot_timestamp_seconds",
-      "Unix timestamp of the FST status snapshot exposed by this scrape.");
-  auto collection_duration = MakeGaugeFamily(
-      "eos_fst_status_collection_duration_seconds",
-      "Time spent collecting the current FST status snapshot in seconds.");
-
+  FormatHeader(out, "eos_fst_node_status_info", "gauge",
+               "Current FST node active and configured status as labels.");
   for (const auto& node : snapshot.nodes) {
     const std::map<std::string, std::string> labels{{"active_status", node.active_status},
                                                     {"cluster", cluster},
                                                     {"config_status", node.config_status},
                                                     {"geotag", node.geotag},
                                                     {"node_id", node.node_id}};
-    AddGauge(node_status, labels, 1.0);
-    AddGauge(node_filesystems, {{"cluster", cluster}, {"node_id", node.node_id}},
-             static_cast<double>(node.filesystem_count));
+    FormatGaugeMetric(out, "eos_fst_node_status_info", labels, 1.0);
   }
 
+  FormatHeader(out, "eos_fst_node_filesystems", "gauge",
+               "Number of filesystems registered to an FST node.");
+  for (const auto& node : snapshot.nodes) {
+    FormatGaugeMetric(out, "eos_fst_node_filesystems",
+                      {{"cluster", cluster}, {"node_id", node.node_id}},
+                      static_cast<double>(node.filesystem_count));
+  }
+
+  FormatHeader(
+      out, "eos_fst_filesystem_status_info", "gauge",
+      "Current filesystem active, configured, drain, and boot status as labels.");
   for (const auto& filesystem : snapshot.filesystems) {
-    const std::map<std::string, std::string> labels{
+    const std::map<std::string, std::string> status_labels{
+        {"active_status", filesystem.active_status},
+        {"boot_status", filesystem.boot_status},
         {"cluster", cluster},
+        {"config_status", filesystem.config_status},
+        {"drain_status", filesystem.drain_status},
         {"fsid", std::to_string(filesystem.fsid)},
         {"node_id", filesystem.node_id}};
-    auto status_labels = labels;
-    status_labels.insert({{"active_status", filesystem.active_status},
-                          {"boot_status", filesystem.boot_status},
-                          {"config_status", filesystem.config_status},
-                          {"drain_status", filesystem.drain_status}});
-    AddGauge(filesystem_status, status_labels, 1.0);
+    FormatGaugeMetric(out, "eos_fst_filesystem_status_info", status_labels, 1.0);
+  }
 
+  FormatHeader(out, "eos_fst_filesystem_capacity_bytes", "gauge",
+               "Current filesystem capacity in bytes.");
+  for (const auto& filesystem : snapshot.filesystems) {
     if (filesystem.capacity_bytes) {
-      AddGauge(filesystem_capacity, labels,
-               static_cast<double>(*filesystem.capacity_bytes));
-    }
-
-    if (filesystem.used_bytes) {
-      AddGauge(filesystem_used, labels, static_cast<double>(*filesystem.used_bytes));
+      FormatGaugeMetric(out, "eos_fst_filesystem_capacity_bytes",
+                        {{"cluster", cluster},
+                         {"fsid", std::to_string(filesystem.fsid)},
+                         {"node_id", filesystem.node_id}},
+                        static_cast<double>(*filesystem.capacity_bytes));
     }
   }
 
-  const std::map<std::string, std::string> cluster_label{{"cluster", cluster}};
-  AddGauge(snapshot_timestamp, cluster_label,
-           static_cast<double>(snapshot.collected_timestamp_seconds));
-  AddGauge(collection_duration, cluster_label, snapshot.collection_duration_seconds);
+  FormatHeader(out, "eos_fst_filesystem_used_bytes", "gauge",
+               "Current filesystem used space in bytes.");
+  for (const auto& filesystem : snapshot.filesystems) {
+    if (filesystem.used_bytes) {
+      FormatGaugeMetric(out, "eos_fst_filesystem_used_bytes",
+                        {{"cluster", cluster},
+                         {"fsid", std::to_string(filesystem.fsid)},
+                         {"node_id", filesystem.node_id}},
+                        static_cast<double>(*filesystem.used_bytes));
+    }
+  }
 
-  return {std::move(node_status),        std::move(node_filesystems),
-          std::move(filesystem_status),  std::move(filesystem_capacity),
-          std::move(filesystem_used),    std::move(snapshot_timestamp),
-          std::move(collection_duration)};
+  FormatHeader(out, "eos_fst_status_snapshot_timestamp_seconds", "gauge",
+               "Unix timestamp of the FST status snapshot exposed by this scrape.");
+  FormatGaugeMetric(out, "eos_fst_status_snapshot_timestamp_seconds",
+                    {{"cluster", cluster}},
+                    static_cast<double>(snapshot.collected_timestamp_seconds));
+
+  FormatHeader(out, "eos_fst_status_collection_duration_seconds", "gauge",
+               "Time spent collecting the current FST status snapshot in seconds.");
+  FormatGaugeMetric(out, "eos_fst_status_collection_duration_seconds",
+                    {{"cluster", cluster}}, snapshot.collection_duration_seconds);
 }
 
 FstStatusCollector::FstStatusCollector(std::string cluster)
@@ -273,14 +255,14 @@ FstStatusCollector::FstStatusCollector(std::string cluster)
 {
 }
 
-std::vector<prometheus::MetricFamily>
-FstStatusCollector::Collect() const
+void
+FstStatusCollector::Collect(std::string& out) const
 {
   if (!gOFS || !gOFS->mMessagingRealm) {
-    return {};
+    return;
   }
 
-  return BuildFstStatusMetricFamilies(CollectFstStatusSnapshot(), mCluster);
+  EmitFstStatusMetrics(CollectFstStatusSnapshot(), mCluster, out);
 }
 
 } // namespace eos::mgm::monitoring

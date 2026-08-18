@@ -59,7 +59,9 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/lru/LRU.hh"
+#include "mgm/monitoring/MgmStatusCollector.hh"
 #include "mgm/monitoring/Monitoring.hh"
+#include "mgm/monitoring/XrdMetricsCollector.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/placement/FsScheduler.hh"
@@ -1340,8 +1342,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("ConverterEngine", "Converter");
     g_logging.AddFanOutAlias("TrafficShapingEngine", "TrafficShaping");
     g_logging.AddFanOutAlias("TrafficShapingManager", "TrafficShaping");
-    g_logging.AddFanOutAlias("PrometheusExporter", "Monitoring");
-    g_logging.AddFanOutAlias("CachedCollectable", "Monitoring");
+    g_logging.AddFanOutAlias("XrdMetricsCollector", "Monitoring");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -2173,9 +2174,32 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
 #endif
 
-  std::string monitoring_err;
-  if (!ApplyMonitoringConfig(&monitoring_err)) {
-    eos::mgm::monitoring::LogMonitoringConfigError(monitoring_err);
+  {
+    std::vector<std::string> mgm_candidate_hosts;
+    mgm_candidate_hosts.reserve(2);
+
+    for (const char* variable : {"EOS_MGM_MASTER1", "EOS_MGM_MASTER2"}) {
+      if (const char* host = std::getenv(variable); host && *host) {
+        mgm_candidate_hosts.emplace_back(host);
+      }
+    }
+
+    mMetricsCollector = std::make_unique<monitoring::XrdMetricsCollector>(
+        mTrafficShapingEngine, MgmOfsInstanceName.c_str(),
+        [this]() { return mMaster && mMaster->IsMaster(); },
+        [this, mgm_candidate_hosts = std::move(mgm_candidate_hosts)]() {
+          const std::string mgm_id = ManagerId.c_str();
+
+          if (!mMaster) {
+            return monitoring::BuildMgmStatusSnapshots(mgm_id, false, {}, ManagerPort,
+                                                       mgm_candidate_hosts);
+          }
+
+          const std::string master_id = mMaster->GetMasterId();
+          const bool is_master = mMaster->IsMaster();
+          return monitoring::BuildMgmStatusSnapshots(mgm_id, is_master, master_id,
+                                                     ManagerPort, mgm_candidate_hosts);
+        });
   }
 
   // start the Admin socket

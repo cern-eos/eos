@@ -33,7 +33,6 @@
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/monitoring/MonitoringConfig.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/quota/Quota.hh"
@@ -919,23 +918,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << (gOFS->mTrafficShapingEngine.GetLimitsEnabled() ? "true" : "false")
         << " reservations_enabled="
         << (gOFS->mTrafficShapingEngine.GetReservationsEnabled() ? "true" : "false")
-        << std::endl;
-    const std::string monitoring_enabled =
-        FsView::gFsView.GetGlobalConfig(eos::mgm::monitoring::kPrometheusEnabledConfig);
-    const std::string monitoring_port =
-        FsView::gFsView.GetGlobalConfig(eos::mgm::monitoring::kPrometheusPortConfig);
-    const std::string monitoring_cache_ttl =
-        FsView::gFsView.GetGlobalConfig(eos::mgm::monitoring::kPrometheusCacheTtlConfig);
-    oss << "ALL      monitoring info                  "
-        << "is_enabled=" << (monitoring_enabled.empty() ? "false" : monitoring_enabled)
-        << " cache_ttl_seconds="
-        << (monitoring_cache_ttl.empty()
-                ? std::to_string(eos::mgm::monitoring::kDefaultPrometheusCacheTtlSeconds)
-                : monitoring_cache_ttl)
-        << " port="
-        << (monitoring_port.empty()
-                ? std::to_string(eos::mgm::monitoring::kDefaultPrometheusPort)
-                : monitoring_port)
         << std::endl;
     oss << line << std::endl
         << gOFS->mFidTracker.PrintStats() << std::endl

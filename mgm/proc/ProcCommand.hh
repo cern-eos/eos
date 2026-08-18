@@ -258,7 +258,6 @@ public:
   int Drain();
   int Fusex();
   int GeoSched();
-  int Monit();
   int Ns();
   int Rtlog();
   int Vid();
