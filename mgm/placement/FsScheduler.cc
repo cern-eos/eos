@@ -406,7 +406,9 @@ FsScheduler::Schedule(const std::string& spaceName, PlacementArgs args)
     args.salt = i;
     result = mScheduler->Schedule(cluster_data_ptr(), args);
 
-    if (result.IsValidPlacement(args.n_replicas)) {
+    // The ret_code check is what keeps a rejected request from passing as a
+    // placement: a zero replica one trivially satisfies IsValidPlacement
+    if (result && result.IsValidPlacement(args.n_replicas)) {
       return result;
     } else {
       eos_static_debug("msg=\"scheduler failed to place replicas\" "
