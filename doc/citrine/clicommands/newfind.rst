@@ -40,4 +40,3 @@ newfind
     path=as3:...   :  do a find on an S3 bucket
     path=...       :  all other paths are considered to be EOS paths!
 .. code-block:: text
-

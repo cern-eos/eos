@@ -21,17 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include "NewfindCmd.hh"
+#include "common/Constants.hh"
+#include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "common/Timing.hh"
-#include "common/Constants.hh"
 #include "common/RegexWrapper.hh"
+#include "common/Timing.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/stat/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -39,8 +41,9 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/utils/BalanceCalculator.hh"
 #include "namespace/utils/Checksum.hh"
-#include "namespace/utils/Stat.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/Stat.hh"
+#include <json/json.h>
 #include <mgm/access/Access.hh>
 #include <namespace/Prefetcher.hh>
 
@@ -1132,6 +1135,36 @@ NewfindCmd::ProcessRequest() noexcept
     }
   }
 
+  // --fileinfo reports on the entries, --purge, --layoutstripes and -b act on
+  // them. Each of those only handles one kind of entry - directories for
+  // --purge, files for the other two - so the other kind would still be
+  // reported on and the two outputs would interleave, and -b prints its
+  // summary once the traversal is over. The console rejects this as well, this
+  // covers the clients talking to the MGM directly, like the gRPC ones
+  if (findRequest.fileinfo() &&
+      (!findRequest.purge().empty() || findRequest.dolayoutstripes() ||
+       findRequest.balance())) {
+    reply.set_std_err("error: --fileinfo cannot be combined with --purge, "
+                      "--layoutstripes or -b\n");
+    reply.set_retc(EINVAL);
+    return reply;
+  }
+
+  // The fileinfo of an entry used to be collected by running the fileinfo
+  // command, which bounces the identities the instance restricts access to.
+  // That verdict only depends on the identity, so it is settled once here
+  // rather than once per entry like the fileinfo command did
+  if (findRequest.fileinfo()) {
+    std::string err_check;
+    int errno_check = 0;
+
+    if (IsOperationForbidden(findRequest.path(), mVid, err_check, errno_check)) {
+      reply.set_std_err(err_check);
+      reply.set_retc(errno_check);
+      return reply;
+    }
+  }
+
   if (!OpenTemporaryOutputFiles()) {
     reply.set_retc(EIO);
     reply.set_std_err(SSTR("error: cannot write find result files on MGM" <<
@@ -1205,9 +1238,9 @@ NewfindCmd::ProcessRequest() noexcept
     std::string rp = real_path.c_str();
     rp += "/";
     const char* path = rp.c_str();
-    PROC_MVID_TOKEN_SCOPE 
+    PROC_MVID_TOKEN_SCOPE
   }
-  
+
   errInfo.clear();
   std::unique_ptr<qclient::QClient> qcl =
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
@@ -1369,9 +1402,9 @@ NewfindCmd::ProcessRequest() noexcept
 
       // Printing
 
-      // Are we printing fileinfo -m? Then, that's it
+      // Are we printing fileinfo? Then, that's it
       if (findRequest.fileinfo()) {
-        this->PrintFileInfoMinusM(findResult, errInfo);
+        this->PrintFileInfo(findResult, errInfo);
         continue;
       }
 
@@ -1441,9 +1474,9 @@ NewfindCmd::ProcessRequest() noexcept
 
       // Printing
 
-      // Are we printing fileinfo -m? Then, that's it
+      // Are we printing fileinfo? Then, that's it
       if (findRequest.fileinfo()) {
-        this->PrintFileInfoMinusM(findResult, errInfo);
+        this->PrintFileInfo(findResult, errInfo);
         continue;
       }
 
@@ -1466,7 +1499,9 @@ NewfindCmd::ProcessRequest() noexcept
     }
   }
 
-//  EXEC_TIMING_END("Newfind");
+  // Terminates the JSON array of entries, no-op for any other output
+  mOfsOutStream << CloseJsonArrayIfOpen();
+  //  EXEC_TIMING_END("Newfind");
   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
   gOFS->MgmStats.AddExec("Newfind",
                          std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
@@ -1507,6 +1542,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 {
   XrdOucString m_err {""};
   eos::console::ReplyProto StreamReply;
+  mGrpcRequest = true;
   const eos::console::FindProto& findRequest = mReqProto.find();
   auto& purgeversion = findRequest.purge();
   bool purge = false;
@@ -1532,6 +1568,39 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
                               "Note that -name filters using 'egrep' style "
                               "regex match!\n");
       StreamReply.set_retc(EINVAL);
+      writer->Write(StreamReply);
+      return;
+    }
+  }
+
+  // --fileinfo reports on the entries, --purge, --layoutstripes and -b act on
+  // them. Each of those only handles one kind of entry - directories for
+  // --purge, files for the other two - so the other kind would still be
+  // reported on and the two outputs would interleave, and -b prints its
+  // summary once the traversal is over
+  if (findRequest.fileinfo() &&
+      (!findRequest.purge().empty() || findRequest.dolayoutstripes() ||
+       findRequest.balance())) {
+    StreamReply.set_std_out("");
+    StreamReply.set_std_err("error: --fileinfo cannot be combined with --purge, "
+                            "--layoutstripes or -b\n");
+    StreamReply.set_retc(EINVAL);
+    writer->Write(StreamReply);
+    return;
+  }
+
+  // The fileinfo of an entry used to be collected by running the fileinfo
+  // command, which bounces the identities the instance restricts access to.
+  // That verdict only depends on the identity, so it is settled once here
+  // rather than once per entry like the fileinfo command did
+  if (findRequest.fileinfo()) {
+    std::string err_check;
+    int errno_check = 0;
+
+    if (IsOperationForbidden(findRequest.path(), mVid, err_check, errno_check)) {
+      StreamReply.set_std_out("");
+      StreamReply.set_std_err(err_check);
+      StreamReply.set_retc(errno_check);
       writer->Write(StreamReply);
       return;
     }
@@ -1712,9 +1781,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         this->PurgeVersions(output, max_version, findResult.path);
       }
       // Printing
-      // Are we printing fileinfo -m? Then, that's it
+      // Are we printing fileinfo? Then, that's it
       else if (findRequest.fileinfo()) {
-        this->PrintFileInfoMinusM(output, findResult, errInfo);
+        this->PrintFileInfo(output, findResult, errInfo);
       } else {
         printDu(mOfsOutStream, findRequest, cMD, findResult.numContainers,
                 findResult.numFiles);
@@ -1790,9 +1859,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         this->ModifyLayoutStripes(output, findRequest, findResult.path);
       }
       // Printing
-      // Are we printing fileinfo -m? Then, that's it
+      // Are we printing fileinfo? Then, that's it
       else if (findRequest.fileinfo()) {
-        this->PrintFileInfoMinusM(output, findResult, errInfo);
+        this->PrintFileInfo(output, findResult, errInfo);
       } else {
         printDu(mOfsOutStream, findRequest, fMD);
         printPath(output, findRequest,
@@ -1874,34 +1943,61 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 #endif
 
 //------------------------------------------------------------------------------
-// Get fileinfo about path in monitoring format
+// Resolve the namespace id of an entry
+//------------------------------------------------------------------------------
+uint64_t
+NewfindCmd::ResolveEntryId(const FindResult& find_obj, XrdOucErrInfo& errInfo)
+{
+  const uint64_t id =
+      find_obj.isdir ? find_obj.item.containerMd.id() : find_obj.item.fileMd.id();
+
+  if (id) {
+    return id;
+  }
+
+  // A '--cache' traversal only carries the path of an entry, resolve it. _stat
+  // enforces the access rights of the caller on the way, just like the fileinfo
+  // command does for a path it is given. A container inode is the container id
+  // itself, a file inode has to be converted back
+  struct stat buf;
+
+  if (gOFS->_stat(find_obj.path.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false)) {
+    eos_static_err("msg=\"failed to stat entry\" path=\"%s\"", find_obj.path.c_str());
+    return 0;
+  }
+
+  return find_obj.isdir ? buf.st_ino : eos::common::FileId::InodeToFid(buf.st_ino);
+}
+
+//------------------------------------------------------------------------------
+// Get fileinfo about path in monitoring or JSON format
 //------------------------------------------------------------------------------
 void
-NewfindCmd::PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
-                                XrdOucErrInfo& errInfo)
+NewfindCmd::PrintFileInfo(std::ostream& ss, const FindResult& find_obj,
+                          XrdOucErrInfo& errInfo)
 {
   ProcCommand Cmd;
   std::string output_stdout(""), output_stderr("");
-  std::string info = "&mgm.cmd=fileinfo&mgm.file.info.option=-m";
+
+  if (WantsJsonOutput() && !mGrpcRequest) {
+    PrintFileInfoJson(ss, Cmd, find_obj, errInfo);
+    return;
+  }
+
+  const uint64_t id = ResolveEntryId(find_obj, errInfo);
+
+  if (!id) {
+    return;
+  }
+
+  std::string info = "&mgm.cmd=fileinfo&mgm.file.info.option=-m&mgm.path=";
 
   try {
-    if (find_obj.isdir) {
-      if (find_obj.item.containerMd.id()) {
-        info += "&mgm.path=pid:";
-        info += std::to_string(find_obj.item.containerMd.id());
-      } else {
-        info += "&mgm.path=";
-        info += find_obj.path;
-      }
-    } else {
-      if (find_obj.item.fileMd.id()) {
-        info += "&mgm.path=fid:";
-        info += std::to_string(find_obj.item.fileMd.id());
-      } else {
-        info += "&mgm.path=";
-        info += find_obj.path;
-      }
-    }
+    // The entry is always designated by its id. Handing over its path instead
+    // would put user controlled text into an opaque string, where a '&' in a
+    // file name injects further CGI keys into the fileinfo command
+    info += find_obj.isdir ? "pid:" : "fid:";
+    info += std::to_string(id);
   } catch (...) {
     eos_static_err("msg=\"failed to convert metadata id\" path=\"%s\"",
                    find_obj.path.c_str());
@@ -1919,6 +2015,41 @@ NewfindCmd::PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
   }
 
   ss << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Append fileinfo data about an entry as a JSON array element
+//------------------------------------------------------------------------------
+void
+NewfindCmd::PrintFileInfoJson(std::ostream& ss, ProcCommand& cmd,
+                              const FindResult& find_obj, XrdOucErrInfo& errInfo)
+{
+  const uint64_t id = ResolveEntryId(find_obj, errInfo);
+
+  if (!id) {
+    return;
+  }
+
+  Json::Value json;
+
+  // find reports every child as an entry of its own, so a directory entry must
+  // not collect the fileinfo of its children as well
+  if (find_obj.isdir) {
+    cmd.DirJSON(id, &json, true, false);
+  } else {
+    cmd.FileJSON(id, &json);
+  }
+
+  // The entries form a JSON array and the separator leads the entry, so that
+  // CloseJsonArrayIfOpen() only ever has to append the closing bracket once the
+  // traversal is over. Each entry is serialized exactly the way a plain
+  // 'fileinfo -j' serializes it.
+  // @note the trailing newline is written here rather than left to the caller,
+  // so that the gRPC streaming path - which appends one itself only when the
+  // entry does not end with it - produces the very same bytes.
+  ss << (mJsonArrayOpen ? "," : "[\n");
+  mJsonArrayOpen = true;
+  ss << json << "\n";
 }
 
 //------------------------------------------------------------------------------

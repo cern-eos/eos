@@ -38,6 +38,7 @@ class IFileMD;
 EOSMGMNAMESPACE_BEGIN
 
 class FindResult;
+class ProcCommand;
 
 class NewfindCmd : public IProcCommand
 {
@@ -68,23 +69,90 @@ public:
 #endif
 
 private:
+  //! Set once the opening bracket of the JSON array of entries was written
+  bool mJsonArrayOpen{false};
+
+  //! Set while serving a gRPC request, which never gets the JSON output.
+  //! A gRPC reply carries stdout, stderr and a return code as separate fields,
+  //! and the traversal reports its diagnostics - the truncation warning above
+  //! all - with a return code of 0, so the client only ever displays them if
+  //! they sit in stdout. They cannot go into a JSON array of entries, and
+  //! moving them out of stdout would hide them, so gRPC keeps the monitoring
+  //! format it has always produced.
+  bool mGrpcRequest{false};
+
   //----------------------------------------------------------------------------
-  //! Print fileinfo data in monitoring format to the given output stream
+  //! Close the JSON array of fileinfo entries, if one was opened
+  //!
+  //! Only a JSON '--fileinfo' request ever opens the array, and it is opened
+  //! lazily by its first entry, so that a request reporting no entry at all -
+  //! '--count' and friends - keeps its plain output. Anything else gets
+  //! nothing back, which is why the traversals can call this unconditionally.
+  //!
+  //! @return the closing bracket, or an empty string if no entry was written
+  //----------------------------------------------------------------------------
+  std::string
+  CloseJsonArrayIfOpen()
+  {
+    if (!mJsonArrayOpen) {
+      return "";
+    }
+
+    mJsonArrayOpen = false;
+    return "]\n";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Print fileinfo data about an entry to the given output stream, in
+  //! monitoring format or, if the client asked for it, as a JSON array element
   //!
   //! @param ss output stream
   //! @param find_obj file/container obj
   //! @param errInfo error info object
   //----------------------------------------------------------------------------
-  void PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
-                           XrdOucErrInfo& errInfo);
+  void PrintFileInfo(std::ostream& ss, const FindResult& find_obj,
+                     XrdOucErrInfo& errInfo);
 
   //----------------------------------------------------------------------------
-  //! Print fileinfo data in monitoring format to default output stream
+  //! Resolve the namespace id of an entry reported by the traversal
+  //!
+  //! @note the entry is always designated to the fileinfo collection by its id
+  //! rather than by its path. A path is user controlled, and concatenating it
+  //! into an opaque string lets a '&' in a file name inject further CGI keys.
+  //!
+  //! @param find_obj file/container obj
+  //! @param errInfo error info object
+  //!
+  //! @return the container or file id, 0 if the entry could not be resolved
+  //----------------------------------------------------------------------------
+  uint64_t ResolveEntryId(const FindResult& find_obj, XrdOucErrInfo& errInfo);
+
+  //----------------------------------------------------------------------------
+  //! Append fileinfo data about an entry to the given output stream, as an
+  //! element of the JSON array of entries
+  //!
+  //! @note the fileinfo command is deliberately not reached through its CGI
+  //! interface here. Its opaque result machinery seals '&' into '#and#', and
+  //! there is no lossless way back: a name legitimately holding '#and#' cannot
+  //! be told apart from a sealed '&'. The JSON is collected directly instead,
+  //! which also keeps the path of an entry out of an opaque string.
+  //!
+  //! @param ss output stream
+  //! @param cmd proc command collecting the fileinfo
+  //! @param find_obj file/container obj
+  //! @param errInfo error info object
+  //----------------------------------------------------------------------------
+  void PrintFileInfoJson(std::ostream& ss, ProcCommand& cmd, const FindResult& find_obj,
+                         XrdOucErrInfo& errInfo);
+
+  //----------------------------------------------------------------------------
+  //! Print fileinfo data about an entry to the default output stream
   //! @note uses the above implementation
   //----------------------------------------------------------------------------
-  void PrintFileInfoMinusM(const FindResult& find_obj, XrdOucErrInfo& errInfo)
+  void
+  PrintFileInfo(const FindResult& find_obj, XrdOucErrInfo& errInfo)
   {
-    PrintFileInfoMinusM(mOfsOutStream, find_obj, errInfo);
+    PrintFileInfo(mOfsOutStream, find_obj, errInfo);
   }
 
   //----------------------------------------------------------------------------
