@@ -21,24 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/misc/Constants.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/Timing.hh"
+#include "common/table_formatter/TableCell.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
-#include "common/table_formatter/TableFormatterBase.hh"
-#include "common/table_formatter/TableCell.hh"
-#include "common/LayoutId.hh"
-#include "common/Timing.hh"
-#include "common/Path.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
-#include "namespace/utils/Etag.hh"
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -1113,7 +1113,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 // Get directory info in JSON format
 //------------------------------------------------------------------------------
 int
-ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
+ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock, bool with_children)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
@@ -1189,27 +1189,34 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nfiles"] = (int)cmd->getNumFiles();
     Json::Value chld;
     std::shared_ptr<eos::IContainerMD> cmd_copy(cmd->clone());
-    cmd_copy->InheritChildren(*(cmd.get()));
+
+    // Copying the child maps is only worth it if we report on the children
+    if (with_children) {
+      cmd_copy->InheritChildren(*(cmd.get()));
+    }
+
     cmd.reset();
     viewReadLock.Release();
 
-    if (!ret_json) {
-      for (auto it = FileMapIterator(cmd_copy); it.valid(); it.next()) {
-        Json::Value fjson;
-        FileJSON(it.value(), &fjson, true);
-        chld.append(fjson);
+    if (with_children) {
+      if (!ret_json) {
+        for (auto it = FileMapIterator(cmd_copy); it.valid(); it.next()) {
+          Json::Value fjson;
+          FileJSON(it.value(), &fjson, true);
+          chld.append(fjson);
+        }
+
+        // Loop through all subcontainers
+        for (auto dit = ContainerMapIterator(cmd_copy); dit.valid(); dit.next()) {
+          Json::Value djson;
+          DirJSON(dit.value(), &djson, true);
+          chld.append(djson);
+        }
       }
 
-      // Loop through all subcontainers
-      for (auto dit = ContainerMapIterator(cmd_copy); dit.valid(); dit.next()) {
-        Json::Value djson;
-        DirJSON(dit.value(), &djson, true);
-        chld.append(djson);
+      if ((cmd_copy->getNumFiles() + cmd_copy->getNumContainers()) != 0) {
+        json["children"] = chld;
       }
-    }
-
-    if ((cmd_copy->getNumFiles() + cmd_copy->getNumContainers()) != 0) {
-      json["children"] = chld;
     }
 
     Json::Value jsonxattr;

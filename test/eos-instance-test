@@ -1324,6 +1324,38 @@ runtest "### Find      " unix SUCCESS "" eos find -f --cache --skip-version-dirs
 runtest "### Find      " unix SUCCESS "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 8"
 runtest "### Find      " unix SUCCESS "" eos find --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 4"
 runtest "### Find      " unix SUCCESS "" eos find --cache --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 4"
+#----------------------------------------------------------------------------
+# Test the JSON fileinfo output of find - 'eos -j find --fileinfo'. The entries
+# form a single JSON array, each of them serialized exactly the way a plain
+# 'fileinfo -j' would, so the whole output has to parse as one JSON array of
+# as many objects as the plain find reports entries.
+#----------------------------------------------------------------------------
+runtest "### Find json " unix SUCCESS "" eosj find --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r 'type' | grep -w array"
+runtest "### Find json " unix SUCCESS "" eosj find --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq 'length' | grep -w 8"
+runtest "### Find json " unix SUCCESS "" eosj find --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq 'length' | grep -w 4"
+runtest "### Find json " unix SUCCESS "" eosj find -f --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[].path' | grep -c 'findtest/[abc].txt' | grep -w 3"
+runtest "### Find json " unix SUCCESS "" eosj find -f --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[].size' | sort -u | grep -w 1024"
+runtest "### Find json " unix SUCCESS "" eosj find -d --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[].nfiles' | grep -w 3"
+# A directory entry must not carry the fileinfo of its children, find already
+# reports each of them as an entry of its own
+runtest "### Find json " unix SUCCESS "" eosj find -d --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[] | has(\"children\")' | sort -u | grep -w false"
+# ... whereas plain fileinfo keeps expanding them
+runtest "### Fileinfo   " unix SUCCESS "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | jq -r 'has(\"children\")' | grep -w true"
+#----------------------------------------------------------------------------
+# Without -j, or without --fileinfo, the output must not change
+#----------------------------------------------------------------------------
+runtest "### Find      " unix SUCCESS "" eos find -f --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | grep -c 'keylength.file=' | grep -w 3"
+runtest "### Find      " unix SUCCESS "" eosj find -f --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+#----------------------------------------------------------------------------
+# The fileinfo of an entry is collected directly rather than through the opaque
+# CGI interface of the fileinfo command, which seals '&' into '#and#' with no
+# lossless way back. Both a name holding a '&' and one holding the seal itself
+# have to come back untouched.
+#----------------------------------------------------------------------------
+runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/find\&symbol"
+runtest "### Find json " unix SUCCESS "" eosj find -f --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[].name' | grep -w 'find\&symbol'"
+runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/find#and#seal"
+runtest "### Find json " unix SUCCESS "" eosj find -f --skip-version-dirs --fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | jq -r '.[].name' | grep -w 'find#and#seal'"
 runtest "### Rm        " unix SUCCESS "" eos rm -rF "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 ################################################################################
 # WFE

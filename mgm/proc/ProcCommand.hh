@@ -230,7 +230,11 @@ public:
   int Cd();
   int Chmod();
   int DirInfo(const char* path);
-  int DirJSON(uint64_t id, Json::Value* json, bool dolock = true);
+  //! @param with_children if false, skip collecting the fileinfo of each child.
+  //!        Callers listing the children themselves - like find - would
+  //!        otherwise pay for a second walk of the namespace.
+  int DirJSON(uint64_t id, Json::Value* json, bool dolock = true,
+              bool with_children = true);
   int File();
   int Find();
   int Fileinfo();

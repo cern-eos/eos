@@ -312,6 +312,18 @@ NewfindHelper::ParseCommand(const char* arg)
     }
   }
 
+  // --fileinfo reports on the entries, --purge, --layoutstripes and -b act on
+  // them. Each of those only handles one kind of entry - directories for
+  // --purge, files for the other two - so the other kind would still be
+  // reported on and the two outputs would interleave, and -b prints its
+  // summary once the traversal is over
+  if (find->fileinfo() &&
+      (!find->purge().empty() || find->dolayoutstripes() || find->balance())) {
+    std::cerr << "error: --fileinfo cannot be combined with --purge, "
+              << "--layoutstripes or -b" << std::endl;
+    return false;
+  }
+
   if (s1.length() > 0) {
     auto path = s1;
 
@@ -580,4 +592,3 @@ NewfindHelper::FindAs3(std::string path)
 
   return 0;
 }
-
