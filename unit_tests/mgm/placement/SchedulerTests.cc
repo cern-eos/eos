@@ -694,7 +694,7 @@ TEST(FlatScheduler, ForcedGroup)
       auto result = flat_scheduler.Schedule(cluster_data(), args);
       EXPECT_TRUE(result);
       EXPECT_TRUE(result.IsValidPlacement(2));
-      auto bucket = cluster_data().buckets.at(-cluster_data().GetGroupBucket(i));
+      auto bucket = cluster_data().buckets.at(-cluster_data().GetGroupBucketId(i));
       auto bucket_contains = [&bucket](int id) {
         return std::find(bucket.items.begin(), bucket.items.end(), id) != bucket.items.end();
       };

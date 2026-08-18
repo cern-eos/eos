@@ -512,9 +512,9 @@ ClusterMgr::SnapshotBuilder::AllocBucketId()
 // Get the bucket of the scheduling group with the given index
 //------------------------------------------------------------------------------
 ItemIdT
-ClusterMgr::SnapshotBuilder::GetGroupBucket(unsigned int group_index) const
+ClusterMgr::SnapshotBuilder::GetGroupBucketId(unsigned int group_index) const
 {
-  return mData.GetGroupBucket(group_index);
+  return mData.GetGroupBucketId(group_index);
 }
 
 //------------------------------------------------------------------------------
@@ -523,7 +523,7 @@ ClusterMgr::SnapshotBuilder::GetGroupBucket(unsigned int group_index) const
 ItemIdT
 ClusterMgr::SnapshotBuilder::GetOrAddGroup(unsigned int group_index)
 {
-  if (const ItemIdT existing = mData.GetGroupBucket(group_index); existing != 0) {
+  if (const ItemIdT existing = mData.GetGroupBucketId(group_index); existing != 0) {
     return existing;
   }
 

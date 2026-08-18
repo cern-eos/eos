@@ -149,8 +149,7 @@ FlatScheduler::PlaceInBucket(const ClusterData& cluster_data, PlacementArgs& arg
 
   // The starting bucket is checked by the caller, but the ones handed back by
   // the strategy are not, and a cycle in the hierarchy would otherwise spin
-  // here forever under an RCU read lock. GetBucket also rejects a hole in the
-  // id range, which the sign-and-range test alone used to let through.
+  // here forever under an RCU read lock.
   const Bucket* bucket_ptr = cluster_data.GetBucket(bucket_id);
 
   if (bucket_ptr == nullptr) {
@@ -290,7 +289,7 @@ FlatScheduler::PlaceInGroup(const ClusterData& cluster_data, PlacementArgs& args
   if (args.forced_group_index >= 0) {
     // The index names a group of this topology or nothing at all; there is no
     // arithmetic left that could land it on some unrelated bucket
-    const ItemIdT forced_id = cluster_data.GetGroupBucket(args.forced_group_index);
+    const ItemIdT forced_id = cluster_data.GetGroupBucketId(args.forced_group_index);
 
     if ((forced_id == 0) || (cluster_data.GetBucket(forced_id) == nullptr)) {
       SetError(result, EINVAL, "Invalid forced group index");

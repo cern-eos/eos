@@ -647,7 +647,7 @@ NormalizeGeoTag(std::string_view geotag)
 //! that already held geo buckets found its identifier taken - the geo buckets
 //! of the previous build had grown into the range. Groups are now allocated
 //! from the same identifier space as every other bucket and the index is
-//! resolved through ClusterData::GetGroupBucket instead.
+//! resolved through ClusterData::GetGroupBucketId instead.
 constexpr uint32_t kNoGroupIndex = std::numeric_limits<uint32_t>::max();
 
 //------------------------------------------------------------------------------
@@ -717,7 +717,7 @@ struct Bucket {
   ItemIdT flat_view{0};
   //! Index of the scheduling group this bucket is, kNoGroupIndex for every
   //! other bucket. The identifier carries no index of its own any more, see
-  //! ClusterData::GetGroupBucket for the way in; this is the way back out, and
+  //! ClusterData::GetGroupBucketId for the way in; this is the way back out, and
   //! it fits in the padding before geo_atom, hence the position.
   uint32_t group_index{kNoGroupIndex};
   //! Geotag atom naming this bucket, e.g. "rack3". Empty for the root and for
@@ -919,7 +919,7 @@ struct ClusterData {
   //! index names no group. Groups are allocated from the same identifier space
   //! as every other bucket - which is what lets one be added to a topology
   //! that already holds geo buckets - so this is the only way from the index a
-  //! request carries to the bucket it means, see GetGroupBucket.
+  //! request carries to the bucket it means, see GetGroupBucketId.
   std::vector<ItemIdT> group_buckets;
   //! Geo bucket per (parent, geotag atom) pair, see GeoChildKey. Lets a descent
   //! follow a client geotag one atom at a time without scanning the children.
@@ -978,7 +978,7 @@ struct ClusterData {
   //! @return bucket identifier, 0 if the index names no group of this topology
   //----------------------------------------------------------------------------
   ItemIdT
-  GetGroupBucket(int64_t group_index) const
+  GetGroupBucketId(int64_t group_index) const
   {
     if ((group_index < 0) || (static_cast<size_t>(group_index) >= group_buckets.size())) {
       return 0;
