@@ -52,6 +52,8 @@ set(MGM_UT_SRCS
   mgm/FsViewTests.cc
   mgm/FstStatusCollectorTests.cc
   mgm/MgmStatusCollectorTests.cc
+  mgm/TrafficShapingCollectorTests.cc
+  mgm/XrdMetricsCollectorTests.cc
   mgm/HttpTests.cc
   mgm/IostatTests.cc
   mgm/LockTrackerTests.cc

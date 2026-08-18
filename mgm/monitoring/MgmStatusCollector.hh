@@ -1,8 +1,5 @@
 #pragma once
 
-#include "prometheus/collectable.h"
-#include "prometheus/metric_family.h"
-
 #include <functional>
 #include <string>
 #include <vector>
@@ -20,16 +17,15 @@ BuildMgmStatusSnapshots(const std::string& local_id, bool local_is_master,
                         const std::string& master_id, int mgm_port,
                         const std::vector<std::string>& candidate_hosts);
 
-std::vector<prometheus::MetricFamily>
-BuildMgmStatusMetricFamilies(const std::vector<MgmStatusSnapshot>& snapshots,
-                             const std::string& cluster);
+void EmitMgmStatusMetrics(const std::vector<MgmStatusSnapshot>& snapshots,
+                          const std::string& cluster, std::string& out);
 
-class MgmStatusCollector : public prometheus::Collectable {
+class MgmStatusCollector {
 public:
   MgmStatusCollector(std::string cluster,
                      std::function<std::vector<MgmStatusSnapshot>()> status_snapshot);
 
-  std::vector<prometheus::MetricFamily> Collect() const override;
+  void Collect(std::string& out) const;
 
 private:
   std::string mCluster;

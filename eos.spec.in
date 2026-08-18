@@ -169,7 +169,6 @@ Requires: libnfs
 
 %if %{with server}
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
-BuildRequires: libprometheus-cpp-devel
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 %endif

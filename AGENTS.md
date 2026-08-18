@@ -148,11 +148,10 @@ committing again.
   locks, inspect the existing lock ordering and check for calls made while the
   lock is held. Do not introduce blocking IO, callbacks, logging paths that can
   re-enter locked code, or lock-order inversions. Deadlocks in MGM are
-  production-critical, so explicitly reason about them in reviews.
-- Prometheus metrics must be explicitly registered and emitted in
-  `mgm/monitoring/PrometheusExporter.cc`. A value available in CLI output is
+- Prometheus metrics must be explicitly emitted in `mgm/monitoring/` collectors
+  and registered via `XrdMetricsCollector`. A value available in CLI output is
   not automatically available in `/metrics`.
-- For new EOS monitoring metrics, prefer the built-in Prometheus exporter over
+- For new EOS monitoring metrics, prefer the native XRootD metrics collector over
   `eos_exporter` when possible. Use `eos_exporter` only when the metric is
   already defined there or the change explicitly belongs to that exporter.
 - Metric and dashboard-facing monitoring changes should normally include
