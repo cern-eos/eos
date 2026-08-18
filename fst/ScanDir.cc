@@ -109,22 +109,34 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
-                 eos::fst::Load* fstload, bool bgthread,
-                 long int file_rescan_interval, int ratebandwidth,
-                 bool fake_clock) :
-  mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
-  mRateBandwidth(ratebandwidth),
-  mNsInterval(DEFAULT_NS_INTERVAL),
-  mDiskInterval(DEFAULT_DISK_INTERVAL),
-  mEntryInterval(file_rescan_interval),
-  mRainEntryInterval(DEFAULT_RAIN_RESCAN_INTERVAL),
-  mAltXsDoSync(false), // by default sync is disabled
-  mAltXsSyncInterval(0), // by default the sync is done only once
-  mAltXsInterval(0), // by default it's disabled
-  mNumScannedFiles(0), mNumCorruptedFiles(0),
-  mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
-  mNumSkippedFiles(0), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
+                 eos::fst::Load* fstload, bool bgthread, long int file_rescan_interval,
+                 int ratebandwidth, bool fake_clock)
+    : mFstLoad(fstload)
+    , mFsId(fsid)
+    , mDirPath(dirpath)
+    , mRateBandwidth(ratebandwidth)
+    , mNsInterval(DEFAULT_NS_INTERVAL)
+    , mDiskInterval(DEFAULT_DISK_INTERVAL)
+    , mEntryInterval(file_rescan_interval)
+    , mRainEntryInterval(DEFAULT_RAIN_RESCAN_INTERVAL)
+    , mAltXsDoSync(false)
+    , // by default sync is disabled
+    mAltXsSyncInterval(0)
+    , // by default the sync is done only once
+    mAltXsInterval(0)
+    , // by default it's disabled
+    mNumScannedFiles(0)
+    , mNumCorruptedFiles(0)
+    , mNumHWCorruptedFiles(0)
+    , mTotalScanSize(0)
+    , mNumTotalFiles(0)
+    , mNumSkippedFiles(0)
+    , mNumNonEosFiles(0)
+    , mBuffer(nullptr)
+    , mBufferSize(0)
+    , mBgThread(bgthread)
+    , mClock(fake_clock)
+    , mRateLimit(nullptr)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                             _PC_REC_XFER_ALIGN);
@@ -357,8 +369,9 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
     if (!fid) {
-      eos_static_info("msg=\"skip file which is not a eos data file\", "
-                      "path=\"%s\"", fpath.c_str());
+      eos_debug("msg=\"skip file which is not an eos data file\" "
+                "path=\"%s\"",
+                fpath.c_str());
       return;
     }
 
@@ -742,6 +755,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
+    mNumNonEosFiles = 0;
 
     if (mDiskInterval.get()) {
       auto start_ts = std::chrono::system_clock::now();
@@ -756,6 +770,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
                << (mTotalScanSize / 1e6) << " MB ] scannedfiles=" << mNumScannedFiles
                << " corruptedfiles=" << mNumCorruptedFiles << " hwcorrupted="
                << mNumHWCorruptedFiles << " skippedfiles=" << mNumSkippedFiles
+               << " noneosfiles=" << mNumNonEosFiles
                << " disk_scan_interval_sec=" << mDiskInterval.get());
 
       if (mBgThread) {
@@ -856,8 +871,10 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
     if (!fid) {
-      eos_static_info("msg=\"skip file which is not a eos data file\", "
-                      "path=\"%s\"", fpath.c_str());
+      eos_debug("msg=\"skip file which is not an eos data file\" "
+                "path=\"%s\"",
+                fpath.c_str());
+      ++mNumNonEosFiles;
       return;
     }
 
@@ -1004,8 +1021,10 @@ ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (!fid) {
-    eos_static_info("msg=\"skip file which is not an eos data file\", "
-                    "path=\"%s\"", fpath.c_str());
+    eos_debug("msg=\"skip file which is not an eos data file\" "
+              "path=\"%s\"",
+              fpath.c_str());
+    ++mNumNonEosFiles;
     return false;
   }
 

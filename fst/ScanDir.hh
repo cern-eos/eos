@@ -418,6 +418,8 @@ public:
   long long int mTotalScanSize;
   long int mNumTotalFiles;
   long int mNumSkippedFiles;
+  //! Files on the mountpoint that are not EOS data files (e.g. foreign tenants)
+  long int mNumNonEosFiles;
   char* mBuffer; ///< Buffer used for reading
   uint32_t mBufferSize; ///< Size of the reading buffer
   bool mBgThread; ///< If true running as background thread inside the FST
