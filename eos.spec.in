@@ -26,10 +26,10 @@
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_with coverage
 
-# By default we build against the eos-xrootd package. To build against the
-# vanilla XRootD packages instead, pass the "--without eos_xrootd_rh" flag
+# By default we build against the vanilla XRootD packages. To build against the
+# eos-xrootd package instead, pass the "--with eos_xrootd_rh" flag
 # to the rpmbuild command
-%bcond_without eos_xrootd_rh
+%bcond_with eos_xrootd_rh
 
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
