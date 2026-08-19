@@ -176,6 +176,17 @@ public:
   void UpdateClusterData();
 
   //----------------------------------------------------------------------------
+  //! Restore the persisted per space scheduler configuration out of the FsView
+  //! space config: placement strategy, fill thresholds and disabled branches.
+  //! Called once at boot, after the first UpdateClusterData, and the mirror
+  //! image of what SpaceCmd / SchedCmd persist when the operator changes any
+  //! of these at runtime.
+  //!
+  //! @note takes the FsView view mutex, so the caller must not hold it
+  //----------------------------------------------------------------------------
+  void LoadConfig();
+
+  //----------------------------------------------------------------------------
   //! Insert one file system into its space's topology snapshot, the
   //! incremental counterpart of UpdateClusterData used by the FsView
   //! registration hooks. A space the scheduler has not seen yet is created

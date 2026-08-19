@@ -23,6 +23,7 @@
 
 #include "mgm/placement/FsScheduler.hh"
 #include "common/Logging.hh"
+#include "common/StringTokenizer.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/placement/ClusterBuilder.hh"
@@ -270,6 +271,70 @@ FsScheduler::UpdateClusterData()
   } // wlock: rcu_synchronize() then release, so old_map has no readers left
   delete old_map;
   mIsRunning.store(true, std::memory_order_release);
+}
+
+//! Space config member holding the disabled geotag list of one operation,
+//! see SchedCmd::DisabledSubCmd
+static constexpr std::pair<const char*, uint8_t> kDisabledConfigKeys[] = {
+    {"scheduler.disabled.plct", kDisabledPlct},
+    {"scheduler.disabled.access", kDisabledAccess}};
+
+//------------------------------------------------------------------------------
+// Restore the persisted per space scheduler configuration out of the FsView
+//------------------------------------------------------------------------------
+void
+FsScheduler::LoadConfig()
+{
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+
+  for (const auto& [spacename, space] : FsView::gFsView.mSpaceView) {
+    if (!space) {
+      continue;
+    }
+
+    SetPlacementStrategy(spacename, space->GetConfigMember("scheduler.type"));
+    // Restore the configured fill thresholds, falling back to the default
+    // for whichever of the two is not set. Applied as a pair so that the
+    // restore cannot trip over the warn < cap ordering.
+    const std::string cap_str = space->GetConfigMember("scheduler.fillratiolimit");
+    const std::string warn_str = space->GetConfigMember("scheduler.fillratiowarn");
+
+    if (!cap_str.empty() || !warn_str.empty()) {
+      const uint8_t cap = cap_str.empty()
+                              ? kDefaultFillCapPercent
+                              : static_cast<uint8_t>(std::atoi(cap_str.c_str()));
+      const uint8_t warn = warn_str.empty()
+                               ? kDefaultFillWarnPercent
+                               : static_cast<uint8_t>(std::atoi(warn_str.c_str()));
+
+      if (!SetFillLimits(spacename, cap, warn)) {
+        eos_static_err("msg=\"ignoring invalid fill thresholds\" space=\"%s\" "
+                       "fillratiolimit=\"%s\" fillratiowarn=\"%s\"",
+                       spacename.c_str(), cap_str.c_str(), warn_str.c_str());
+      }
+    }
+
+    // Restore the disabled scheduler branches, kept as one comma separated
+    // geotag list per operation, see SchedCmd::DisabledSubCmd
+    for (const auto& [key, op_mask] : kDisabledConfigKeys) {
+      const std::string list = space->GetConfigMember(key);
+
+      if (list.empty()) {
+        continue;
+      }
+
+      const auto geotags =
+          eos::common::StringTokenizer::split<std::vector<std::string>>(list, ',');
+
+      for (const auto& geotag : geotags) {
+        if (!AddDisabledBranch(spacename, geotag, op_mask)) {
+          eos_static_err("msg=\"ignoring invalid disabled branch\" "
+                         "space=\"%s\" key=\"%s\" geotag=\"%s\"",
+                         spacename.c_str(), key, geotag.c_str());
+        }
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

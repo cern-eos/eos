@@ -47,9 +47,9 @@ Two places decide the default, and the second overrides the first:
 
 - `FsScheduler`'s constructor default (`FsScheduler.hh`), and
 - **`StrategyFromStr`'s fallback**, which is the one that actually governs —
-  `XrdMgmOfsConfigure.cc` pushes `GetConfigMember("scheduler.type")` through it
-  for *every* space at startup, and an unconfigured space arrives as the empty
-  string.
+  `FsScheduler::LoadConfig` pushes `GetConfigMember("scheduler.type")` through
+  it for *every* space at startup, and an unconfigured space arrives as the
+  empty string.
 
 Both resolve to `kGeoTreeLegacy`, so an untouched installation runs geotree end
 to end. A space is opted in (and back out) by name:
@@ -641,9 +641,10 @@ backstop.
 ## 9. Configuration and operator surface
 
 All flat-scheduler tuning lives in **space config members** — the source of
-truth is persisted by `SpaceCmd.cc` / `SchedCmd.cc` and restored by the boot loop
-in `XrdMgmOfsConfigure.cc` through the normal config path (no bespoke replay like
-geotree's `geosched:` keys). The authoritative per-space configuration — fill
+truth is persisted by `SpaceCmd.cc` / `SchedCmd.cc` and restored by
+`FsScheduler::LoadConfig` through the normal config path (no bespoke replay like
+geotree's `geosched:` keys) — the boot restore is the scheduler's own, the MGM
+configure only calls it. The authoritative per-space configuration — fill
 limits, disabled branches and the strategy override — lives **on the space's
 `ClusterMgr`**. Fill limits and disabled branches are stamped onto every
 snapshot the manager commits — a rebuild reuses the manager, so they ride
@@ -730,7 +731,8 @@ one definition.
 **Startup.** Member `XrdMgmOfs::mFsScheduler` is constructed in `XrdMgmOfs.cc`
 (1024 initial buckets + `EosClusterMgrHandler`). The topology is built during
 configure (`XrdMgmOfsConfigure.cc` → `FsScheduler::UpdateClusterData`, then
-per-space `scheduler.type`): `EosClusterMgrHandler::MakeClusterMgr` reads
+`FsScheduler::LoadConfig` for the persisted per-space configuration):
+`EosClusterMgrHandler::MakeClusterMgr` reads
 `FsView::gFsView.mSpaceGroupView` under the view lock into a
 `vector<FsDescription>` per space, and `BuildClusterData` turns each into a root
 bucket + one GROUP bucket per scheduling group + one `Disk` per filesystem
