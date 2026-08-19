@@ -26,8 +26,10 @@
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_with coverage
 
-# By default we don't use eosxrootd for EL7
-%bcond_with eos_xrootd_rh
+# By default we build against the eos-xrootd package. To build against the
+# vanilla XRootD packages instead, pass the "--without eos_xrootd_rh" flag
+# to the rpmbuild command
+%bcond_without eos_xrootd_rh
 
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
@@ -41,11 +43,6 @@
 
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
-
-# Enable automatically to build with eos-xrootd for RHEL [7,10]
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
-%define with_eos_xrootd_rh 1
-%endif
 
 %define __cmake cmake
 %define __python /usr/bin/python3
@@ -65,7 +62,7 @@
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
-Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}%{?_with_tsan:.tsan}
+Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}%{?_with_tsan:.tsan}%{?_without_eos_xrootd_rh:.xrootd}
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -73,7 +70,7 @@ Source0: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 # Add EPEL repository explicitly which holds many of the other dependencies
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 BuildRequires: epel-release
 Requires: epel-release
 %endif
@@ -94,7 +91,7 @@ Requires: libtsan
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 BuildRequires: eos-xrootd = %{eos_xrootd_version_min}
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide. Make sure we don't exclude any EOS specific
@@ -123,7 +120,13 @@ BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
 # Don't put an explicit dependency on libraries provided by eos-grpc because
 # the package hides shared libraries from the list of provided capabilities.
 %define grpc_requires_exclude ^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
+# Note: an empty xrootd exclusion must not be appended, otherwise the trailing
+# "|" turns the regex into one matching the empty string i.e. everything.
+%if "%{xrootd_requires_exclude}" == ""
+%define __requires_exclude %{grpc_requires_exclude}
+%else
 %define __requires_exclude %{grpc_requires_exclude}|%{xrootd_requires_exclude}
+%endif
 
 %if %{with eos_grpc_gateway}
 BuildRequires: eos-grpc-gateway = %{eos_grpc_gateway_version}
@@ -164,10 +167,6 @@ BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: libnfs, libnfs-devel
 Requires: libnfs
 
-%if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
-BuildRequires: openssl-static, ncurses-static
-%endif
-
 %if %{with server}
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 BuildRequires: libprometheus-cpp-devel
@@ -200,17 +199,9 @@ Requires: bzip2
 BuildRequires: scitokens-cpp-devel
 Requires: scitokens-cpp
 
-# ISA-L[_crypto], XXHash dependencies for CC7 and CS8/9
-%if %{with server}
-%if 0%{?rhel} == 7
-BuildRequires: libisa-l-devel, libisa-l_crypto-devel
-Requires: libisa-l, libisa-l_crypto
-%endif
-%endif
-
 %if "%{compiler}" == "gcc"
 BuildRequires: binutils-devel
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 # We want swap-support on eosxd - requires rocksdb KV
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 %endif
@@ -253,12 +244,16 @@ test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 mkdir -p build
 cd build
 
+# Point CMake at the eos-xrootd installation, otherwise rely on the vanilla
+# XRootD packages found in the default system locations
+%if %{with eos_xrootd_rh}
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
+%global xrootd_root_flag -DXROOTD_ROOT=/opt/eos/xrootd/
+%endif
+%endif
+
 %if "%{?compiler}" == "gcc"
-  %if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
-    %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
-  %else
-    %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
-  %endif
+  %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{?xrootd_root_flag} %{build_flags}
 %else
   source /opt/rh/gcc-toolset-14/enable
   CC=clang CXX=clang++ %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
@@ -288,7 +283,7 @@ ExclusiveArch: x86_64 aarch64
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
@@ -427,7 +422,7 @@ ExclusiveArch: x86_64 aarch64
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -467,7 +462,7 @@ Requires: systemd
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -526,7 +521,7 @@ ExclusiveArch: x86_64 aarch64
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -615,7 +610,7 @@ ExclusiveArch: x86_64 aarch64
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -663,7 +658,7 @@ Requires: jemalloc, jemalloc-devel
 
 # Select xrootd package
 %if %{with eos_xrootd_rh}
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-server >= %{xrootd_version_min}
@@ -711,9 +706,9 @@ getent passwd eosnobody >/dev/null 2>&1 || useradd eosnobody 2>/dev/null || :
 getent passwd eosdev >/dev/null 2>&1 || useradd eosdev 2>/dev/null || :
 
 #-------------------------------------------------------------------------------
-# Package eos-archive only for >= CC7
+# Package eos-archive only for >= EL8
 #-------------------------------------------------------------------------------
-%if 0%{?rhel} >= 7
+%if 0%{?rhel} >= 8
 %package -n eos-archive
 Summary: The EOS archive daemon
 Group: Applications/File
@@ -730,7 +725,7 @@ BuildRequires:  python-rpm-macros
 # Select xrootd package
 %if %{with eos_xrootd_rh}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
+%if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-python >= %{xrootd_version_min}
@@ -808,9 +803,9 @@ case "$1" in
 esac
 
 #-------------------------------------------------------------------------------
-# Package eos-scitokenapi only for >= CC7
+# Package eos-scitokenapi only for >= EL8
 #-------------------------------------------------------------------------------
-%if 0%{?rhel} >= 7
+%if 0%{?rhel} >= 8
 %package -n eos-scitokenapi
 Summary: The EOS scitokenapi in C,C++ and PYTHON
 Group: Applications/File
