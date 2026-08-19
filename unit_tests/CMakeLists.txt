@@ -216,10 +216,11 @@ target_link_libraries(eos-unit-tests PRIVATE
   GTest::Main
   GTest::gmock
   qclient
+  XrdEosMgm-Static
   XROOTD::POSIX
   XROOTD::SERVER
-  RestAnnot-Objects
-  XrdEosMgm-Static)
+  XROOTD::UTILS
+  RestAnnot-Objects)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-fst executable
@@ -264,6 +265,7 @@ target_link_libraries(eos-unit-tests-with-qdb
   qclient
   RestAnnot-Objects
   XrdEosMgm-Static
+  XROOTD::UTILS
   READLINE::READLINE
   JSONCPP::JSONCPP)
 
