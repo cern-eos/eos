@@ -24,6 +24,7 @@ BUILDMAP[osx]=osx
 BUILDMAP[el-9-asan]=el-9-asan
 BUILDMAP[el-9-tsan]=el-9-tsan
 BUILDMAP[el-9-arm64]=el-9
+BUILDMAP[el-9-vanilla-xrootd]=el-9
 
 CODENAME=$1
 BUILD_TYPE=$2
