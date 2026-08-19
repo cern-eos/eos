@@ -13,7 +13,7 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
 {
   traffic_shaping::TrafficShapingEngine engine;
   engine.Start();
-  auto& manager = engine.GetManager();
+  auto manager = engine.GetManager();
 
   // Set policies
   traffic_shaping::TrafficShapingPolicy app_policy;
@@ -21,15 +21,15 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
   app_policy.reservation_read_bytes_per_sec = 100'000'000ULL;
   app_policy.limit_write_bytes_per_sec = 300'000'000ULL;
   app_policy.reservation_write_bytes_per_sec = 50'000'000ULL;
-  manager.SetAppPolicy("root", app_policy);
+  manager->SetAppPolicy("root", app_policy);
 
   traffic_shaping::TrafficShapingPolicy uid_policy;
   uid_policy.limit_read_bytes_per_sec = 200'000'000ULL;
-  manager.SetUidPolicy(1001, uid_policy);
+  manager->SetUidPolicy(1001, uid_policy);
 
   traffic_shaping::TrafficShapingPolicy gid_policy;
   gid_policy.limit_write_bytes_per_sec = 150'000'000ULL;
-  manager.SetGidPolicy(2001, gid_policy);
+  manager->SetGidPolicy(2001, gid_policy);
 
   // Send FST report
   eos::traffic_shaping::FstIoReport report;
@@ -43,19 +43,19 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
   entry->set_generation_id(1);
   entry->set_total_bytes_read(10'000'000ULL);
   entry->set_total_bytes_written(5'000'000ULL);
-  entry->set_total_read_operations(100);
-  entry->set_total_write_operations(50);
-  manager.ProcessReport(report);
+  entry->set_total_read_ops(100);
+  entry->set_total_write_ops(50);
+  manager->ProcessReport(report);
 
   // Advance time and second report
   report.set_timestamp_ms(2000);
   entry->set_total_bytes_read(20'000'000ULL);
   entry->set_total_bytes_written(10'000'000ULL);
-  entry->set_total_read_operations(200);
-  entry->set_total_write_operations(100);
-  manager.ProcessReport(report);
+  entry->set_total_read_ops(200);
+  entry->set_total_write_ops(100);
+  manager->ProcessReport(report);
 
-  manager.UpdateEstimators(1.0);
+  manager->UpdateEstimators(1.0);
 
   TrafficShapingCollector collector(engine, "test-cluster");
   std::string out;
@@ -82,9 +82,8 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
 
   // 2. Aggregate & Runtime stats
   EXPECT_NE(out.find("eos_io_shaping_all_entries"), std::string::npos);
-  EXPECT_NE(out.find("eos_io_shaping_active_entries"), std::string::npos);
-  EXPECT_NE(out.find("eos_io_shaping_evicted_entries"), std::string::npos);
-  EXPECT_NE(out.find("eos_io_shaping_window_duration_seconds"), std::string::npos);
+  EXPECT_NE(out.find("eos_io_shaping_all_entries_exported"), std::string::npos);
+  EXPECT_NE(out.find("eos_io_shaping_all_entries_limited"), std::string::npos);
 
   // 3. Rate & Cumulative metrics
   EXPECT_NE(out.find("eos_io_shaping_all_bytes_total"), std::string::npos);
@@ -97,11 +96,11 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
 
   // 4. Policy limits & reservations
   EXPECT_NE(out.find("eos_io_shaping_policy_bytes"), std::string::npos);
-  EXPECT_NE(out.find("identity_type=\"app\""), std::string::npos);
-  EXPECT_NE(out.find("identity_type=\"uid\""), std::string::npos);
-  EXPECT_NE(out.find("identity_type=\"gid\""), std::string::npos);
-  EXPECT_NE(out.find("policy_type=\"limit\""), std::string::npos);
-  EXPECT_NE(out.find("policy_type=\"reservation\""), std::string::npos);
+  EXPECT_NE(out.find("type=\"app\""), std::string::npos);
+  EXPECT_NE(out.find("type=\"uid\""), std::string::npos);
+  EXPECT_NE(out.find("type=\"gid\""), std::string::npos);
+  EXPECT_NE(out.find("rule=\"limit\""), std::string::npos);
+  EXPECT_NE(out.find("rule=\"reservation\""), std::string::npos);
 
   // 5. System, Queue, Memory & Map Cardinality
   EXPECT_NE(out.find("eos_io_shaping_loop_duration_seconds"), std::string::npos);

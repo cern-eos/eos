@@ -383,6 +383,7 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
   XROOTD::POSIX
+  XROOTD::UTILS
   LDAP::LDAP
   ZMQ::ZMQ
   XXHASH::XXHASH)
@@ -416,6 +417,7 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   XROOTD::SSI
   XROOTD::PRIVATE
   XROOTD::POSIX
+  XROOTD::UTILS
   EosCommon
   EosNsCommon)
 
@@ -478,6 +480,7 @@ if(Linux)
     XROOTD::SSI
     XROOTD::PRIVATE
     XROOTD::POSIX
+    XROOTD::UTILS
     EosGrpcGateway::EosGrpcGateway
     EosNsCommon-Static
     EosCommon-Static)
