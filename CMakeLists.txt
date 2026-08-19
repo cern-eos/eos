@@ -229,8 +229,8 @@ endif()
 if (NOT CLIENT)
   LIST(APPEND RPM_OPTIONS --with server)
 
-  if (WITHOUT_EOS_XROOTD)
-    LIST(APPEND RPM_OPTIONS --without eos_xrootd_rh)
+  if (EOS_XROOTD)
+    LIST(APPEND RPM_OPTIONS --with eos_xrootd_rh)
   endif()
 endif()
 
