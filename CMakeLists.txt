@@ -143,7 +143,7 @@ endif()
 #-------------------------------------------------------------------------------
 # Build qclient static library
 #-------------------------------------------------------------------------------
-include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/common/xrootd)
 add_subdirectory(common)
 add_subdirectory(proto)
 add_subdirectory(fst)
