@@ -1075,9 +1075,14 @@ TEST(WritableCapacity, HonoursDisabledPlacementBranches)
   BuildClusterData(mgr, {site0, site1});
   auto cluster_data = mgr.GetClusterData();
   EXPECT_EQ(cluster_data->GetWritableFreeGiB(), 20u);
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledAccess}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyAccess}});
   EXPECT_EQ(cluster_data->GetWritableFreeGiB(), 20u);
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledPlct}});
+  // Client placement is what the figure counts, so a rule that only fences the
+  // branch off from internal traffic leaves it whole
+  cluster_data->ApplyDisabledBranches(
+      {{"site0", eos::common::MaskOfActivity(SchedActivity::kInternal)}});
+  EXPECT_EQ(cluster_data->GetWritableFreeGiB(), 20u);
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}});
   EXPECT_EQ(cluster_data->GetWritableFreeGiB(), 10u);
 }
 
@@ -1307,11 +1312,11 @@ TEST(DisabledBranches, RulesResolveOntoEveryGroupAndClear)
   //        g1 = site0(9-12) site1(13-16)
   BuildClusterData(mgr, MakeCluster(2, 2, 2, 2));
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}});
   int n_disabled = 0;
 
   for (const auto& bucket : cluster_data->buckets) {
-    if (bucket.IsDisabledFor(kDisabledAll)) {
+    if (bucket.DeniedOps() != kMaskNone) {
       ++n_disabled;
     }
   }
@@ -1319,50 +1324,65 @@ TEST(DisabledBranches, RulesResolveOntoEveryGroupAndClear)
   // the geo hierarchy repeats below every scheduling group, so one rule flags
   // one bucket per group - and nothing below or beside it
   EXPECT_EQ(n_disabled, 2);
-  // disks below the branch report it, for the disabled operation only
-  EXPECT_TRUE(cluster_data->IsBranchDisabled(1, kDisabledPlct));
-  EXPECT_FALSE(cluster_data->IsBranchDisabled(1, kDisabledAccess));
-  EXPECT_TRUE(cluster_data->IsBranchDisabled(9, kDisabledPlct));
-  EXPECT_FALSE(cluster_data->IsBranchDisabled(5, kDisabledPlct));
+  // disks below the branch report it, for the denied operation only
+  EXPECT_TRUE(cluster_data->IsBranchDenied(1, kClientCreate));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(1, kInternalCreate));
+  EXPECT_FALSE(cluster_data->IsBranchDenied(1, kClientRead));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(9, kClientCreate));
+  EXPECT_FALSE(cluster_data->IsBranchDenied(5, kClientCreate));
 
   // a deeper rule flags the room and leaves the sibling room alone
-  cluster_data->ApplyDisabledBranches({{"site0::room1", kDisabledAll}});
-  EXPECT_FALSE(cluster_data->IsBranchDisabled(1, kDisabledAll));
-  EXPECT_TRUE(cluster_data->IsBranchDisabled(3, kDisabledPlct));
-  EXPECT_TRUE(cluster_data->IsBranchDisabled(3, kDisabledAccess));
-  EXPECT_TRUE(cluster_data->IsBranchDisabled(11, kDisabledAll));
+  cluster_data->ApplyDisabledBranches({{"site0::room1", kDenyAll}});
+  EXPECT_FALSE(cluster_data->IsBranchDenied(1, kClientCreate));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(3, kClientCreate));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(3, kClientRead));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(11, kInternalCreate));
+
+  // a rule may name one traffic class alone, which is what fences a branch off
+  // from clients while drain and balance keep working through it
+  cluster_data->ApplyDisabledBranches(
+      {{"site0", eos::common::MaskOfActivity(SchedActivity::kClient)}});
+  EXPECT_TRUE(cluster_data->IsBranchDenied(1, kClientRead));
+  EXPECT_TRUE(cluster_data->IsBranchDenied(1, kClientCreate));
+  EXPECT_FALSE(cluster_data->IsBranchDenied(1, kInternalRead));
+  EXPECT_FALSE(cluster_data->IsBranchDenied(1, kInternalCreate));
 
   // a rule naming no existing branch flags nothing
-  cluster_data->ApplyDisabledBranches({{"nowhere", kDisabledAll}});
+  cluster_data->ApplyDisabledBranches({{"nowhere", kDenyAll}});
 
   for (const auto& bucket : cluster_data->buckets) {
-    EXPECT_FALSE(bucket.IsDisabledFor(kDisabledAll));
+    EXPECT_EQ(bucket.DeniedOps(), kMaskNone);
   }
 
   // and so does an empty rule set - the rules are always the complete set,
   // never additive
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledAll}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyAll}});
   cluster_data->ApplyDisabledBranches({});
-  EXPECT_FALSE(cluster_data->IsBranchDisabled(1, kDisabledAll));
+  EXPECT_FALSE(cluster_data->IsBranchDenied(1, kClientCreate));
 }
 
-TEST(DisabledBranches, PlctFlagTracksTheRules)
+TEST(DisabledBranches, TheFlagTracksTheRules)
 {
   ClusterMgr mgr;
   BuildClusterData(mgr, MakeCluster(1, 2, 1, 2));
   auto cluster_data = mgr.GetClusterData();
-  EXPECT_FALSE(cluster_data->HasPlctDisabledBranches());
-  // an access rule closes nothing for placement
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledAccess}});
-  EXPECT_FALSE(cluster_data->HasPlctDisabledBranches());
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledPlct}});
-  EXPECT_TRUE(cluster_data->HasPlctDisabledBranches());
+  EXPECT_FALSE(cluster_data->HasDeniedBranches());
+  // one flag for every operation: a rule of any shape raises it, which costs
+  // the branch walk on a placement the rule cannot possibly refuse and is the
+  // safe direction to be wrong in
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyAccess}});
+  EXPECT_TRUE(cluster_data->HasDeniedBranches());
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}});
+  EXPECT_TRUE(cluster_data->HasDeniedBranches());
   // even a rule naming no existing branch keeps the flag up - erring towards
   // the full descent is the safe direction
-  cluster_data->ApplyDisabledBranches({{"nowhere", kDisabledPlct}});
-  EXPECT_TRUE(cluster_data->HasPlctDisabledBranches());
+  cluster_data->ApplyDisabledBranches({{"nowhere", kDenyPlct}});
+  EXPECT_TRUE(cluster_data->HasDeniedBranches());
+  // an empty mask is no rule at all
+  cluster_data->ApplyDisabledBranches({{"site0", kMaskNone}});
+  EXPECT_FALSE(cluster_data->HasDeniedBranches());
   cluster_data->ApplyDisabledBranches({});
-  EXPECT_FALSE(cluster_data->HasPlctDisabledBranches());
+  EXPECT_FALSE(cluster_data->HasDeniedBranches());
 }
 
 TEST(DisabledBranches, PlacementAvoidsADisabledSite)
@@ -1370,7 +1390,7 @@ TEST(DisabledBranches, PlacementAvoidsADisabledSite)
   ClusterMgr mgr;
   BuildClusterData(mgr, MakeCluster(2, 3, 2, 4));
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
   const auto parents = cluster_data->GetDiskParents();
 
@@ -1396,8 +1416,7 @@ TEST(DisabledBranches, EveryBranchDisabledFailsPlacement)
   ClusterMgr mgr;
   BuildClusterData(mgr, MakeCluster(1, 2, 1, 4));
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches(
-      {{"site0", kDisabledPlct}, {"site1", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}, {"site1", kDenyPlct}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
   PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
   auto result = scheduler.Schedule(cluster_data(), args);
@@ -1410,7 +1429,7 @@ TEST(DisabledBranches, DisabledHomeBranchPushesReplicasAway)
   ClusterMgr mgr;
   BuildClusterData(mgr, MakeCluster(1, 3, 1, 4));
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches({{"site0", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"site0", kDenyPlct}});
   FlatScheduler scheduler(PlacementStrategyT::kGeoScheduler, 1024);
   const auto parents = cluster_data->GetDiskParents();
 
@@ -1436,7 +1455,7 @@ TEST(DisabledBranches, AccessSkipsADisabledBranch)
   ClusterMgr mgr;
   BuildClusterData(mgr, GeoAccessCluster());
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches({{"siteB", kDisabledAccess}});
+  cluster_data->ApplyDisabledBranches({{"siteB", kDenyAccess}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 64);
   const std::vector<uint32_t> locations{1, 2, 3, 4};
 
@@ -1456,8 +1475,7 @@ TEST(DisabledBranches, AccessFailsWhenEveryReplicaIsDisabled)
   ClusterMgr mgr;
   BuildClusterData(mgr, GeoAccessCluster());
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches(
-      {{"siteA", kDisabledAccess}, {"siteB", kDisabledAccess}});
+  cluster_data->ApplyDisabledBranches({{"siteA", kDenyAccess}, {"siteB", kDenyAccess}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 64);
   const std::vector<uint32_t> locations{1, 2, 3, 4};
   std::vector<uint32_t> unavail;
@@ -1469,12 +1487,74 @@ TEST(DisabledBranches, AccessFailsWhenEveryReplicaIsDisabled)
   EXPECT_EQ(unavail.size(), 4u);
 }
 
+TEST(DisabledBranches, PlctRuleStillAdmitsUpdates)
+{
+  ClusterMgr mgr;
+  BuildClusterData(mgr, GeoAccessCluster());
+  auto cluster_data = mgr.GetClusterData();
+  cluster_data->ApplyDisabledBranches({{"siteB", kDenyPlct}});
+  FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 64);
+  const std::vector<uint32_t> locations{1, 2, 3, 4};
+
+  // "Stop this branch growing but keep it serving and updatable" is what the
+  // plct rule has always meant, and it is why the direction axis separates a
+  // create from an update: collapse the two into one write bit and this state
+  // stops being expressible
+  for (int i = 0; i < 32; ++i) {
+    size_t index = 99;
+    AccessArgs args(index, 0, PlacementStrategyT::kRoundRobin, "siteB::room1", nullptr,
+                    locations);
+    args.op = SchedOp{SchedActivity::kClient, SchedDirection::kUpdate};
+    ASSERT_EQ(scheduler.Access(cluster_data(), args), 0);
+    EXPECT_EQ(index, 2u);
+  }
+}
+
+TEST(DisabledBranches, ClientRuleLeavesInternalTrafficPlacing)
+{
+  ClusterMgr mgr;
+  BuildClusterData(mgr, MakeCluster(1, 2, 1, 4));
+  auto cluster_data = mgr.GetClusterData();
+  // Fence both sites off from clients: nothing is left for a client to place
+  // on, while an internal engine still has the whole cluster
+  cluster_data->ApplyDisabledBranches(
+      {{"site0", eos::common::MaskOfActivity(SchedActivity::kClient)},
+       {"site1", eos::common::MaskOfActivity(SchedActivity::kClient)}});
+  FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
+  PlacementArgs client_args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
+  auto client_result = scheduler.Schedule(cluster_data(), client_args);
+  ASSERT_FALSE(client_result);
+  EXPECT_EQ(client_result.ret_code, EACCES);
+
+  for (int i = 0; i < 50; ++i) {
+    PlacementArgs args(2, kInternalCreate, PlacementStrategyT::kRoundRobin);
+    args.fid = i;
+    auto result = scheduler.Schedule(cluster_data(), args);
+    ASSERT_TRUE(result) << result.ErrorString();
+    ASSERT_TRUE(result.IsValidPlacement(2)) << result.ResultString();
+  }
+
+  // and the same asymmetry on the way back out: the drain reads what the
+  // client may not
+  const std::vector<uint32_t> locations{1, 2, 3, 4};
+  std::vector<uint32_t> unavail;
+  size_t index = 99;
+  AccessArgs client_read(index, 0, PlacementStrategyT::kRoundRobin, "", &unavail,
+                         locations);
+  EXPECT_EQ(scheduler.Access(cluster_data(), client_read), ENETUNREACH);
+  index = 99;
+  AccessArgs internal_read(index, 0, PlacementStrategyT::kRoundRobin, "", nullptr,
+                           locations);
+  internal_read.op = kInternalRead;
+  EXPECT_EQ(scheduler.Access(cluster_data(), internal_read), 0);
+}
+
 TEST(DisabledBranches, PlctDisabledBranchStillServesReads)
 {
   ClusterMgr mgr;
   BuildClusterData(mgr, GeoAccessCluster());
   auto cluster_data = mgr.GetClusterData();
-  cluster_data->ApplyDisabledBranches({{"siteB", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"siteB", kDenyPlct}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 64);
   const std::vector<uint32_t> locations{1, 2, 3, 4};
 
@@ -1592,7 +1672,7 @@ TEST(FlatLeafView, PlctRuleIsHonouredThroughTheView)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
   const auto parents = cluster_data->GetDiskParents();
   // One room of one site, so that the six survivors still straddle both sites
-  cluster_data->ApplyDisabledBranches({{"site0::room0", kDisabledPlct}});
+  cluster_data->ApplyDisabledBranches({{"site0::room0", kDenyPlct}});
   std::set<ItemIdT> served;
   bool same_site_pair = false;
 

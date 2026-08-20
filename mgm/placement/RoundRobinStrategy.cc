@@ -93,8 +93,8 @@ RoundRobinStrategy::Placement(const ClusterData& cluster_data,
         return result;
       }
 
-      if (!SelectionStrategy::ValidPlacementDisk(item_id, cluster_data, args.excludefs,
-                                                 args.op, args.bookingsize)) {
+      if (!SelectionStrategy::ValidDisk(item_id, cluster_data, args.excludefs, args.op,
+                                        args.bookingsize)) {
         continue;
       }
     }

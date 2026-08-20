@@ -346,32 +346,32 @@ TEST(FsScheduler, DisabledBranchRules)
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
   // Empty space, empty geotag and an empty operations mask are all rejected
-  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("", "site0", kDisabledPlct));
-  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("default", "", kDisabledPlct));
-  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("default", "::", kDisabledPlct));
+  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("", "site0", kDenyPlct));
+  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("default", "", kDenyPlct));
+  EXPECT_FALSE(fs_scheduler.AddDisabledBranch("default", "::", kDenyPlct));
   EXPECT_FALSE(fs_scheduler.AddDisabledBranch("default", "site0", 0));
   EXPECT_TRUE(fs_scheduler.GetDisabledBranches("default").empty());
   // The geotag is canonicalized, so a trailing separator cannot make the same
   // branch show up twice or dodge a later rm
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0::", kDisabledPlct));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0::", kDenyPlct));
   auto rules = fs_scheduler.GetDisabledBranches("default");
   ASSERT_EQ(rules.size(), 1u);
   EXPECT_EQ(rules.count("site0"), 1u);
-  EXPECT_EQ(rules["site0"], kDisabledPlct);
+  EXPECT_EQ(rules["site0"], kDenyPlct);
   // Adding the other operation merges into one rule
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDisabledAccess));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDenyAccess));
   rules = fs_scheduler.GetDisabledBranches("default");
   ASSERT_EQ(rules.size(), 1u);
-  EXPECT_EQ(rules["site0"], kDisabledAll);
+  EXPECT_EQ(rules["site0"], kDenyAll);
   // Removing takes single operations back out, and only ones actually set
-  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDisabledPlct));
-  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("default", "site0", kDisabledPlct));
-  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("default", "nowhere", kDisabledAll));
-  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("tape", "site0", kDisabledAll));
+  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDenyPlct));
+  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("default", "site0", kDenyPlct));
+  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("default", "nowhere", kDenyAll));
+  EXPECT_FALSE(fs_scheduler.RmDisabledBranch("tape", "site0", kDenyAll));
   rules = fs_scheduler.GetDisabledBranches("default");
-  EXPECT_EQ(rules["site0"], kDisabledAccess);
+  EXPECT_EQ(rules["site0"], kDenyAccess);
   // Removing the last operation drops the rule and the space entry with it
-  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDisabledAccess));
+  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDenyAccess));
   EXPECT_TRUE(fs_scheduler.GetDisabledBranches("default").empty());
   EXPECT_TRUE(fs_scheduler.GetAllDisabledBranches().empty());
 }
@@ -382,7 +382,7 @@ TEST(FsScheduler, DisabledBranchesSurviveRebuild)
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
   fs_scheduler.SetPlacementStrategy("roundrobin");
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDisabledPlct));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDenyPlct));
 
   auto avoids_site0 = [&]() {
     for (int i = 0; i < 50; ++i) {
@@ -408,7 +408,7 @@ TEST(FsScheduler, DisabledBranchesSurviveRebuild)
   fs_scheduler.UpdateClusterData();
   EXPECT_TRUE(avoids_site0());
   // Re-enabling brings the site back into rotation
-  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDisabledPlct));
+  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site0", kDenyPlct));
   bool site0_seen = false;
 
   for (int i = 0; (i < 100) && !site0_seen; ++i) {
@@ -430,10 +430,10 @@ TEST(FsScheduler, SpaceStateShowsDisabledBranches)
   fs_scheduler.UpdateClusterData();
   EXPECT_NE(fs_scheduler.GetSpaceState("default").find("disabled  : none"),
             std::string::npos);
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDisabledPlct));
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site1", kDisabledAll));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDenyPlct));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site1", kDenyAll));
   const auto state = fs_scheduler.GetSpaceState("default");
-  EXPECT_NE(state.find("disabled  : site0:plct, site1:all"), std::string::npos) << state;
+  EXPECT_NE(state.find("disabled  : site0=plct, site1=all"), std::string::npos) << state;
 }
 
 //------------------------------------------------------------------------------
@@ -544,7 +544,7 @@ TEST(FsScheduler, InsertedBranchHonoursAStoredDisabledRule)
   fs_scheduler.UpdateClusterData();
   fs_scheduler.SetPlacementStrategy("roundrobin");
   // the rule names a branch that does not exist yet
-  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site2", kDisabledPlct));
+  ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site2", kDenyPlct));
   // the insert creates it - and must resolve the rule onto it
   ASSERT_TRUE(fs_scheduler.InsertFs("default", MakeFsDesc(33, 0, "site2")));
   ASSERT_TRUE(fs_scheduler.InsertFs("default", MakeFsDesc(34, 0, "site2")));
@@ -559,7 +559,7 @@ TEST(FsScheduler, InsertedBranchHonoursAStoredDisabledRule)
   }
 
   // lifting the rule opens the branch
-  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site2", kDisabledPlct));
+  ASSERT_TRUE(fs_scheduler.RmDisabledBranch("default", "site2", kDenyPlct));
   bool seen = false;
 
   for (int i = 0; (i < 200) && !seen; ++i) {

@@ -176,15 +176,16 @@ GeoBalancer::populateGeotagsInfo()
   for (auto it = spaceView->cbegin(); it != spaceView->cend(); it++) {
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-    if (!fs || (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline)) {
+    if (!fs) {
       continue;
     }
 
     eos::common::FileSystem::fs_snapshot_t snapshot;
     fs->SnapShotFileSystem(snapshot, false);
 
-    if (snapshot.mStatus != eos::common::BootStatus::kBooted ||
-        snapshot.mConfigStatus < eos::common::ConfigStatus::kRO ||
+    // Geo balancing reads the stripe out itself, as internal traffic, so a
+    // file system fenced off from clients is still a source worth sizing
+    if (!eos::common::IsSelectableFor(snapshot, eos::common::kInternalRead) ||
         snapshot.mGeoTag.empty()) {
       continue;
     }

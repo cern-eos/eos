@@ -28,6 +28,8 @@
 #include <array>
 #include <limits>
 #include <map>
+#include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <xxhash.h>
 
@@ -47,15 +49,13 @@ using SchedOp = eos::common::SchedOp;
 using SchedActivity = eos::common::SchedActivity;
 using SchedDirection = eos::common::SchedDirection;
 
-//! Placing a new replica for a client, the default a plain placement asks for
-inline constexpr SchedOp kClientCreate{SchedActivity::kClient, SchedDirection::kCreate};
-//! Serving an existing replica to a client, what a plain read asks for
-inline constexpr SchedOp kClientRead{SchedActivity::kClient, SchedDirection::kRead};
-//! Placing a new replica for an internal engine - drain, balance, conversion
-inline constexpr SchedOp kInternalCreate{SchedActivity::kInternal,
-                                         SchedDirection::kCreate};
-//! Reading an existing replica for an internal engine, the drain source pick
-inline constexpr SchedOp kInternalRead{SchedActivity::kInternal, SchedDirection::kRead};
+//! The named operations, see common/FsOps.hh
+using eos::common::kClientCreate;
+using eos::common::kClientRead;
+using eos::common::kClientUpdate;
+using eos::common::kInternalCreate;
+using eos::common::kInternalRead;
+using eos::common::kInternalUpdate;
 
 using eos::common::kMaskAll;
 using eos::common::kMaskNone;
@@ -367,26 +367,30 @@ struct FillLimits {
 };
 
 //------------------------------------------------------------------------------
-//! Struct PlctDisabledFlag - whether any disabled-branch rule of the snapshot
-//! currently closes a branch for placement. Atomic so a rule change lands on
-//! the live snapshot without an epoch bump, copyable so that ClusterData keeps
-//! its implicit copy semantics - the same pattern as FillLimits. Read on the
-//! scheduling hot path, see FlatScheduler::PlaceInBucket.
+//! Struct DeniedBranchesFlag - whether the snapshot carries any disabled-branch
+//! rule at all. Atomic so a rule change lands on the live snapshot without an
+//! epoch bump, copyable so that ClusterData keeps its implicit copy semantics -
+//! the same pattern as FillLimits. Read on the scheduling hot path, see
+//! FlatScheduler::PlaceInBucket.
+//!
+//! One flag for every operation rather than one per operation: a rule of any
+//! shape costs the branch walk, which is a touch more conservative than the
+//! placement-only flag it replaces and keeps the vocabulary in one place.
 //------------------------------------------------------------------------------
-struct PlctDisabledFlag {
-  std::atomic<uint8_t> value{0}; ///< Non-zero while a placement rule is active
+struct DeniedBranchesFlag {
+  std::atomic<uint8_t> value{0}; ///< Non-zero while any rule is active
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  PlctDisabledFlag() = default;
+  DeniedBranchesFlag() = default;
 
   //----------------------------------------------------------------------------
   //! Copy constructor, explicit as atomic types are not copyable
   //!
   //! @param other object to copy from
   //----------------------------------------------------------------------------
-  PlctDisabledFlag(const PlctDisabledFlag& other)
+  DeniedBranchesFlag(const DeniedBranchesFlag& other)
   {
     value.store(other.value.load(std::memory_order_relaxed), std::memory_order_relaxed);
   }
@@ -398,8 +402,8 @@ struct PlctDisabledFlag {
   //!
   //! @return reference to the current object
   //----------------------------------------------------------------------------
-  PlctDisabledFlag&
-  operator=(const PlctDisabledFlag& other)
+  DeniedBranchesFlag&
+  operator=(const DeniedBranchesFlag& other)
   {
     value.store(other.value.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
@@ -615,38 +619,90 @@ GeoChildKey(ItemIdT parent_id, uint64_t atom_hash)
          (parent * 0x9E3779B97F4A7C15ULL + (atom_hash << 6) + (atom_hash >> 2));
 }
 
-//! Operations a bucket can be administratively disabled for, kept as a bit
-//! mask so that one branch can be closed for placement, for access, or both
-constexpr uint8_t kDisabledPlct = 1 << 0;   ///< No new replicas below the branch
-constexpr uint8_t kDisabledAccess = 1 << 1; ///< No replicas served from the branch
-constexpr uint8_t kDisabledAll = kDisabledPlct | kDisabledAccess;
+//! Operations the "sched disable" aliases stand for. The rules speak the same
+//! vocabulary as a filesystem's own permission mask, but hold the operations a
+//! branch is closed *for*, so a set bit denies rather than allows.
+inline constexpr FsOpMask kDenyPlct =
+    eos::common::MaskOfDirection(SchedDirection::kCreate);
+inline constexpr FsOpMask kDenyAccess =
+    static_cast<FsOpMask>(eos::common::MaskOfDirection(SchedDirection::kRead) |
+                          eos::common::MaskOfDirection(SchedDirection::kUpdate));
+inline constexpr FsOpMask kDenyAll = kMaskAll;
 
-//! Disabled branch rules of one space: canonical geotag to operations mask
-using DisabledBranchesT = std::map<std::string, uint8_t>;
+//! Disabled branch rules of one space: canonical geotag to denied operations
+using DisabledBranchesT = std::map<std::string, FsOpMask>;
 
 //------------------------------------------------------------------------------
-//! Convert a disabled operations mask to its string representation
+//! Convert a denied operations mask to its string representation: the alias
+//! name when the mask is exactly one of them, otherwise the explicit form.
 //!
-//! @param op_mask operations mask, see kDisabledPlct / kDisabledAccess
+//! Deliberately not FormatSchedMask - its preset names describe what a
+//! filesystem allows, and reading "ro" as "read only" on a deny mask means
+//! exactly the opposite of what the rule does.
+//!
+//! @param op_mask denied operations
 //!
 //! @return string representation, "none" for an empty mask
 //------------------------------------------------------------------------------
 inline std::string
-DisabledOpsToStr(uint8_t op_mask)
+DeniedOpsToStr(FsOpMask op_mask)
 {
-  switch (op_mask & kDisabledAll) {
-  case kDisabledPlct:
+  switch (op_mask & kMaskAll) {
+  case kDenyPlct:
     return "plct";
 
-  case kDisabledAccess:
+  case kDenyAccess:
     return "access";
 
-  case kDisabledAll:
+  case kDenyAll:
     return "all";
 
+  case eos::common::MaskOfActivity(SchedActivity::kClient):
+    return "client";
+
+  case eos::common::MaskOfActivity(SchedActivity::kInternal):
+    return "internal";
+
   default:
-    return "none";
+    return eos::common::FormatSchedOps(op_mask);
   }
+}
+
+//------------------------------------------------------------------------------
+//! Parse the operations a disable rule denies. Accepts the legacy aliases -
+//! "plct", "access" and "all", which is what the persisted rules and the
+//! existing runbooks carry - plus "client" and "internal" for a whole traffic
+//! class, and otherwise the explicit "client:<letters>,internal:<letters>"
+//! grammar, see eos::common::ParseSchedOps.
+//!
+//! @param spec specification string
+//!
+//! @return the denied operations, or nullopt if the spec is malformed
+//------------------------------------------------------------------------------
+inline std::optional<FsOpMask>
+ParseDeniedSpec(std::string_view spec)
+{
+  if (spec == "plct") {
+    return kDenyPlct;
+  }
+
+  if (spec == "access") {
+    return kDenyAccess;
+  }
+
+  if (spec == "all") {
+    return kDenyAll;
+  }
+
+  if (spec == "client") {
+    return eos::common::MaskOfActivity(SchedActivity::kClient);
+  }
+
+  if (spec == "internal") {
+    return eos::common::MaskOfActivity(SchedActivity::kInternal);
+  }
+
+  return eos::common::ParseSchedOps(spec);
 }
 
 //------------------------------------------------------------------------------
@@ -765,15 +821,16 @@ struct Bucket {
   //! GROUP (which is type 0), see ClusterData::GetBucket.
   uint8_t bucket_type{GetBucketType(BucketType::INVALID)};
   uint8_t level{0};             ///< Distance from the root, which sits at 0
-  //! Operations the branch below is disabled for, see kDisabledPlct. Set only
-  //! on the bucket a rule resolved to, not pushed down its subtree - the
+  //! Operations the branch below is denied, one bit per SchedOp - the same
+  //! vocabulary as a disk's own permission mask, read the other way round. Set
+  //! only on the bucket a rule resolved to, not pushed down its subtree - the
   //! placement descent and the access walk up both pass through it. Atomic so
   //! a rule change lands on the live snapshot without an epoch bump.
-  mutable std::atomic<uint8_t> disabled_ops{0};
+  mutable std::atomic<FsOpMask> denied_ops{kMaskNone};
   //! Kind of the children below, see ChildType. Maintained by the topology
   //! builder, which refuses an append of the other kind, so that the descent
   //! knows what a level is without looking at a child. Fits in the padding
-  //! after disabled_ops, hence the position.
+  //! after denied_ops, hence the position.
   uint8_t child_type{GetChildType(ChildType::kNone)};
   std::vector<ItemIdT> items; ///< Children, either disks or sub-buckets
 
@@ -819,8 +876,8 @@ struct Bucket {
       , child_type(other.child_type)
       , items(other.items)
   {
-    disabled_ops.store(other.disabled_ops.load(std::memory_order_relaxed),
-                       std::memory_order_relaxed);
+    denied_ops.store(other.denied_ops.load(std::memory_order_relaxed),
+                     std::memory_order_relaxed);
   }
 
   //----------------------------------------------------------------------------
@@ -842,23 +899,34 @@ struct Bucket {
     bucket_type = other.bucket_type;
     level = other.level;
     child_type = other.child_type;
-    disabled_ops.store(other.disabled_ops.load(std::memory_order_relaxed),
-                       std::memory_order_relaxed);
+    denied_ops.store(other.denied_ops.load(std::memory_order_relaxed),
+                     std::memory_order_relaxed);
     items = other.items;
     return *this;
   }
 
   //----------------------------------------------------------------------------
-  //! Check if the bucket is disabled for the given operations
+  //! Check if a rule closes the branch below for one operation
   //!
-  //! @param op_mask operations to test, see kDisabledPlct / kDisabledAccess
+  //! @param op operation to test
   //!
-  //! @return true if disabled for any of them, otherwise false
+  //! @return true if the operation is denied, otherwise false
   //----------------------------------------------------------------------------
   bool
-  IsDisabledFor(uint8_t op_mask) const
+  DeniesOp(SchedOp op) const
   {
-    return disabled_ops.load(std::memory_order_acquire) & op_mask;
+    return (denied_ops.load(std::memory_order_acquire) & op.Bit()) != 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the operations denied below this bucket, for reporting
+  //!
+  //! @return denied operations mask
+  //----------------------------------------------------------------------------
+  FsOpMask
+  DeniedOps() const
+  {
+    return denied_ops.load(std::memory_order_acquire);
   }
 
   //----------------------------------------------------------------------------
@@ -963,11 +1031,11 @@ struct ClusterData {
   //! snapshots start at the defaults; the FsScheduler re-stamps the configured
   //! values after every rebuild.
   FillLimits fill_limits;
-  //! Whether any disabled-branch rule currently closes a branch for placement,
-  //! kept in step by ApplyDisabledBranches. What tells the flat-view fast path
-  //! of the scheduler to take the full descent instead, which is where an
-  //! interior disabled bucket is honoured.
-  PlctDisabledFlag plct_disabled;
+  //! Whether any disabled-branch rule is configured at all, kept in step by
+  //! ApplyDisabledBranches. What tells the flat-view fast path of the scheduler
+  //! to take the full descent instead, which is where an interior denied bucket
+  //! is honoured.
+  DeniedBranchesFlag denied_branches;
 
   //----------------------------------------------------------------------------
   //! Get the bucket with the given identifier, the one validity definition
@@ -1317,7 +1385,7 @@ struct ClusterData {
         continue;
       }
 
-      if (IsBranchDisabled(disk.id, kDisabledPlct)) {
+      if (IsBranchDenied(disk.id, kClientCreate)) {
         continue;
       }
 
@@ -1411,26 +1479,26 @@ struct ClusterData {
   //! branch under each of them. A geotag matching no bucket is silently
   //! skipped: the rule may simply predate the part of the topology it names.
   //!
-  //! @param rules canonical geotag to operations mask, see kDisabledPlct
+  //! @param rules canonical geotag to denied operations, see DisabledBranchesT
   //----------------------------------------------------------------------------
   void
   ApplyDisabledBranches(const DisabledBranchesT& rules)
   {
-    bool any_plct = false;
+    bool any_rule = false;
 
     for (const auto& [geotag, op_mask] : rules) {
-      any_plct = any_plct || (op_mask & kDisabledPlct);
+      any_rule = any_rule || ((op_mask & kMaskAll) != 0);
     }
 
     // Raised before any mask is touched and lowered only after the clearing
     // pass, so a placement running concurrently with the restamp errs towards
     // the full descent, never towards a shortcut past a mask in flux
-    if (any_plct) {
-      plct_disabled.value.store(1, std::memory_order_release);
+    if (any_rule) {
+      denied_branches.value.store(1, std::memory_order_release);
     }
 
     for (const auto& bucket : buckets) {
-      bucket.disabled_ops.store(0, std::memory_order_release);
+      bucket.denied_ops.store(kMaskNone, std::memory_order_release);
     }
 
     for (const auto& [geotag, op_mask] : rules) {
@@ -1458,40 +1526,40 @@ struct ClusterData {
         }
 
         if (id != 0) {
-          buckets[-id].disabled_ops.fetch_or(op_mask, std::memory_order_release);
+          buckets[-id].denied_ops.fetch_or(op_mask, std::memory_order_release);
         }
       }
     }
 
-    if (!any_plct) {
-      plct_disabled.value.store(0, std::memory_order_release);
+    if (!any_rule) {
+      denied_branches.value.store(0, std::memory_order_release);
     }
   }
 
   //----------------------------------------------------------------------------
-  //! Check whether any disabled-branch rule currently closes a branch for
-  //! placement, see ApplyDisabledBranches
+  //! Check whether any disabled-branch rule is configured, see
+  //! ApplyDisabledBranches
   //!
-  //! @return true if a placement rule is active, otherwise false
+  //! @return true if a rule is active, otherwise false
   //----------------------------------------------------------------------------
   bool
-  HasPlctDisabledBranches() const
+  HasDeniedBranches() const
   {
-    return plct_disabled.value.load(std::memory_order_acquire) != 0;
+    return denied_branches.value.load(std::memory_order_acquire) != 0;
   }
 
   //----------------------------------------------------------------------------
-  //! Check whether a disk sits below a branch disabled for the given
-  //! operations. Only the bucket a rule resolved to carries the mask, so the
-  //! walk visits every geo ancestor of the disk.
+  //! Check whether a disk sits below a branch denied the given operation. Only
+  //! the bucket a rule resolved to carries the mask, so the walk visits every
+  //! geo ancestor of the disk.
   //!
   //! @param disk_id file system identifier of the disk
-  //! @param op_mask operations to test, see kDisabledPlct / kDisabledAccess
+  //! @param op operation to test
   //!
-  //! @return true if any geo ancestor is disabled for one of the operations
+  //! @return true if any geo ancestor denies the operation
   //----------------------------------------------------------------------------
   bool
-  IsBranchDisabled(fsid_t disk_id, uint8_t op_mask) const
+  IsBranchDenied(fsid_t disk_id, SchedOp op) const
   {
     if ((disk_id == 0) || (disk_id > disk_parents.size())) {
       return false;
@@ -1513,7 +1581,7 @@ struct ClusterData {
         break;
       }
 
-      if (bucket.IsDisabledFor(op_mask)) {
+      if (bucket.DeniesOp(op)) {
         return true;
       }
 

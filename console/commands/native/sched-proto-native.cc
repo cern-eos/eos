@@ -26,11 +26,19 @@ std::string MakeSchedHelp()
          "  show state [spacename]\n"
          "    show per-space state summary: strategy, fill thresholds, topology\n"
          "    health (all spaces if no spacename is given)\n"
-         "  disable add <space> <geotag> [plct|access|all]\n"
-         "    exclude a geotag branch from placement, access or both\n"
-         "    (default all); survives an MGM restart\n"
-         "  disable rm <space> <geotag> [plct|access|all]\n"
-         "    re-enable a previously disabled branch\n"
+         "  disable add <space> <geotag> [<spec>]\n"
+         "    deny a geotag branch the operations <spec> names (default all);\n"
+         "    survives an MGM restart\n"
+         "    <spec>: plct  - no new replicas below the branch\n"
+         "            access - no replica served or updated below it\n"
+         "            all   - neither (the default)\n"
+         "            client|internal - deny one traffic class everything, so\n"
+         "            \"client\" keeps drain, balance and conversion working\n"
+         "            through the branch\n"
+         "            client:<ruc>[,internal:<ruc>] - the explicit form, with\n"
+         "            r read, u update, c create and w for both writes\n"
+         "  disable rm <space> <geotag> [<spec>]\n"
+         "    re-enable a previously disabled branch, same <spec> grammar\n"
          "  disable ls [space]\n"
          "    list the disabled branches (all spaces if no space is given)\n"
          "  ls <spacename> <bucket|disk|all>\n";
@@ -150,16 +158,10 @@ struct SchedHelper : public ICmdHelper {
         }
         disabled->set_spacename(space);
         disabled->set_geotag(geotag);
+        // Passed through verbatim: the grammar lives in the MGM, which is the
+        // only side that can also report what it accepts instead
         if (tokenizer.NextToken(token)) {
-          if (token == "plct") {
-            disabled->set_optype(eos::console::SchedProto_DisabledProto::PLCT);
-          } else if (token == "access") {
-            disabled->set_optype(eos::console::SchedProto_DisabledProto::ACCESS);
-          } else if (token == "all") {
-            disabled->set_optype(eos::console::SchedProto_DisabledProto::ALL);
-          } else {
-            return false;
-          }
+          disabled->set_spec(token);
         }
       }
     } else if (token == "ls") {

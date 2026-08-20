@@ -73,24 +73,9 @@ ReadThroughCache::SelectCacheFs(const std::string& backend_space,
 
   auto is_online_cache_fs = [](eos::common::FileSystem::fsid_t fsid) {
     auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
-
-    if (!fs) {
-      return false;
-    }
-
-    if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
-      return false;
-    }
-
-    if (fs->GetConfigStatus() < eos::common::ConfigStatus::kRO) {
-      return false;
-    }
-
-    if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-      return false;
-    }
-
-    return true;
+    // The cache exists to serve clients, so a file system that serves no
+    // client read is of no use here whatever else it still accepts
+    return (fs != nullptr) && eos::common::IsSelectableFor(*fs, eos::common::kClientRead);
   };
 
   // Rendezvous-hash over the *current* online cache FS set. Preferring a

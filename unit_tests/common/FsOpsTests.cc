@@ -33,10 +33,12 @@ using eos::common::ConfigStatus;
 using eos::common::DeriveLegacyConfigStatus;
 using eos::common::DeriveMaskFromLegacy;
 using eos::common::FormatSchedMask;
+using eos::common::FormatSchedOps;
 using eos::common::FsOpMask;
 using eos::common::kMaskAll;
 using eos::common::kMaskNone;
 using eos::common::kNumSchedOps;
+using eos::common::ParseSchedOps;
 using eos::common::ParseSchedSpec;
 using eos::common::SchedActivity;
 using eos::common::SchedDirection;
@@ -166,6 +168,37 @@ TEST(FsOps, FormatParseRoundTrip)
     ASSERT_TRUE(reparsed.has_value()) << "cannot reparse '" << rendered << "'";
     EXPECT_EQ(*reparsed, mask) << "round trip changed '" << rendered << "'";
   }
+}
+
+//------------------------------------------------------------------------------
+// The explicit form has to round trip on its own, without the presets. It is
+// what the disabled-branch rules speak, where a preset name would describe the
+// operations a filesystem allows and mean the opposite of what a rule denies.
+//------------------------------------------------------------------------------
+TEST(FsOps, ExplicitFormRoundTrip)
+{
+  for (FsOpMask mask = 0; mask <= kMaskAll; ++mask) {
+    const std::string rendered = FormatSchedOps(mask);
+    ASSERT_FALSE(rendered.empty()) << "mask " << int(mask) << " rendered empty";
+
+    if (mask == kMaskNone) {
+      EXPECT_EQ(rendered, "none");
+      continue;
+    }
+
+    // No preset name ever leaks out of the explicit renderer
+    EXPECT_NE(rendered.find(':'), std::string::npos)
+        << "'" << rendered << "' is not in the explicit form";
+    const auto reparsed = ParseSchedOps(rendered);
+    ASSERT_TRUE(reparsed.has_value()) << "cannot reparse '" << rendered << "'";
+    EXPECT_EQ(*reparsed, mask) << "round trip changed '" << rendered << "'";
+  }
+
+  // and a preset name is not accepted by it, which is what keeps the two
+  // vocabularies from being mistaken for one another
+  EXPECT_FALSE(ParseSchedOps("rw").has_value());
+  EXPECT_FALSE(ParseSchedOps("internal").has_value());
+  EXPECT_FALSE(ParseSchedOps("").has_value());
 }
 
 //------------------------------------------------------------------------------

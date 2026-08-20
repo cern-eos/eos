@@ -109,9 +109,7 @@ ToString(const Bucket& bucket)
      << "Total Weight: " << bucket.total_weight << "\n"
      << "Bucket Type: " << BucketTypeToStr(static_cast<BucketType>(bucket.bucket_type))
      << "\n"
-     << "Disabled: "
-     << DisabledOpsToStr(bucket.disabled_ops.load(std::memory_order_relaxed))
-     << "\nItem List: ";
+     << "Disabled: " << DeniedOpsToStr(bucket.DeniedOps()) << "\nItem List: ";
 
   for (const auto& it : bucket.items) {
     ss << it << ", ";
@@ -250,8 +248,8 @@ GetBucketsAsString(const ClusterData& data)
 
     std::string geotag = data.GetGeoTag(b.id);
     row.emplace_back(geotag.empty() ? std::string("-") : geotag, "s-");
-    const uint8_t dmask = b.disabled_ops.load(std::memory_order_relaxed) & kDisabledAll;
-    row.emplace_back(dmask ? DisabledOpsToStr(dmask) : std::string("-"), "s", "", false,
+    const FsOpMask dmask = b.DeniedOps() & kMaskAll;
+    row.emplace_back(dmask ? DeniedOpsToStr(dmask) : std::string("-"), "s", "", false,
                      dmask ? BRED : NONE);
     row.emplace_back(static_cast<long long int>(b.total_weight), "l");
     row.emplace_back(static_cast<long long int>(b.items.size()), "l");

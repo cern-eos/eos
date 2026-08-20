@@ -490,11 +490,11 @@ public:
   //! Validation is the caller's job, see FsScheduler::AddDisabledBranch.
   //!
   //! @param canonical canonicalized geotag of the branch
-  //! @param op_mask operations to disable, see kDisabledPlct / kDisabledAccess
+  //! @param op_mask operations to deny below the branch, see DisabledBranchesT
   //!
   //! @return true (the rule set always accepts an add)
   //----------------------------------------------------------------------------
-  bool AddDisabledBranch(const std::string& canonical, uint8_t op_mask);
+  bool AddDisabledBranch(const std::string& canonical, FsOpMask op_mask);
 
   //----------------------------------------------------------------------------
   //! Re-enable a previously disabled geotag branch for the given operations
@@ -504,12 +504,12 @@ public:
   //!
   //! @return true if a matching rule existed, otherwise false
   //----------------------------------------------------------------------------
-  bool RmDisabledBranch(const std::string& canonical, uint8_t op_mask);
+  bool RmDisabledBranch(const std::string& canonical, FsOpMask op_mask);
 
   //----------------------------------------------------------------------------
   //! Get the configured disabled branch rules of this space
   //!
-  //! @return canonical geotag to operations mask, empty if none
+  //! @return canonical geotag to denied operations, empty if none
   //----------------------------------------------------------------------------
   DisabledBranchesT GetDisabledBranches() const;
 

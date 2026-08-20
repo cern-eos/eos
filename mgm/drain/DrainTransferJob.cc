@@ -295,7 +295,12 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
           if (fs) {
             fs->SnapShotFileSystem(src_snapshot);
 
-            if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+            // Reading a replica out is internal traffic, so a file system that
+            // serves no client read is still a valid source. This used to be a
+            // bare configuration status test - the one selector that checked
+            // neither the boot nor the active status, which IsSelectableFor
+            // now brings along.
+            if (eos::common::IsSelectableFor(src_snapshot, eos::common::kInternalRead)) {
               found = true;
               break;
             }
@@ -351,7 +356,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       if (fs) {
         fs->SnapShotFileSystem(src_snapshot);
 
-        if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+        if (eos::common::IsSelectableFor(src_snapshot, eos::common::kInternalRead)) {
           found = true;
         }
       }

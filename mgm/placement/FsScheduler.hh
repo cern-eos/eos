@@ -27,6 +27,13 @@
 #include "mgm/placement/FlatScheduler.hh"
 #include <mutex>
 #include <optional>
+#include <utility>
+
+namespace eos::mgm {
+//! Forward declaration, the space view the persisted configuration is read
+//! from and written back to
+class FsSpace;
+} // namespace eos::mgm
 
 namespace eos::mgm::placement {
 
@@ -117,6 +124,19 @@ public:
   //! each space's ClusterMgr.
   using SpaceDisabledMapT = std::map<std::string, DisabledBranchesT>;
 
+  //! Space config member holding the disabled branch rules of the space, as
+  //! "<geotag>=<spec>" pairs separated by ';'. One key rather than one per
+  //! operation, because a rule now denies an arbitrary set of them and no
+  //! fixed number of lists can hold that, see SchedCmd::DisabledSubCmd.
+  static constexpr const char* kDeniedConfigKey = "scheduler.denied";
+
+  //! Space config members kDeniedConfigKey replaced, one comma separated
+  //! geotag list per operation. Read at boot so a space configured before the
+  //! upgrade restores unchanged, and deleted the first time a rule of that
+  //! space is touched.
+  static constexpr std::pair<const char*, FsOpMask> kLegacyDeniedConfigKeys[] = {
+      {"scheduler.disabled.plct", kDenyPlct}, {"scheduler.disabled.access", kDenyAccess}};
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -185,6 +205,16 @@ public:
   //! @note takes the FsView view mutex, so the caller must not hold it
   //----------------------------------------------------------------------------
   void LoadConfig();
+
+  //----------------------------------------------------------------------------
+  //! Restore the disabled branch rules of one space out of its config members,
+  //! migrating a space still carrying only the two keys kDeniedConfigKey
+  //! replaced
+  //!
+  //! @param spacename name of the space
+  //! @param space space view holding the config members
+  //----------------------------------------------------------------------------
+  void RestoreDisabledBranches(const std::string& spacename, eos::mgm::FsSpace& space);
 
   //----------------------------------------------------------------------------
   //! Insert one file system into its space's topology snapshot, the
@@ -367,12 +397,12 @@ public:
   //!
   //! @param spacename name of the space
   //! @param geotag geotag of the branch, canonicalized before use
-  //! @param op_mask operations to disable, see kDisabledPlct / kDisabledAccess
+  //! @param op_mask operations to deny below the branch, see DisabledBranchesT
   //!
   //! @return true if the rule is valid, otherwise false
   //----------------------------------------------------------------------------
   bool AddDisabledBranch(const std::string& spacename, const std::string& geotag,
-                         uint8_t op_mask);
+                         FsOpMask op_mask);
 
   //----------------------------------------------------------------------------
   //! Re-enable a previously disabled geotag branch for the given operations
@@ -384,14 +414,14 @@ public:
   //! @return true if a matching rule existed, otherwise false
   //----------------------------------------------------------------------------
   bool RmDisabledBranch(const std::string& spacename, const std::string& geotag,
-                        uint8_t op_mask);
+                        FsOpMask op_mask);
 
   //----------------------------------------------------------------------------
   //! Get the disabled branch rules of one space
   //!
   //! @param spacename name of the space
   //!
-  //! @return canonical geotag to operations mask, empty if none
+  //! @return canonical geotag to denied operations, empty if none
   //----------------------------------------------------------------------------
   DisabledBranchesT GetDisabledBranches(const std::string& spacename);
 

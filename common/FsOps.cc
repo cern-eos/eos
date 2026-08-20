@@ -123,19 +123,13 @@ MaskToLetters(FsOpMask mask, SchedActivity activity)
 } // namespace
 
 //------------------------------------------------------------------------------
-// Parse a scheduling specification into a mask
+// Parse the explicit form of an operation set
 //------------------------------------------------------------------------------
 std::optional<FsOpMask>
-ParseSchedSpec(std::string_view spec)
+ParseSchedOps(std::string_view spec)
 {
   if (spec.empty()) {
     return std::nullopt;
-  }
-
-  for (const auto& [name, mask] : kPresets) {
-    if (spec == name) {
-      return mask;
-    }
   }
 
   FsOpMask result = kMaskNone;
@@ -178,17 +172,30 @@ ParseSchedSpec(std::string_view spec)
 }
 
 //------------------------------------------------------------------------------
-// Render a mask
+// Parse a scheduling specification into a mask
+//------------------------------------------------------------------------------
+std::optional<FsOpMask>
+ParseSchedSpec(std::string_view spec)
+{
+  for (const auto& [name, mask] : kPresets) {
+    if (spec == name) {
+      return mask;
+    }
+  }
+
+  return ParseSchedOps(spec);
+}
+
+//------------------------------------------------------------------------------
+// Render an operation set in the explicit form
 //------------------------------------------------------------------------------
 std::string
-FormatSchedMask(FsOpMask mask)
+FormatSchedOps(FsOpMask mask)
 {
   mask &= kMaskAll;
 
-  for (const auto& [name, preset] : kPresets) {
-    if (mask == preset) {
-      return std::string(name);
-    }
+  if (mask == kMaskNone) {
+    return "none";
   }
 
   const std::string client = MaskToLetters(mask, SchedActivity::kClient);
@@ -210,6 +217,23 @@ FormatSchedMask(FsOpMask mask)
   }
 
   return out;
+}
+
+//------------------------------------------------------------------------------
+// Render a mask
+//------------------------------------------------------------------------------
+std::string
+FormatSchedMask(FsOpMask mask)
+{
+  mask &= kMaskAll;
+
+  for (const auto& [name, preset] : kPresets) {
+    if (mask == preset) {
+      return std::string(name);
+    }
+  }
+
+  return FormatSchedOps(mask);
 }
 
 //------------------------------------------------------------------------------
