@@ -152,6 +152,7 @@ add_library(EosCommon-Objects OBJECT
   ClockGetTime.cc
   StacktraceHere.cc
   Locators.cc
+  FsOps.cc
   Logging.cc
   StringConversion.cc
   Statfs.cc

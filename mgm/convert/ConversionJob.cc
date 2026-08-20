@@ -22,19 +22,19 @@
  ************************************************************************/
 
 #include "mgm/convert/ConversionJob.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
+#include "common/FsOps.hh"
 #include "common/Timing.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/Prefetcher.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-
+#include "namespace/utils/Checksum.hh"
 
 //------------------------------------------------------------------------------
 // Utility functions to help with file conversion
@@ -188,9 +188,9 @@ void ConversionJob::DoIt() noexcept
                                mConversionInfo.mAppTag;
   // Construct destination CGI
   std::ostringstream dst_cgi;
-  dst_cgi << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
-          << "&" << ConversionCGI(mConversionInfo)
-          << "&eos.app=" << app_tag
+  dst_cgi << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID << "&"
+          << ConversionCGI(mConversionInfo) << "&eos.app=" << app_tag << "&"
+          << eos::common::kSchedClassKey << "=" << eos::common::kSchedClassInternal
           << "&eos.targetsize=" << source_size;
 
   if (source_xs.size() && !overwrite_checksum) {
@@ -218,10 +218,10 @@ void ConversionJob::DoIt() noexcept
   // Prepare the TPC job
   XrdCl::URL url_src = NewUrl();
   std::ostringstream url_params;
-  url_params << "eos.ruid=" << DAEMONUID
-             << "&eos.rgid=" << DAEMONGID
+  url_params << "eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
              << "&eos.encodepath=curl"
-             << "&eos.app=" + app_tag;
+             << "&eos.app=" + app_tag << "&" << eos::common::kSchedClassKey << "="
+             << eos::common::kSchedClassInternal;
   url_src.SetParams(url_params.str());
   url_src.SetPath(eos::common::StringConversion::curl_escaped(mSourcePath));
   XrdCl::URL url_dst = NewUrl();

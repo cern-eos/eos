@@ -85,6 +85,17 @@ static constexpr auto ALTXS_SYNC_INTERVAL = "altxs_sync_interval";
 //! Maximum scan rate for statting requests to the MGM for computing the
 //! alternative checksums
 static constexpr auto ALTXS_SYNC_RATE = "altxs_sync_rate";
+//! Set of scheduling operations a filesystem accepts, see common/FsOps.hh.
+//! Authoritative for every scheduling decision; the legacy "configstatus" key
+//! is derived from it and kept only for the FST, the geotree engine, the
+//! capacity sums and monitoring.
+static constexpr auto FS_SCHED_OPS_NAME = "sched.ops";
+//! Lifecycle of a filesystem - active, empty or off - which is what gates
+//! removal and booting rather than what it will schedule
+static constexpr auto FS_LIFECYCLE_NAME = "lifecycle";
+//! Whether draining of this filesystem is requested. Its own key so that the
+//! request survives a master failover without being inferred from a status.
+static constexpr auto FS_DRAIN_REQUESTED_NAME = "drain.requested";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
 //! Application lock attribute

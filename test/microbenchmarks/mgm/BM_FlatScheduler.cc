@@ -44,7 +44,7 @@ static void BM_Scheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                  -100 - i / n_disks_per_group);
     }
 
@@ -77,7 +77,7 @@ static void BM_ThreadLocalRRScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                  -100 - i / n_disks_per_group);
     }
 
@@ -110,7 +110,7 @@ static void BM_RandomScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                  -100 - i / n_disks_per_group);
     }
 
@@ -143,7 +143,7 @@ static void BM_FidScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                  -100 - i / n_disks_per_group);
     }
 
@@ -179,7 +179,7 @@ static void BM_WeightedRandomScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline,
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline,
                       eos::common::pickIndexRR(weights, i)),
                  -100 - i / n_disks_per_group);
     }
@@ -216,7 +216,7 @@ static void BM_WeightedRRScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline,
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline,
                       eos::common::pickIndexRR(weights, i)),
                  -100 - i / n_disks_per_group);
     }
@@ -269,9 +269,9 @@ BM_NoGeoTagScheduler(benchmark::State& state)
                                            GetBucketType(BucketType::SITE));
 
       for (int j = 0; j < n_disks_per_group; ++j) {
-        sh.AddDisk(Disk(i * n_disks_per_group + j + 1, ConfigStatus::kRW,
-                        ActiveStatus::kOnline, 1),
-                   nogeo_id);
+        sh.AddDisk(
+            Disk(i * n_disks_per_group + j + 1, kMaskAll, ActiveStatus::kOnline, 1),
+            nogeo_id);
       }
     }
   }
@@ -337,8 +337,7 @@ BM_GeoScheduler(benchmark::State& state)
                                                 GetBucketType(BucketType::RACK));
 
             for (int j = 0; j < n_disks_per_rack; ++j) {
-              sh.AddDisk(Disk(fsid++, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
-                         rack_id);
+              sh.AddDisk(Disk(fsid++, kMaskAll, ActiveStatus::kOnline, 1), rack_id);
             }
           }
         }
@@ -348,8 +347,7 @@ BM_GeoScheduler(benchmark::State& state)
   FlatScheduler flat_scheduler(PlacementStrategyT::kGeoScheduler, n_elements);
 
   const std::string geolocation = "site0::room0::rack0";
-  PlacementArgs args(state.range(1), ConfigStatus::kRW,
-                     PlacementStrategyT::kGeoScheduler);
+  PlacementArgs args(state.range(1), kClientCreate, PlacementStrategyT::kGeoScheduler);
   args.geolocation = geolocation;
   args.ncollocatedfs = 2;
   args.fid = 1;
@@ -439,8 +437,7 @@ BM_NoGeoTagGeoTopology(benchmark::State& state)
                                                 GetBucketType(BucketType::RACK));
 
             for (int j = 0; j < n_disks_per_rack; ++j) {
-              sh.AddDisk(Disk(fsid++, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
-                         rack_id);
+              sh.AddDisk(Disk(fsid++, kMaskAll, ActiveStatus::kOnline, 1), rack_id);
             }
           }
         }
@@ -449,8 +446,7 @@ BM_NoGeoTagGeoTopology(benchmark::State& state)
   }
   FlatScheduler flat_scheduler(PlacementStrategyT::kGeoScheduler, n_elements);
 
-  PlacementArgs args(state.range(1), ConfigStatus::kRW,
-                     PlacementStrategyT::kGeoScheduler);
+  PlacementArgs args(state.range(1), kClientCreate, PlacementStrategyT::kGeoScheduler);
   args.fid = 1;
   for (auto _ : state) {
     auto cluster_data_ptr = mgr.GetClusterData();

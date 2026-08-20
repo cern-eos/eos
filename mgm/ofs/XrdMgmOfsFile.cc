@@ -2265,6 +2265,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  // Traffic class of this request. An internal engine - the converter, the
+  // fsck scan - asks for it explicitly with eos.schedclass; everything else,
+  // including a client that types the key, is scheduled as client traffic.
+  const eos::common::SchedActivity sched_activity = Scheduler::SchedActivityFromRequest(
+      openOpaque->Get(eos::common::kSchedClassKey.data()), vid);
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
   std::vector<uint32_t> excludefs_access(excludefs.begin(), excludefs.end());
@@ -2299,7 +2304,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                        open_flags & O_TRUNC, vid)
         .setFsParams(&selectedfs, &excludefs, &selectedfs)
         .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                       openOpaque->Get("eos.schedulingstrategy"));
+                       openOpaque->Get("eos.schedulingstrategy"))
+        .setSchedActivity(sched_activity);
 
     if (!plctargs.isValid()) {
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
@@ -2367,6 +2373,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     acsargs.unavailfs = &unavailfs;
     acsargs.vid = &vid;
     acsargs.exclude_filesystems = &excludefs_access;
+    acsargs.activity = sched_activity;
 
     if (!acsargs.isValid()) {
       // there is something wrong in the arguments of file access
@@ -2403,12 +2410,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         Scheduler::PlacementArguments plctargs;
         {
           using namespace eos::mgm::scheduler;
-          plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
-                                 Lid(layoutId), (ino64_t)fmd->getId(),
-                                 BookingSize(bookingsize), open_flags & O_TRUNC, vid)
-          .setFsParams(&excludefs, &excludefs, &selectedfs)
-          .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                         openOpaque->Get("eos.schedulingstrategy"));
+          plctargs
+              .setFileParams(space, Path(path), GroupTag(containertag.c_str()),
+                             Lid(layoutId), (ino64_t)fmd->getId(),
+                             BookingSize(bookingsize), open_flags & O_TRUNC, vid)
+              .setFsParams(&excludefs, &excludefs, &selectedfs)
+              .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                             openOpaque->Get("eos.schedulingstrategy"))
+              .setSchedActivity(sched_activity);
 
           if (!plctargs.isValid()) {
             return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
@@ -2977,12 +2986,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       Scheduler::PlacementArguments plctargs;
       {
         using namespace eos::mgm::scheduler;
-        plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
-                               Lid(plain_lid), (ino64_t)fmd->getId(),
-                               BookingSize(plain_book_sz), false, rootvid)
-        .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
-        .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                       openOpaque->Get("eos.schedulingstrategy"));
+        plctargs
+            .setFileParams(space, Path(path), GroupTag(containertag.c_str()),
+                           Lid(plain_lid), (ino64_t)fmd->getId(),
+                           BookingSize(plain_book_sz), false, rootvid)
+            .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
+            .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                           openOpaque->Get("eos.schedulingstrategy"))
+            .setSchedActivity(sched_activity);
 
         if (!plctargs.isValid()) {
           return Emsg(epname, error, EIO, "open - invalid placement argument", path);

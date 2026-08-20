@@ -54,10 +54,6 @@ public:
   enum tPlctPolicy
   { kScattered, kHybrid, kGathered };
 
-  //! Types of scheduling
-  enum tSchedType
-  { regular, draining };
-
   //----------------------------------------------------------------------------
   //! File placement structs and methods
   //----------------------------------------------------------------------------
@@ -83,8 +79,9 @@ public:
     int forced_scheduling_group_index;
     //! size to book for the placement
     unsigned long long bookingsize;
-    //! indicate if this is a request for regular, draining or balancing placement
-    tSchedType schedtype;
+    //! traffic class this placement belongs to - client traffic unless an
+    //! internal engine (drain, balance, conversion, fsck) asked for it
+    eos::common::SchedActivity activity;
     //! scheduling strategy to be used (if not set, use space default)
     //! scheduling strategy if set from opaque string
     const char* sched_strategy_cstr;
@@ -112,7 +109,7 @@ public:
         , truncate(false)
         , forced_scheduling_group_index(-1)
         , bookingsize(1024 * 1024 * 1024ll)
-        , schedtype(regular)
+        , activity(eos::common::SchedActivity::kClient)
         , sched_strategy_cstr(nullptr)
         , vid(0)
         , alreadyused_filesystems(0)
@@ -188,6 +185,13 @@ public:
       sched_strategy_cstr = p_sched_strategy_cstr;
       return *this;
     }
+
+    PlacementArguments&
+    setSchedActivity(eos::common::SchedActivity p_activity)
+    {
+      activity = p_activity;
+      return *this;
+    }
   };
 
   //----------------------------------------------------------------------------
@@ -201,6 +205,24 @@ public:
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static int Placement(PlacementArguments* args);
+
+  //----------------------------------------------------------------------------
+  //! Resolve the traffic class of a request from the eos.schedclass opaque
+  //! value it carries. The key is only honoured on a trusted identity - an
+  //! sss-authenticated connection mapped to the daemon account, which is what
+  //! every internal engine already uses - so a client cannot buy itself
+  //! internal scheduling by simply typing the key. Absent, unrecognised or
+  //! untrusted all resolve to client traffic; there is no way to *ask* for
+  //! client class because it is the default.
+  //!
+  //! @param schedclass value of the eos.schedclass key, nullptr if absent
+  //! @param vid virtual identity of the requester
+  //!
+  //! @return traffic class to schedule this request under
+  //----------------------------------------------------------------------------
+  static eos::common::SchedActivity
+  SchedActivityFromRequest(const char* schedclass,
+                           const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Schedule file placement using the given flat scheduler. This is the
@@ -247,8 +269,9 @@ public:
     bool isRW;
     //! size to book additionally for rd/wr access
     unsigned long long bookingsize;
-    //! indicate if this is a request for regular, draining or balancing access
-    tSchedType schedtype;
+    //! traffic class this access belongs to - client traffic unless an
+    //! internal engine (drain, balance, conversion, fsck) asked for it
+    eos::common::SchedActivity activity;
     //! virtual identity of the client
     const eos::common::VirtualIdentity* vid;
     //!filesystem ids where layout is stored
@@ -272,7 +295,7 @@ public:
         , inode(0)
         , isRW(false)
         , bookingsize(0)
-        , schedtype(regular)
+        , activity(eos::common::SchedActivity::kClient)
         , vid(nullptr)
         , locationsfs(nullptr)
         , fsindex(nullptr)

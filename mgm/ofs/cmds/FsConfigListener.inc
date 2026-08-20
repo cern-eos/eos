@@ -176,9 +176,13 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
   std::shared_ptr<eos::mq::FsChangeListener> fs_listener =
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
-  const std::set<std::string> interests{"stat.errc",          "stat.geotag",
-                                        "configstatus",       "stat.boot",
-                                        "stat.statfs.filled", "stat.statfs.freebytes"};
+  const std::set<std::string> interests{"stat.errc",
+                                        "stat.geotag",
+                                        "configstatus",
+                                        "stat.boot",
+                                        eos::common::FS_SCHED_OPS_NAME,
+                                        "stat.statfs.filled",
+                                        "stat.statfs.freebytes"};
 
   // Register all the interests for this listener so that new file systems
   // are properly registered with this listener based on it's interests
@@ -254,7 +258,10 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             }
 
             if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
-              bool status = gOFS->mFsScheduler->SetDiskStatus(space, fsid, cfgstatus);
+              // Re-resolve rather than translating cfgstatus: sched.ops is
+              // the authoritative key and configstatus is only its projection
+              bool status =
+                  gOFS->mFsScheduler->SetDiskOps(space, fsid, fs->GetSchedOps());
               bool act_status = gOFS->mFsScheduler->SetDiskStatus(
                   space, fsid, fs->GetActiveStatus(), bstatus);
 
@@ -272,9 +279,8 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
 
             if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
-              bool status =
-                  gOFS->mFsScheduler->SetDiskStatus(fs->getCoreParams().getSpace(), fsid,
-                                                    eos::common::ConfigStatus::kDrain);
+              bool status = gOFS->mFsScheduler->SetDiskOps(fs->getCoreParams().getSpace(),
+                                                           fsid, fs->GetSchedOps());
 
               if (!status) {
                 eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",

@@ -75,9 +75,7 @@ ToString(const Disk& disk)
 {
   std::stringstream ss;
   ss << "id: " << disk.id << "\n"
-     << "ConfigStatus: "
-     << common::FileSystem::GetConfigStatusAsString(
-            disk.config_status.load(std::memory_order_relaxed))
+     << "SchedOps: " << common::FormatSchedMask(disk.ops.load(std::memory_order_relaxed))
      << "\n"
      << "ActiveStatus: "
      << common::FileSystem::GetActiveStatusAsString(
@@ -135,7 +133,7 @@ GetDisksAsString(const ClusterData& data)
 
   table.SetHeader({
       std::make_tuple("fsid", 9, "l"),
-      std::make_tuple("config", 15, "s"),
+      std::make_tuple("sched", 24, "s"),
       std::make_tuple("active", 15, "s"),
       std::make_tuple("weight", 10, "l"),
       std::make_tuple("used%", 8, "l"),
@@ -145,28 +143,24 @@ GetDisksAsString(const ClusterData& data)
   });
 
   for (const auto& d : data.disks) {
-    auto cs = d.config_status.load(std::memory_order_relaxed);
+    auto ops = d.ops.load(std::memory_order_relaxed);
     auto as = d.active_status.load(std::memory_order_relaxed);
     uint8_t pct = d.percent_used.load(std::memory_order_relaxed);
 
-    std::string configStr = common::FileSystem::GetConfigStatusAsString(cs);
+    std::string configStr = common::FormatSchedMask(ops);
     std::string activeStr = common::FileSystem::GetActiveStatusAsString(as);
 
+    // Green when clients can still write, yellow when they can only read, red
+    // once no client traffic is served at all
     TableFormatterColor configColor = NONE;
-    switch (cs) {
-    case ConfigStatus::kRW:
+
+    if (common::AllowsOp(ops, kClientCreate) ||
+        common::AllowsOp(ops, SchedOp{SchedActivity::kClient, SchedDirection::kUpdate})) {
       configColor = BGREEN;
-      break;
-    case ConfigStatus::kRO:
+    } else if (common::AllowsOp(ops, kClientRead)) {
       configColor = BYELLOW;
-      break;
-    case ConfigStatus::kDrain:
-    case ConfigStatus::kDrainDead:
-    case ConfigStatus::kOff:
+    } else {
       configColor = BRED;
-      break;
-    default:
-      break;
     }
 
     TableFormatterColor activeColor = NONE;

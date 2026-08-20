@@ -24,12 +24,13 @@
 #ifndef __EOSCOMMON_FILESYSTEM_HH__
 #define __EOSCOMMON_FILESYSTEM_HH__
 
-#include "common/Namespace.hh"
+#include "common/FsOps.hh"
 #include "common/Locators.hh"
+#include "common/Namespace.hh"
 #include "common/table_formatter/TableCell.hh"
 #include "mq/SharedHashWrapper.hh"
-#include <string>
 #include <stdint.h>
+#include <string>
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -100,6 +101,15 @@ enum class ConfigStatus : int8_t {
   kRO,
   kWO,
   kRW
+};
+
+//! Lifecycle of a filesystem, orthogonal to the operations it will accept.
+//! This is what gates removal and booting; what the scheduler may send it is
+//! the FsOpMask under FS_SCHED_OPS_NAME.
+enum class FsLifecycle : int8_t {
+  kActive = 0, //!< in service
+  kEmpty,      //!< holds no files, may be removed or moved
+  kOff         //!< administratively disabled
 };
 
 inline bool operator<(ConfigStatus one, ConfigStatus two)
@@ -426,7 +436,12 @@ public:
     int mGroupIndex;
     std::string mSpace;
     BootStatus mStatus;
+    //! Legacy configuration status, derived from mSchedOps and mLifecycle
     ConfigStatus mConfigStatus;
+    //! Operations this filesystem accepts - authoritative for scheduling
+    FsOpMask mSchedOps;
+    FsLifecycle mLifecycle;
+    bool mDrainRequested;
     DrainStatus mDrainStatus;
     ActiveStatus mActiveStatus;
     long long mHeadRoom;
@@ -521,6 +536,7 @@ public:
   static const char* GetStatusAsString(BootStatus status);
   static const char* GetDrainStatusAsString(DrainStatus status);
   static const char* GetConfigStatusAsString(ConfigStatus status);
+  static const char* GetLifecycleAsString(FsLifecycle lifecycle);
   static const char* GetActiveStatusAsString(ActiveStatus status);
 
   //----------------------------------------------------------------------------
@@ -537,6 +553,27 @@ public:
   //! Parse a configuration status into the enum value
   //----------------------------------------------------------------------------
   static ConfigStatus GetConfigStatusFromString(const char*  ss);
+
+  //----------------------------------------------------------------------------
+  //! Parse a lifecycle value, defaulting to kActive for anything unrecognised
+  //----------------------------------------------------------------------------
+  static FsLifecycle GetLifecycleFromString(const char* ss);
+
+  //----------------------------------------------------------------------------
+  //! Resolve the set of operations a filesystem accepts out of its stored
+  //! values. Prefers FS_SCHED_OPS_NAME; when that key is absent - which is
+  //! every filesystem until something writes it - it falls back to translating
+  //! the legacy configstatus, so an upgraded instance behaves identically with
+  //! no migration write. A legacy value with no successor resolves to "no
+  //! operations", fencing the filesystem off rather than guessing.
+  //!
+  //! @param sched_ops raw value of FS_SCHED_OPS_NAME, empty if unset
+  //! @param configstatus raw value of the legacy configstatus key
+  //!
+  //! @return the resolved permission mask
+  //----------------------------------------------------------------------------
+  static FsOpMask ResolveSchedOps(const std::string& sched_ops,
+                                  const std::string& configstatus);
 
   //----------------------------------------------------------------------------
   //! Convert input to file system id
@@ -569,6 +606,7 @@ public:
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
   XrdSysMutex cStatusLock; ///< lock protecting the cached status
   std::atomic<ConfigStatus> cConfigStatus; ///< cached value of the config status
+  std::atomic<FsOpMask> cSchedOps;         ///< cached value of the scheduling operations
   XrdSysMutex cConfigLock; ///< lock protecting the cached config status
   time_t cConfigTime; ///< unix time stamp of last update of the cached config status
 
@@ -741,6 +779,22 @@ public:
   //! Return the configuration status (via cache)
   //----------------------------------------------------------------------------
   ConfigStatus GetConfigStatus(bool cached = false);
+
+  //----------------------------------------------------------------------------
+  //! Return the set of operations this filesystem accepts (via cache). This is
+  //! the authoritative input to every scheduling decision.
+  //----------------------------------------------------------------------------
+  FsOpMask GetSchedOps(bool cached = false);
+
+  //----------------------------------------------------------------------------
+  //! Return the lifecycle of this filesystem
+  //----------------------------------------------------------------------------
+  FsLifecycle GetLifecycle();
+
+  //----------------------------------------------------------------------------
+  //! Check whether draining of this filesystem is requested
+  //----------------------------------------------------------------------------
+  bool IsDrainRequested();
 
   //----------------------------------------------------------------------------
   //! Retrieve FileSystem's core parameters

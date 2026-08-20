@@ -60,7 +60,7 @@ MakeFs(eos::mgm::placement::fsid_t fsid, unsigned int group_index,
   desc.capacity = 1ULL << 40;
   desc.free_bytes = 100 * kFreeSpaceUnit;
   desc.percent_used = 0;
-  desc.config_status = eos::mgm::placement::ConfigStatus::kRW;
+  desc.ops = eos::mgm::placement::kMaskAll;
   desc.active_status = eos::mgm::placement::ActiveStatus::kOnline;
   return desc;
 }
@@ -346,9 +346,8 @@ TEST_F(SchedulerBridgeF, AccessForWriteSkipsNonWritable)
   // replicas, an update is not. An update to a replica-2 file also needs both
   // replicas writable - GetOnlineStripeNumber - so exactly two disks may be
   // taken away.
-  ASSERT_TRUE(mFsSched->SetDiskStatus(mSpace, 1, eos::mgm::placement::ConfigStatus::kRO));
-  ASSERT_TRUE(
-      mFsSched->SetDiskStatus(mSpace, 2, eos::mgm::placement::ConfigStatus::kDrain));
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 1, eos::mgm::placement::kOpsReadOnly));
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 2, eos::mgm::placement::kOpsReadOnly));
 
   auto args = MakeAccessArgs();
   args.isRW = true;
@@ -357,7 +356,7 @@ TEST_F(SchedulerBridgeF, AccessForWriteSkipsNonWritable)
 
   // Taking a third disk away leaves fewer writable replicas than the update
   // needs, better to fail here than at the FST
-  ASSERT_TRUE(mFsSched->SetDiskStatus(mSpace, 3, eos::mgm::placement::ConfigStatus::kRO));
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 3, eos::mgm::placement::kOpsReadOnly));
   mFsIndex = 99;
   auto down_args = MakeAccessArgs();
   down_args.isRW = true;
@@ -504,6 +503,115 @@ TEST(SchedulerBridge, ReshuffleFs)
   Scheduler::ReshuffleFs(even);
   EXPECT_EQ(even.front(), 6u);
   ASSERT_EQ(even.size(), 3u);
+}
+
+//------------------------------------------------------------------------------
+// Resolving the traffic class of a request from eos.schedclass. The key is a
+// scheduling privilege, so the interesting cases are the ones where it must
+// *not* be granted.
+//------------------------------------------------------------------------------
+//! A trusted internal engine: sss-authenticated and mapped to the daemon uid
+eos::common::VirtualIdentity
+MakeDaemonVid()
+{
+  eos::common::VirtualIdentity vid;
+  vid.prot = "sss";
+  vid.uid = DAEMONUID;
+  return vid;
+}
+
+TEST(SchedulerBridge, SchedClassInternalOnTrustedIdentity)
+{
+  const auto vid = MakeDaemonVid();
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("internal", vid),
+            eos::common::SchedActivity::kInternal);
+}
+
+TEST(SchedulerBridge, SchedClassAbsentOrUnrecognisedIsClient)
+{
+  const auto vid = MakeDaemonVid();
+  // Absent - by far the common case, every plain client open
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest(nullptr, vid),
+            eos::common::SchedActivity::kClient);
+  // There is no way to *ask* for client class, it is what anything else means
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("client", vid),
+            eos::common::SchedActivity::kClient);
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("", vid),
+            eos::common::SchedActivity::kClient);
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("Internal", vid),
+            eos::common::SchedActivity::kClient);
+}
+
+TEST(SchedulerBridge, SchedClassIgnoredOnUntrustedIdentity)
+{
+  // A client that simply types the key gets no privilege out of it
+  eos::common::VirtualIdentity user;
+  user.prot = "krb5";
+  user.uid = 12345;
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("internal", user),
+            eos::common::SchedActivity::kClient);
+  // Right protocol, wrong account
+  eos::common::VirtualIdentity sss_user;
+  sss_user.prot = "sss";
+  sss_user.uid = 12345;
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("internal", sss_user),
+            eos::common::SchedActivity::kClient);
+  // Right account, wrong protocol
+  eos::common::VirtualIdentity unix_daemon;
+  unix_daemon.prot = "unix";
+  unix_daemon.uid = DAEMONUID;
+  EXPECT_EQ(Scheduler::SchedActivityFromRequest("internal", unix_daemon),
+            eos::common::SchedActivity::kClient);
+}
+
+//------------------------------------------------------------------------------
+// The label reaching the engine: a file system that takes no client traffic is
+// still a valid target for an internal request. This is the headline case of
+// the whole permission model, driven end to end through the bridge.
+//------------------------------------------------------------------------------
+TEST_F(SchedulerBridgeF, InternalPlacementUsesAClientFencedFilesystem)
+{
+  // Fence off group 1 entirely, and leave only fsid 4 of group 0 open to
+  // internal traffic - a client placement of two replicas then has nowhere to
+  // go, while an internal one can still fill group 0
+  for (unsigned int fsid = 5; fsid <= 8; ++fsid) {
+    ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, fsid, eos::mgm::placement::kMaskNone));
+  }
+
+  const eos::common::FsOpMask internal_only =
+      eos::common::MaskOfActivity(eos::common::SchedActivity::kInternal);
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 3, internal_only));
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 4, internal_only));
+  ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, 2, eos::mgm::placement::kMaskNone));
+  // Client traffic sees a single usable disk, not enough for two replicas
+  auto client_args = MakePlctArgs();
+  EXPECT_NE(Scheduler::FlatSchedulerPlacement(&client_args, *mFsSched), 0);
+  mSelected.clear();
+  // The same request labelled internal is served by the fenced-off disks
+  auto internal_args = MakePlctArgs();
+  internal_args.setSchedActivity(eos::common::SchedActivity::kInternal);
+  ASSERT_EQ(Scheduler::FlatSchedulerPlacement(&internal_args, *mFsSched), 0);
+  ASSERT_EQ(mSelected.size(), 2u);
+  ExpectSelectedWithin({1, 3, 4});
+}
+
+TEST_F(SchedulerBridgeF, InternalAccessReadsAClientFencedFilesystem)
+{
+  const eos::common::FsOpMask internal_only =
+      eos::common::MaskOfActivity(eos::common::SchedActivity::kInternal);
+
+  // Every replica of the file lives on a disk closed to client traffic
+  for (const auto fsid : mLocations) {
+    ASSERT_TRUE(mFsSched->SetDiskOps(mSpace, fsid, internal_only));
+  }
+
+  auto client_args = MakeAccessArgs();
+  EXPECT_NE(Scheduler::FlatSchedulerAccess(&client_args, *mFsSched), 0);
+  mUnavail.clear();
+  auto internal_args = MakeAccessArgs();
+  internal_args.activity = eos::common::SchedActivity::kInternal;
+  EXPECT_EQ(Scheduler::FlatSchedulerAccess(&internal_args, *mFsSched), 0);
+  EXPECT_LT(mFsIndex, mLocations.size());
 }
 
 } // anonymous namespace

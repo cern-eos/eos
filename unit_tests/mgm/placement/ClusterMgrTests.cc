@@ -41,7 +41,7 @@ TEST(ClusterMgr, liveSettersOnUncommittedSnapshot)
   ClusterMgr mgr;
   ASSERT_FALSE(mgr.GetClusterData());
 
-  EXPECT_FALSE(mgr.SetDiskStatus(1, ConfigStatus::kRW));
+  EXPECT_FALSE(mgr.SetDiskOps(1, kMaskAll));
   EXPECT_FALSE(mgr.SetDiskStatus(1, ActiveStatus::kOnline));
   EXPECT_FALSE(mgr.SetDiskWeight(1, 100));
   EXPECT_FALSE(mgr.SetDiskPercentUsed(1, 50));
@@ -89,8 +89,8 @@ TEST(ClusterMgr, SnapshotBuilderCommitAbandon)
     auto sh = mgr.GetSnapshotBuilder();
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -10, 0));
-    ASSERT_TRUE(sh.AddDiskSequential(
-        Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 100), -10));
+    ASSERT_TRUE(
+        sh.AddDiskSequential(Disk(1, kMaskAll, ActiveStatus::kOnline, 1, 0, 100), -10));
   }
   ASSERT_TRUE(mgr.GetClusterData());
   const ClusterData* seeded = mgr.GetClusterData().operator->();
@@ -120,8 +120,8 @@ TEST(ClusterMgr, SnapshotBuilderCommitAbandon)
   const ClusterData* committed = nullptr;
   {
     auto sh = mgr.GetSnapshotBuilderWithData();
-    ASSERT_TRUE(sh.AddDiskSequential(
-        Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 5), -10));
+    ASSERT_TRUE(
+        sh.AddDiskSequential(Disk(2, kMaskAll, ActiveStatus::kOnline, 1, 0, 5), -10));
     sh.Commit();
     committed = mgr.GetClusterData().operator->();
   }
@@ -140,8 +140,8 @@ TEST(ClusterMgr, WritableFreeGiBCache)
     auto sh = mgr.GetSnapshotBuilder();
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -10, 0));
-    ASSERT_TRUE(sh.AddDiskSequential(
-        Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 100), -10));
+    ASSERT_TRUE(
+        sh.AddDiskSequential(Disk(1, kMaskAll, ActiveStatus::kOnline, 1, 0, 100), -10));
   }
   // an epoch bump (the commit above) invalidates whatever was cached
   EXPECT_EQ(mgr.GetWritableFreeGiB(1h), 100u);
@@ -156,8 +156,8 @@ TEST(ClusterMgr, WritableFreeGiBCache)
   // and a topology change makes the next long-TTL call recompute immediately
   {
     auto sh = mgr.GetSnapshotBuilderWithData();
-    ASSERT_TRUE(sh.AddDiskSequential(
-        Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 25), -10));
+    ASSERT_TRUE(
+        sh.AddDiskSequential(Disk(2, kMaskAll, ActiveStatus::kOnline, 1, 0, 25), -10));
   }
   EXPECT_EQ(mgr.GetWritableFreeGiB(1h), 75u);
 }
@@ -377,8 +377,7 @@ TEST(ClusterMgr, ReAddingExistingBucketKeepsOneEntryInItsParent)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, kSite));
 
     for (int i = 1; i <= 3; ++i) {
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+      ASSERT_TRUE(sh.AddDisk(Disk(i, kMaskAll, ActiveStatus::kOnline, 1), kGroup));
     }
   }
 
@@ -395,8 +394,7 @@ TEST(ClusterMgr, ReAddingExistingBucketKeepsOneEntryInItsParent)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, kSite));
 
     for (int i = 1; i <= 3; ++i) {
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+      ASSERT_TRUE(sh.AddDisk(Disk(i, kMaskAll, ActiveStatus::kOnline, 1), kGroup));
     }
   }
 
@@ -429,15 +427,14 @@ TEST(ClusterMgr, ReAddingExistingDiskKeepsOneEntryInItsBucket)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), kGroup, 0));
 
     for (int i = 1; i <= 3; ++i) {
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+      ASSERT_TRUE(sh.AddDisk(Disk(i, kMaskAll, ActiveStatus::kOnline, 1), kGroup));
     }
   }
 
   // Re-register a disk the group already lists
   {
     auto sh = mgr.GetSnapshotBuilderWithData();
-    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), kGroup));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), kGroup));
   }
 
   auto again = mgr.GetClusterData();
@@ -467,7 +464,7 @@ TEST(ClusterMgr, BM_Layout)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              -100 - i / n_disks_per_group));
     }
 
@@ -505,7 +502,7 @@ TEST(ClusterMgr, GeoBucketsAreSharedAndAddressable)
 
     auto rack = sh.GetOrAddGeoBucket(site, "rack", GetBucketType(BucketType::RACK));
     ASSERT_LT(rack, 0);
-    ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), rack));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), rack));
 
     // A geotag atom is never empty and a positive id is never a parent
     EXPECT_EQ(sh.GetOrAddGeoBucket(-100, "", GetBucketType(BucketType::SITE)), 0);

@@ -43,7 +43,7 @@ MakeFs(eos::mgm::placement::fsid_t fsid, unsigned int group_index,
   // An empty disk unless a test says otherwise, so that a booking of a
   // realistic size does not fail for reasons the test is not about
   desc.free_bytes = capacity;
-  desc.config_status = ConfigStatus::kRW;
+  desc.ops = kMaskAll;
   desc.active_status = ActiveStatus::kOnline;
   return desc;
 }
@@ -294,19 +294,19 @@ TEST(ClusterBuilder, MixedChildrenAreRefused)
   ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -11, 0));
 
   // A bucket that holds disks takes no sub-bucket ...
-  ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -10));
+  ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -10));
   EXPECT_FALSE(sh.AddBucket(GetBucketType(BucketType::SITE), -20, -10));
   EXPECT_EQ(sh.GetOrAddGeoBucket(-10, "site", GetBucketType(BucketType::SITE)), 0);
   // ... and the refusal leaves the bucket untouched
   EXPECT_EQ(sh.GetBucketTypeOf(-20), -1);
-  ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -10));
+  ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -10));
 
   // ... nor the other way around
   const ItemIdT site_id =
       sh.GetOrAddGeoBucket(-11, "site", GetBucketType(BucketType::SITE));
   ASSERT_LT(site_id, 0);
-  EXPECT_FALSE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -11));
-  ASSERT_TRUE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), site_id));
+  EXPECT_FALSE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -11));
+  ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), site_id));
 
   // The two kinds of sub-bucket do not mix either: only the root holds groups
   EXPECT_FALSE(sh.AddBucket(GetBucketType(BucketType::GROUP), -21, -11));
@@ -378,7 +378,7 @@ TEST(ClusterBuilder, DirectDiskGroupNeedsNoFlatView)
   auto sh = mgr.GetSnapshotBuilder(64);
   ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
   ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -10, 0));
-  ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -10));
+  ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -10));
   sh.Commit();
   auto cluster_data = mgr.GetClusterData();
   // the group holds its disks directly and already is its own leaf level
@@ -452,7 +452,7 @@ TEST(GeoHierarchyPlacement, ReplicasOfAnUntaggedClientStayInOneGroup)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
 
   for (int i = 0; i < 100; ++i) {
-    PlacementArgs args(3, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(3, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -487,7 +487,7 @@ TEST(GeoHierarchyPlacement, MoreReplicasThanSites)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
 
   for (int i = 0; i < 50; ++i) {
-    PlacementArgs args(4, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(4, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -503,7 +503,7 @@ TEST(GeoHierarchyPlacement, ForcedGroupIndexIsHonoured)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
 
   for (unsigned int forced = 0; forced < 4; ++forced) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.forced_group_index = forced;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -525,7 +525,7 @@ TEST(GeoHierarchyPlacement, ForcedGroupIndexOutOfRange)
   auto cluster_data = mgr.GetClusterData();
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
 
-  PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+  PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
   args.forced_group_index = 99;
   auto result = scheduler.Schedule(cluster_data(), args);
   EXPECT_FALSE(result);
@@ -546,7 +546,7 @@ TEST(GeoHierarchyPlacement, UntaggedClusterBehavesLikeAFlatOne)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
 
   for (int i = 0; i < 50; ++i) {
-    PlacementArgs args(3, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(3, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -575,7 +575,7 @@ SiteOf(const ClusterData& cluster_data,
 static PlacementArgs
 GeoArgs(uint8_t n_replicas, std::string_view geolocation, uint8_t ncollocatedfs)
 {
-  PlacementArgs args(n_replicas, ConfigStatus::kRW, PlacementStrategyT::kGeoScheduler);
+  PlacementArgs args(n_replicas, kClientCreate, PlacementStrategyT::kGeoScheduler);
   args.geolocation = geolocation;
   args.ncollocatedfs = ncollocatedfs;
   return args;
@@ -780,14 +780,14 @@ TEST(FreeSpace, ConversionSaturatesAndRoundsDown)
 
 TEST(FreeSpace, HasRoomForRoundsTheBookingUp)
 {
-  Disk disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 2);
+  Disk disk(1, kMaskAll, ActiveStatus::kOnline, 1, 0, 2);
   // no booking asks nothing of the disk
   EXPECT_TRUE(HasRoomFor(disk, 0));
   EXPECT_TRUE(HasRoomFor(disk, 1));
   EXPECT_TRUE(HasRoomFor(disk, 2 * kFreeSpaceUnit));
   EXPECT_FALSE(HasRoomFor(disk, 2 * kFreeSpaceUnit + 1));
 
-  Disk empty(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 0);
+  Disk empty(2, kMaskAll, ActiveStatus::kOnline, 1, 0, 0);
   EXPECT_TRUE(HasRoomFor(empty, 0));
   EXPECT_FALSE(HasRoomFor(empty, 1));
 }
@@ -898,7 +898,7 @@ TEST(FreeSpace, DeficitSpillsToASiblingWithRoom)
 //------------------------------------------------------------------------------
 TEST(Prebooking, BookSpaceDebitsRoundsUpAndClampsAtZero)
 {
-  Disk disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1, 0, 10);
+  Disk disk(1, kMaskAll, ActiveStatus::kOnline, 1, 0, 10);
   // a zero booking touches nothing
   BookSpace(disk, 0);
   EXPECT_EQ(disk.free_gib.load(), 10u);
@@ -1050,9 +1050,9 @@ TEST(WritableCapacity, CountsOnlyPlacementCandidates)
     fs_list.push_back(fs);
   }
 
-  fs_list[1].config_status = ConfigStatus::kRO;
+  fs_list[1].ops = kOpsReadOnly;
   fs_list[2].active_status = ActiveStatus::kOffline;
-  fs_list[3].config_status = ConfigStatus::kDrain;
+  fs_list[3].ops = kOpsReadOnly;
   ClusterMgr mgr;
   BuildClusterData(mgr, fs_list);
   auto cluster_data = mgr.GetClusterData();
@@ -1377,7 +1377,7 @@ TEST(DisabledBranches, PlacementAvoidsADisabledSite)
   // 3 replicas over 3 sites of which one is disabled: the descent has to
   // double up on the surviving sites rather than fail
   for (int i = 0; i < 100; ++i) {
-    PlacementArgs args(3, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(3, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1399,7 +1399,7 @@ TEST(DisabledBranches, EveryBranchDisabledFailsPlacement)
   cluster_data->ApplyDisabledBranches(
       {{"site0", kDisabledPlct}, {"site1", kDisabledPlct}});
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
-  PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+  PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
   auto result = scheduler.Schedule(cluster_data(), args);
   ASSERT_FALSE(result);
   EXPECT_EQ(result.ret_code, EACCES);
@@ -1507,7 +1507,7 @@ TEST(FlatLeafView, NoGeoTagClientSpreadsOverTheWholeGroup)
   bool same_site_pair = false;
 
   for (int i = 0; i < 8; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1551,7 +1551,7 @@ TEST(FlatLeafView, GeoTaggedClientOnANonGeoStrategyStillUsesTheView)
     // A client that does carry a geotag, and asks for a replica next to it -
     // but over a strategy that is not the geo scheduler, so the preference is
     // not honoured and the descent never reaches the geo levels
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.geolocation = "site0::room0";
     args.ncollocatedfs = 1;
     args.fid = i;
@@ -1599,7 +1599,7 @@ TEST(FlatLeafView, PlctRuleIsHonouredThroughTheView)
   // The interior buckets are never visited - the group is served from its flat
   // view - so it is the disks below the rule that have to refuse it
   for (int i = 0; i < 24; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1631,7 +1631,7 @@ TEST(FlatLeafView, PlctRuleIsHonouredThroughTheView)
   bool room0_seen = false;
 
   for (int i = 0; i < 8; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1681,7 +1681,7 @@ TEST(IncrementalTopology, NewGroupRegistersIntoALiveSnapshot)
 
   // placement reaches the new group, and a forced index resolves to it
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
-  PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+  PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
   args.forced_group_index = 1;
   auto result = scheduler.Schedule(cluster_data(), args);
   ASSERT_TRUE(result) << result.ErrorString();
@@ -1751,7 +1751,7 @@ TEST(EngineCapacity, TopologyLargerThanTheEngineStillPlaces)
     FlatScheduler scheduler(strategy, 8);
 
     for (int i = 0; i < 8; ++i) {
-      PlacementArgs args(2, ConfigStatus::kRW, strategy);
+      PlacementArgs args(2, kClientCreate, strategy);
       args.fid = i;
       auto result = scheduler.Schedule(cluster_data(), args);
       ASSERT_TRUE(result) << "strategy " << static_cast<int>(strategy) << ": "
@@ -1768,7 +1768,7 @@ TEST(EngineCapacity, GrowsWithATopologyThatGainsBuckets)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 8);
   {
     auto cluster_data = mgr.GetClusterData();
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     ASSERT_TRUE(scheduler.Schedule(cluster_data(), args));
   }
 
@@ -1789,7 +1789,7 @@ TEST(EngineCapacity, GrowsWithATopologyThatGainsBuckets)
   ASSERT_GT(cluster_data->buckets.size(), n_buckets_before);
 
   for (int i = 0; i < 8; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1830,7 +1830,7 @@ TEST(IncrementalTopology, RemoveDiskLeavesAHole)
   FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 256);
 
   for (int i = 0; i < 32; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();
@@ -1862,7 +1862,7 @@ TEST(IncrementalTopology, AddFsGrowsTheHierarchy)
   bool seen = false;
 
   for (int i = 0; (i < 64) && !seen; ++i) {
-    PlacementArgs args(2, ConfigStatus::kRW, PlacementStrategyT::kRoundRobin);
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
     args.fid = i;
     auto result = scheduler.Schedule(cluster_data(), args);
     ASSERT_TRUE(result) << result.ErrorString();

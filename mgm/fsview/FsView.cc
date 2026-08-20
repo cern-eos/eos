@@ -2702,8 +2702,8 @@ FsView::ReapplyDrainStatus()
         (cs == eos::common::ConfigStatus::kDrainDead) ||
         (cs == eos::common::ConfigStatus::kGroupDrain)) {
       it->second->SetConfigStatus(cs);
-      gOFS->mFsScheduler->SetDiskStatus(mIdView.lookupSpaceByID(it->first), it->first,
-                                        cs);
+      gOFS->mFsScheduler->SetDiskOps(mIdView.lookupSpaceByID(it->first), it->first,
+                                     it->second->GetSchedOps());
     }
   }
 }

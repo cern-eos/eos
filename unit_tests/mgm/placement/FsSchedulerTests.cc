@@ -37,7 +37,7 @@ struct TestClusterMgrHandler : public eos::mgm::placement::ClusterMgrHandler
     }
 
     for (int i = 0; i < n_groups * n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                  -100 - i / n_disks_per_group);
     }
   }
@@ -236,10 +236,13 @@ TEST(FsScheduler, SpaceStateTracksDiskChanges)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  // One disk offline, one draining, and one full enough to lose its weight
+  // One disk offline, one read-only, one closed to client traffic but still
+  // open to the internal engines, and one full enough to lose its weight
   ASSERT_TRUE(fs_scheduler.SetDiskStatus("default", 1, ActiveStatus::kOffline,
                                          eos::common::BootStatus::kBooted));
-  ASSERT_TRUE(fs_scheduler.SetDiskStatus("default", 2, ConfigStatus::kDrain));
+  ASSERT_TRUE(fs_scheduler.SetDiskOps("default", 2, kOpsReadOnly));
+  ASSERT_TRUE(fs_scheduler.SetDiskOps(
+      "default", 4, eos::common::MaskOfActivity(SchedActivity::kInternal)));
   ASSERT_TRUE(fs_scheduler.SetDiskPercentUsed("default", 3, 100));
   ASSERT_TRUE(fs_scheduler.SetFillLimits("default", 90, 70));
   const auto state = fs_scheduler.GetSpaceState("default");
@@ -247,8 +250,10 @@ TEST(FsScheduler, SpaceStateTracksDiskChanges)
                        "(defaults warn=80% cap=95%)"),
             std::string::npos)
       << state;
+  // A mask with no client bit but some internal bit is what the legacy drain
+  // status projects to, so it lands in the drain column
   EXPECT_NE(state.find("status    : 511 online / 1 offline; "
-                       "511 rw, 0 ro, 1 drain, 0 other"),
+                       "510 rw, 1 ro, 1 drain, 0 other"),
             std::string::npos)
       << state;
   // The full disk took its weight out of the effective total
@@ -298,7 +303,7 @@ struct GeoTestClusterMgrHandler : public eos::mgm::placement::ClusterMgrHandler 
           desc.geotag = "site" + std::to_string(s);
           desc.capacity = 1ULL << 40;
           desc.free_bytes = desc.capacity;
-          desc.config_status = ConfigStatus::kRW;
+          desc.ops = kMaskAll;
           desc.active_status = ActiveStatus::kOnline;
           fs_list.push_back(std::move(desc));
         }
@@ -443,7 +448,7 @@ MakeFsDesc(uint32_t fsid, unsigned int group_index, const std::string& geotag)
   desc.geotag = geotag;
   desc.capacity = 1ULL << 40;
   desc.free_bytes = desc.capacity;
-  desc.config_status = eos::mgm::placement::ConfigStatus::kRW;
+  desc.ops = eos::mgm::placement::kMaskAll;
   desc.active_status = eos::mgm::placement::ActiveStatus::kOnline;
   return desc;
 }
