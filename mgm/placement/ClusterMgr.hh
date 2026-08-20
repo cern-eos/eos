@@ -416,14 +416,14 @@ public:
   ClusterDataPtr GetClusterData();
 
   //----------------------------------------------------------------------------
-  //! Update the configuration status of a disk in place
+  //! Update the operations a disk accepts, in place
   //!
   //! @param disk_id file system identifier
-  //! @param status new configuration status
+  //! @param ops new set of operations
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetDiskStatus(fsid_t disk_id, ConfigStatus status);
+  bool SetDiskOps(fsid_t disk_id, FsOpMask ops);
 
   //----------------------------------------------------------------------------
   //! Update the active status of a disk in place

@@ -114,7 +114,9 @@ Scheduler::FlatSchedulerPlacement(PlacementArguments* args,
   }
 
   uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(args->lid) + 1;
-  placement::PlacementArgs plct_args{n_replicas, placement::ConfigStatus::kRW, strategy};
+  placement::PlacementArgs plct_args{
+      n_replicas, placement::SchedOp{args->activity, placement::SchedDirection::kCreate},
+      strategy};
 
   plct_args.excludefs.assign(args->exclude_filesystems->begin(),
                              args->exclude_filesystems->end());
@@ -335,14 +337,30 @@ Scheduler::GeoTreePlacement(PlacementArguments* args)
   return ENOSPC;
 }
 
-static GeoTreeEngine::SchedType toGeoTreeSchedtype(Scheduler::tSchedType in_type, bool isRW) {
-  GeoTreeEngine::SchedType out_type = GeoTreeEngine::regularRO;
-  if (in_type == Scheduler::tSchedType::regular) {
-    out_type = isRW ? GeoTreeEngine::regularRW : GeoTreeEngine::regularRO;
-  } else if (in_type == Scheduler::tSchedType::draining) {
-    out_type = GeoTreeEngine::draining;
+//------------------------------------------------------------------------------
+// Resolve the traffic class of a request from its eos.schedclass opaque value
+//------------------------------------------------------------------------------
+eos::common::SchedActivity
+Scheduler::SchedActivityFromRequest(const char* schedclass,
+                                    const eos::common::VirtualIdentity& vid)
+{
+  using eos::common::SchedActivity;
+
+  if ((schedclass == nullptr) || (schedclass != eos::common::kSchedClassInternal)) {
+    return SchedActivity::kClient;
   }
-  return out_type;
+
+  // Only an internal engine may label itself internal. They all authenticate
+  // with sss and map to the daemon account, so a client that simply types the
+  // key gets scheduled as the client it is.
+  if ((strcmp(vid.prot.c_str(), "sss") != 0) || (vid.uid > DAEMONUID)) {
+    eos_static_info("msg=\"ignoring %s on an untrusted identity\" prot=\"%s\" "
+                    "uid=%u",
+                    eos::common::kSchedClassKey.data(), vid.prot.c_str(), vid.uid);
+    return SchedActivity::kClient;
+  }
+
+  return SchedActivity::kInternal;
 }
 
 //------------------------------------------------------------------------------
@@ -434,7 +452,10 @@ Scheduler::GeoTreeAccess(AccessArguments* args)
   const size_t req_stripes =
       (args->isRW ? eos::common::LayoutId::GetOnlineStripeNumber(args->lid)
                   : eos::common::LayoutId::GetMinOnlineReplica(args->lid));
-  GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
+  // The legacy engine keeps its own vocabulary; the only two types the access
+  // path has ever produced are the regular ones
+  GeoTreeEngine::SchedType st =
+      args->isRW ? GeoTreeEngine::regularRW : GeoTreeEngine::regularRO;
   return gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(
       req_stripes, *args->fsindex, *args->locationsfs, args->inode, nullptr, nullptr, st,
       args->vid->geolocation, args->forcedfsid, args->unavailfs);
@@ -511,9 +532,10 @@ Scheduler::FlatSchedulerAccess(AccessArguments* args, placement::FsScheduler& fs
       args->vid->geolocation,   args->unavailfs, *args->locationsfs,
       args->exclude_filesystems};
   access_args.forcedfsid = args->forcedfsid;
-  // A read is content with a read-only replica, a write or an update is not
-  access_args.status =
-      args->isRW ? placement::ConfigStatus::kRW : placement::ConfigStatus::kRO;
+  // A read is content with a replica that only serves reads, an update is not
+  access_args.op =
+      placement::SchedOp{args->activity, args->isRW ? placement::SchedDirection::kUpdate
+                                                    : placement::SchedDirection::kRead};
   // The layout decides how many stripes have to be reachable: one for a plain
   // or replica read, the reconstruction minimum for a RAIN layout
   size_t req_stripes =
@@ -552,12 +574,13 @@ Scheduler::PlaceDrainReplica(
     return 0;
   }
 
-  // Flat scheduler first - a drain replica is just a normal kRW placement of a
-  // single stripe pinned to its source group
+  // Flat scheduler first - a drain replica is a placement of a single stripe
+  // pinned to its source group. It is internal traffic, so a destination that
+  // takes no client writes is still a valid target.
   auto strategy = gOFS->mFsScheduler->GetPlacementStrategy(spacename);
 
   if (strategy != placement::PlacementStrategyT::kGeoTreeLegacy) {
-    placement::PlacementArgs args(1, placement::ConfigStatus::kRW, strategy);
+    placement::PlacementArgs args(1, placement::kInternalCreate, strategy);
     args.fid = fid;
     args.bookingsize = bookingsize;
     args.forced_group_index = group->GetIndex();

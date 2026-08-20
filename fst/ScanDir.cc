@@ -25,6 +25,7 @@
 #include "ContainerMd.pb.h"
 #include "LayoutId.hh"
 #include "common/Constants.hh"
+#include "common/FsOps.hh"
 #include "common/StringConversion.hh"
 #include "common/thread_id.hh"
 #include "console/commands/helpers/FsHelper.hh"
@@ -1629,12 +1630,13 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
   // Query MGM for list of stripes to open
   XrdCl::Buffer arg;
   XrdCl::Buffer* resp_raw = nullptr;
-  const std::string opaque = SSTR("/.fxid:" << std::hex << fid << std::dec
-                                  << "?mgm.pcmd=open"
-                                  << "&eos.ruid=" << DAEMONUID
-                                  << "&eos.rgid=" << DAEMONGID
-                                  << "&xrd.wantprot=sss"
-                                  << "&eos.app=eos/fsck_scan");
+  const std::string opaque =
+      SSTR("/.fxid:" << std::hex << fid << std::dec << "?mgm.pcmd=open"
+                     << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
+                     << "&xrd.wantprot=sss"
+                     << "&eos.app=eos/fsck_scan"
+                     << "&" << eos::common::kSchedClassKey << "="
+                     << eos::common::kSchedClassInternal);
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
   const XrdCl::XRootDStatus status =

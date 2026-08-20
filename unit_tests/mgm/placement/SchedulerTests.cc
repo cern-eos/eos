@@ -391,11 +391,11 @@ TEST(FlatScheduler, SingleSite)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(4, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(5, kMaskAll, ActiveStatus::kOnline, 1), -100));
   }
 
   auto data = mgr.GetClusterData();
@@ -428,11 +428,11 @@ TEST(FlatScheduler, TLSingleSite)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(4, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(5, kMaskAll, ActiveStatus::kOnline, 1), -100));
   }
 
   auto data = mgr.GetClusterData();
@@ -465,11 +465,11 @@ TEST(FlatScheduler, TLSingleSiteWeighted)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(4, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(5, kMaskAll, ActiveStatus::kOnline, 1), -100));
   }
 
   auto data = mgr.GetClusterData();
@@ -508,7 +508,7 @@ TEST(FlatScheduler, TLSingleSiteWeighted)
   ASSERT_TRUE(among_replicas);
   const auto& sel_disk = data->disks[selected_fsid - 1];
   ASSERT_EQ(sel_disk.active_status.load(), ActiveStatus::kOnline);
-  ASSERT_GE(sel_disk.config_status.load(), ConfigStatus::kRO);
+  ASSERT_TRUE(sel_disk.AllowsOp(kClientRead));
 }
 
 // Regression for 1.6: a flat bucket with more items than the fixed
@@ -532,8 +532,8 @@ TEST(RoundRobinStrategy, PlacesBeyondAttemptWindowInLargeBucket)
     for (int i = 0; i < n_disks; ++i) {
       // Only the disks at items[0] (fsid 1) and items[128] (fsid 129) are
       // writable, everything else is read-only and cannot take a replica.
-      ConfigStatus cs = (i == 0 || i == 128) ? ConfigStatus::kRW : ConfigStatus::kRO;
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, cs, ActiveStatus::kOnline, 1), -100));
+      FsOpMask ops = (i == 0 || i == 128) ? kMaskAll : kOpsReadOnly;
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ops, ActiveStatus::kOnline, 1), -100));
     }
   }
 
@@ -569,7 +569,7 @@ TEST(FlatScheduler, TLNoSite)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              -100 - i / n_disks_per_group));
     }
 
@@ -608,7 +608,7 @@ TEST(FlatScheduler, TLNoSiteExcludeFsids)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              -100 - i / n_disks_per_group));
     }
 
@@ -680,7 +680,7 @@ TEST(FlatScheduler, ForcedGroup)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              group_ids[i / n_disks_per_group]));
     }
 
@@ -692,7 +692,7 @@ TEST(FlatScheduler, ForcedGroup)
                           PlacementStrategyT::kRandom,
                           PlacementStrategyT::kWeightedRandom,
                           PlacementStrategyT::kWeightedRoundRobin}) {
-      PlacementArgs args{2, ConfigStatus::kRW, strategy};
+      PlacementArgs args{2, kClientCreate, strategy};
       args.forced_group_index = i;
       auto result = flat_scheduler.Schedule(cluster_data(), args);
       EXPECT_TRUE(result);
@@ -733,7 +733,7 @@ TEST(FlatScheduler, ForcedGroupOutofRange)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              group_ids[i / n_disks_per_group]));
     }
 
@@ -744,7 +744,7 @@ TEST(FlatScheduler, ForcedGroupOutofRange)
                        PlacementStrategyT::kRandom,
                        PlacementStrategyT::kWeightedRandom,
                        PlacementStrategyT::kWeightedRoundRobin}) {
-    PlacementArgs args{2, ConfigStatus::kRW, strategy};
+    PlacementArgs args{2, kClientCreate, strategy};
     args.forced_group_index = 4000;
     auto result = flat_scheduler.Schedule(cluster_data(), args);
 
@@ -772,7 +772,7 @@ TEST(FlatScheduler, TLNoSiteUniformWeighted)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              -100 - i / n_disks_per_group));
     }
 
@@ -812,7 +812,7 @@ TEST(FlatScheduler, TLNoSiteUniformWeightedRR)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
                              -100 - i / n_disks_per_group));
     }
 
@@ -857,9 +857,8 @@ TEST(FlatScheduler, TLNoSiteWeighted)
       auto weight = eos::common::pickIndexRR(weights, i);
       disk_wt_map[i+1] = weight;
       disk_wt_count[weight]++;
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, weight),
-                     -100 - i / n_disks_per_group));
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, weight),
+                             -100 - i / n_disks_per_group));
     }
 
   }
@@ -918,9 +917,8 @@ TEST(FlatScheduler, TLNoSiteWeightedRR)
       auto weight = eos::common::pickIndexRR(weights, i);
       disk_wt_map[i+1] = weight;
       disk_wt_count[weight]++;
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, weight),
-                     -100 - i / n_disks_per_group));
+      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, weight),
+                             -100 - i / n_disks_per_group));
     }
 
   }
@@ -974,8 +972,7 @@ MakeSkewedGroup(eos::mgm::placement::ClusterMgr& mgr, const std::vector<uint8_t>
   ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -1, 0));
 
   for (size_t i = 0; i < weights.size(); ++i) {
-    ASSERT_TRUE(sh.AddDisk(
-        Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, weights[i]), -1));
+    ASSERT_TRUE(sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, weights[i]), -1));
   }
 }
 
@@ -1107,11 +1104,11 @@ TEST(ClusterMgr, Concurrency)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.AddDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(4, kMaskAll, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.AddDisk(Disk(5, kMaskAll, ActiveStatus::kOnline, 1), -100));
   }
 
   printProcessMemoryUsage();
@@ -1128,8 +1125,7 @@ TEST(ClusterMgr, Concurrency)
         ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), group_id, -1));
         for (int k = 0; k < 10; k++) {
           ASSERT_TRUE(sh.AddDisk(
-              Disk((i + 1) * 10 + k + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
-              group_id));
+              Disk((i + 1) * 10 + k + 1, kMaskAll, ActiveStatus::kOnline, 1), group_id));
         }
       }
     }
@@ -1266,8 +1262,7 @@ protected:
 
     for (int i = 1; i <= 4; ++i) {
       ASSERT_TRUE(sh.AddDisk(
-          eos::mgm::placement::Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
-          -10));
+          eos::mgm::placement::Disk(i, kMaskAll, ActiveStatus::kOnline, 1), -10));
     }
   }
 
@@ -1422,14 +1417,14 @@ TEST_F(AccessClusterF, AccessForWriteSkipsReadOnlyReplicas)
 
   // Everything but fsid 3 is read-only or draining, which a read is happy with
   // but a write is not
-  ASSERT_TRUE(mMgr.SetDiskStatus(1u, ConfigStatus::kRO));
-  ASSERT_TRUE(mMgr.SetDiskStatus(2u, ConfigStatus::kDrain));
-  ASSERT_TRUE(mMgr.SetDiskStatus(4u, ConfigStatus::kRO));
+  ASSERT_TRUE(mMgr.SetDiskOps(1u, kOpsReadOnly));
+  ASSERT_TRUE(mMgr.SetDiskOps(2u, kOpsReadOnly));
+  ASSERT_TRUE(mMgr.SetDiskOps(4u, kOpsReadOnly));
 
   for (int trial = 0; trial < 20; ++trial) {
     size_t index = 99;
     AccessArgs args(index, PlacementStrategyT::kRoundRobin, mLocations);
-    args.status = ConfigStatus::kRW;
+    args.op = SchedOp{SchedActivity::kClient, SchedDirection::kUpdate};
     ASSERT_EQ(flat_scheduler.Access(data(), args), 0);
     EXPECT_EQ(index, 2u) << "a write must land on the only writable replica";
   }
@@ -1437,7 +1432,7 @@ TEST_F(AccessClusterF, AccessForWriteSkipsReadOnlyReplicas)
   // The same file systems still serve a read
   size_t index = 99;
   AccessArgs ro_args(index, PlacementStrategyT::kRoundRobin, mLocations);
-  ro_args.status = ConfigStatus::kRO;
+  ro_args.op = kClientRead;
   ASSERT_EQ(flat_scheduler.Access(data(), ro_args), 0);
 }
 
@@ -1448,12 +1443,12 @@ TEST_F(AccessClusterF, AccessForWriteFailsWhenNothingIsWritable)
   auto data = mMgr.GetClusterData();
 
   for (eos::mgm::placement::fsid_t id : {1u, 2u, 3u, 4u}) {
-    ASSERT_TRUE(mMgr.SetDiskStatus(id, ConfigStatus::kRO));
+    ASSERT_TRUE(mMgr.SetDiskOps(id, kOpsReadOnly));
   }
 
   size_t index = 99;
   AccessArgs args(index, PlacementStrategyT::kWeightedRandom, mLocations);
-  args.status = ConfigStatus::kRW;
+  args.op = SchedOp{SchedActivity::kClient, SchedDirection::kUpdate};
   // Better to fail here than to send the client to a file system that will
   // refuse the write at the FST; no writable stripe is left, so ENETUNREACH
   EXPECT_EQ(flat_scheduler.Access(data(), args), ENETUNREACH);
@@ -1535,10 +1530,10 @@ TEST_F(AccessClusterF, AccessDefaultsToReadOnly)
   using namespace eos::mgm::placement;
   FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin, 2048);
   auto data = mMgr.GetClusterData();
-  ASSERT_TRUE(mMgr.SetDiskStatus(1u, ConfigStatus::kRO));
-  ASSERT_TRUE(mMgr.SetDiskStatus(2u, ConfigStatus::kRO));
-  ASSERT_TRUE(mMgr.SetDiskStatus(3u, ConfigStatus::kRO));
-  ASSERT_TRUE(mMgr.SetDiskStatus(4u, ConfigStatus::kRO));
+  ASSERT_TRUE(mMgr.SetDiskOps(1u, kOpsReadOnly));
+  ASSERT_TRUE(mMgr.SetDiskOps(2u, kOpsReadOnly));
+  ASSERT_TRUE(mMgr.SetDiskOps(3u, kOpsReadOnly));
+  ASSERT_TRUE(mMgr.SetDiskOps(4u, kOpsReadOnly));
 
   size_t index = 99;
   AccessArgs args(index, PlacementStrategyT::kRoundRobin, mLocations);
@@ -1617,7 +1612,7 @@ TEST(ClusterMgr, SelfParentedBucketIsRejected)
 TEST(EffectiveWeight, DecaysWithFillLevel)
 {
   using namespace eos::mgm::placement;
-  Disk disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 100);
+  Disk disk(1, kMaskAll, ActiveStatus::kOnline, 100);
   const FillLimits limits;
   // Below the warning level the capacity weight is untouched
   disk.percent_used.store(0);
@@ -1647,7 +1642,7 @@ TEST(EffectiveWeight, DecaysWithFillLevel)
 TEST(EffectiveWeight, ZeroCapacityStaysZero)
 {
   using namespace eos::mgm::placement;
-  Disk disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 0);
+  Disk disk(1, kMaskAll, ActiveStatus::kOnline, 0);
   disk.percent_used.store(0);
   EXPECT_EQ(GetEffectiveWeight(disk, FillLimits{}), 0u);
 }
@@ -1655,7 +1650,7 @@ TEST(EffectiveWeight, ZeroCapacityStaysZero)
 TEST(EffectiveWeight, HonoursConfiguredLimits)
 {
   using namespace eos::mgm::placement;
-  Disk disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 100);
+  Disk disk(1, kMaskAll, ActiveStatus::kOnline, 100);
   FillLimits limits;
   limits.cap.store(60);
   limits.warn.store(40);
@@ -1682,7 +1677,7 @@ TEST(FlatScheduler, FullDisksStopAttractingReplicas)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -10, 0));
 
     for (int i = 1; i <= 4; ++i) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 10), -10));
+      ASSERT_TRUE(sh.AddDisk(Disk(i, kMaskAll, ActiveStatus::kOnline, 10), -10));
     }
   }
 
@@ -1715,8 +1710,7 @@ TEST(FlatScheduler, FillLevelSkewsThePlacementDistribution)
     ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -10, 0));
 
     for (int i = 1; i <= 4; ++i) {
-      ASSERT_TRUE(
-          sh.AddDisk(Disk(i, ConfigStatus::kRW, ActiveStatus::kOnline, 100), -10));
+      ASSERT_TRUE(sh.AddDisk(Disk(i, kMaskAll, ActiveStatus::kOnline, 100), -10));
     }
   }
 

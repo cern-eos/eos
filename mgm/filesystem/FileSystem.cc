@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #include "mgm/filesystem/FileSystem.hh"
-#include "mq/MessagingRealm.hh"
-#include "mq/FsChangeListener.hh"
+#include "common/Constants.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mq/FsChangeListener.hh"
+#include "mq/MessagingRealm.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -261,6 +262,13 @@ FileSystem::DoSetConfigStatus(eos::common::ConfigStatus new_status,
   eos::common::FileSystemUpdateBatch batch;
   batch.setStringDurable("configstatus",
                          eos::common::FileSystem::GetConfigStatusAsString(new_status));
+  // The mask is what the scheduler reads, so a legacy status change has to
+  // carry it along in the same batch - otherwise a previously written mask
+  // would keep winning and this change would silently have no effect.
+  const auto ops = eos::common::DeriveMaskFromLegacy(new_status);
+  batch.setStringDurable(
+      eos::common::FS_SCHED_OPS_NAME,
+      eos::common::FormatSchedMask(ops.value_or(eos::common::kMaskNone)));
 
   if (status_comment) {
     // The status and its comment are one logical change, so they go out as one
@@ -270,6 +278,90 @@ FileSystem::DoSetConfigStatus(eos::common::ConfigStatus new_status,
   }
 
   return applyBatch(batch, wait);
+}
+
+//------------------------------------------------------------------------------
+// Set the operations this file system accepts
+//------------------------------------------------------------------------------
+bool
+FileSystem::SetSchedOps(eos::common::FsOpMask ops, const std::string* status_comment,
+                        bool wait)
+{
+  // Only the master owns the configuration
+  if (!ShouldBroadCast()) {
+    return true;
+  }
+
+  eos::common::FileSystemUpdateBatch batch;
+  batch.setStringDurable(eos::common::FS_SCHED_OPS_NAME,
+                         eos::common::FormatSchedMask(ops));
+  // Publish the legacy projection in the same batch. Everything that still
+  // reads configstatus - the FSTs, the geotree engine, the capacity sums and
+  // monitoring - therefore sees a value that is always a function of the mask.
+  const bool is_empty = (GetLifecycle() == eos::common::FsLifecycle::kEmpty);
+  batch.setStringDurable("configstatus",
+                         eos::common::FileSystem::GetConfigStatusAsString(
+                             eos::common::DeriveLegacyConfigStatus(ops, is_empty)));
+
+  if (status_comment) {
+    batch.setStringDurable("statuscomment", *status_comment);
+  }
+
+  return applyBatch(batch, wait);
+}
+
+//------------------------------------------------------------------------------
+// Request or stop draining of this file system
+//------------------------------------------------------------------------------
+bool
+FileSystem::SetDrainRequested(bool requested)
+{
+  // Only the master drains
+  if (!ShouldBroadCast()) {
+    return true;
+  }
+
+  std::string out_msg;
+
+  if (requested) {
+    if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+      eos_static_err("%s", out_msg.c_str());
+      return false;
+    }
+  } else {
+    if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+      eos_static_debug("%s", out_msg.c_str());
+      // Drain already stopped, make sure the drain status is cleared too if
+      // this was a finished drain i.e. drained, failed or expired
+      const eos::common::DrainStatus st = GetDrainStatus();
+
+      if ((st == eos::common::DrainStatus::kDrained) ||
+          (st == eos::common::DrainStatus::kDrainFailed) ||
+          (st == eos::common::DrainStatus::kDrainExpired)) {
+        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+      }
+    }
+  }
+
+  eos::common::FileSystemUpdateBatch batch;
+  batch.setStringDurable(eos::common::FS_DRAIN_REQUESTED_NAME, requested ? "1" : "");
+  return applyBatch(batch, false);
+}
+
+//------------------------------------------------------------------------------
+// Set the lifecycle of this file system
+//------------------------------------------------------------------------------
+bool
+FileSystem::SetLifecycle(eos::common::FsLifecycle lifecycle)
+{
+  if (!ShouldBroadCast()) {
+    return true;
+  }
+
+  eos::common::FileSystemUpdateBatch batch;
+  batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
+                         eos::common::FileSystem::GetLifecycleAsString(lifecycle));
+  return applyBatch(batch, false);
 }
 
 //------------------------------------------------------------------------------

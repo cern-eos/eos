@@ -83,10 +83,10 @@ ClusterMgr::AddClusterData(ClusterData&& data)
 }
 
 //------------------------------------------------------------------------------
-// Update the configuration status of a disk in place
+// Update the operations a disk accepts, in place
 //------------------------------------------------------------------------------
 bool
-ClusterMgr::SetDiskStatus(fsid_t disk_id, ConfigStatus status)
+ClusterMgr::SetDiskOps(fsid_t disk_id, FsOpMask ops)
 {
   eos::common::RCUReadLock rlock(mClusterMgrRcu);
 
@@ -94,7 +94,7 @@ ClusterMgr::SetDiskStatus(fsid_t disk_id, ConfigStatus status)
     return false;
   }
 
-  return mClusterData->SetDiskStatus(disk_id, status);
+  return mClusterData->SetDiskOps(disk_id, ops);
 }
 
 //------------------------------------------------------------------------------

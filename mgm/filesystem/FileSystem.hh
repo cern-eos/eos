@@ -135,6 +135,47 @@ public:
                        const std::string& status_comment, bool wait = true);
 
   //----------------------------------------------------------------------------
+  //! Set the operations this file system accepts. Writes the authoritative
+  //! mask and the legacy configstatus derived from it as one durable batch, so
+  //! the published status can never drift from the mask.
+  //!
+  //! Unlike SetConfigStatus this has no drain side effect - starting or
+  //! stopping a drain is SetDrainRequested.
+  //! @note Must be called with a lock on FsView::ViewMutex
+  //!
+  //! @param ops operations the file system should accept
+  //! @param status_comment comment describing the change, nullptr leaves the
+  //!        currently stored comment untouched
+  //! @param wait if true wait for the update to be acknowledged by QuarkDB
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetSchedOps(eos::common::FsOpMask ops, const std::string* status_comment = nullptr,
+                   bool wait = true);
+
+  //----------------------------------------------------------------------------
+  //! Request or stop draining of this file system. The request is stored in
+  //! its own durable key so that it survives a master failover without having
+  //! to be inferred from a configuration status.
+  //! @note Must be called with a lock on FsView::ViewMutex
+  //!
+  //! @param requested true to start draining, false to stop it
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetDrainRequested(bool requested);
+
+  //----------------------------------------------------------------------------
+  //! Set the lifecycle of this file system
+  //! @note Must be called with a lock on FsView::ViewMutex
+  //!
+  //! @param lifecycle new lifecycle value
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetLifecycle(eos::common::FsLifecycle lifecycle);
+
+  //----------------------------------------------------------------------------
   //! Set a 'key' describing the filesystem
   //! @note Must be called with a lock on FsView::ViewMutex
   //!

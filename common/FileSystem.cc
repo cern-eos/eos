@@ -21,15 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Namespace.hh"
 #include "common/FileSystem.hh"
-#include "common/Logging.hh"
-#include "common/StringUtils.hh"
-#include "common/ParseUtils.hh"
 #include "common/Assert.hh"
 #include "common/Constants.hh"
+#include "common/Logging.hh"
+#include "common/Namespace.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringConversion.hh"
+#include "common/StringUtils.hh"
 #include "mq/MessagingRealm.hh"
 #include <list>
 
@@ -422,6 +421,9 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mPublishTimestamp = 0;
   mStatus = BootStatus::kDown;
   mConfigStatus = ConfigStatus::kOff;
+  mSchedOps = kMaskNone;
+  mLifecycle = FsLifecycle::kActive;
+  mDrainRequested = false;
   mDrainStatus = DrainStatus::kNoDrain;
   mHeadRoom = 0;
   mErrCode = 0;
@@ -488,6 +490,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   mInternalBootStatus = BootStatus::kDown;
   cStatus = BootStatus::kDown;
   cConfigStatus = ConfigStatus::kOff;
+  cSchedOps = kMaskNone;
   cStatusTime = 0;
   cConfigTime = 0;
 
@@ -1203,6 +1206,9 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mPublishTimestamp = (size_t) hash.getLongLong("stat.publishtimestamp");
   fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
   fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  fs.mSchedOps = ResolveSchedOps(hash.get(FS_SCHED_OPS_NAME), hash.get("configstatus"));
+  fs.mLifecycle = GetLifecycleFromString(hash.get(FS_LIFECYCLE_NAME).c_str());
+  fs.mDrainRequested = (hash.get(FS_DRAIN_REQUESTED_NAME) == "1");
   fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
   fs.mActiveStatus = mActStatus.load();
   //headroom can be configured as KMGTP so the string should be properly converted
@@ -1269,6 +1275,108 @@ FileSystem::GetConfigStatus(bool cached)
 
   cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
   return cConfigStatus;
+}
+
+//------------------------------------------------------------------------------
+// Get lifecycle as a string
+//------------------------------------------------------------------------------
+const char*
+FileSystem::GetLifecycleAsString(FsLifecycle lifecycle)
+{
+  switch (lifecycle) {
+  case FsLifecycle::kEmpty:
+    return "empty";
+
+  case FsLifecycle::kOff:
+    return "off";
+
+  default:
+    return "active";
+  }
+}
+
+//------------------------------------------------------------------------------
+// Parse a lifecycle value
+//------------------------------------------------------------------------------
+FsLifecycle
+FileSystem::GetLifecycleFromString(const char* ss)
+{
+  if (ss) {
+    if (!strcmp(ss, "empty")) {
+      return FsLifecycle::kEmpty;
+    }
+
+    if (!strcmp(ss, "off")) {
+      return FsLifecycle::kOff;
+    }
+  }
+
+  return FsLifecycle::kActive;
+}
+
+//------------------------------------------------------------------------------
+// Resolve the set of operations a filesystem accepts
+//------------------------------------------------------------------------------
+FsOpMask
+FileSystem::ResolveSchedOps(const std::string& sched_ops, const std::string& configstatus)
+{
+  if (!sched_ops.empty()) {
+    if (auto mask = ParseSchedSpec(sched_ops); mask.has_value()) {
+      return *mask;
+    }
+
+    eos_static_err("msg=\"unparsable scheduling operations, fencing the file "
+                   "system off\" sched_ops=\"%s\"",
+                   sched_ops.c_str());
+    return kMaskNone;
+  }
+
+  // No stored mask: translate the legacy status, so an instance that has not
+  // been reconfigured since the upgrade schedules exactly as it did before.
+  // A status with no successor yields no operations rather than a guess.
+  const auto legacy =
+      DeriveMaskFromLegacy(GetConfigStatusFromString(configstatus.c_str()));
+  return legacy.value_or(kMaskNone);
+}
+
+//----------------------------------------------------------------------------
+// Return the scheduling operations (via cache)
+//----------------------------------------------------------------------------
+FsOpMask
+FileSystem::GetSchedOps(bool cached)
+{
+  XrdSysMutexHelper lock(cConfigLock);
+
+  if (cached) {
+    time_t now = time(NULL);
+
+    if (now - cConfigTime) {
+      cConfigTime = now;
+    } else {
+      return cSchedOps;
+    }
+  }
+
+  cSchedOps = ResolveSchedOps(GetString(FS_SCHED_OPS_NAME), GetString("configstatus"));
+  return cSchedOps;
+}
+
+//----------------------------------------------------------------------------
+// Return the lifecycle of this filesystem
+//----------------------------------------------------------------------------
+FsLifecycle
+FileSystem::GetLifecycle()
+{
+  return GetLifecycleFromString(GetString(FS_LIFECYCLE_NAME).c_str());
+}
+
+//----------------------------------------------------------------------------
+// Check whether draining is requested
+//----------------------------------------------------------------------------
+bool
+FileSystem::IsDrainRequested()
+{
+  return (GetString(FS_DRAIN_REQUESTED_NAME) == "1");
 }
 
 //----------------------------------------------------------------------------

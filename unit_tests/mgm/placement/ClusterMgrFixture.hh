@@ -42,8 +42,8 @@ protected:
 
     // Every group has 10 disks!
     for (int i=0; i < 30; i++) {
-      ASSERT_TRUE(sh.AddDisk(Disk(i + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
-                             -100 - i / 10));
+      ASSERT_TRUE(
+          sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1), -100 - i / 10));
     }
 
   }

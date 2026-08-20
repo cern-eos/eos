@@ -322,7 +322,9 @@ StrategyToStr(PlacementStrategyT strategy)
 struct PlacementArgs {
   ItemIdT bucket_id = 0;   ///< Bucket to start the descent from, 0 is the root
   uint8_t n_replicas;      ///< Number of replicas to place
-  ConfigStatus status = ConfigStatus::kRW; ///< Minimum disk config status
+  //! Operation this placement represents - which class of traffic wants the
+  //! new replica. A disk is a candidate only if it accepts exactly this.
+  SchedOp op = kClientCreate;
   uint64_t fid = 0; ///< File identifier, used by the deterministic strategies
   //! Salt mixed into the deterministic strategies, varied by the caller across
   //! retries so that a repeated request does not reproduce the same answer
@@ -352,14 +354,14 @@ struct PlacementArgs {
   //!
   //! @param _bucket_id bucket to start from, 0 is the root
   //! @param _n_replicas number of replicas to place
-  //! @param _status minimum disk configuration status
+  //! @param _op operation the placement represents
   //! @param _fid file identifier
   //----------------------------------------------------------------------------
-  PlacementArgs(ItemIdT _bucket_id, uint8_t _n_replicas,
-                ConfigStatus _status = ConfigStatus::kRW, uint64_t _fid = 0)
+  PlacementArgs(ItemIdT _bucket_id, uint8_t _n_replicas, SchedOp _op = kClientCreate,
+                uint64_t _fid = 0)
       : bucket_id(_bucket_id)
       , n_replicas(_n_replicas)
-      , status(_status)
+      , op(_op)
       , fid(_fid)
   {
   }
@@ -368,13 +370,13 @@ struct PlacementArgs {
   //! Constructor descending from the root bucket
   //!
   //! @param _n_replicas number of replicas to place
-  //! @param _status minimum disk configuration status
+  //! @param _op operation the placement represents
   //! @param _strategy strategy to use
   //----------------------------------------------------------------------------
-  PlacementArgs(uint8_t _n_replicas, ConfigStatus _status = ConfigStatus::kRW,
+  PlacementArgs(uint8_t _n_replicas, SchedOp _op = kClientCreate,
                 PlacementStrategyT _strategy = PlacementStrategyT::Count)
       : n_replicas(_n_replicas)
-      , status(_status)
+      , op(_op)
       , strategy(_strategy)
   {
   }
@@ -394,11 +396,11 @@ struct AccessArgs {
   const std::vector<uint32_t>* excludefs{nullptr}; ///< Excluded file systems
   //! File system the client must be sent to, 0 if none is forced
   uint32_t forcedfsid{0};
-  //! Minimum configuration status a replica's disk must have to serve this
-  //! request. A read is happy with kRO, a write or an update needs kRW, and
-  //! sending an update to a read-only or draining disk is how a client ends up
-  //! failing at the FST after the MGM told it everything was fine.
-  ConfigStatus status{ConfigStatus::kRO};
+  //! Operation this access represents: which class of traffic, reading or
+  //! updating. A replica's disk has to accept exactly this - sending an update
+  //! to a disk that only serves reads is how a client ends up failing at the
+  //! FST after the MGM told it everything was fine.
+  SchedOp op{kClientRead};
   //! Number of replicas that have to be reachable for the request to be served.
   //! For a plain or replica read this is 1, but a RAIN layout needs the minimum
   //! number of stripes its redundancy can reconstruct from, and the access
@@ -529,7 +531,7 @@ struct SelectionStrategy {
   //! @param disk_id disk to check
   //! @param cluster_data topology snapshot holding the disk
   //! @param excludefs file systems not to consider
-  //! @param status minimum configuration status the disk must have
+  //! @param op operation the disk has to accept
   //! @param bookingsize size the disk must still have room for, 0 to skip the
   //!        check - which is what the access path wants, an existing replica is
   //!        readable however full its disk is
@@ -542,8 +544,7 @@ struct SelectionStrategy {
   //----------------------------------------------------------------------------
   static bool
   ValidDisk(ItemIdT disk_id, const ClusterData& cluster_data,
-            const std::vector<uint32_t>& excludefs, eos::common::ConfigStatus status,
-            uint64_t bookingsize = 0)
+            const std::vector<uint32_t>& excludefs, SchedOp op, uint64_t bookingsize = 0)
   {
     if (disk_id <= 0 || (size_t)disk_id > cluster_data.disks.size()) {
       return false;
@@ -556,10 +557,9 @@ struct SelectionStrategy {
     }
 
     const auto& disk = cluster_data.disks[disk_id - 1];
-    auto disk_config_status = disk.config_status.load(std::memory_order_acquire);
     auto disk_active_status = disk.active_status.load(std::memory_order_acquire);
     return disk_active_status == eos::common::ActiveStatus::kOnline &&
-           disk_config_status >= status && HasRoomFor(disk, bookingsize);
+           disk.AllowsOp(op) && HasRoomFor(disk, bookingsize);
   }
 
   //----------------------------------------------------------------------------
@@ -574,15 +574,15 @@ struct SelectionStrategy {
   //! @param disk_id disk to check
   //! @param cluster_data topology snapshot holding the disk
   //! @param excludefs file systems not to consider
-  //! @param status minimum configuration status the disk must have
+  //! @param op operation the disk has to accept
   //! @param bookingsize size the disk must still have room for, 0 to skip
   //!
   //! @return true if the disk may take a replica, otherwise false
   //----------------------------------------------------------------------------
   static bool
   ValidPlacementDisk(ItemIdT disk_id, const ClusterData& cluster_data,
-                     const std::vector<uint32_t>& excludefs,
-                     eos::common::ConfigStatus status, uint64_t bookingsize = 0)
+                     const std::vector<uint32_t>& excludefs, SchedOp op,
+                     uint64_t bookingsize = 0)
   {
     // No rule configured is the steady state of most installations, and it
     // costs one relaxed load to establish - the parent walk is only ever paid
@@ -592,7 +592,7 @@ struct SelectionStrategy {
       return false;
     }
 
-    return ValidDisk(disk_id, cluster_data, excludefs, status, bookingsize);
+    return ValidDisk(disk_id, cluster_data, excludefs, op, bookingsize);
   }
 
   //----------------------------------------------------------------------------
@@ -634,7 +634,7 @@ struct SelectionStrategy {
     }
 
     // bounds, unavailability, online and config status are all checked here
-    return ValidDisk(fsid, cluster_data, unavailfs, args.status);
+    return ValidDisk(fsid, cluster_data, unavailfs, args.op);
   }
 };
 

@@ -62,7 +62,7 @@ DescribeFs(eos::common::FileSystem& fs, unsigned int group_index)
   desc.free_bytes = GetUsableFreeBytes(fs);
   // filled is supposed to be between 0 & 100
   desc.percent_used = static_cast<uint8_t>(fs.GetDouble("stat.statfs.filled"));
-  desc.config_status = fs.GetConfigStatus();
+  desc.ops = fs.GetSchedOps();
   desc.active_status = GetActiveStatus(fs.GetActiveStatus(), fs.GetStatus());
   return desc;
 }
@@ -500,7 +500,7 @@ FsScheduler::Schedule(const std::string& spaceName, PlacementArgs args)
 PlacementResult
 FsScheduler::Schedule(const std::string& spaceName, uint8_t n_replicas)
 {
-  return Schedule(spaceName, PlacementArgs(n_replicas, ConfigStatus::kRW,
+  return Schedule(spaceName, PlacementArgs(n_replicas, kClientCreate,
                                            GetPlacementStrategy(spaceName)));
 }
 
@@ -537,8 +537,7 @@ FsScheduler::Access(const std::string& spaceName, AccessArgs& args)
 }
 
 bool
-FsScheduler::SetDiskStatus(const std::string& spaceName, fsid_t disk_id,
-                           ConfigStatus status)
+FsScheduler::SetDiskOps(const std::string& spaceName, fsid_t disk_id, FsOpMask ops)
 {
   if (spaceName.empty() || disk_id == 0) {
     return false;
@@ -553,7 +552,7 @@ FsScheduler::SetDiskStatus(const std::string& spaceName, fsid_t disk_id,
     return false;
   }
 
-  return cluster_mgr->SetDiskStatus(disk_id, status);
+  return cluster_mgr->SetDiskOps(disk_id, ops);
 }
 
 bool

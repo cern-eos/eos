@@ -159,9 +159,8 @@ AddFsToCluster(ClusterMgr::SnapshotBuilder& builder, const FsDescription& fs)
     parent_id = bucket_id;
   }
 
-  const Disk disk(fs.fsid, fs.config_status, fs.active_status,
-                  CapacityToWeight(fs.capacity), fs.percent_used,
-                  FreeSpaceToGiB(fs.free_bytes));
+  const Disk disk(fs.fsid, fs.ops, fs.active_status, CapacityToWeight(fs.capacity),
+                  fs.percent_used, FreeSpaceToGiB(fs.free_bytes));
 
   if (!builder.AddDisk(disk, parent_id)) {
     eos_static_crit("msg=\"Failed to add disk\" fsid=%u bucket_id=%d", fs.fsid,

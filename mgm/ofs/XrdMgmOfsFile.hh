@@ -41,6 +41,11 @@
  * "eos.app" - set the application name reported by monitoring
  * "eos.targetsize" - expected size of a file to be uploaded
  * "eos.blockchecksum=ignore" - disable block checksum verification
+ * "eos.schedclass=internal" - schedule this request as internal traffic
+ * (drain, balance, conversion, fsck) rather than client traffic, so that it
+ * may use file systems configured to take no client traffic. Only honoured on
+ * an sss-authenticated connection mapped to the daemon account, otherwise
+ * silently ignored.
  *
  */
 /*----------------------------------------------------------------------------*/

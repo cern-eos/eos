@@ -575,7 +575,7 @@ MarkUnavailableReplicas(const ClusterData& cluster_data, AccessArgs& args)
     // around. Passing the unavailable list as the exclusion set means an
     // already flagged replica reads back as invalid and is not counted twice.
     if ((fsid != 0) && !cluster_data.IsBranchDisabled(fsid, kDisabledAccess) &&
-        SelectionStrategy::ValidDisk(fsid, cluster_data, unavail, args.status)) {
+        SelectionStrategy::ValidDisk(fsid, cluster_data, unavail, args.op)) {
       ++n_available;
     } else if ((fsid != 0) && args.unavailfs &&
                (std::find(args.unavailfs->begin(), args.unavailfs->end(), fsid) ==

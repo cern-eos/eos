@@ -42,6 +42,26 @@ using ItemIdT = int32_t;
 using EpochIdT = uint64_t; //!< Version of a topology snapshot
 using ConfigStatus = eos::common::ConfigStatus;
 using ActiveStatus = eos::common::ActiveStatus;
+using FsOpMask = eos::common::FsOpMask;
+using SchedOp = eos::common::SchedOp;
+using SchedActivity = eos::common::SchedActivity;
+using SchedDirection = eos::common::SchedDirection;
+
+//! Placing a new replica for a client, the default a plain placement asks for
+inline constexpr SchedOp kClientCreate{SchedActivity::kClient, SchedDirection::kCreate};
+//! Serving an existing replica to a client, what a plain read asks for
+inline constexpr SchedOp kClientRead{SchedActivity::kClient, SchedDirection::kRead};
+//! Placing a new replica for an internal engine - drain, balance, conversion
+inline constexpr SchedOp kInternalCreate{SchedActivity::kInternal,
+                                         SchedDirection::kCreate};
+//! Reading an existing replica for an internal engine, the drain source pick
+inline constexpr SchedOp kInternalRead{SchedActivity::kInternal, SchedDirection::kRead};
+
+using eos::common::kMaskAll;
+using eos::common::kMaskNone;
+//! A disk that serves reads of both classes but takes no writes
+inline constexpr FsOpMask kOpsReadOnly =
+    eos::common::MaskOfDirection(SchedDirection::kRead);
 
 //------------------------------------------------------------------------------
 //! Fold the boot status into the active status, a file system that is online
@@ -75,8 +95,9 @@ GetActiveStatus(ActiveStatus status, eos::common::BootStatus bstatus)
 //------------------------------------------------------------------------------
 struct Disk {
   fsid_t id; ///< File system identifier
-  //! Configuration status of the file system
-  mutable std::atomic<ConfigStatus> config_status {ConfigStatus::kUnknown};
+  //! Operations this file system accepts, see common/FsOps.hh. Six bits, which
+  //! is why it still fits in the byte the configuration status used to take.
+  mutable std::atomic<FsOpMask> ops{eos::common::kMaskNone};
   //! Active status of the file system
   mutable std::atomic<ActiveStatus> active_status {ActiveStatus::kUndefined};
   //! Relative weight, no floating point precision needed
@@ -113,16 +134,16 @@ struct Disk {
   //! Constructor
   //!
   //! @param _id file system identifier
-  //! @param _config_status configuration status
+  //! @param _ops operations the file system accepts
   //! @param _active_status active status
   //! @param _weight relative weight
   //! @param _percent_used fill level in percent
   //! @param _free_gib free space in GiB
   //----------------------------------------------------------------------------
-  Disk(fsid_t _id, ConfigStatus _config_status, ActiveStatus _active_status,
-       uint8_t _weight, uint8_t _percent_used = 0, uint32_t _free_gib = 0)
+  Disk(fsid_t _id, FsOpMask _ops, ActiveStatus _active_status, uint8_t _weight,
+       uint8_t _percent_used = 0, uint32_t _free_gib = 0)
       : id(_id)
-      , config_status(_config_status)
+      , ops(_ops)
       , active_status(_active_status)
       , weight(_weight)
       , percent_used(_percent_used)
@@ -137,7 +158,7 @@ struct Disk {
   //! @note TODO future: this must only be used at construction time
   //----------------------------------------------------------------------------
   Disk(const Disk& other)
-      : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
+      : Disk(other.id, other.ops.load(std::memory_order_relaxed),
              other.active_status.load(std::memory_order_relaxed),
              other.weight.load(std::memory_order_relaxed),
              other.percent_used.load(std::memory_order_relaxed),
@@ -157,8 +178,7 @@ struct Disk {
   Disk& operator=(const Disk& other)
   {
     id = other.id;
-    config_status.store(other.config_status.load(std::memory_order_relaxed),
-                        std::memory_order_relaxed);
+    ops.store(other.ops.load(std::memory_order_relaxed), std::memory_order_relaxed);
     active_status.store(other.active_status.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
     weight.store(other.weight.load(std::memory_order_relaxed),
@@ -170,6 +190,19 @@ struct Disk {
     booked_gib.store(other.booked_gib.load(std::memory_order_relaxed),
                      std::memory_order_relaxed);
     return *this;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check whether this disk accepts the given operation
+  //!
+  //! @param op operation to test
+  //!
+  //! @return true if the operation is allowed, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  AllowsOp(SchedOp op) const
+  {
+    return eos::common::AllowsOp(ops.load(std::memory_order_acquire), op);
   }
 
   //----------------------------------------------------------------------------
@@ -1152,7 +1185,7 @@ struct ClusterData {
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool
-  SetDiskStatus(fsid_t id, ConfigStatus status)
+  SetDiskOps(fsid_t id, FsOpMask ops)
   {
     const Disk* disk = GetDisk(id);
 
@@ -1160,7 +1193,7 @@ struct ClusterData {
       return false;
     }
 
-    disk->config_status.store(status, std::memory_order_release);
+    disk->ops.store(ops, std::memory_order_release);
     return true;
   }
 
@@ -1280,7 +1313,7 @@ struct ClusterData {
       }
 
       if ((disk.active_status.load(std::memory_order_relaxed) != ActiveStatus::kOnline) ||
-          (disk.config_status.load(std::memory_order_relaxed) < ConfigStatus::kRW)) {
+          !disk.AllowsOp(kClientCreate)) {
         continue;
       }
 
@@ -1326,25 +1359,24 @@ struct ClusterData {
         ++summary.n_offline;
       }
 
-      switch (disk.config_status.load(std::memory_order_relaxed)) {
-      case ConfigStatus::kRW:
-      case ConfigStatus::kWO:
+      // Bucketed the same way the legacy status projection reads the mask, so
+      // the columns keep meaning what they always did
+      const FsOpMask mask = disk.ops.load(std::memory_order_relaxed);
+      const bool client_write =
+          eos::common::AllowsOp(mask, kClientCreate) ||
+          eos::common::AllowsOp(mask,
+                                SchedOp{SchedActivity::kClient, SchedDirection::kUpdate});
+
+      if (client_write) {
         ++summary.n_rw;
-        break;
-
-      case ConfigStatus::kRO:
+      } else if (eos::common::AllowsOp(mask, kClientRead)) {
         ++summary.n_ro;
-        break;
-
-      case ConfigStatus::kDrain:
-      case ConfigStatus::kDrainDead:
-      case ConfigStatus::kGroupDrain:
+      } else if ((mask & eos::common::MaskOfActivity(SchedActivity::kInternal)) != 0) {
+        // No client traffic but internal traffic still flows - what used to be
+        // one of the drain statuses
         ++summary.n_drain;
-        break;
-
-      default:
+      } else {
         ++summary.n_other;
-        break;
       }
 
       summary.capacity_weight += disk.weight.load(std::memory_order_relaxed);
