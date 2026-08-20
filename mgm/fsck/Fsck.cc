@@ -1010,11 +1010,14 @@ Fsck::AccountOfflineReplicas()
 
     eos::common::FileSystem::fsid_t fsid = it->first;
     eos::common::ActiveStatus fsactive = it->second->GetActiveStatus();
-    eos::common::ConfigStatus fsconfig = it->second->GetConfigStatus();
+    eos::common::FsOpMask fsops = it->second->GetSchedOps();
     eos::common::BootStatus fsstatus = it->second->GetStatus();
 
+    // A file system nobody may read from is one whose replicas are, as far as
+    // anyone asking for them is concerned, offline - whichever class of
+    // traffic still has business with it
     if ((fsstatus == eos::common::BootStatus::kBooted) &&
-        (fsconfig >= eos::common::ConfigStatus::kDrain) &&
+        eos::common::AllowsAnyRead(fsops) &&
         (fsactive == eos::common::ActiveStatus::kOnline)) {
       // Healthy, don't need to do anything
       continue;
@@ -1163,10 +1166,11 @@ Fsck::AccountOfflineFiles()
 
         if (fs) {
           eos::common::BootStatus bootstatus = fs->GetStatus(true);
-          eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
           bool conda = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOffline);
           bool condb = (bootstatus != eos::common::BootStatus::kBooted);
-          bool condc = (configstatus == eos::common::ConfigStatus::kDrainDead);
+          // Was an equality test on the retired "draindead", whose whole
+          // meaning was "this replica can no longer be read"
+          bool condc = !eos::common::AllowsAnyRead(fs->GetSchedOps());
 
           if (conda || condb || condc) {
             ++offlinelocations;

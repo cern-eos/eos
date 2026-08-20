@@ -111,8 +111,7 @@ WeightedRoundRobinStrategy::Placement(const ClusterData& cluster_data,
         return result;
       }
 
-      if (!ValidPlacementDisk(item_id, cluster_data, args.excludefs, args.op,
-                              args.bookingsize)) {
+      if (!ValidDisk(item_id, cluster_data, args.excludefs, args.op, args.bookingsize)) {
         continue;
       }
 

@@ -459,9 +459,10 @@ ConversionJob::Merge()
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       FileSystem* fs = FsView::gFsView.mIdView.lookupByID(loc);
 
+      // A conversion is internal traffic, so a file system that takes no
+      // client writes still accepts the converted stripe
       if ((fs == nullptr) ||
-          (fs->GetStatus() != eos::common::BootStatus::kBooted) ||
-          (fs->GetConfigStatus() != eos::common::ConfigStatus::kRW)) {
+          !eos::common::IsSelectableFor(*fs, eos::common::kInternalCreate)) {
         eos_static_err("msg=\"file system config cannot accept conversion\" "
                        "fsid=%u", loc);
         failed_rename = true;

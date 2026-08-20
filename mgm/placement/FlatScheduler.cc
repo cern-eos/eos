@@ -166,11 +166,13 @@ FlatScheduler::PlaceInBucket(const ClusterData& cluster_data, PlacementArgs& arg
 
   const auto& bucket = *bucket_ptr;
 
-  // An administratively disabled branch takes no new replicas. Every route
-  // into a bucket funnels through here - strategy picks, forced starts and
-  // spilled shortfalls alike - and the spill pass re-routes what a disabled
-  // branch refuses to the surviving ones.
-  if (bucket.IsDisabledFor(kDisabledPlct)) {
+  // A branch denied this operation takes no new replicas. Every route into a
+  // bucket funnels through here - strategy picks, forced starts and spilled
+  // shortfalls alike - and the spill pass re-routes what a denied branch
+  // refuses to the surviving ones. Testing the request's own operation is what
+  // lets a rule fence a branch off from client traffic while drain and balance
+  // keep placing through it.
+  if (bucket.DeniesOp(args.op)) {
     SetError(result, EACCES,
              "Bucket " + std::to_string(bucket_id) + " branch is disabled");
     return;
@@ -203,7 +205,7 @@ FlatScheduler::PlaceInBucket(const ClusterData& cluster_data, PlacementArgs& arg
     // one strategy pick over every disk of the group instead of one per geo
     // level. A disabled-branch rule survives the shortcut without the interior
     // buckets being visited, because the disks below it answer for themselves,
-    // see SelectionStrategy::ValidPlacementDisk.
+    // see SelectionStrategy::ValidDisk.
     if ((bucket.flat_view != 0) && ctx.geo_atoms.empty()) {
       PlaceInBucket(cluster_data, args, ctx, bucket.flat_view, n_replicas, atom_index,
                     depth + 1, result);
@@ -224,13 +226,13 @@ FlatScheduler::PlaceInBucket(const ClusterData& cluster_data, PlacementArgs& arg
 }
 
 //------------------------------------------------------------------------------
-// Check whether every disk of a bucket sits below a disabled branch
+// Check whether every disk of a bucket sits below a branch denied the operation
 //------------------------------------------------------------------------------
 static bool
-AllDisksBranchDisabled(const ClusterData& cluster_data, const Bucket& bucket)
+AllDisksBranchDenied(const ClusterData& cluster_data, const Bucket& bucket, SchedOp op)
 {
   for (const auto item_id : bucket.items) {
-    if ((item_id > 0) && !cluster_data.IsBranchDisabled(item_id, kDisabledPlct)) {
+    if ((item_id > 0) && !cluster_data.IsBranchDenied(item_id, op)) {
       return false;
     }
   }
@@ -255,8 +257,8 @@ FlatScheduler::PlaceOnDisks(const ClusterData& cluster_data, PlacementArgs& args
     // here in that state - anywhere else the descent refused the disabled
     // bucket on its way in - and the walk is only ever paid on this failure
     // path, which has already given up on placing anything.
-    if (cluster_data.HasPlctDisabledBranches() &&
-        AllDisksBranchDisabled(cluster_data, cluster_data.buckets[-bucket_id])) {
+    if (cluster_data.HasDeniedBranches() &&
+        AllDisksBranchDenied(cluster_data, cluster_data.buckets[-bucket_id], args.op)) {
       SetError(result, EACCES,
                "Every disk of bucket " + std::to_string(bucket_id) +
                    " sits below a disabled branch");
@@ -341,9 +343,9 @@ FlatScheduler::PlaceAcrossGeoBranches(const ClusterData& cluster_data,
     // child of this very bucket
     home_id = cluster_data.FindGeoChild(bucket_id, ctx.geo_atoms[atom_index]);
 
-    // A disabled home branch is no home at all: the quota flows to the away
+    // A denied home branch is no home at all: the quota flows to the away
     // branches directly instead of bouncing off the descent guard
-    if ((home_id != 0) && cluster_data.buckets[-home_id].IsDisabledFor(kDisabledPlct)) {
+    if ((home_id != 0) && cluster_data.buckets[-home_id].DeniesOp(args.op)) {
       home_id = 0;
     }
 
@@ -569,12 +571,12 @@ MarkUnavailableReplicas(const ClusterData& cluster_data, AccessArgs& args)
 
   for (const auto fsid : args.selectedfs) {
     // A replica that can serve the request stays a candidate. Anything else -
-    // a zero sentinel, an offline or wrongly configured disk, one below an
-    // access disabled branch, or one already flagged - is recorded so the
+    // a zero sentinel, an offline or wrongly configured disk, one below a
+    // branch denied this operation, or one already flagged - is recorded so the
     // caller, and the RAIN driver in particular, knows which stripes to route
     // around. Passing the unavailable list as the exclusion set means an
     // already flagged replica reads back as invalid and is not counted twice.
-    if ((fsid != 0) && !cluster_data.IsBranchDisabled(fsid, kDisabledAccess) &&
+    if ((fsid != 0) &&
         SelectionStrategy::ValidDisk(fsid, cluster_data, unavail, args.op)) {
       ++n_available;
     } else if ((fsid != 0) && args.unavailfs &&

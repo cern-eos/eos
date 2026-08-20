@@ -1678,9 +1678,14 @@ ProcCommand::File()
 
             forcedsubgroup = snapshot.mGroupIndex;
 
-            if ((snapshot.mConfigStatus > eos::common::ConfigStatus::kDrain) &&
+            // An accessible replica, i.e. one this copy can actually read
+            // from. Deliberately the client read: an operator moving data on
+            // demand is not one of the background engines. The active status
+            // is left out of it on purpose - an overloaded FST still serves a
+            // read, and counting it as down here would trigger a repair the
+            // file does not need.
+            if (eos::common::AllowsOp(snapshot.mSchedOps, eos::common::kClientRead) &&
                 (snapshot.mStatus == eos::common::BootStatus::kBooted)) {
-              // This is an accessible replica
               ++nrep_online;
               src_fs.insert(src_fs.begin(), *loc_it);
             } else {

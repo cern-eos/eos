@@ -881,6 +881,47 @@ private:
   std::atomic<ActiveStatus> mActStatus; ///< File system active status
 };
 
+//------------------------------------------------------------------------------
+//! Check whether a file system may be selected for one scheduling operation:
+//! it accepts the operation, and it is booted and online.
+//!
+//! The one selection-time predicate shared by the subsystems that pick file
+//! systems without going through the scheduler facade - the balancers, the
+//! drain source pick, the converter, the fsck scan. They used to spell it out
+//! one by one, which is how the drain source pick ended up testing the
+//! configuration status and nothing else. Sharing it is what keeps them from
+//! drifting apart again on which constraints they honour.
+//!
+//! @param snapshot snapshot of the file system
+//! @param op operation the file system has to accept
+//!
+//! @return true if the file system is a candidate, otherwise false
+//------------------------------------------------------------------------------
+inline bool
+IsSelectableFor(const FileSystem::fs_snapshot_t& snapshot, SchedOp op)
+{
+  return (snapshot.mStatus == BootStatus::kBooted) &&
+         (snapshot.mActiveStatus == ActiveStatus::kOnline) &&
+         AllowsOp(snapshot.mSchedOps, op);
+}
+
+//------------------------------------------------------------------------------
+//! Check whether a file system may be selected for one scheduling operation,
+//! reading it live rather than off a snapshot, see the overload above
+//!
+//! @param fs file system to test
+//! @param op operation the file system has to accept
+//!
+//! @return true if the file system is a candidate, otherwise false
+//------------------------------------------------------------------------------
+inline bool
+IsSelectableFor(FileSystem& fs, SchedOp op)
+{
+  return (fs.GetStatus() == BootStatus::kBooted) &&
+         (fs.GetActiveStatus() == ActiveStatus::kOnline) &&
+         AllowsOp(fs.GetSchedOps(), op);
+}
+
 EOSCOMMONNAMESPACE_END;
 
 #endif

@@ -117,7 +117,7 @@ WeightedRandomStrategy::Placement(const ClusterData& data,
         return result;
       }
 
-      if (!ValidPlacementDisk(item_id, data, args.excludefs, args.op, args.bookingsize)) {
+      if (!ValidDisk(item_id, data, args.excludefs, args.op, args.bookingsize)) {
         continue;
       }
 

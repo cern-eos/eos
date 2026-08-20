@@ -31,51 +31,26 @@ namespace eos::mgm {
 
 namespace {
 //------------------------------------------------------------------------------
-//! Convert a proto operation type to the scheduler's disabled operations mask
-//------------------------------------------------------------------------------
-uint8_t
-DisabledOpMask(eos::console::SchedProto_DisabledProto::OpType optype)
-{
-  switch (optype) {
-  case eos::console::SchedProto_DisabledProto::PLCT:
-    return placement::kDisabledPlct;
-
-  case eos::console::SchedProto_DisabledProto::ACCESS:
-    return placement::kDisabledAccess;
-
-  default:
-    return placement::kDisabledAll;
-  }
-}
-
-//------------------------------------------------------------------------------
-//! Persist the disabled branch rules of one space as the two per operation
-//! space config members, so that they survive an MGM restart. The lists are
-//! recomputed from the authoritative rules rather than edited in place.
+//! Persist the disabled branch rules of one space as its single config member,
+//! so that they survive an MGM restart. The list is recomputed from the
+//! authoritative rules rather than edited in place, and the two per operation
+//! members it replaced are dropped on the way - the rules have just been
+//! restored from them, so this is the point at which the space is migrated.
 //------------------------------------------------------------------------------
 bool
 PersistDisabledBranches(const std::string& spacename)
 {
   const auto rules = gOFS->mFsScheduler->GetDisabledBranches(spacename);
-  std::string plct_list;
-  std::string access_list;
+  std::string rule_list;
 
   for (const auto& [geotag, op_mask] : rules) {
-    if (op_mask & placement::kDisabledPlct) {
-      if (!plct_list.empty()) {
-        plct_list += ",";
-      }
-
-      plct_list += geotag;
+    if (!rule_list.empty()) {
+      rule_list += ";";
     }
 
-    if (op_mask & placement::kDisabledAccess) {
-      if (!access_list.empty()) {
-        access_list += ",";
-      }
-
-      access_list += geotag;
-    }
+    rule_list += geotag;
+    rule_list += "=";
+    rule_list += placement::DeniedOpsToStr(op_mask);
   }
 
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
@@ -91,16 +66,14 @@ PersistDisabledBranches(const std::string& spacename)
   bool ok = true;
 
   // An emptied list deletes its config member rather than storing ""
-  if (plct_list.empty()) {
-    space->DeleteConfigMember("scheduler.disabled.plct");
+  if (rule_list.empty()) {
+    space->DeleteConfigMember(placement::FsScheduler::kDeniedConfigKey);
   } else {
-    ok = space->SetConfigMember("scheduler.disabled.plct", plct_list) && ok;
+    ok = space->SetConfigMember(placement::FsScheduler::kDeniedConfigKey, rule_list);
   }
 
-  if (access_list.empty()) {
-    space->DeleteConfigMember("scheduler.disabled.access");
-  } else {
-    ok = space->SetConfigMember("scheduler.disabled.access", access_list) && ok;
+  for (const auto& [key, unused] : placement::FsScheduler::kLegacyDeniedConfigKeys) {
+    space->DeleteConfigMember(key);
   }
 
   return ok;
@@ -257,7 +230,7 @@ SchedCmd::DisabledSubCmd(const eos::console::SchedProto_DisabledProto& disabled)
     for (const auto& [space, rules] : all) {
       for (const auto& [geotag, op_mask] : rules) {
         oss << "space=" << space << " geotag=" << geotag
-            << " op=" << placement::DisabledOpsToStr(op_mask) << "\n";
+            << " op=" << placement::DeniedOpsToStr(op_mask) << "\n";
       }
     }
 
@@ -270,7 +243,22 @@ SchedCmd::DisabledSubCmd(const eos::console::SchedProto_DisabledProto& disabled)
     return reply;
   }
 
-  const uint8_t op_mask = DisabledOpMask(disabled.optype());
+  // An unspecified spec denies everything, which is what the bare "disable add"
+  // has always meant
+  const auto parsed = disabled.spec().empty()
+                          ? std::optional<placement::FsOpMask>(placement::kDenyAll)
+                          : placement::ParseDeniedSpec(disabled.spec());
+
+  if (!parsed.has_value()) {
+    oss << "error: unknown operations \"" << disabled.spec()
+        << "\", expected plct, access, all, client, internal or an explicit "
+           "\"client:<ruc>[,internal:<ruc>]\"";
+    reply.set_std_err(oss.str());
+    reply.set_retc(EINVAL);
+    return reply;
+  }
+
+  const placement::FsOpMask op_mask = *parsed;
   const bool add = (disabled.op() == eos::console::SchedProto_DisabledProto::ADD);
   const bool ok = add ? gOFS->mFsScheduler->AddDisabledBranch(disabled.spacename(),
                                                               disabled.geotag(), op_mask)
@@ -280,7 +268,7 @@ SchedCmd::DisabledSubCmd(const eos::console::SchedProto_DisabledProto& disabled)
   if (!ok) {
     oss << "error: " << (add ? "invalid disable rule" : "no matching disable rule")
         << " space=" << disabled.spacename() << " geotag=\"" << disabled.geotag()
-        << "\" op=" << placement::DisabledOpsToStr(op_mask);
+        << "\" op=" << placement::DeniedOpsToStr(op_mask);
     reply.set_std_err(oss.str());
     reply.set_retc(add ? EINVAL : ENOENT);
     return reply;
@@ -294,7 +282,7 @@ SchedCmd::DisabledSubCmd(const eos::console::SchedProto_DisabledProto& disabled)
   oss << "success: " << (add ? "disabled" : "re-enabled") << " branch geotag=\""
       << placement::NormalizeGeoTag(disabled.geotag())
       << "\" space=" << disabled.spacename()
-      << " op=" << placement::DisabledOpsToStr(op_mask);
+      << " op=" << placement::DeniedOpsToStr(op_mask);
   reply.set_std_out(oss.str());
   reply.set_retc(0);
   return reply;

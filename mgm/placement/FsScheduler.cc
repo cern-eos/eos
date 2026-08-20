@@ -273,12 +273,6 @@ FsScheduler::UpdateClusterData()
   mIsRunning.store(true, std::memory_order_release);
 }
 
-//! Space config member holding the disabled geotag list of one operation,
-//! see SchedCmd::DisabledSubCmd
-static constexpr std::pair<const char*, uint8_t> kDisabledConfigKeys[] = {
-    {"scheduler.disabled.plct", kDisabledPlct},
-    {"scheduler.disabled.access", kDisabledAccess}};
-
 //------------------------------------------------------------------------------
 // Restore the persisted per space scheduler configuration out of the FsView
 //------------------------------------------------------------------------------
@@ -314,24 +308,56 @@ FsScheduler::LoadConfig()
       }
     }
 
-    // Restore the disabled scheduler branches, kept as one comma separated
-    // geotag list per operation, see SchedCmd::DisabledSubCmd
-    for (const auto& [key, op_mask] : kDisabledConfigKeys) {
-      const std::string list = space->GetConfigMember(key);
+    RestoreDisabledBranches(spacename, *space);
+  }
+}
 
-      if (list.empty()) {
-        continue;
+//------------------------------------------------------------------------------
+// Restore the disabled branch rules of one space out of its config members
+//------------------------------------------------------------------------------
+void
+FsScheduler::RestoreDisabledBranches(const std::string& spacename,
+                                     eos::mgm::FsSpace& space)
+{
+  const std::string rules = space.GetConfigMember(kDeniedConfigKey);
+
+  if (!rules.empty()) {
+    for (const auto& rule :
+         eos::common::StringTokenizer::split<std::vector<std::string>>(rules, ';')) {
+      const size_t pos = rule.rfind('=');
+      const std::string geotag = (pos == std::string::npos) ? rule : rule.substr(0, pos);
+      const auto op_mask = (pos == std::string::npos)
+                               ? std::optional<FsOpMask>(kDenyAll)
+                               : ParseDeniedSpec(rule.substr(pos + 1));
+
+      if (!op_mask.has_value() || !AddDisabledBranch(spacename, geotag, *op_mask)) {
+        eos_static_err("msg=\"ignoring invalid disabled branch\" space=\"%s\" "
+                       "key=\"%s\" rule=\"%s\"",
+                       spacename.c_str(), kDeniedConfigKey, rule.c_str());
       }
+    }
 
-      const auto geotags =
-          eos::common::StringTokenizer::split<std::vector<std::string>>(list, ',');
+    return;
+  }
 
-      for (const auto& geotag : geotags) {
-        if (!AddDisabledBranch(spacename, geotag, op_mask)) {
-          eos_static_err("msg=\"ignoring invalid disabled branch\" "
-                         "space=\"%s\" key=\"%s\" geotag=\"%s\"",
-                         spacename.c_str(), key, geotag.c_str());
-        }
+  // No rule in the current key, so fall back to the two this replaced. An
+  // upgraded instance restores from them once and the first rule change
+  // rewrites the space onto the new key, see SchedCmd::DisabledSubCmd.
+  for (const auto& [key, op_mask] : kLegacyDeniedConfigKeys) {
+    const std::string list = space.GetConfigMember(key);
+
+    if (list.empty()) {
+      continue;
+    }
+
+    const auto geotags =
+        eos::common::StringTokenizer::split<std::vector<std::string>>(list, ',');
+
+    for (const auto& geotag : geotags) {
+      if (!AddDisabledBranch(spacename, geotag, op_mask)) {
+        eos_static_err("msg=\"ignoring invalid disabled branch\" "
+                       "space=\"%s\" key=\"%s\" geotag=\"%s\"",
+                       spacename.c_str(), key, geotag.c_str());
       }
     }
   }
@@ -754,10 +780,10 @@ FsScheduler::GetFillLimits(const std::string& spacename)
 //------------------------------------------------------------------------------
 bool
 FsScheduler::AddDisabledBranch(const std::string& spacename, const std::string& geotag,
-                               uint8_t op_mask)
+                               FsOpMask op_mask)
 {
   const std::string canonical = NormalizeGeoTag(geotag);
-  op_mask &= kDisabledAll;
+  op_mask &= kMaskAll;
 
   if (spacename.empty() || canonical.empty() || (op_mask == 0)) {
     return false;
@@ -769,8 +795,7 @@ FsScheduler::AddDisabledBranch(const std::string& spacename, const std::string& 
     mgr.AddDisabledBranch(canonical, op_mask);
   });
   eos_static_info("msg=\"Disabled scheduler branch\" space=%s geotag=\"%s\" ops=%s",
-                  spacename.c_str(), canonical.c_str(),
-                  DisabledOpsToStr(op_mask).c_str());
+                  spacename.c_str(), canonical.c_str(), DeniedOpsToStr(op_mask).c_str());
   return true;
 }
 
@@ -779,10 +804,10 @@ FsScheduler::AddDisabledBranch(const std::string& spacename, const std::string& 
 //------------------------------------------------------------------------------
 bool
 FsScheduler::RmDisabledBranch(const std::string& spacename, const std::string& geotag,
-                              uint8_t op_mask)
+                              FsOpMask op_mask)
 {
   const std::string canonical = NormalizeGeoTag(geotag);
-  op_mask &= kDisabledAll;
+  op_mask &= kMaskAll;
 
   if (spacename.empty() || canonical.empty() || (op_mask == 0)) {
     return false;
@@ -797,8 +822,7 @@ FsScheduler::RmDisabledBranch(const std::string& spacename, const std::string& g
   }
 
   eos_static_info("msg=\"Re-enabled scheduler branch\" space=%s geotag=\"%s\" ops=%s",
-                  spacename.c_str(), canonical.c_str(),
-                  DisabledOpsToStr(op_mask).c_str());
+                  spacename.c_str(), canonical.c_str(), DeniedOpsToStr(op_mask).c_str());
   return true;
 }
 
@@ -922,7 +946,7 @@ FsScheduler::GetSpaceState(const std::string& spacename)
         ss << ", ";
       }
 
-      ss << geotag << ":" << DisabledOpsToStr(op_mask);
+      ss << geotag << "=" << DeniedOpsToStr(op_mask);
       first = false;
     }
   }

@@ -206,7 +206,7 @@ ClusterMgr::ReapplyDisabledBranchesLocked()
 // Disable a geotag branch for the given operations
 //------------------------------------------------------------------------------
 bool
-ClusterMgr::AddDisabledBranch(const std::string& canonical, uint8_t op_mask)
+ClusterMgr::AddDisabledBranch(const std::string& canonical, FsOpMask op_mask)
 {
   std::lock_guard<std::mutex> cfg_lock(mConfigMutex);
   mDisabledBranches[canonical] |= op_mask;
@@ -218,7 +218,7 @@ ClusterMgr::AddDisabledBranch(const std::string& canonical, uint8_t op_mask)
 // Re-enable a previously disabled geotag branch for the given operations
 //------------------------------------------------------------------------------
 bool
-ClusterMgr::RmDisabledBranch(const std::string& canonical, uint8_t op_mask)
+ClusterMgr::RmDisabledBranch(const std::string& canonical, FsOpMask op_mask)
 {
   std::lock_guard<std::mutex> cfg_lock(mConfigMutex);
   auto it = mDisabledBranches.find(canonical);
@@ -229,7 +229,7 @@ ClusterMgr::RmDisabledBranch(const std::string& canonical, uint8_t op_mask)
 
   it->second &= ~op_mask;
 
-  if (it->second == 0) {
+  if (it->second == kMaskNone) {
     mDisabledBranches.erase(it);
   }
 

@@ -100,24 +100,21 @@ CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  if ((!fs) || (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain)) {
-    eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
-                   "path=%s size=%s fxid=%s fsid=%s dropfsid=%s checksum=%s"
-                   " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
-                   "oc-uuid=%s",
-                   (fs ? eos::common::FileSystem::GetConfigStatusAsString(
-                      fs->GetConfigStatus())
-                    : "deleted"),
-                   cgi["path"].c_str(),
-                   cgi["size"].c_str(),
-                   cgi["fid"].c_str(),
-                   cgi["fsid"].c_str(),
-                   cgi["dropfsid"].c_str(),
-                   cgi["checksum"].c_str(),
-                   cgi["mtime"].c_str(),
-                   cgi["mtimensec"].c_str(),
-                   option["occhunk"], params["oc_n"],
-                   params["oc_max"], cgi["oc_uuid"].c_str());
+  // A commit records a replica that has just been written, so the file system
+  // has to accept a write of some class. Which class is not knowable here -
+  // the FST reports the commit, not the request that produced it - so any
+  // update or create bit is enough.
+  if ((!fs) || !eos::common::AllowsAnyWrite(fs->GetSchedOps())) {
+    eos_thread_err(
+        "msg=\"commit suppressed\" schedops=%s subcmd=commit "
+        "path=%s size=%s fxid=%s fsid=%s dropfsid=%s checksum=%s"
+        " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
+        "oc-uuid=%s",
+        (fs ? eos::common::FormatSchedMask(fs->GetSchedOps()).c_str() : "deleted"),
+        cgi["path"].c_str(), cgi["size"].c_str(), cgi["fid"].c_str(), cgi["fsid"].c_str(),
+        cgi["dropfsid"].c_str(), cgi["checksum"].c_str(), cgi["mtime"].c_str(),
+        cgi["mtimensec"].c_str(), option["occhunk"], params["oc_n"], params["oc_max"],
+        cgi["oc_uuid"].c_str());
     emsg = "commit file metadata - "
            "filesystem is in non-operational state [EIO]";
     return EIO;

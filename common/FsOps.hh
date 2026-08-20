@@ -107,6 +107,25 @@ struct SchedOp {
 //------------------------------------------------------------------------------
 using FsOpMask = uint8_t;
 
+//------------------------------------------------------------------------------
+//! The six operations, named. What a call site that asks about one specific
+//! operation uses instead of assembling it from its parts.
+//------------------------------------------------------------------------------
+//! Serving an existing replica to a client, what a plain read asks for
+inline constexpr SchedOp kClientRead{SchedActivity::kClient, SchedDirection::kRead};
+//! Writing to an existing replica for a client
+inline constexpr SchedOp kClientUpdate{SchedActivity::kClient, SchedDirection::kUpdate};
+//! Placing a new replica for a client, the default a plain placement asks for
+inline constexpr SchedOp kClientCreate{SchedActivity::kClient, SchedDirection::kCreate};
+//! Reading an existing replica for an internal engine, the drain source pick
+inline constexpr SchedOp kInternalRead{SchedActivity::kInternal, SchedDirection::kRead};
+//! Writing to an existing replica for an internal engine
+inline constexpr SchedOp kInternalUpdate{SchedActivity::kInternal,
+                                         SchedDirection::kUpdate};
+//! Placing a new replica for an internal engine - drain, balance, conversion
+inline constexpr SchedOp kInternalCreate{SchedActivity::kInternal,
+                                         SchedDirection::kCreate};
+
 //! Opaque key a trusted caller uses to declare itself internal traffic, and the
 //! only value it accepts. Anything else, including its absence, is client.
 static constexpr std::string_view kSchedClassKey = "eos.schedclass";
@@ -182,11 +201,31 @@ AllowsAnyWrite(FsOpMask mask)
 }
 
 //----------------------------------------------------------------------------
+//! Parse the explicit form of an operation set: a comma separated list of
+//! per-class terms ("client:r,internal:ruc"), where the direction letters are
+//! 'r' read, 'u' update, 'c' create and 'w' as a convenience alias for "uc".
+//! A class that is not mentioned contributes no bits.
+//!
+//! Kept apart from ParseSchedSpec because the preset names only make sense for
+//! a filesystem's allowed set: a disabled-branch rule holds the operations it
+//! *denies*, where reading "ro" as "read only" is exactly backwards.
+//!
+//! @param spec specification string
+//!
+//! @return the mask, or nullopt if the spec is malformed
+//----------------------------------------------------------------------------
+std::optional<FsOpMask> ParseSchedOps(std::string_view spec);
+
+//----------------------------------------------------------------------------
+//! Render an operation set in the explicit form, "none" for an empty mask.
+//! The counterpart of ParseSchedOps, and what a caller wants whenever the
+//! preset names would name the wrong thing.
+//----------------------------------------------------------------------------
+std::string FormatSchedOps(FsOpMask mask);
+
+//----------------------------------------------------------------------------
 //! Parse a scheduling specification into a mask. Accepts either a preset name
-//! ("rw", "internal", ...) or a comma separated list of per-class terms
-//! ("client:r,internal:ruc"), where the direction letters are 'r' read,
-//! 'u' update, 'c' create and 'w' as a convenience alias for "uc". A class
-//! that is not mentioned contributes no bits.
+//! ("rw", "internal", ...) or the explicit form, see ParseSchedOps.
 //!
 //! @param spec specification string
 //!
@@ -196,7 +235,7 @@ std::optional<FsOpMask> ParseSchedSpec(std::string_view spec);
 
 //----------------------------------------------------------------------------
 //! Render a mask. Returns the preset name when the mask is exactly one of the
-//! presets, otherwise the explicit "client:<letters>,internal:<letters>" form.
+//! presets, otherwise the explicit form.
 //----------------------------------------------------------------------------
 std::string FormatSchedMask(FsOpMask mask);
 

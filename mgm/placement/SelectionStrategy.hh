@@ -526,7 +526,17 @@ struct SelectionStrategy {
   }
 
   //----------------------------------------------------------------------------
-  //! Check whether a disk may receive or serve a replica
+  //! Check whether a disk may receive or serve a replica: the one predicate
+  //! every selection point shares, disabled branches included.
+  //!
+  //! The branch rule has to be answered from the disk itself and not only on
+  //! the way down: the descent refuses a denied bucket as it enters, but a
+  //! scheduling group served from its flat leaf view never visits the interior
+  //! buckets at all, and the access path walks no buckets whatsoever.
+  //! IsBranchDenied resolves it from the disk's real geo ancestry, which the
+  //! flat view leaves untouched - it only ever holds ids, it never becomes a
+  //! parent. Since the rules now speak the same vocabulary as the disk's own
+  //! mask, both questions are the same question and are asked here once.
   //!
   //! @param disk_id disk to check
   //! @param cluster_data topology snapshot holding the disk
@@ -556,43 +566,17 @@ struct SelectionStrategy {
       return false;
     }
 
+    // No rule configured is the steady state of most installations, and it
+    // costs one relaxed load to establish - the ancestry walk is only ever
+    // paid while a rule is actually live
+    if (cluster_data.HasDeniedBranches() && cluster_data.IsBranchDenied(disk_id, op)) {
+      return false;
+    }
+
     const auto& disk = cluster_data.disks[disk_id - 1];
     auto disk_active_status = disk.active_status.load(std::memory_order_acquire);
     return disk_active_status == eos::common::ActiveStatus::kOnline &&
            disk.AllowsOp(op) && HasRoomFor(disk, bookingsize);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check whether a disk may receive a replica, disabled branches included.
-  //! What every placement implementation must call instead of ValidDisk: the
-  //! descent refuses a disabled bucket on its way in, but a scheduling group
-  //! served from its flat leaf view never visits the interior buckets at all,
-  //! so the rule has to be answered from the disk itself. IsBranchDisabled
-  //! resolves it by walking the disk's real geo ancestry, which the flat view
-  //! leaves untouched - it only ever holds ids, it never becomes a parent.
-  //!
-  //! @param disk_id disk to check
-  //! @param cluster_data topology snapshot holding the disk
-  //! @param excludefs file systems not to consider
-  //! @param op operation the disk has to accept
-  //! @param bookingsize size the disk must still have room for, 0 to skip
-  //!
-  //! @return true if the disk may take a replica, otherwise false
-  //----------------------------------------------------------------------------
-  static bool
-  ValidPlacementDisk(ItemIdT disk_id, const ClusterData& cluster_data,
-                     const std::vector<uint32_t>& excludefs, SchedOp op,
-                     uint64_t bookingsize = 0)
-  {
-    // No rule configured is the steady state of most installations, and it
-    // costs one relaxed load to establish - the parent walk is only ever paid
-    // while a placement rule is actually live
-    if (cluster_data.HasPlctDisabledBranches() &&
-        cluster_data.IsBranchDisabled(disk_id, kDisabledPlct)) {
-      return false;
-    }
-
-    return ValidDisk(disk_id, cluster_data, excludefs, op, bookingsize);
   }
 
   //----------------------------------------------------------------------------
@@ -627,13 +611,8 @@ struct SelectionStrategy {
       return false;
     }
 
-    // A replica below an administratively disabled branch cannot serve the
-    // access, however healthy its disk looks
-    if (cluster_data.IsBranchDisabled(fsid, kDisabledAccess)) {
-      return false;
-    }
-
-    // bounds, unavailability, online and config status are all checked here
+    // bounds, unavailability, online, the disk's own permissions and the
+    // disabled branch rules are all checked here
     return ValidDisk(fsid, cluster_data, unavailfs, args.op);
   }
 };
