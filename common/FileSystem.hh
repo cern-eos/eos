@@ -576,6 +576,21 @@ public:
                                   const std::string& configstatus);
 
   //----------------------------------------------------------------------------
+  //! Resolve the lifecycle of a filesystem out of its stored values. Prefers
+  //! FS_LIFECYCLE_NAME and falls back to the legacy configstatus when that key
+  //! is absent, the same shape as ResolveSchedOps and for the same reason: an
+  //! instance upgraded in place carries only the legacy value until something
+  //! writes the new key, and must behave identically in the meantime.
+  //!
+  //! @param lifecycle raw value of FS_LIFECYCLE_NAME, empty if unset
+  //! @param configstatus raw value of the legacy configstatus key
+  //!
+  //! @return the resolved lifecycle
+  //----------------------------------------------------------------------------
+  static FsLifecycle ResolveLifecycle(const std::string& lifecycle,
+                                      const std::string& configstatus);
+
+  //----------------------------------------------------------------------------
   //! Convert input to file system id
   //!
   //! @param value input string

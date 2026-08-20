@@ -171,7 +171,9 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         outStream << "success: boot message sent to";
 
         for (const auto id : FsView::gFsView.mIdView) {
-          if ((id.second->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+          // An administratively disabled file system is not booted; everything
+          // else is, an empty one included
+          if (id.second->GetLifecycle() != eos::common::FsLifecycle::kOff) {
             auto now = time(nullptr);
             id.second->SetLongLong("bootcheck", bootConfig);
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);

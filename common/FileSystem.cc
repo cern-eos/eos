@@ -1207,7 +1207,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
   fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
   fs.mSchedOps = ResolveSchedOps(hash.get(FS_SCHED_OPS_NAME), hash.get("configstatus"));
-  fs.mLifecycle = GetLifecycleFromString(hash.get(FS_LIFECYCLE_NAME).c_str());
+  fs.mLifecycle = ResolveLifecycle(hash.get(FS_LIFECYCLE_NAME), hash.get("configstatus"));
   fs.mDrainRequested = (hash.get(FS_DRAIN_REQUESTED_NAME) == "1");
   fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
   fs.mActiveStatus = mActStatus.load();
@@ -1315,6 +1315,31 @@ FileSystem::GetLifecycleFromString(const char* ss)
 }
 
 //------------------------------------------------------------------------------
+// Resolve the lifecycle of a filesystem
+//------------------------------------------------------------------------------
+FsLifecycle
+FileSystem::ResolveLifecycle(const std::string& lifecycle,
+                             const std::string& configstatus)
+{
+  if (!lifecycle.empty()) {
+    return GetLifecycleFromString(lifecycle.c_str());
+  }
+
+  // The legacy status carried the lifecycle in two of its values; every other
+  // one meant a filesystem in service
+  switch (GetConfigStatusFromString(configstatus.c_str())) {
+  case ConfigStatus::kEmpty:
+    return FsLifecycle::kEmpty;
+
+  case ConfigStatus::kOff:
+    return FsLifecycle::kOff;
+
+  default:
+    return FsLifecycle::kActive;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Resolve the set of operations a filesystem accepts
 //------------------------------------------------------------------------------
 FsOpMask
@@ -1367,7 +1392,7 @@ FileSystem::GetSchedOps(bool cached)
 FsLifecycle
 FileSystem::GetLifecycle()
 {
-  return GetLifecycleFromString(GetString(FS_LIFECYCLE_NAME).c_str());
+  return ResolveLifecycle(GetString(FS_LIFECYCLE_NAME), GetString("configstatus"));
 }
 
 //----------------------------------------------------------------------------

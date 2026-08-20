@@ -852,8 +852,8 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
       }
     }
 
-    // File system must be in RW mode and active for the move to work
-    bool is_empty = (fs->GetConfigStatus() == eos::common::ConfigStatus::kEmpty);
+    // File system must be empty and active for the move to work
+    bool is_empty = (fs->GetLifecycle() == eos::common::FsLifecycle::kEmpty);
     bool is_active = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOnline);
 
     if (!(is_empty && is_active)) {
@@ -1398,7 +1398,6 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
   if (fs) {
     std::string nodename = fs->GetString("host");
-    std::string cstate = fs->GetString("configstatus");
     size_t dpos = 0;
 
     if ((dpos = nodename.find('.')) != std::string::npos) {
@@ -1414,10 +1413,18 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     // exceptionally if we are a slave MGM and the fs is in drain mode
     // and we got a request to remove it. The empty state from the
     // master MGM is never propagated to the slaves.
-    if ((cstate != "empty") &&
+    // The slave exception still reads the published legacy status: the
+    // explicit drain key is only written from step 8 onwards, so asking for it
+    // here would silently take the exception away in the meantime.
+    const eos::common::FsLifecycle lifecycle = fs->GetLifecycle();
+    const std::string cstate = fs->GetString("configstatus");
+
+    if ((lifecycle != eos::common::FsLifecycle::kEmpty) &&
         !((cstate == "drain") && !gOFS->mMaster->IsMaster())) {
       eos_static_err("msg=\"only empty file systems can be removed\" "
-                     "cstate=\"%s\"", cstate.c_str());
+                     "lifecycle=\"%s\" cstate=\"%s\"",
+                     eos::common::FileSystem::GetLifecycleAsString(lifecycle),
+                     cstate.c_str());
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {

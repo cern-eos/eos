@@ -34,6 +34,7 @@ using eos::common::DeriveLegacyConfigStatus;
 using eos::common::DeriveMaskFromLegacy;
 using eos::common::FormatSchedMask;
 using eos::common::FormatSchedOps;
+using eos::common::FsLifecycle;
 using eos::common::FsOpMask;
 using eos::common::kMaskAll;
 using eos::common::kMaskNone;
@@ -288,4 +289,30 @@ TEST(FsOps, LegacyRoundTrip)
   const auto drain_mask = DeriveMaskFromLegacy(ConfigStatus::kDrain);
   ASSERT_TRUE(drain_mask.has_value());
   EXPECT_EQ(DeriveLegacyConfigStatus(*drain_mask, false), ConfigStatus::kRO);
+}
+
+//------------------------------------------------------------------------------
+// The lifecycle resolves from its own key when present and falls back to the
+// legacy status when it is not - which is every filesystem of an instance
+// upgraded in place until something writes the new key
+//------------------------------------------------------------------------------
+TEST(FsOps, LifecycleResolution)
+{
+  using eos::common::FileSystem;
+  // The explicit key wins, whatever the legacy status says alongside it
+  EXPECT_EQ(FileSystem::ResolveLifecycle("empty", "rw"), FsLifecycle::kEmpty);
+  EXPECT_EQ(FileSystem::ResolveLifecycle("off", "rw"), FsLifecycle::kOff);
+  EXPECT_EQ(FileSystem::ResolveLifecycle("active", "off"), FsLifecycle::kActive);
+  // Absent, so the two legacy values that carried a lifecycle are honoured
+  EXPECT_EQ(FileSystem::ResolveLifecycle("", "empty"), FsLifecycle::kEmpty);
+  EXPECT_EQ(FileSystem::ResolveLifecycle("", "off"), FsLifecycle::kOff);
+
+  // and every other one means a filesystem in service
+  for (const char* status : {"rw", "ro", "wo", "drain", "", "draindead"}) {
+    EXPECT_EQ(FileSystem::ResolveLifecycle("", status), FsLifecycle::kActive)
+        << "legacy status '" << status << "'";
+  }
+
+  // An unparsable lifecycle is not a reason to call a filesystem removable
+  EXPECT_EQ(FileSystem::ResolveLifecycle("nonsense", "empty"), FsLifecycle::kActive);
 }

@@ -1389,7 +1389,7 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm,
 
     if (fs) {
       // check that filesystems are empty
-      if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
+      if ((fs->GetLifecycle() != eos::common::FsLifecycle::kEmpty)) {
         reply.set_std_err("error: unable to remove space '" + rm.mgmspace() +
                           "' - filesystems are not all in empty state - try to drain them or: space config <name> configstatus=empty\n");
         reply.set_retc(EBUSY);
