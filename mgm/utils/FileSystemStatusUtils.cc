@@ -50,6 +50,9 @@ void ApplyDrainedStatus(eos::common::FileSystem::fsid_t fsid)
       batch.setLongLongLocal("local.drain.progress", 100);
       batch.setLongLongLocal("local.drain.failed", 0);
       batch.setStringDurable("configstatus", "empty");
+      batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
+                             eos::common::FileSystem::GetLifecycleAsString(
+                                 eos::common::FsLifecycle::kEmpty));
       FsView::gFsView.StoreFsConfig(fs);
     }
 

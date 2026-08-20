@@ -224,7 +224,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
 
     if (fs) {
       // check the empty state
-      if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
+      if ((fs->GetLifecycle() != eos::common::FsLifecycle::kEmpty)) {
         reply.set_std_err("error: unable to remove node '" + nodename +
                           "' - filesystems are not all in empty state");
         reply.set_retc(EBUSY);

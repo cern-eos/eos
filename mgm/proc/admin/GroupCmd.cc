@@ -163,7 +163,7 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
 
     if (fs) {
       // Check that all filesystems are empty
-      if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
+      if ((fs->GetLifecycle() != eos::common::FsLifecycle::kEmpty)) {
         reply.set_std_err("error: unable to remove group '" + rm.group() +
                           "' - filesystems are not all in empty state - "
                           "try list the group and drain them or set: fs "

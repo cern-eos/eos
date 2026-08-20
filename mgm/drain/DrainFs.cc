@@ -250,6 +250,9 @@ DrainFs::SuccessfulDrain()
       // If drain done and the system is not shutting down then set the
       // file system to "empty" state
       batch.setStringDurable("configstatus", "empty");
+      batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
+                             eos::common::FileSystem::GetLifecycleAsString(
+                                 eos::common::FsLifecycle::kEmpty));
       FsView::gFsView.StoreFsConfig(fs);
     }
 

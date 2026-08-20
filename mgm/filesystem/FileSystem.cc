@@ -269,6 +269,18 @@ FileSystem::DoSetConfigStatus(eos::common::ConfigStatus new_status,
   batch.setStringDurable(
       eos::common::FS_SCHED_OPS_NAME,
       eos::common::FormatSchedMask(ops.value_or(eos::common::kMaskNone)));
+  // Likewise the lifecycle, which the removal and boot guards read. Two of the
+  // legacy values carried it; every other one means a filesystem in service.
+  eos::common::FsLifecycle lifecycle = eos::common::FsLifecycle::kActive;
+
+  if (new_status == eos::common::ConfigStatus::kEmpty) {
+    lifecycle = eos::common::FsLifecycle::kEmpty;
+  } else if (new_status == eos::common::ConfigStatus::kOff) {
+    lifecycle = eos::common::FsLifecycle::kOff;
+  }
+
+  batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
+                         eos::common::FileSystem::GetLifecycleAsString(lifecycle));
 
   if (status_comment) {
     // The status and its comment are one logical change, so they go out as one
