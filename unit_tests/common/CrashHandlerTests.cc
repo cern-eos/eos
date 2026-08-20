@@ -23,6 +23,7 @@
 
 #include "common/CrashHandler.hh"
 #include <csignal>
+#include <cstdint>
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <pthread.h>
@@ -50,15 +51,50 @@
 namespace {
 pthread_mutex_t sFakeAllocatorLock = PTHREAD_MUTEX_INITIALIZER;
 
+// Address of the null dereference below. Going through a volatile global
+// keeps the compiler from seeing a constant null dereference, which it is
+// entitled to fold into an unconditional trap instruction - that would raise
+// SIGILL and never reach the SIGSEGV path under test.
+volatile uintptr_t sNullAddress = 0;
+
 void
-CrashWhileHoldingAllocatorLock(int sig)
+ArmAllocatorLockTrap()
 {
   pthread_atfork([] { pthread_mutex_lock(&sFakeAllocatorLock); }, nullptr, nullptr);
   pthread_mutex_lock(&sFakeAllocatorLock);
   // Hang-breaker: if the handler deadlocks, SIGALRM terminates the child
   // with the wrong signal and the death test fails instead of hanging
   alarm(10);
+}
+
+void
+CrashWhileHoldingAllocatorLock(int sig)
+{
+  ArmAllocatorLockTrap();
   raise(sig);
+}
+
+// Fault for real instead of raising the signal: only a signal the kernel
+// generates from a fault carries a fault si_code and a faulting address, which
+// is what the reporting tests below are about
+void
+SegvWhileHoldingAllocatorLock()
+{
+  ArmAllocatorLockTrap();
+  *reinterpret_cast<volatile int*>(sNullAddress) = 1;
+}
+
+// Have the signal sent rather than faulted, which is the other half of the
+// siginfo_t union: a sender instead of a fault address
+void
+KillSelfWhileHoldingAllocatorLock(int sig)
+{
+  ArmAllocatorLockTrap();
+  kill(getpid(), sig);
+  // kill() to self delivers before it returns, so this is only a guard against
+  // falling out of the helper if it ever does not: the alarm above then fails
+  // the test rather than letting it pass for the wrong reason
+  pause();
 }
 
 // The termination policy must not depend on the environment the test runs in
@@ -166,6 +202,73 @@ TEST_F(CrashHandlerDeathTest, GdbCrashDumperStillLogsFaultingThread)
       },
       testing::ExitedWithCode(128 + SIGSEGV), "received signal");
 }
+
+TEST_F(CrashHandlerDeathTest, RealFaultReportsCodeAndAddress)
+{
+  // A genuine fault: the kernel fills in si_code and si_addr, so the report
+  // has to name what went wrong and where. "(nil)" rather than an address of
+  // zeroes, so that the commonest crash of all - a null dereference - is
+  // recognisable at a glance.
+  EXPECT_EXIT(
+      {
+        ClearCrashHandlerEnv();
+        eos::common::CrashHandler::Install(false);
+        SegvWhileHoldingAllocatorLock();
+      },
+      testing::ExitedWithCode(128 + SIGSEGV),
+      "\\(SEGV_MAPERR\\), faulting address \\(nil\\)");
+}
+
+TEST_F(CrashHandlerDeathTest, RaisedSignalReportsSendingProcess)
+{
+  // raise() goes through tgkill(), so the signal arrives with SI_TKILL and the
+  // process' own pid. This is also how abort() - and hence a failed assert -
+  // delivers SIGABRT, which is why the sender is worth reporting: it separates
+  // a daemon that aborted itself from one that was signalled from outside.
+  EXPECT_EXIT(
+      {
+        ClearCrashHandlerEnv();
+        eos::common::CrashHandler::Install(false);
+        CrashWhileHoldingAllocatorLock(SIGABRT);
+      },
+      testing::ExitedWithCode(128 + SIGABRT), "\\(SI_TKILL\\), sent by pid");
+}
+
+TEST_F(CrashHandlerDeathTest, SentSignalReportsNoFaultAddress)
+{
+  // siginfo_t is a union and si_code decides which of its members hold data. A
+  // SIGSEGV sent with kill() carries the sender's pid/uid exactly where a
+  // faulted one carries the address, so reporting an address here would be
+  // those bytes reinterpreted - an address the process never touched, in a
+  // report that is supposed to say where it crashed.
+  //
+  // The assertion is the adjacency: "sent by pid" follows the si_code name
+  // immediately, and the faulting address is only ever written in that one
+  // position, so matching them next to each other is what proves it is absent.
+  EXPECT_EXIT(
+      {
+        ClearCrashHandlerEnv();
+        eos::common::CrashHandler::Install(false);
+        KillSelfWhileHoldingAllocatorLock(SIGSEGV);
+      },
+      testing::ExitedWithCode(128 + SIGSEGV), "\\(SI_USER\\), sent by pid");
+}
+
+#if defined(__x86_64__) || defined(__aarch64__)
+TEST_F(CrashHandlerDeathTest, RealFaultReportsRegisters)
+{
+  // The register file is the only record of the machine state at the fault on
+  // this termination path, which leaves no core file behind
+  EXPECT_EXIT(
+      {
+        ClearCrashHandlerEnv();
+        eos::common::CrashHandler::Install(false);
+        SegvWhileHoldingAllocatorLock();
+      },
+      testing::ExitedWithCode(128 + SIGSEGV),
+      "faulting instruction 0x[0-9a-f]+, stack pointer 0x[0-9a-f]+");
+}
+#endif
 
 TEST_F(CrashHandlerDeathTest, CoreDumpEnvEnablesReRaise)
 {

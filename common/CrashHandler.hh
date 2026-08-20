@@ -25,6 +25,7 @@
 #define __EOSCOMMON__CRASHHANDLER__HH__
 
 #include "common/Namespace.hh"
+#include <csignal>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -39,8 +40,14 @@ EOSCOMMONNAMESPACE_BEGIN
 //! (observed in production as a hung MGM with thousands of threads blocked on
 //! jemalloc mutexes instead of a crash + restart).
 //!
-//! On a fatal signal the handler writes the faulting thread's backtrace to
-//! stderr and terminates the process:
+//! On a fatal signal the handler writes a crash report to stderr and
+//! terminates the process. The report describes the signal (number, si_code,
+//! and - depending on what that code licenses - either the faulting address or
+//! the pid/uid that sent the signal), the interrupted program counter and
+//! stack pointer, the register file, and the faulting thread's backtrace. The
+//! register dump matters most on the quiet termination path below, which
+//! leaves no core file behind: it is the only record of the machine state at
+//! the fault. Termination is:
 //! - re-raise policy: restore the default disposition and re-raise, so the
 //!   kernel terminates the process and the configured core-dump policy
 //!   (RLIMIT_CORE, core_pattern) applies
@@ -80,9 +87,16 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! The signal handler itself
+  //! The signal handler itself, registered with SA_SIGINFO
+  //!
+  //! @param sig the fatal signal being handled
+  //! @param info signal details filled in by the kernel. Which of its union
+  //!        members carry data is decided by info->si_code, never by sig.
+  //! @param ucontext pointer to the ucontext_t holding the register state of
+  //!        the interrupted thread, cast to void* as the sigaction API
+  //!        prescribes
   //----------------------------------------------------------------------------
-  static void HandleFatalSignal(int sig);
+  static void HandleFatalSignal(int sig, siginfo_t* info, void* ucontext);
 
   //! Termination policy, captured at Install() time because getenv() is not
   //! async-signal-safe
