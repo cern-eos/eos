@@ -2789,6 +2789,18 @@ An unrecognised value is now refused rather than silently resolving to
    # check what a space actually resolved to
    eos sched show type default
 
+There is also a global default, for spaces that set no ``scheduler.type`` of
+their own:
+
+.. code-block:: bash
+
+   eos sched configure type flat:weightedrandom
+
+.. warning::
+   The global default is **not persisted** and reverts to ``geotree`` on an MGM
+   restart. Only the per-space ``space config <space> space.scheduler.type=``
+   survives one, so that is what belongs in a configuration.
+
 
 
 
@@ -2804,6 +2816,14 @@ to attract less writes.
 
    # configure weight as 0 for disk with fsid 10
    eos sched configure weight default 10 0
+
+.. warning::
+   Disk weights set this way are **not persisted**. They live in the live
+   topology snapshot only, so they are lost on an MGM restart and on any
+   rebuild of the topology - a ``sched configure forcerefresh``, a master
+   failover, or a filesystem being registered - which recomputes the weight
+   from the disk capacity. Treat it as a setting for the duration of an
+   intervention, not a configuration.
 
 
 Disabling geotag branches
