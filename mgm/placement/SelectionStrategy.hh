@@ -26,7 +26,11 @@
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "mgm/placement/RRSeed.hh"
 #include <algorithm>
+#include <array>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <xxhash.h>
 
 namespace eos::mgm::placement
@@ -182,7 +186,21 @@ enum class PlacementPolicyT : uint8_t {
 };
 
 //------------------------------------------------------------------------------
-//! Placement strategies known to the flat scheduler
+//! Engine that schedules a space. The flat scheduler and the legacy geotree
+//! engine coexist and which one serves a space is per space configuration.
+//! This used to be smuggled into PlacementStrategyT as an extra value, which
+//! forced a hole in the strategy array and made "is this a strategy" and
+//! "which engine" the same question.
+//------------------------------------------------------------------------------
+enum class SchedEngineT : uint8_t {
+  kGeoTree = 0, //!< legacy geotree engine, the default
+  kFlat         //!< flat scheduler
+};
+
+//------------------------------------------------------------------------------
+//! Placement strategies of the flat scheduler. Every value here is a real
+//! strategy with an implementation behind it, so MakeSelectionStrategy never
+//! returns nullptr for one.
 //------------------------------------------------------------------------------
 enum class PlacementStrategyT : uint8_t {
   kRoundRobin = 0,
@@ -191,13 +209,51 @@ enum class PlacementStrategyT : uint8_t {
   kFidRandom,
   kWeightedRandom,
   kWeightedRoundRobin,
-  kGeoScheduler, // Any flat scheduler strategies must be above this line!
-  //! Not a flat scheduler strategy at all: it asks the MGM to fall back to the
-  //! legacy geotree engine. It has no implementation here, MakeSelectionStrategy
-  //! returns nullptr for it and Scheduler.cc routes around the flat scheduler.
-  kGeoTreeLegacy,
+  kGeoScheduler,
   Count
 };
+
+//------------------------------------------------------------------------------
+//! Struct SchedConfig - a resolved scheduler.type value: which engine serves
+//! the space and, when that engine is the flat scheduler, which strategy it
+//! picks with. The strategy field carries no meaning under kGeoTree.
+//------------------------------------------------------------------------------
+struct SchedConfig {
+  SchedEngineT engine = SchedEngineT::kGeoTree;
+  PlacementStrategyT strategy = PlacementStrategyT::kGeoScheduler;
+
+  //----------------------------------------------------------------------------
+  //! Whether the flat scheduler serves this space
+  //----------------------------------------------------------------------------
+  constexpr bool
+  IsFlat() const
+  {
+    return engine == SchedEngineT::kFlat;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Equality. Two geotree configurations are equal whatever strategy field
+  //! they happen to carry, since it means nothing there.
+  //----------------------------------------------------------------------------
+  constexpr bool
+  operator==(const SchedConfig& other) const
+  {
+    if (engine != other.engine) {
+      return false;
+    }
+
+    return !IsFlat() || (strategy == other.strategy);
+  }
+
+  constexpr bool
+  operator!=(const SchedConfig& other) const
+  {
+    return !(*this == other);
+  }
+};
+
+//! The legacy engine, which is what an unconfigured space runs
+inline constexpr SchedConfig kGeoTreeSchedConfig{};
 
 //! Total number of placement strategies
 constexpr size_t TOTAL_PLACEMENT_STRATEGIES = static_cast<size_t>
@@ -234,86 +290,230 @@ StrategyIndex(PlacementStrategyT strategy)
 }
 
 //------------------------------------------------------------------------------
-//! Convert a string to the placement strategy it names
-//!
-//! @param strategy_sv string representation of the strategy
-//!
-//! @return placement strategy type, kGeoTreeLegacy if unrecognized
+//! Engine prefix of a flat scheduler strategy in a scheduler.type value. The
+//! engine, not the strategy, is what a reader has to get right first: "geo" and
+//! "geotree" used to differ by four characters and select different engines.
 //------------------------------------------------------------------------------
-constexpr PlacementStrategyT
-StrategyFromStr(std::string_view strategy_sv)
-{
-  using namespace std::string_view_literals;
+inline constexpr std::string_view kFlatEnginePrefix = "flat:";
 
-  if (strategy_sv == "roundrobin"sv ||
-      strategy_sv == "rr"sv) {
-    return PlacementStrategyT::kRoundRobin;
-  } else if (strategy_sv == "threadlocalroundrobin"sv ||
-             strategy_sv == "threadlocalrr"sv ||
-             strategy_sv == "tlrr"sv) {
-    return PlacementStrategyT::kThreadLocalRoundRobin;
-  } else if (strategy_sv == "random"sv) {
-    return PlacementStrategyT::kRandom;
-  } else if (strategy_sv == "fid"sv ||
-             strategy_sv == "fidrandom"sv) {
-    return PlacementStrategyT::kFidRandom;
-  } else if (strategy_sv == "weightedrandom"sv) {
-    return PlacementStrategyT::kWeightedRandom;
-  } else if (strategy_sv == "weightedroundrobin"sv ||
-             strategy_sv == "weightedrr"sv) {
-    return PlacementStrategyT::kWeightedRoundRobin;
-  } else if (strategy_sv == "geoscheduler"sv ||
-             strategy_sv == "geo"sv) {
-    return PlacementStrategyT::kGeoScheduler;
-  } else if (strategy_sv == "geotree"sv || strategy_sv == "legacy"sv) {
-    return PlacementStrategyT::kGeoTreeLegacy;
+//------------------------------------------------------------------------------
+//! Canonical name of the legacy geotree engine. It has no strategies, so it
+//! names the engine on its own and never carries the prefix.
+//------------------------------------------------------------------------------
+inline constexpr std::string_view kGeoTreeEngineName = "geotree";
+
+//------------------------------------------------------------------------------
+//! Accepted spellings of the flat scheduler strategies, without the engine
+//! prefix. The first entry of a strategy is its canonical name, which is what
+//! StrategyToStr renders and what gets persisted; the rest are aliases.
+//------------------------------------------------------------------------------
+inline constexpr std::array<std::pair<std::string_view, PlacementStrategyT>, 13>
+    kFlatStrategyNames{
+        {{"geo", PlacementStrategyT::kGeoScheduler},
+         {"geoscheduler", PlacementStrategyT::kGeoScheduler},
+         {"roundrobin", PlacementStrategyT::kRoundRobin},
+         {"rr", PlacementStrategyT::kRoundRobin},
+         {"threadlocalroundrobin", PlacementStrategyT::kThreadLocalRoundRobin},
+         {"threadlocalrr", PlacementStrategyT::kThreadLocalRoundRobin},
+         {"tlrr", PlacementStrategyT::kThreadLocalRoundRobin},
+         {"random", PlacementStrategyT::kRandom},
+         {"fidrandom", PlacementStrategyT::kFidRandom},
+         {"fid", PlacementStrategyT::kFidRandom},
+         {"weightedrandom", PlacementStrategyT::kWeightedRandom},
+         {"weightedroundrobin", PlacementStrategyT::kWeightedRoundRobin},
+         {"weightedrr", PlacementStrategyT::kWeightedRoundRobin}}};
+
+//------------------------------------------------------------------------------
+//! Names of the legacy engine. "geotree" is canonical, "legacy" is the older
+//! spelling and still accepted.
+//------------------------------------------------------------------------------
+inline constexpr std::array<std::string_view, 2> kGeoTreeEngineNames{
+    {"geotree", "legacy"}};
+
+//------------------------------------------------------------------------------
+//! Look a flat strategy name up in the name table
+//!
+//! @param name name to look for, without the engine prefix
+//!
+//! @return the strategy, or nullopt if no spelling matches
+//------------------------------------------------------------------------------
+constexpr std::optional<PlacementStrategyT>
+LookupFlatStrategyName(std::string_view name)
+{
+  for (const auto& [spelling, strategy] : kFlatStrategyNames) {
+    if (spelling == name) {
+      return strategy;
+    }
   }
 
-  // Default to the legacy engine. A space with no scheduler.type configured
-  // reaches this with an empty string, so this is what decides which engine an
-  // untouched installation runs: until the flat scheduler has soaked, that has
-  // to stay geotree.
-  return PlacementStrategyT::kGeoTreeLegacy;
+  return std::nullopt;
 }
 
 //------------------------------------------------------------------------------
-//! Convert a placement strategy to its string representation
+//! Canonical name of a flat scheduler strategy, without the engine prefix
 //!
 //! @param strategy placement strategy type
 //!
-//! @return string representation, "unknown" if unrecognized
+//! @return canonical spelling, "unknown" if the strategy has no name
 //------------------------------------------------------------------------------
 inline std::string
 StrategyToStr(PlacementStrategyT strategy)
 {
-  switch (strategy) {
-  case PlacementStrategyT::kRoundRobin:
-    return "roundrobin";
-
-  case PlacementStrategyT::kThreadLocalRoundRobin:
-    return "threadlocalroundrobin";
-
-  case PlacementStrategyT::kRandom:
-    return "random";
-
-  case PlacementStrategyT::kFidRandom:
-    return "fidrandom";
-
-  case PlacementStrategyT::kWeightedRandom:
-    return "weightedrandom";
-
-  case PlacementStrategyT::kWeightedRoundRobin:
-    return "weightedroundrobin";
-
-  case PlacementStrategyT::kGeoScheduler:
-    return "geoscheduler";
-
-  case PlacementStrategyT::kGeoTreeLegacy:
-    return "geotree";
-
-  default:
-    return "unknown";
+  for (const auto& [spelling, known] : kFlatStrategyNames) {
+    if (known == strategy) {
+      // First entry of a strategy is its canonical name
+      return std::string(spelling);
+    }
   }
+
+  return "unknown";
+}
+
+//------------------------------------------------------------------------------
+//! Render a resolved scheduler.type value in its canonical form: the engine
+//! name on its own for geotree, engine prefix plus strategy for the flat
+//! scheduler.
+//!
+//! @param config resolved configuration
+//!
+//! @return canonical string representation
+//------------------------------------------------------------------------------
+inline std::string
+SchedConfigToStr(SchedConfig config)
+{
+  if (!config.IsFlat()) {
+    return std::string(kGeoTreeEngineName);
+  }
+
+  return std::string(kFlatEnginePrefix) + StrategyToStr(config.strategy);
+}
+
+//------------------------------------------------------------------------------
+//! Parse a scheduler.type value. Strict: a value it cannot name is an error
+//! rather than a silent fall back to the legacy engine, so that a typo can be
+//! refused at the point it is configured.
+//!
+//! Accepts the canonical forms - "geotree" for the legacy engine, "flat:<name>"
+//! for a flat scheduler strategy - and, for backwards compatibility, every
+//! spelling that was valid before the engine prefix existed.
+//!
+//! @param config_sv string representation
+//!
+//! @return the resolved configuration, or nullopt if the value names none
+//------------------------------------------------------------------------------
+constexpr std::optional<SchedConfig>
+ParseSchedConfig(std::string_view config_sv)
+{
+  if (config_sv.empty()) {
+    return std::nullopt;
+  }
+
+  for (const auto& name : kGeoTreeEngineNames) {
+    if (config_sv == name) {
+      return kGeoTreeSchedConfig;
+    }
+  }
+
+  // Only a flat strategy may carry the prefix: "flat:geotree" is a
+  // contradiction, and honouring it would defeat putting the engine in the name
+  const bool prefixed =
+      (config_sv.substr(0, kFlatEnginePrefix.size()) == kFlatEnginePrefix);
+  const std::string_view name =
+      prefixed ? config_sv.substr(kFlatEnginePrefix.size()) : config_sv;
+
+  if (const auto strategy = LookupFlatStrategyName(name)) {
+    return SchedConfig{SchedEngineT::kFlat, *strategy};
+  }
+
+  return std::nullopt;
+}
+
+//------------------------------------------------------------------------------
+//! Check whether a scheduler.type value is one of the spellings that predate
+//! the engine prefix, so that a caller can say so once rather than silently
+//! rewriting what the operator typed. Only a missing prefix or a non-canonical
+//! engine name counts; an alias that carries the prefix, "flat:weightedrr" say,
+//! is a supported spelling.
+//!
+//! @param config_sv string representation
+//!
+//! @return true if the value resolves but is not written the current way
+//------------------------------------------------------------------------------
+constexpr bool
+IsDeprecatedSchedConfigSpelling(std::string_view config_sv)
+{
+  const auto config = ParseSchedConfig(config_sv);
+
+  if (!config.has_value()) {
+    return false;
+  }
+
+  if (!config->IsFlat()) {
+    return config_sv != kGeoTreeEngineName;
+  }
+
+  return config_sv.substr(0, kFlatEnginePrefix.size()) != kFlatEnginePrefix;
+}
+
+//------------------------------------------------------------------------------
+//! Render the accepted scheduler.type values, canonical spellings only
+//!
+//! @return comma separated list, the legacy engine first
+//------------------------------------------------------------------------------
+inline std::string
+KnownSchedConfigNames()
+{
+  std::string out(kGeoTreeEngineName);
+  PlacementStrategyT last = PlacementStrategyT::Count;
+
+  for (const auto& [spelling, strategy] : kFlatStrategyNames) {
+    if (strategy == last) {
+      continue; // an alias of the strategy already listed
+    }
+
+    last = strategy;
+    out += ", ";
+    out += kFlatEnginePrefix;
+    out += spelling;
+  }
+
+  return out;
+}
+
+//------------------------------------------------------------------------------
+//! Build the error text for a scheduler.type value naming no configuration
+//!
+//! @param config_sv the rejected value
+//!
+//! @return error message listing what would have been accepted
+//------------------------------------------------------------------------------
+inline std::string
+UnknownSchedConfigError(std::string_view config_sv)
+{
+  return "error: <" + std::string(config_sv) +
+         "> is not a scheduler type - accepted values are " + KnownSchedConfigNames() +
+         "\n";
+}
+
+//------------------------------------------------------------------------------
+//! Parse a scheduler.type value, falling back to the legacy engine when it
+//! names none.
+//!
+//! For the read paths that have no way to report a bad value: the boot restore,
+//! which must not abort over one unparseable space, and the per request
+//! override. Anything that can refuse the value calls ParseSchedConfig instead.
+//!
+//! @param config_sv string representation
+//!
+//! @return the resolved configuration, geotree if unrecognized
+//------------------------------------------------------------------------------
+constexpr SchedConfig
+SchedConfigFromStr(std::string_view config_sv)
+{
+  // A space with no scheduler.type configured reaches this as an empty string,
+  // so this fall back is what decides which engine an untouched installation
+  // runs: until the flat scheduler has soaked, that has to stay geotree.
+  return ParseSchedConfig(config_sv).value_or(kGeoTreeSchedConfig);
 }
 
 //------------------------------------------------------------------------------

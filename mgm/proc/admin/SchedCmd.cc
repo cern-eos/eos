@@ -131,11 +131,19 @@ eos::mgm::SchedCmd::SchedulerTypeSubcmd(const eos::console::SchedProto_TypeProto
 {
   eos::console::ReplyProto reply;
   std::ostringstream stdout;
+  // Refuse a value we cannot name rather than storing it and quietly running
+  // the legacy engine, which is what the lenient SchedConfigFromStr would do
+  const auto config = placement::ParseSchedConfig(type.schedtype());
 
-  gOFS->mFsScheduler->SetPlacementStrategy(type.schedtype());
+  if (!config.has_value()) {
+    reply.set_std_err(placement::UnknownSchedConfigError(type.schedtype()));
+    reply.set_retc(EINVAL);
+    return reply;
+  }
+
+  gOFS->mFsScheduler->SetSchedConfig(*config);
   stdout << "info: configured default scheduler type as : "
-         << placement::StrategyToStr(gOFS->mFsScheduler->GetPlacementStrategy());
-
+         << placement::SchedConfigToStr(gOFS->mFsScheduler->GetSchedConfig());
   reply.set_std_out(stdout.str());
   reply.set_retc(0);
   return reply;
@@ -191,12 +199,12 @@ SchedCmd::ShowSubCmd(const eos::console::SchedProto_ShowProto& show)
 {
   eos::console::ReplyProto reply;
   if (show.option() == eos::console::SchedProto_ShowProto::TYPE) {
-    auto strategy = gOFS->mFsScheduler->GetPlacementStrategy();
+    auto config = gOFS->mFsScheduler->GetSchedConfig();
     if (!show.spacename().empty()) {
-      strategy = gOFS->mFsScheduler->GetPlacementStrategy(show.spacename());
+      config = gOFS->mFsScheduler->GetSchedConfig(show.spacename());
     }
     std::ostringstream oss;
-    oss << "Scheduler Type:" << placement::StrategyToStr(strategy) << std::endl;
+    oss << "Scheduler Type:" << placement::SchedConfigToStr(config) << std::endl;
     reply.set_std_out(oss.str());
     reply.set_retc(0);
 

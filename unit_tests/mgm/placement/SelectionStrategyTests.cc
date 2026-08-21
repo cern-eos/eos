@@ -90,27 +90,144 @@ TEST(PlacementResult, add_respects_capacity)
   EXPECT_EQ((size_t)result.n_filled, result.ids.size());
 }
 
-TEST(StrategyFromStr, UnknownAndEmptyFallBackToTheLegacyEngine)
+namespace {
+//------------------------------------------------------------------------------
+//! The flat scheduler running the given strategy
+//------------------------------------------------------------------------------
+eos::mgm::placement::SchedConfig
+Flat(eos::mgm::placement::PlacementStrategyT strategy)
+{
+  return {eos::mgm::placement::SchedEngineT::kFlat, strategy};
+}
+} // namespace
+
+TEST(SchedConfigFromStr, UnknownAndEmptyFallBackToTheLegacyEngine)
 {
   using namespace eos::mgm::placement;
   // A space with no scheduler.type configured is pushed through here as an
   // empty string at startup, so this is what decides which engine an untouched
   // installation runs. It has to stay geotree until the flat scheduler soaks.
-  EXPECT_EQ(StrategyFromStr(""), PlacementStrategyT::kGeoTreeLegacy);
-  EXPECT_EQ(StrategyFromStr("nonsense"), PlacementStrategyT::kGeoTreeLegacy);
-  EXPECT_EQ(StrategyFromStr("geotree"), PlacementStrategyT::kGeoTreeLegacy);
-  EXPECT_EQ(StrategyFromStr("legacy"), PlacementStrategyT::kGeoTreeLegacy);
-  // ... and the flat geo scheduler has to be asked for by name
-  EXPECT_EQ(StrategyFromStr("geo"), PlacementStrategyT::kGeoScheduler);
-  EXPECT_EQ(StrategyFromStr("geoscheduler"), PlacementStrategyT::kGeoScheduler);
-  EXPECT_EQ(StrategyFromStr("roundrobin"), PlacementStrategyT::kRoundRobin);
+  EXPECT_EQ(SchedConfigFromStr(""), kGeoTreeSchedConfig);
+  EXPECT_EQ(SchedConfigFromStr("nonsense"), kGeoTreeSchedConfig);
+  EXPECT_EQ(SchedConfigFromStr("geotree"), kGeoTreeSchedConfig);
+  EXPECT_EQ(SchedConfigFromStr("legacy"), kGeoTreeSchedConfig);
+  // ... and the flat scheduler has to be asked for by name
+  EXPECT_EQ(SchedConfigFromStr("flat:geo"), Flat(PlacementStrategyT::kGeoScheduler));
+  EXPECT_EQ(SchedConfigFromStr("geo"), Flat(PlacementStrategyT::kGeoScheduler));
 }
 
-TEST(MakeSelectionStrategy, LegacyEngineHasNoImplementation)
+TEST(ParseSchedConfig, EnginePrefixedNames)
 {
   using namespace eos::mgm::placement;
-  // kGeoTreeLegacy is a routing marker, not a strategy: Scheduler.cc sees it
-  // and never reaches the flat scheduler at all
-  EXPECT_EQ(MakeSelectionStrategy(PlacementStrategyT::kGeoTreeLegacy, 128), nullptr);
-  EXPECT_NE(MakeSelectionStrategy(PlacementStrategyT::kGeoScheduler, 128), nullptr);
+  // The canonical grammar: the engine is the first thing in the value
+  EXPECT_EQ(ParseSchedConfig("geotree"), kGeoTreeSchedConfig);
+  EXPECT_EQ(ParseSchedConfig("flat:geo"), Flat(PlacementStrategyT::kGeoScheduler));
+  EXPECT_EQ(ParseSchedConfig("flat:roundrobin"), Flat(PlacementStrategyT::kRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("flat:threadlocalroundrobin"),
+            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("flat:random"), Flat(PlacementStrategyT::kRandom));
+  EXPECT_EQ(ParseSchedConfig("flat:fidrandom"), Flat(PlacementStrategyT::kFidRandom));
+  EXPECT_EQ(ParseSchedConfig("flat:weightedrandom"),
+            Flat(PlacementStrategyT::kWeightedRandom));
+  EXPECT_EQ(ParseSchedConfig("flat:weightedroundrobin"),
+            Flat(PlacementStrategyT::kWeightedRoundRobin));
+  // Aliases carry the prefix too
+  EXPECT_EQ(ParseSchedConfig("flat:tlrr"),
+            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("flat:weightedrr"),
+            Flat(PlacementStrategyT::kWeightedRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("flat:fid"), Flat(PlacementStrategyT::kFidRandom));
+  // The legacy engine is not a flat strategy, so it cannot wear the prefix
+  EXPECT_FALSE(ParseSchedConfig("flat:geotree").has_value());
+  EXPECT_FALSE(ParseSchedConfig("flat:legacy").has_value());
+}
+
+TEST(ParseSchedConfig, PrePrefixSpellingsStillParse)
+{
+  using namespace eos::mgm::placement;
+  // Every value a configuration written before the engine prefix can hold has
+  // to keep meaning exactly what it meant, or an upgrade would silently move
+  // spaces between engines
+  EXPECT_EQ(ParseSchedConfig("geo"), Flat(PlacementStrategyT::kGeoScheduler));
+  EXPECT_EQ(ParseSchedConfig("geoscheduler"), Flat(PlacementStrategyT::kGeoScheduler));
+  EXPECT_EQ(ParseSchedConfig("legacy"), kGeoTreeSchedConfig);
+  EXPECT_EQ(ParseSchedConfig("roundrobin"), Flat(PlacementStrategyT::kRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("rr"), Flat(PlacementStrategyT::kRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("tlrr"), Flat(PlacementStrategyT::kThreadLocalRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("threadlocalrr"),
+            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
+  EXPECT_EQ(ParseSchedConfig("fid"), Flat(PlacementStrategyT::kFidRandom));
+  EXPECT_EQ(ParseSchedConfig("weightedrr"),
+            Flat(PlacementStrategyT::kWeightedRoundRobin));
+}
+
+TEST(ParseSchedConfig, RejectsWhatItCannotName)
+{
+  using namespace eos::mgm::placement;
+  // The whole point of the strict parse: a typo is an error here, where the
+  // command layer can refuse it, instead of a silent downgrade to geotree
+  EXPECT_FALSE(ParseSchedConfig("").has_value());
+  EXPECT_FALSE(ParseSchedConfig("nonsense").has_value());
+  EXPECT_FALSE(ParseSchedConfig("roundrobbin").has_value());
+  EXPECT_FALSE(ParseSchedConfig("flat:").has_value());
+  EXPECT_FALSE(ParseSchedConfig("flat:nonsense").has_value());
+  EXPECT_FALSE(ParseSchedConfig("flat").has_value());
+  EXPECT_FALSE(ParseSchedConfig("geotree:flat").has_value());
+}
+
+TEST(SchedConfigToStr, RendersTheCanonicalPrefixedName)
+{
+  using namespace eos::mgm::placement;
+  EXPECT_EQ(SchedConfigToStr(kGeoTreeSchedConfig), "geotree");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kGeoScheduler)), "flat:geo");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kRoundRobin)), "flat:roundrobin");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kThreadLocalRoundRobin)),
+            "flat:threadlocalroundrobin");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kRandom)), "flat:random");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kFidRandom)), "flat:fidrandom");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kWeightedRandom)),
+            "flat:weightedrandom");
+  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kWeightedRoundRobin)),
+            "flat:weightedroundrobin");
+}
+
+TEST(SchedConfigToStr, RoundTripsThroughTheStrictParse)
+{
+  using namespace eos::mgm::placement;
+  EXPECT_EQ(ParseSchedConfig(SchedConfigToStr(kGeoTreeSchedConfig)), kGeoTreeSchedConfig);
+
+  for (uint8_t i = 0; i < static_cast<uint8_t>(PlacementStrategyT::Count); ++i) {
+    const auto config = Flat(static_cast<PlacementStrategyT>(i));
+    const std::string name = SchedConfigToStr(config);
+    EXPECT_NE(name, "flat:unknown") << "strategy " << (int)i << " has no name";
+    EXPECT_EQ(ParseSchedConfig(name), config) << "name " << name;
+    // What SchedConfigToStr renders is by definition the canonical spelling
+    EXPECT_FALSE(IsDeprecatedSchedConfigSpelling(name)) << "name " << name;
+  }
+}
+
+TEST(IsDeprecatedSchedConfigSpelling, FlagsOnlyThePrePrefixNames)
+{
+  using namespace eos::mgm::placement;
+  EXPECT_TRUE(IsDeprecatedSchedConfigSpelling("geo"));
+  EXPECT_TRUE(IsDeprecatedSchedConfigSpelling("roundrobin"));
+  EXPECT_TRUE(IsDeprecatedSchedConfigSpelling("weightedrr"));
+  EXPECT_TRUE(IsDeprecatedSchedConfigSpelling("legacy"));
+  EXPECT_FALSE(IsDeprecatedSchedConfigSpelling("geotree"));
+  EXPECT_FALSE(IsDeprecatedSchedConfigSpelling("flat:geo"));
+  EXPECT_FALSE(IsDeprecatedSchedConfigSpelling("flat:weightedrr"));
+  // Not a scheduler type at all, so nothing to deprecate
+  EXPECT_FALSE(IsDeprecatedSchedConfigSpelling("nonsense"));
+}
+
+TEST(MakeSelectionStrategy, EveryEnumeratorHasAnImplementation)
+{
+  using namespace eos::mgm::placement;
+
+  // The routing marker used to sit in this enum and punch a nullptr hole in the
+  // strategy array. Now that the engine is its own type, every value is real.
+  for (uint8_t i = 0; i < static_cast<uint8_t>(PlacementStrategyT::Count); ++i) {
+    EXPECT_NE(MakeSelectionStrategy(static_cast<PlacementStrategyT>(i), 128), nullptr)
+        << "strategy " << (int)i;
+  }
 }

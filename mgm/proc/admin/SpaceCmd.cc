@@ -714,15 +714,34 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = 0;
       }
     } else if (key == "scheduler.type") {
-      if (!space->SetConfigMember(key, value)) {
-        std_err.str("error: cannot set space config value");
-        ret_c = EIO;
+      // Validate before storing. Without this a typo was accepted with a
+      // success message and left the space on whatever the lenient parse fell
+      // back to, which is the legacy engine
+      const auto config = placement::ParseSchedConfig(value);
+
+      if (!config.has_value()) {
+        std_err.str(placement::UnknownSchedConfigError(value));
+        ret_c = EINVAL;
       } else {
-        applied = true;
-        gOFS->mFsScheduler->SetPlacementStrategy(space->mName, value);
-        std_out.str("success: configured scheduler.type in space='" +
-                    space_name + "' as " + value + "\n");
-        ret_c = 0;
+        // Store the canonical spelling rather than what was typed, so that a
+        // configuration written before the engine prefix existed is rewritten
+        // the first time it is touched
+        const std::string canonical = placement::SchedConfigToStr(*config);
+
+        if (!space->SetConfigMember(key, canonical)) {
+          std_err.str("error: cannot set space config value");
+          ret_c = EIO;
+        } else {
+          applied = true;
+          gOFS->mFsScheduler->SetSchedConfig(space->mName, *config);
+          std_out.str("success: configured scheduler.type in space='" + space_name +
+                      "' as " + canonical +
+                      (placement::IsDeprecatedSchedConfigSpelling(value)
+                           ? " (<" + value + "> is deprecated)"
+                           : "") +
+                      "\n");
+          ret_c = 0;
+        }
       }
     } else if (key == eos::common::SPACE_CACHE_SPACE_NAME) {
       applied = true;

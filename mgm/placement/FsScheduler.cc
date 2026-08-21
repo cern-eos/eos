@@ -181,7 +181,7 @@ FsScheduler::HasConfiguration(ClusterMgr& mgr)
   const auto limits = mgr.GetConfiguredFillLimits();
   return (limits.cap != kDefaultFillCapPercent) ||
          (limits.warn != kDefaultFillWarnPercent) || !mgr.GetDisabledBranches().empty() ||
-         mgr.GetConfiguredStrategy().has_value();
+         mgr.GetConfiguredSchedConfig().has_value();
 }
 
 //------------------------------------------------------------------------------
@@ -286,7 +286,7 @@ FsScheduler::LoadConfig()
       continue;
     }
 
-    SetPlacementStrategy(spacename, space->GetConfigMember("scheduler.type"));
+    SetSchedConfig(spacename, space->GetConfigMember("scheduler.type"));
     // Restore the configured fill thresholds, falling back to the default
     // for whichever of the two is not set. Applied as a pair so that the
     // restore cannot trip over the warn < cap ordering.
@@ -468,7 +468,20 @@ PlacementResult
 FsScheduler::Schedule(const std::string& spaceName, PlacementArgs args)
 {
   if (!IsValidPlacementStrategy(args.strategy)) {
-    args.strategy = GetPlacementStrategy(spaceName);
+    const auto config = GetSchedConfig(spaceName);
+
+    // A space routed to the geotree engine must not be answered here. The
+    // bridge in Scheduler.cc checks the engine before it ever calls in, and an
+    // explicit args.strategy is an intentional per request override that skips
+    // this - so what is left is a caller that resolved nothing and asked
+    // anyway, which the flat scheduler has no business serving.
+    if (!config.IsFlat()) {
+      PlacementResult refused(args.n_replicas);
+      refused.ret_code = EINVAL;
+      return refused;
+    }
+
+    args.strategy = config.strategy;
     eos_static_info("msg=\"Overriding scheduling strategy to space default\": %s",
                     StrategyToStr(args.strategy).c_str());
   }
@@ -526,8 +539,9 @@ FsScheduler::Schedule(const std::string& spaceName, PlacementArgs args)
 PlacementResult
 FsScheduler::Schedule(const std::string& spaceName, uint8_t n_replicas)
 {
-  return Schedule(spaceName, PlacementArgs(n_replicas, kClientCreate,
-                                           GetPlacementStrategy(spaceName)));
+  // Strategy left unset on purpose, so that the engine guard in the main
+  // overload gets a say rather than being bypassed by a resolved strategy
+  return Schedule(spaceName, PlacementArgs(n_replicas, kClientCreate));
 }
 
 //------------------------------------------------------------------------------
@@ -537,7 +551,14 @@ int
 FsScheduler::Access(const std::string& spaceName, AccessArgs& args)
 {
   if (!IsValidPlacementStrategy(args.strategy)) {
-    args.strategy = GetPlacementStrategy(spaceName);
+    const auto config = GetSchedConfig(spaceName);
+
+    // Same guard as the placement path: a geotree space is not ours to serve
+    if (!config.IsFlat()) {
+      return EINVAL;
+    }
+
+    args.strategy = config.strategy;
     eos_static_info("msg=\"Overriding access strategy to space default\": %s",
                     StrategyToStr(args.strategy).c_str());
   }
@@ -667,56 +688,75 @@ FsScheduler::SetDiskFreeSpace(const std::string& spaceName, fsid_t disk_id,
 }
 
 //------------------------------------------------------------------------------
-// Set the global default placement strategy
+// Set the global default scheduler configuration
 //------------------------------------------------------------------------------
 void
-FsScheduler::SetPlacementStrategy(std::string_view strategy_sv)
+FsScheduler::SetSchedConfig(SchedConfig config)
 {
-  mDefaultPlctStrategy.store(StrategyFromStr(strategy_sv), std::memory_order_release);
+  mDefaultSchedConfig.store(config, std::memory_order_release);
 }
 
 //------------------------------------------------------------------------------
-// Get the global default placement strategy
+// Set the global default from its string representation
 //------------------------------------------------------------------------------
-PlacementStrategyT
-FsScheduler::GetPlacementStrategy()
+void
+FsScheduler::SetSchedConfig(std::string_view config_sv)
 {
-  return mDefaultPlctStrategy.load(std::memory_order_acquire);
+  SetSchedConfig(SchedConfigFromStr(config_sv));
 }
 
 //------------------------------------------------------------------------------
-// Set the placement strategy of one space
+// Get the global default scheduler configuration
+//------------------------------------------------------------------------------
+SchedConfig
+FsScheduler::GetSchedConfig()
+{
+  return mDefaultSchedConfig.load(std::memory_order_acquire);
+}
+
+//------------------------------------------------------------------------------
+// Set the scheduler configuration of one space
 //------------------------------------------------------------------------------
 void
-FsScheduler::SetPlacementStrategy(const std::string& spacename,
-                                  std::string_view strategy_sv)
+FsScheduler::SetSchedConfig(const std::string& spacename, SchedConfig config)
 {
   // Store the override on the space's manager - the one place the configuration
   // lives - binding a fresh manager to the space first if it has none yet.
-  const PlacementStrategyT strategy = StrategyFromStr(strategy_sv);
   ConfigureSpace(spacename,
-                 [strategy](ClusterMgr& mgr) { mgr.SetConfiguredStrategy(strategy); });
-  eos_static_info("msg=\"Configured default mScheduler type for\" space=%s, strategy=%s",
-                  spacename.c_str(), strategy_sv.data());
+                 [config](ClusterMgr& mgr) { mgr.SetConfiguredSchedConfig(config); });
+  // Log what the value resolved to rather than the string handed in: the
+  // resolved name is the useful fact when an unparseable value has just been
+  // read back from the configuration
+  eos_static_info("msg=\"configured scheduler type for space\" space=%s type=%s",
+                  spacename.c_str(), SchedConfigToStr(config).c_str());
 }
 
 //------------------------------------------------------------------------------
-// Get the placement strategy of one space
+// Set the scheduler configuration of one space from its string representation
 //------------------------------------------------------------------------------
-PlacementStrategyT
-FsScheduler::GetPlacementStrategy(const std::string& spacename)
+void
+FsScheduler::SetSchedConfig(const std::string& spacename, std::string_view config_sv)
+{
+  SetSchedConfig(spacename, SchedConfigFromStr(config_sv));
+}
+
+//------------------------------------------------------------------------------
+// Get the scheduler configuration of one space
+//------------------------------------------------------------------------------
+SchedConfig
+FsScheduler::GetSchedConfig(const std::string& spacename)
 {
   {
     eos::common::RCUReadLock rlock(mClusterRcuMutex);
 
     if (auto* cluster_mgr = GetClusterMgr(spacename)) {
-      if (auto strategy = cluster_mgr->GetConfiguredStrategy()) {
-        return *strategy;
+      if (auto config = cluster_mgr->GetConfiguredSchedConfig()) {
+        return *config;
       }
     }
   }
 
-  return GetPlacementStrategy();
+  return GetSchedConfig();
 }
 
 //------------------------------------------------------------------------------
@@ -907,16 +947,16 @@ FsScheduler::GetSpaces()
 std::string
 FsScheduler::GetSpaceState(const std::string& spacename)
 {
-  const auto strategy = GetPlacementStrategy(spacename);
-  const auto default_strategy = GetPlacementStrategy();
+  const auto config = GetSchedConfig(spacename);
+  const auto default_config = GetSchedConfig();
   const auto limits = GetFillLimits(spacename);
   std::stringstream ss;
   ss << "space: " << spacename << "\n"
      << "  running   : " << (IsRunning() ? "yes" : "no") << "\n"
-     << "  strategy  : " << StrategyToStr(strategy);
+     << "  strategy  : " << SchedConfigToStr(config);
 
-  if (strategy != default_strategy) {
-    ss << " (space override, global default: " << StrategyToStr(default_strategy) << ")";
+  if (config != default_config) {
+    ss << " (space override, global default: " << SchedConfigToStr(default_config) << ")";
   } else {
     ss << " (global default)";
   }
@@ -986,7 +1026,7 @@ FsScheduler::GetPlacementCapacity(const std::string& spacename)
 
   // A space routed to the legacy engine gets its figure from that engine,
   // same contract as the placement bridge in Scheduler.cc
-  if (GetPlacementStrategy(spacename) == PlacementStrategyT::kGeoTreeLegacy) {
+  if (!GetSchedConfig(spacename).IsFlat()) {
     return std::nullopt;
   }
 

@@ -52,10 +52,14 @@ MakeSelectionStrategy(PlacementStrategyT type, size_t max_buckets)
     // the geo scheduler names is therefore only the picker, and a capacity
     // aware one is the right default.
     return std::make_unique<WeightedRandomStrategy>(type, max_buckets);
-  default:
-    return nullptr;
+  case PlacementStrategyT::Count:
+    break;
   }
 
+  // Only the Count sentinel reaches this. Every enumerator is a real strategy
+  // now that the geotree routing marker has moved out to SchedEngineT, so the
+  // strategy array has no holes and no caller has to test for one.
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------

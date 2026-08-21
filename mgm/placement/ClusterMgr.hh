@@ -514,24 +514,24 @@ public:
   DisabledBranchesT GetDisabledBranches() const;
 
   //----------------------------------------------------------------------------
-  //! Set the configured placement strategy override of this space. This
-  //! ClusterMgr is the authoritative owner. Unlike the fill limits and disabled
-  //! branches the strategy does not shape the topology snapshot and is therefore
-  //! not stamped onto it, only consulted at schedule time; it is read on the hot
-  //! scheduling path, so it lives in a lock-free atomic rather than under
-  //! mConfigMutex.
+  //! Set the configured scheduler override of this space - which engine, and
+  //! the flat scheduler's strategy. This ClusterMgr is the authoritative owner.
+  //! Unlike the fill limits and disabled branches it does not shape the
+  //! topology snapshot and is therefore not stamped onto it, only consulted at
+  //! schedule time; it is read on the hot scheduling path, so it lives in a
+  //! lock-free atomic rather than under mConfigMutex.
   //!
-  //! @param strategy placement strategy to use for this space
+  //! @param config scheduler configuration to use for this space
   //----------------------------------------------------------------------------
-  void SetConfiguredStrategy(PlacementStrategyT strategy);
+  void SetConfiguredSchedConfig(SchedConfig config);
 
   //----------------------------------------------------------------------------
-  //! Get the configured placement strategy override of this space
+  //! Get the configured scheduler override of this space
   //!
   //! @return the override, or nullopt if the space has none and the caller
   //!         should fall back to the global default
   //----------------------------------------------------------------------------
-  std::optional<PlacementStrategyT> GetConfiguredStrategy() const;
+  std::optional<SchedConfig> GetConfiguredSchedConfig() const;
 
   //----------------------------------------------------------------------------
   //! Get a human readable dump of the current snapshot
@@ -602,9 +602,10 @@ private:
   //! Authoritative placement strategy override, or unset to fall back to the
   //! global default. A scalar read on the hot scheduling path, so it lives in a
   //! lock-free atomic rather than under mConfigMutex above; it does not shape
-  //! the snapshot, so AddClusterData does not stamp it. Encoded as int16_t so
-  //! that -1 means "no override", PlacementStrategyT having no unset value.
-  std::atomic<int16_t> mConfiguredStrategy{-1};
+  //! the snapshot, so AddClusterData does not stamp it. Engine and strategy
+  //! share one word so that a reader can never catch one without the other:
+  //! -1 means "no override", otherwise (engine << 8) | strategy.
+  std::atomic<int32_t> mConfiguredSchedConfig{-1};
 };
 
 } // namespace eos::mgm::placement

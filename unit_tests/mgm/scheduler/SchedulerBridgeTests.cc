@@ -120,7 +120,7 @@ protected:
     mFsSched =
         std::make_unique<FsScheduler>(2048, std::make_unique<BridgeClusterMgrHandler>());
     mFsSched->UpdateClusterData();
-    mFsSched->SetPlacementStrategy("geo");
+    mFsSched->SetSchedConfig("geo");
     mVid.geolocation = "siteA::room0";
   }
 
@@ -306,7 +306,7 @@ TEST_F(SchedulerBridgeF, OpaqueStrategyOverridesSpaceDefault)
 {
   // The space default routes to the legacy engine, but the opaque string of
   // the request wins over it
-  mFsSched->SetPlacementStrategy("geotree");
+  mFsSched->SetSchedConfig("geotree");
   auto args = MakePlctArgs();
   EXPECT_EQ(Scheduler::FlatSchedulerPlacement(&args, *mFsSched), EINVAL);
   args.sched_strategy_cstr = "rr";
@@ -418,7 +418,7 @@ TEST_F(SchedulerBridgeF, RainAccessRequiresEnoughStripes)
 
 TEST_F(SchedulerBridgeF, AccessLegacySpaceFallsThrough)
 {
-  mFsSched->SetPlacementStrategy("geotree");
+  mFsSched->SetSchedConfig("geotree");
   auto args = MakeAccessArgs();
   EXPECT_EQ(Scheduler::FlatSchedulerAccess(&args, *mFsSched), EINVAL);
   EXPECT_EQ(mFsIndex, 99u);

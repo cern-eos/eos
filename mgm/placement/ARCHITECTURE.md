@@ -31,60 +31,77 @@ switching a space's engine is one config key with no caller outside this class
 naming an engine. The drain-destination path funnels through the same facade via
 `Scheduler::PlaceDrainReplica` (§10).
 
-**How the choice is made.** Each space resolves to a placement strategy. One
-strategy value, `kGeoTreeLegacy`, is a *routing marker* rather than a real
-strategy: `MakeSelectionStrategy` returns `nullptr` for it and the bridge
-returns `EINVAL` before touching the flat scheduler, so the request falls
-through to geotree:
+**How the choice is made.** Each space resolves to a **`SchedConfig`**: which
+engine serves it (`SchedEngineT::kGeoTree` or `kFlat`) and, when that is the
+flat scheduler, which `PlacementStrategyT` it picks with. The two are separate
+types on purpose — the engine used to be smuggled into `PlacementStrategyT` as
+an extra enumerator, `kGeoTreeLegacy`, which made "is this a strategy" and
+"which engine" the same question. Routing now asks the engine:
 
 ```cpp
-if (strategy == placement::PlacementStrategyT::kGeoTreeLegacy) {
+if (!config.IsFlat()) {
   return EINVAL;              // hand this space to the geotree engine
 }
 ```
 
+`SchedConfig` is two bytes and trivially copyable, so it rides in a single
+`std::atomic<SchedConfig>` for the global default and in one packed
+`atomic<int32_t>` per space (`ClusterMgr::mConfiguredSchedConfig`, `-1` meaning
+"no override"). Engine and strategy therefore move as a unit: a scheduling
+thread can never catch the flat engine paired with a strategy from a different
+configuration.
+
 Two places decide the default, and the second overrides the first:
 
 - `FsScheduler`'s constructor default (`FsScheduler.hh`), and
-- **`StrategyFromStr`'s fallback**, which is the one that actually governs —
+- **`SchedConfigFromStr`'s fallback**, which is the one that actually governs —
   `FsScheduler::LoadConfig` pushes `GetConfigMember("scheduler.type")` through
   it for *every* space at startup, and an unconfigured space arrives as the
   empty string.
 
-Both resolve to `kGeoTreeLegacy`, so an untouched installation runs geotree end
-to end. A space is opted in (and back out) by name:
+Both resolve to `kGeoTreeSchedConfig`, so an untouched installation runs geotree
+end to end. A space is opted in (and back out) by name:
 
 ```
-space config <space> space.scheduler.type=geo        # flat scheduler, geo-aware
-space config <space> space.scheduler.type=geotree    # back to the legacy engine
+space config <space> space.scheduler.type=flat:geo   # flat scheduler, geo-aware
+space config <space> space.scheduler.type=geotree    # the legacy engine
 ```
 
 (The CLI takes the `space.` prefix; the config member itself is
 `scheduler.type`.)
 
-**The names are a trap.** Those two lines differ by four characters and select
-*different engines*: `geo` is `kGeoScheduler`, a flat-scheduler strategy (the
-geo-aware descent, picking capacity-weighted at each level), while `geotree` is
-`kGeoTreeLegacy`, the routing marker that hands the space to the old engine.
-`StrategyFromStr` compounds it by resolving anything it does not recognise to
-`kGeoTreeLegacy` and `SpaceCmd` does not validate the value, so a typo is
-accepted with a success message and silently keeps or moves the space onto
-geotree. Worth fixing when the marker leaves the enum: split `scheduler.type`
-into an explicit engine and, for the flat engine, a strategy — `geotree` versus
-`flat:geo`, `flat:roundrobin`, `flat:weightedrr` and so on, with today's
-spellings kept as deprecated aliases and an unknown value rejected rather than
-downgraded. The engine then reads first, and retiring geotree becomes a
-mechanical `s/flat://`.
+**The value names the engine first.** That is deliberate: the previous grammar
+spelled these two `geo` and `geotree` — four characters apart, and *different
+engines*, since `geo` is `kGeoScheduler`, a flat-scheduler strategy, while
+`geotree` was the routing marker. Every flat strategy now carries the `flat:`
+prefix (`kFlatEnginePrefix`) and `geotree` names the legacy engine on its own;
+the prefix is refused on `geotree` itself, which would be a contradiction.
+
+Two parsers sit behind it, and which one a caller gets is the point:
+- `ParseSchedConfig` is **strict** — `std::optional`, `nullopt` for a value it
+  cannot name. Everything that can refuse the input uses it, so
+  `space config space.scheduler.type=roundrobbin` is now an `EINVAL` instead of
+  a success message that silently left the space on geotree. `SpaceCmd` stores
+  `SchedConfigToStr` of the parse rather than the raw string, so a configuration
+  written under the old grammar rewrites itself the first time it is touched.
+- `SchedConfigFromStr` is the **lenient** wrapper,
+  `value_or(kGeoTreeSchedConfig)`, for the two read paths with nowhere to report
+  a bad value: the boot restore, which must not abort over one unparseable
+  space, and the per-request override in `Scheduler::FlatSchedulerPlacement`.
+
+Every pre-prefix spelling still parses to what it always meant, so an upgrade
+moves no space between engines; `IsDeprecatedSchedConfigSpelling` is what lets
+the command layer say so.
 
 When opted in, the flat scheduler serves that space's placement, access **and**
 draining.
 
-Carrying the routing marker *inside* `PlacementStrategyT` is the cost of the
-coexistence: it forces a `nullptr` hole in the strategy array, an
-`IsValidPlacementStrategy` check on every lookup, and EINVAL-as-routing in the
-bridge. It should be pulled out of the enum once geotree is retired — routing
-then becomes a separate per-space "engine" flag, if it is still needed at all.
-Until then the marker stays, so the enum should not be entrenched further.
+With the marker gone, **every `PlacementStrategyT` enumerator is a real
+strategy**: `MakeSelectionStrategy` returns nullptr only for the `Count`
+sentinel, the strategy array has no hole, and `IsValidPlacementStrategy` is back
+to meaning what it says. Retiring geotree is now a mechanical `s/flat://` in the
+name table plus deleting `SchedEngineT` and the three `IsFlat()` guards in
+`Scheduler.cc`.
 
 ### Why the flat scheduler exists
 
@@ -283,8 +300,8 @@ XrdMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-sp
   the strategy override — is **not** held here: each `ClusterMgr` owns its own.
   The fill limits and disabled branches are stamped onto every snapshot the
   manager commits, so a rebuild carries them forward with no re-stamping; the
-  strategy override does not shape the snapshot (it selects the engine before a
-  snapshot is even consulted, including the `kGeoTreeLegacy` routing) and so
+  `SchedConfig` override does not shape the snapshot (its engine half is read to
+  route the request, before a snapshot is even consulted) and so
   lives in a lock-free atomic on the manager, read straight on the scheduling
   path. The only per-space state left on `FsScheduler` is the global default
   strategy. A space is bound to a manager the moment it is first configured (an

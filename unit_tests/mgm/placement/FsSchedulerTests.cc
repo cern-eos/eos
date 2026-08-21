@@ -76,35 +76,45 @@ TEST(FsScheduler, null_handler)
   null_scheduler.UpdateClusterData();
 }
 
+//------------------------------------------------------------------------------
+//! The flat scheduler running the given strategy, which is what every value
+//! below the routing decision looks like
+//------------------------------------------------------------------------------
+static eos::mgm::placement::SchedConfig
+FlatConfig(eos::mgm::placement::PlacementStrategyT strategy)
+{
+  return {eos::mgm::placement::SchedEngineT::kFlat, strategy};
+}
+
 TEST(FsScheduler, default_scheduler)
 {
   // An unconfigured scheduler routes to the legacy engine rather than picking
   // one of its own strategies
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
-  auto strategy = fs_scheduler.GetPlacementStrategy();
-  ASSERT_EQ(strategy, eos::mgm::placement::PlacementStrategyT::kGeoTreeLegacy);
+  auto strategy = fs_scheduler.GetSchedConfig();
+  ASSERT_EQ(strategy, eos::mgm::placement::kGeoTreeSchedConfig);
 }
 
 TEST(FsScheduler, legacy_engine_is_not_schedulable)
 {
-  // kGeoTreeLegacy is a routing marker, not a strategy: the flat scheduler has
-  // no implementation for it and says so, which is what makes Scheduler.cc fall
-  // through to the geotree engine
+  // A space routed to the geotree engine is refused here even though every
+  // PlacementStrategyT value is now a real strategy. Scheduler.cc checks the
+  // engine before it ever calls in; this is the backstop that keeps the flat
+  // scheduler from silently answering for a space that is not its to serve.
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
   auto result = fs_scheduler.Schedule("default", 2);
   ASSERT_FALSE(result);
   EXPECT_EQ(result.ret_code, EINVAL);
-  EXPECT_EQ(result.ErrorString(), "Not a valid SelectionStrategy");
 }
 
 TEST(FsScheduler, geo_scheduler_places)
 {
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("geo");
-  ASSERT_EQ(fs_scheduler.GetPlacementStrategy(),
-            eos::mgm::placement::PlacementStrategyT::kGeoScheduler);
+  fs_scheduler.SetSchedConfig("geo");
+  ASSERT_EQ(fs_scheduler.GetSchedConfig(),
+            FlatConfig(eos::mgm::placement::PlacementStrategyT::kGeoScheduler));
   auto result = fs_scheduler.Schedule("default", 2);
   ASSERT_TRUE(result);
 }
@@ -113,39 +123,38 @@ TEST(FsScheduler, round_robin)
 {
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
-  auto strategy = fs_scheduler.GetPlacementStrategy();
-  ASSERT_EQ(strategy, eos::mgm::placement::PlacementStrategyT::kRoundRobin);
+  fs_scheduler.SetSchedConfig("roundrobin");
+  auto strategy = fs_scheduler.GetSchedConfig();
+  ASSERT_EQ(strategy, FlatConfig(eos::mgm::placement::PlacementStrategyT::kRoundRobin));
   auto result = fs_scheduler.Schedule("default", 2);
   ASSERT_TRUE(result);
 }
 
-TEST(FsScheduler, SetPlacementStrategy)
+TEST(FsScheduler, SetSchedConfig)
 {
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy(),
-            eos::mgm::placement::PlacementStrategyT::kRoundRobin);
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy("default"),
-            eos::mgm::placement::PlacementStrategyT::kRoundRobin);
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy("foobar"),
-            eos::mgm::placement::PlacementStrategyT::kRoundRobin);
+  fs_scheduler.SetSchedConfig("roundrobin");
+  EXPECT_EQ(fs_scheduler.GetSchedConfig(),
+            FlatConfig(eos::mgm::placement::PlacementStrategyT::kRoundRobin));
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("default"),
+            FlatConfig(eos::mgm::placement::PlacementStrategyT::kRoundRobin));
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("foobar"),
+            FlatConfig(eos::mgm::placement::PlacementStrategyT::kRoundRobin));
 }
 
-TEST(FsScheduler, setPlacementStrategySpace)
+TEST(FsScheduler, SetSchedConfigSpace)
 {
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("default", "weightedrandom");
+  fs_scheduler.SetSchedConfig("default", "weightedrandom");
   // Only the named space is opted in, everything else keeps routing to the
   // legacy engine
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy(),
-            eos::mgm::placement::PlacementStrategyT::kGeoTreeLegacy);
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy("default"),
-            eos::mgm::placement::PlacementStrategyT::kWeightedRandom);
-  EXPECT_EQ(fs_scheduler.GetPlacementStrategy("tape"),
-            eos::mgm::placement::PlacementStrategyT::kGeoTreeLegacy);
+  EXPECT_EQ(fs_scheduler.GetSchedConfig(), eos::mgm::placement::kGeoTreeSchedConfig);
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("default"),
+            FlatConfig(eos::mgm::placement::PlacementStrategyT::kWeightedRandom));
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("tape"),
+            eos::mgm::placement::kGeoTreeSchedConfig);
 }
 
 TEST(FsScheduler, FillLimitsValidation)
@@ -207,10 +216,10 @@ TEST(FsScheduler, SpaceStateSummary)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("default", "weightedrandom");
+  fs_scheduler.SetSchedConfig("default", "weightedrandom");
   const auto state = fs_scheduler.GetSpaceState("default");
   EXPECT_NE(state.find("running   : yes"), std::string::npos) << state;
-  EXPECT_NE(state.find("strategy  : weightedrandom "
+  EXPECT_NE(state.find("strategy  : flat:weightedrandom "
                        "(space override, global default: geotree)"),
             std::string::npos)
       << state;
@@ -266,7 +275,7 @@ TEST(FsScheduler, LoweredFillCapStopsPlacement)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("weightedrandom");
+  fs_scheduler.SetSchedConfig("weightedrandom");
 
   // Every disk sits at 70%, below the default cap of 95 - placement works
   for (int fsid = 1; fsid <= 32 * 16; ++fsid) {
@@ -381,7 +390,7 @@ TEST(FsScheduler, DisabledBranchesSurviveRebuild)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
+  fs_scheduler.SetSchedConfig("roundrobin");
   ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site0", kDenyPlct));
 
   auto avoids_site0 = [&]() {
@@ -462,7 +471,7 @@ TEST(FsScheduler, InsertFsUpdatesTheLiveSpace)
   // boot time registrations
   EXPECT_FALSE(fs_scheduler.InsertFs("default", desc));
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
+  fs_scheduler.SetSchedConfig("roundrobin");
   ASSERT_TRUE(fs_scheduler.SetFillLimits("default", 60, 40));
   EXPECT_FALSE(fs_scheduler.InsertFs("", desc));
   ASSERT_TRUE(fs_scheduler.InsertFs("default", desc));
@@ -496,7 +505,7 @@ TEST(FsScheduler, RemoveFsUpdatesTheLiveSpace)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
+  fs_scheduler.SetSchedConfig("roundrobin");
   EXPECT_FALSE(fs_scheduler.RemoveFs("default", 99));
   EXPECT_FALSE(fs_scheduler.RemoveFs("nospace", 1));
   ASSERT_TRUE(fs_scheduler.RemoveFs("default", 1));
@@ -524,7 +533,7 @@ TEST(FsScheduler, InsertFsCreatesANewSpace)
   ASSERT_TRUE(fs_scheduler.InsertFs("newspace", MakeFsDesc(1, 0, "siteX")));
   const auto spaces = fs_scheduler.GetSpaces();
   EXPECT_EQ(spaces.size(), 2u);
-  fs_scheduler.SetPlacementStrategy("newspace", "roundrobin");
+  fs_scheduler.SetSchedConfig("newspace", "roundrobin");
   auto result = fs_scheduler.Schedule("newspace", 1);
   ASSERT_TRUE(result) << result.ErrorString();
   EXPECT_EQ(result.ids[0], 1);
@@ -542,7 +551,7 @@ TEST(FsScheduler, InsertedBranchHonoursAStoredDisabledRule)
   using namespace eos::mgm::placement;
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("roundrobin");
+  fs_scheduler.SetSchedConfig("roundrobin");
   // the rule names a branch that does not exist yet
   ASSERT_TRUE(fs_scheduler.AddDisabledBranch("default", "site2", kDenyPlct));
   // the insert creates it - and must resolve the rule onto it
@@ -583,7 +592,7 @@ TEST(FsScheduler, PlacementCapacity)
   fs_scheduler.UpdateClusterData();
   // a space routed to the legacy engine gets its figure from that engine too
   EXPECT_FALSE(fs_scheduler.GetPlacementCapacity("default").has_value());
-  fs_scheduler.SetPlacementStrategy("geo");
+  fs_scheduler.SetSchedConfig("geo");
   // an unknown space has no topology to sum
   EXPECT_FALSE(fs_scheduler.GetPlacementCapacity("tape").has_value());
   // 32 disks with 1 TiB free each, converted to bytes
@@ -598,7 +607,7 @@ TEST(FsScheduler, PlacementCapacityIsCached)
   using namespace std::chrono_literals;
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("geo");
+  fs_scheduler.SetSchedConfig("geo");
   fs_scheduler.SetCapacityCacheTTL(1h);
   ASSERT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 32 * (1ULL << 40));
   // an FST publish is an in-place update without an epoch bump, so within the
@@ -617,7 +626,7 @@ TEST(FsScheduler, PlacementCapacityTracksTopologyChanges)
   using namespace std::chrono_literals;
   FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
   fs_scheduler.UpdateClusterData();
-  fs_scheduler.SetPlacementStrategy("geo");
+  fs_scheduler.SetSchedConfig("geo");
   fs_scheduler.SetCapacityCacheTTL(1h);
   ASSERT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 32 * (1ULL << 40));
   // a topology change commits a new snapshot with an epoch bump, which

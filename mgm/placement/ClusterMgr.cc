@@ -248,27 +248,32 @@ ClusterMgr::GetDisabledBranches() const
 }
 
 //------------------------------------------------------------------------------
-// Set the configured placement strategy override of this space
+// Set the configured scheduler override of this space
 //------------------------------------------------------------------------------
 void
-ClusterMgr::SetConfiguredStrategy(PlacementStrategyT strategy)
+ClusterMgr::SetConfiguredSchedConfig(SchedConfig config)
 {
-  mConfiguredStrategy.store(static_cast<int16_t>(strategy), std::memory_order_release);
+  // One store for both halves: a scheduling thread must never see the flat
+  // engine paired with a strategy from a different configuration
+  const int32_t packed =
+      (static_cast<int32_t>(config.engine) << 8) | static_cast<int32_t>(config.strategy);
+  mConfiguredSchedConfig.store(packed, std::memory_order_release);
 }
 
 //------------------------------------------------------------------------------
-// Get the configured placement strategy override of this space
+// Get the configured scheduler override of this space
 //------------------------------------------------------------------------------
-std::optional<PlacementStrategyT>
-ClusterMgr::GetConfiguredStrategy() const
+std::optional<SchedConfig>
+ClusterMgr::GetConfiguredSchedConfig() const
 {
-  const int16_t raw = mConfiguredStrategy.load(std::memory_order_acquire);
+  const int32_t raw = mConfiguredSchedConfig.load(std::memory_order_acquire);
 
   if (raw < 0) {
     return std::nullopt;
   }
 
-  return static_cast<PlacementStrategyT>(raw);
+  return SchedConfig{static_cast<SchedEngineT>((raw >> 8) & 0xff),
+                     static_cast<PlacementStrategyT>(raw & 0xff)};
 }
 
 //------------------------------------------------------------------------------
