@@ -282,6 +282,11 @@ public:
   //----------------------------------------------------------------------------
   std::string GetValueByKey(const char* chapter, const char* key);
 
+  //----------------------------------------------------------------------------
+  // Set or add a key=value entry in a chapter
+  //----------------------------------------------------------------------------
+  bool SetValueByKey(const char* chapter, const std::string& key,
+                     const std::string& value);
 
   //----------------------------------------------------------------------------
   // AsMap

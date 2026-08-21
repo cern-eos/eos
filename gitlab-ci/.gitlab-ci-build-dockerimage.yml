@@ -26,7 +26,8 @@ clone_docker:
   script:
     - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
-    # The temporary vanilla XRootD build installs xrdcp under /usr/bin.
+    # TODO(upstream eos-docker): Resolve xrdcp from the installed XRootD layout
+    # when rendering xrd.cf.fst, then remove this temporary CI rewrite.
     - sed -i 's|/opt/eos/xrootd/bin/xrdcp|/usr/bin/xrdcp|' eos-docker/image/etc/xrd/xrd.cf.fst
     - |
       cat << 'REPO_EOF' >> eos-docker/docker/repos/eos.repo.in
