@@ -2698,42 +2698,84 @@ or of a space:
 FlatScheduler configuration
 ---------------------------
 
-EOS v5.2.0 release introduces a new scheduler where scheduling strategies can be
-configured at runtime. These can be enabled on a per space level. The scheduler
-is also weights aware, where a disk is allotted different weights according to
-its capacity, so for groups with heterogeneous disks one has a better filling of
-disk capacities. Currently we fallback to the classical geoscheduler in case
-valid placements using any of the scheduling strategies isn't found.
+EOS v5.2.0 introduced a second placement engine, the *flat scheduler*, whose
+strategy can be configured at runtime per space. It is weights aware: a disk is
+allotted a weight according to its capacity, so groups with heterogeneous disks
+fill more evenly. If it cannot find a valid placement, the request falls back to
+the classical geotree engine.
+
+The engine a space uses is chosen with one key:
+
+.. code-block:: bash
+
+   eos space config <spacename> space.scheduler.type=<value>
+
+**A space that has never had this key set runs the legacy geotree engine**, and
+so does a space whose value is not recognised. The flat scheduler is opt-in.
 
 
 Scheduling Strategies
 ^^^^^^^^^^^^^^^^^^^^^
 
-The following strategies are currently offered:
+The following strategies are currently offered. The **Engine** column says
+which of the two schedulers actually runs the placement - that is the
+distinction the names themselves make badly:
 
-+------------------+----------------------------------------------------------------------------------------------+
-| Strategy         | Description                                                                                  |
-+==================+==============================================================================================+
-| ``geo``          | The classical geotree engine, this is the default option                                     |
-+------------------+----------------------------------------------------------------------------------------------+
-| ``weightedrr``   | A strategy that fills weights for disks and distributes roundrobin according to weights      |
-+------------------+----------------------------------------------------------------------------------------------+
-| ``weightedrandom`` | Uses a weightedrandom engine, for randomly choosing according to weights                   |
-+------------------+----------------------------------------------------------------------------------------------+
-| ``random``       | Randomly chooses disks within groups, useful for homogeneous groups                          |
-+------------------+----------------------------------------------------------------------------------------------+
-| ``roundrobin``   | Goes in a roundrobin fashion choosing disks within groups, useful for homogeneous groups     |
-+------------------+----------------------------------------------------------------------------------------------+
-| ``tlrr``         | A more performant version of the roundrobin algorithm, where each MGM thread has its own     |
-|                  | roundrobin. While not as coordinated as a global roundrobin, it should be more or less       |
-|                  | amortized for large enough placements. Useful for homogeneous groups                         |
-+------------------+----------------------------------------------------------------------------------------------+
++--------------------------------+-----------+--------------------------------------------------------------+
+| Value                          | Engine    | Description                                                  |
++================================+===========+==============================================================+
+| ``geotree``, ``legacy``        | geotree   | The classical geotree engine. **This is the default** - a    |
+|                                |           | space with no ``scheduler.type`` configured runs it. Not a   |
+|                                |           | flat-scheduler strategy at all: the MGM routes placement to  |
+|                                |           | the old engine entirely.                                     |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``geoscheduler``, ``geo``      | flat      | Geo-aware descent: follows the client's geotag down the      |
+|                                |           | topology and spreads replicas across branches, picking       |
+|                                |           | capacity-weighted at each level. Despite the name this is    |
+|                                |           | **not** the geotree engine.                                  |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``roundrobin``, ``rr``         | flat      | Round-robin over the disks of a group, coordinated globally  |
+|                                |           | across all MGM threads. Useful for homogeneous groups.       |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``threadlocalroundrobin``,     | flat      | A more performant round-robin where each MGM thread keeps    |
+| ``threadlocalrr``, ``tlrr``    |           | its own cursor. Less coordinated than the global one, but    |
+|                                |           | evens out over large enough placements. Useful for           |
+|                                |           | homogeneous groups.                                          |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``random``                     | flat      | Picks disks uniformly at random within a group. Useful for   |
+|                                |           | homogeneous groups.                                          |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``fidrandom``, ``fid``         | flat      | Like ``random``, but the draw is derived from the file id,   |
+|                                |           | so placing the same file again reproduces the same choice.   |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``weightedrandom``             | flat      | Random pick weighted by disk capacity, so larger disks       |
+|                                |           | attract proportionally more replicas.                        |
++--------------------------------+-----------+--------------------------------------------------------------+
+| ``weightedroundrobin``,        | flat      | Round-robin over the weight space rather than over the       |
+| ``weightedrr``                 |           | disks, giving larger disks proportionally more turns.        |
++--------------------------------+-----------+--------------------------------------------------------------+
 
+.. warning::
+   ``geo`` and ``geotree`` are **different engines**, not two spellings of one.
+   ``geo`` (short for ``geoscheduler``) is the flat scheduler's geo-aware
+   strategy; ``geotree`` is the legacy engine the flat scheduler was written to
+   replace. Setting ``geo`` when you meant to stay on the old engine silently
+   moves the space onto the flat scheduler, and vice versa.
+
+.. note::
+   ``scheduler.type`` is not validated. Any value that is not one of the above
+   - including a typo - is accepted by ``space config`` with a success message
+   and resolves to ``geotree``. After changing it, confirm what the space
+   actually runs with ``eos sched show type <spacename>``.
 
 .. code-block:: bash
 
    # configure scheduler type for a space
    eos space config <spacename> space.scheduler.type=weightedrandom
+
+   # check what a space actually resolved to
+   eos sched show type default
+
 
 
 
