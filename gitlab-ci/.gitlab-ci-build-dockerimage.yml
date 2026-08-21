@@ -29,8 +29,12 @@ clone_docker:
     # TODO(upstream eos-docker): Resolve xrdcp from the installed XRootD layout
     # when rendering xrd.cf.fst, then remove this temporary CI rewrite.
     - sed -i 's|/opt/eos/xrootd/bin/xrdcp|/usr/bin/xrdcp|' eos-docker/image/etc/xrd/xrd.cf.fst
+    # Keep the temporary XRootD repositories separate from eos.repo: the
+    # Dockerfile removes eos.repo after the runtime stage, while the test stage
+    # still needs python3-xrootd to install eos-archive.
+    - sed -i '/^COPY eos-docker\/docker\/repos\/eos.repo.in/a COPY eos-docker/docker/repos/xrootd-ci.repo /etc/yum.repos.d/xrootd-ci.repo' eos-docker/docker/Dockerfile
     - |
-      cat << 'REPO_EOF' >> eos-docker/docker/repos/eos.repo.in
+      cat << 'REPO_EOF' > eos-docker/docker/repos/xrootd-ci.repo
 
       [xrootd-stable]
       name=XRootD Stable Releases for Enterprise Linux $releasever
