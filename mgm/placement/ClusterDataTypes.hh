@@ -640,6 +640,12 @@ using DisabledBranchesT = std::map<std::string, FsOpMask>;
 //! filesystem allows, and reading "ro" as "read only" on a deny mask means
 //! exactly the opposite of what the rule does.
 //!
+//! @note Display only - "sched disable ls", the topology dumps and the log
+//!       lines. What gets persisted is eos::common::FormatSchedOps, the same
+//!       grammar a file system's own sched.ops carries, so that the stored
+//!       rule set and the stored permissions read alike; see
+//!       PersistDisabledBranches in SchedCmd.cc.
+//!
 //! @param op_mask denied operations
 //!
 //! @return string representation, "none" for an empty mask

@@ -103,13 +103,17 @@ std::string MakeFsHelp()
       << "      such as 'client:r,internal:ruc', where the direction letters" << std::endl
       << "      are 'r' read, 'u' update, 'c' create and 'w' for both writes."
       << std::endl
-      << "      A class left out of the spec is allowed nothing." << std::endl
+      << "      A class left out of the spec is allowed nothing. The spec is" << std::endl
+      << "      the complete permission set and replaces the previous one, it"
+      << std::endl
+      << "      is never added to it." << std::endl
       << "    drain=on|off" << std::endl
-      << "      start or stop draining this filesystem. Independent of sched=,"
+      << "      start or stop draining this filesystem. Independent of sched=:"
       << std::endl
-      << "      though a drain only makes progress off a filesystem whose mask"
+      << "      a replicated or erasure coded file is re-created from its other"
       << std::endl
-      << "      still allows an internal read." << std::endl
+      << "      copies, so the mask here only matters for data that exists" << std::endl
+      << "      nowhere else, which needs an internal read to be moved off." << std::endl
       << "    headroom=<size>" << std::endl
       << "      headroom to keep per filesystem. <size> can be (>0)[BMGT]" << std::endl
       << "    scaninterval=<seconds>\n"

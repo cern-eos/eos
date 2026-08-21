@@ -1667,7 +1667,10 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=schedgroup:width=16:format=s|";
     format += "key=stat.geotag:width=16:format=s|";
     format += "key=stat.boot:width=12:format=s|";
-    format += "key=configstatus:width=14:format=s|";
+    // One column rather than two: configstatus is only a projection of the
+    // mask, so showing both here says the same thing twice. The long and the
+    // monitoring formats keep them side by side for whoever still needs the
+    // legacy word.
     format += "compute=sched:width=20:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";

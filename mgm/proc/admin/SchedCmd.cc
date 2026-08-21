@@ -50,7 +50,13 @@ PersistDisabledBranches(const std::string& spacename)
 
     rule_list += geotag;
     rule_list += "=";
-    rule_list += placement::DeniedOpsToStr(op_mask);
+    // Stored in the explicit per-class form, the same grammar a file system's
+    // own sched.ops carries, so the persisted rule set and the persisted
+    // permissions read alike and a round trip cannot lose anything. The
+    // aliases stay accepted on input and are what DeniedOpsToStr prints back;
+    // they are not written, because a preset name on a deny mask reads as its
+    // own opposite.
+    rule_list += eos::common::FormatSchedOps(op_mask);
   }
 
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
