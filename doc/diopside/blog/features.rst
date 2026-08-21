@@ -18,11 +18,11 @@ This blog is used to track new features added to EOS.
 October 2024
 
 * The eos CLI provides now a similar command to the du shell command:
-  `eos du -s /eos/mydir` 
+  `eos du -s /eos/mydir`
   `eos du -s -h /eos/mydir`
   `eos du -s -h --si /eos/mydir`
   `eos du -a /eos/mydir`
-  
+
 September 2023
 ^^^^^^^^^^^^^^
 
@@ -34,15 +34,15 @@ September 2023
   All the information is also available as JSON output using `eos --json devices ls`! The feature will be available with EOS 5.2!
 
 * `eos df` supports now JSON output e.g. `eos --json df` and prints the performance capacity ratio in GB/s per TB
-  
+
 August 2023
-^^^^^^^^^^
+^^^^^^^^^^^
 
 * The EOS group balancer had been rewritten during 2023 and now supports a 'free space engine'
   Instead of balancing groups to the same usage level (percentage),
   groups are balanced to have the same amount of free space. This allows
   to avoid significant performance degradation when an EOS instance is
-  close to be full. 
+  close to be full.
 
 June 2023
 ^^^^^^^^^
@@ -55,7 +55,7 @@ June 2023
    The tool got added when validating the shared mutex implementation of the Abseil library
    as a new namespace mutex implementation, which performs much better than the
    standard C++ implementation. The new mutex will be available with EOS 5.2!
-   
+
 May 2023
 ^^^^^^^^
 
@@ -103,18 +103,18 @@ January 2023
 
 * It is now possible to black-/whitelist EOS tokens using the _access__ interface. This allows e.g. to prevent arbitrary token generation by users and implement an approval process. When using the white list mode, all user created tokens appear in the logfile `/var/log/eos/mgm/TokenCmd.log` e.g.
 
-.. code-block:: bash 
+.. code-block:: bash
 
    230113 11:17:19 WARN  TokenCmd:218                   creating voucher=7630eb7e-932b-11ed-8d40-0071c2181e97 path=/eos/foo/ owner=123 group=123 perm=rx expires=1673605339 token:'{ "token": {  "permission": "rx",  "expires": "1673605339",  "owner": "bar",  "group": "bar",  "generation": "1",  "path": "/eos/foo/",  "allowtree": true,  "vtoken": "",  "origins": [] },}'
 
 An admin can now whitelist this token by issuing:
-.. code-block:: bash 
+.. code-block:: bash
 
    eos access allow token 7630eb7e-932b-11ed-8d40-0071c2181e97
 
 In blacklist mode it is possible to disable token usage if required using:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    eos access ban 7630eb7e-932b-11ed-8d40-0071c2181e97
 
@@ -124,7 +124,7 @@ December 2022
 
 * The file inspector daemon now reports access time and birth time distributions:
 
-.. code-block:: bash 
+.. code-block:: bash
 
     inspector -l
     ...
@@ -159,7 +159,7 @@ December 2022
      90d                              : 2769 B (0.00%)
      5y                               : 21.48 kB (0.03%)
     --------------------------------------------------------------------------------------
-    
+
     inspector -m
     key=last layout=00000000 type=plain nominal_stripes=1 checksum=none blockchecksum=none blocksize=4k locations=0 nolocation=12 repdelta:-1=12 unlinkedlocations=0 volume=20480 zerosize=7
     key=last layout=00100002 type=plain nominal_stripes=1 checksum=adler32 blockchecksum=none blocksize=4k locations=101628 nolocation=1 repdelta:-1=1 repdelta:0=101628 unlinkedlocations=0 volume=82338570 zerosize=100003
@@ -172,7 +172,7 @@ December 2022
 
 * It is now possible to enable access time tracking e.g. with 1h precision:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    eos space config default atime=3600
 
@@ -184,12 +184,12 @@ December 2022
 
 * `eos register` is a new command which can be used to _inject_ meta-data into EOS
 
-.. code-block:: bash 
+.. code-block:: bash
 
    Usage: register [-u] <path> {tag1,tag2,tag3...}
               :  when called without the -u flag the parent has to exist while the basename should not exist
            -u :  if the file exists this will update all the provided meta-data of a file
-    
+
            tagN is optional, but can be one or many of:
                  size=100
                  uid=101 | username=foo
@@ -199,20 +199,20 @@ December 2022
                  location=1 location=2 ...
                  mode=777
                  btime=1670334863.101232
-                 atime=1670334863.101232 
+                 atime=1670334863.101232
                  ctime=1670334863.110123
                  mtime=1670334863.11234d
                  attr="sys.acl=u:100:rwx"
                  attr="user.md=private"
                  path="/eos/newfile"   # can be used instead of the regular path argument of the path
 
-* `eos ns` reports now a read and write contention value 
+* `eos ns` reports now a read and write contention value
 
-.. code-block:: bash 
+.. code-block:: bash
 
     eos ns stat:
     ALL      Contention                  :     write:42.11% read:0.00%
-    
+
     eos ns stat -m | grep contention
     uid=all gid=all ns.contention.read=42.11
     uid=all gid=all ns.contention.write=0

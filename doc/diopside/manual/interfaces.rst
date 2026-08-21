@@ -1101,12 +1101,11 @@ Examples to define these are shown here:
 
 
 .. index::
-
    pair: Interfaces; Space Attributes
 
 
- Space Attributes
------------------
+Space Attributes
+----------------
 
 Space attributes allow to define a set of extended attributes which appear in attribute listing of any directory linked to a given space. A directory reference space attributes by *sys.forced.space* or if not defined it will reference attributes in the *default* space. Space attributes allow to reduce the directory-meta data size because attributes have not to be stored with each directory individually. A specialized space attribute is *sys.acl*, which is explained in detail in the permission (ACL) system section. *sys.acl* attributes are syntax checked and provide left- and right-positioned ACL extensions. All other space attributes can either overwrite/define attributes appearing in each space referencing directory or they can be defined as optional default attribute, which is used only if a directory does not define the attribute.
 
@@ -2847,6 +2846,7 @@ This identifier is now used to group all the deletions coming from this
 sub-tree inside the recycle bin, in a dedicated location.
 
 .. code-block:: bash
+
    [root://localhost] |/eos> eos ls -lrt /eos/dev/proc/recycle | grep 1007
    drwx-----+   1 root     root                0 Nov 24 22:37 rid:1007
 
@@ -2978,6 +2978,7 @@ The file can be restored using the force flag:
 
 For so-called "recycle projects" a user can restore a certain entry if and
 only if one of the following conditions holds true:
+
 * they are the owner of the file to be restored
 * they are listed in the ACLs attached to the recycle bin project directory as
   being allowed to read the entries
