@@ -2717,64 +2717,78 @@ so does a space whose value is not recognised. The flat scheduler is opt-in.
 Scheduling Strategies
 ^^^^^^^^^^^^^^^^^^^^^
 
-The following strategies are currently offered. The **Engine** column says
-which of the two schedulers actually runs the placement - that is the
-distinction the names themselves make badly:
+The value names the **engine** first. ``geotree`` is the legacy engine;
+everything the flat scheduler offers carries a ``flat:`` prefix, so the two can
+no longer be confused for one another:
 
-+--------------------------------+-----------+--------------------------------------------------------------+
-| Value                          | Engine    | Description                                                  |
-+================================+===========+==============================================================+
-| ``geotree``, ``legacy``        | geotree   | The classical geotree engine. **This is the default** - a    |
-|                                |           | space with no ``scheduler.type`` configured runs it. Not a   |
-|                                |           | flat-scheduler strategy at all: the MGM routes placement to  |
-|                                |           | the old engine entirely.                                     |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``geoscheduler``, ``geo``      | flat      | Geo-aware descent: follows the client's geotag down the      |
-|                                |           | topology and spreads replicas across branches, picking       |
-|                                |           | capacity-weighted at each level. Despite the name this is    |
-|                                |           | **not** the geotree engine.                                  |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``roundrobin``, ``rr``         | flat      | Round-robin over the disks of a group, coordinated globally  |
-|                                |           | across all MGM threads. Useful for homogeneous groups.       |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``threadlocalroundrobin``,     | flat      | A more performant round-robin where each MGM thread keeps    |
-| ``threadlocalrr``, ``tlrr``    |           | its own cursor. Less coordinated than the global one, but    |
-|                                |           | evens out over large enough placements. Useful for           |
-|                                |           | homogeneous groups.                                          |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``random``                     | flat      | Picks disks uniformly at random within a group. Useful for   |
-|                                |           | homogeneous groups.                                          |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``fidrandom``, ``fid``         | flat      | Like ``random``, but the draw is derived from the file id,   |
-|                                |           | so placing the same file again reproduces the same choice.   |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``weightedrandom``             | flat      | Random pick weighted by disk capacity, so larger disks       |
-|                                |           | attract proportionally more replicas.                        |
-+--------------------------------+-----------+--------------------------------------------------------------+
-| ``weightedroundrobin``,        | flat      | Round-robin over the weight space rather than over the       |
-| ``weightedrr``                 |           | disks, giving larger disks proportionally more turns.        |
-+--------------------------------+-----------+--------------------------------------------------------------+
-
-.. warning::
-   ``geo`` and ``geotree`` are **different engines**, not two spellings of one.
-   ``geo`` (short for ``geoscheduler``) is the flat scheduler's geo-aware
-   strategy; ``geotree`` is the legacy engine the flat scheduler was written to
-   replace. Setting ``geo`` when you meant to stay on the old engine silently
-   moves the space onto the flat scheduler, and vice versa.
++------------------------------------+-----------+----------------------------------------------------------+
+| Value                              | Engine    | Description                                              |
++====================================+===========+==========================================================+
+| ``geotree``                        | geotree   | The classical geotree engine. **This is the default** -  |
+|                                    |           | a space with no ``scheduler.type`` configured runs it.   |
+|                                    |           | Not a flat-scheduler strategy at all: the MGM routes     |
+|                                    |           | placement to the old engine entirely.                    |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:geo``                       | flat      | Geo-aware descent: follows the client's geotag down the  |
+|                                    |           | topology and spreads replicas across branches, picking   |
+|                                    |           | capacity-weighted at each level.                         |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:roundrobin``                | flat      | Round-robin over the disks of a group, coordinated       |
+|                                    |           | globally across all MGM threads. Useful for homogeneous  |
+|                                    |           | groups.                                                  |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:threadlocalroundrobin``     | flat      | A more performant round-robin where each MGM thread      |
+| (``flat:tlrr``)                    |           | keeps its own cursor. Less coordinated than the global   |
+|                                    |           | one, but evens out over large enough placements.         |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:random``                    | flat      | Picks disks uniformly at random within a group. Useful   |
+|                                    |           | for homogeneous groups.                                  |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:fidrandom`` (``flat:fid``)  | flat      | Like ``flat:random``, but the draw is derived from the   |
+|                                    |           | file id, so placing the same file again reproduces the   |
+|                                    |           | same choice.                                             |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:weightedrandom``            | flat      | Random pick weighted by disk capacity, so larger disks   |
+|                                    |           | attract proportionally more replicas.                    |
++------------------------------------+-----------+----------------------------------------------------------+
+| ``flat:weightedroundrobin``        | flat      | Round-robin over the weight space rather than over the   |
+| (``flat:weightedrr``)              |           | disks, giving larger disks proportionally more turns.    |
++------------------------------------+-----------+----------------------------------------------------------+
 
 .. note::
-   ``scheduler.type`` is not validated. Any value that is not one of the above
-   - including a typo - is accepted by ``space config`` with a success message
-   and resolves to ``geotree``. After changing it, confirm what the space
-   actually runs with ``eos sched show type <spacename>``.
+   The spellings that predate the ``flat:`` prefix - ``geo``, ``geoscheduler``,
+   ``roundrobin``, ``rr``, ``tlrr``, ``fid``, ``weightedrr``, ``legacy`` and the
+   rest - are still accepted and still mean exactly what they meant before. They
+   are deprecated: ``space config`` reports when you use one and stores the
+   canonical form instead, so a configuration rewrites itself the first time the
+   key is touched.
+
+.. warning::
+   Under the old names ``geo`` and ``geotree`` differed by four characters and
+   selected *different engines* - ``geo`` being the flat geo-aware strategy, not
+   the geotree engine. If you have runbooks carrying either, check which one they
+   meant before the deprecated spellings are removed.
+
+An unrecognised value is now refused rather than silently resolving to
+``geotree``:
 
 .. code-block:: bash
 
-   # configure scheduler type for a space
-   eos space config <spacename> space.scheduler.type=weightedrandom
+   # configure the engine and strategy for a space
+   eos space config default space.scheduler.type=flat:weightedrandom
+
+   # back to the legacy engine
+   eos space config default space.scheduler.type=geotree
+
+   # a typo is an error, not a silent downgrade
+   eos space config default space.scheduler.type=roundrobbin
+   error: <roundrobbin> is not a scheduler type - accepted values are geotree,
+   flat:geo, flat:roundrobin, flat:threadlocalroundrobin, flat:random,
+   flat:fidrandom, flat:weightedrandom, flat:weightedroundrobin
 
    # check what a space actually resolved to
    eos sched show type default
+
 
 
 

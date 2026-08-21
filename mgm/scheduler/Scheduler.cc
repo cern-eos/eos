@@ -102,16 +102,19 @@ int
 Scheduler::FlatSchedulerPlacement(PlacementArguments* args,
                                   placement::FsScheduler& fs_sched)
 {
-  auto strategy = fs_sched.GetPlacementStrategy(*args->spacename);
+  auto config = fs_sched.GetSchedConfig(*args->spacename);
 
   if (args->sched_strategy_cstr != nullptr) {
-    strategy = placement::StrategyFromStr(args->sched_strategy_cstr);
+    config = placement::SchedConfigFromStr(args->sched_strategy_cstr);
   }
-  // The one way left to ask for the legacy engine, kept as an escape hatch
-  // while the flat scheduler soaks
-  if (strategy == placement::PlacementStrategyT::kGeoTreeLegacy) {
+
+  // Routing, and the one way left to ask for the legacy engine per request -
+  // an escape hatch kept while the flat scheduler soaks
+  if (!config.IsFlat()) {
     return EINVAL;
   }
+
+  const placement::PlacementStrategyT strategy = config.strategy;
 
   uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(args->lid) + 1;
   placement::PlacementArgs plct_args{
@@ -521,11 +524,13 @@ Scheduler::FlatSchedulerAccess(AccessArguments* args, placement::FsScheduler& fs
 {
   // A request without a forced space falls back to the global default strategy
   const std::string spaceName(args->forcedspace ? args->forcedspace : "");
-  auto strategy = fs_sched.GetPlacementStrategy(spaceName);
+  const auto config = fs_sched.GetSchedConfig(spaceName);
 
-  if (strategy == placement::PlacementStrategyT::kGeoTreeLegacy) {
+  if (!config.IsFlat()) {
     return EINVAL;
   }
+
+  const placement::PlacementStrategyT strategy = config.strategy;
 
   placement::AccessArgs access_args{
       *args->fsindex,           args->inode,     strategy,
@@ -577,10 +582,10 @@ Scheduler::PlaceDrainReplica(
   // Flat scheduler first - a drain replica is a placement of a single stripe
   // pinned to its source group. It is internal traffic, so a destination that
   // takes no client writes is still a valid target.
-  auto strategy = gOFS->mFsScheduler->GetPlacementStrategy(spacename);
+  const auto config = gOFS->mFsScheduler->GetSchedConfig(spacename);
 
-  if (strategy != placement::PlacementStrategyT::kGeoTreeLegacy) {
-    placement::PlacementArgs args(1, placement::kInternalCreate, strategy);
+  if (config.IsFlat()) {
+    placement::PlacementArgs args(1, placement::kInternalCreate, config.strategy);
     args.fid = fid;
     args.bookingsize = bookingsize;
     args.forced_group_index = group->GetIndex();

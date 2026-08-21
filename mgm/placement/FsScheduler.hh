@@ -147,7 +147,7 @@ public:
   //! @param _handler handler building the per space topology
   //----------------------------------------------------------------------------
   FsScheduler(size_t max_buckets, std::unique_ptr<ClusterMgrHandler>&& _handler)
-      : mDefaultPlctStrategy(placement::PlacementStrategyT::kGeoTreeLegacy)
+      : mDefaultSchedConfig(placement::kGeoTreeSchedConfig)
       , mScheduler(std::make_unique<FlatScheduler>(max_buckets))
       , mClusterHandler(std::move(_handler))
   {}
@@ -314,36 +314,55 @@ public:
   bool IsRunning() const;
 
   //----------------------------------------------------------------------------
-  //! Set the global default placement strategy
+  //! Set the global default scheduler configuration - which engine, and the
+  //! flat scheduler's strategy
   //!
-  //! @param strategy_sv string representation of the strategy
+  //! @param config scheduler configuration
   //----------------------------------------------------------------------------
-  void SetPlacementStrategy(std::string_view strategy_sv);
+  void SetSchedConfig(SchedConfig config);
 
   //----------------------------------------------------------------------------
-  //! Set the placement strategy of one space
+  //! Set the global default from its string representation. Lenient: a value
+  //! naming no configuration resolves to the legacy engine, see
+  //! SchedConfigFromStr.
+  //!
+  //! @param config_sv string representation
+  //----------------------------------------------------------------------------
+  void SetSchedConfig(std::string_view config_sv);
+
+  //----------------------------------------------------------------------------
+  //! Set the scheduler configuration of one space
   //!
   //! @param spacename name of the space
-  //! @param strategy_sv string representation of the strategy
+  //! @param config scheduler configuration
   //----------------------------------------------------------------------------
-  void SetPlacementStrategy(const std::string& spacename, std::string_view strategy_sv);
+  void SetSchedConfig(const std::string& spacename, SchedConfig config);
 
   //----------------------------------------------------------------------------
-  //! Get the global default placement strategy
+  //! Set the scheduler configuration of one space from its string
+  //! representation. Lenient, see SchedConfigFromStr.
   //!
-  //! @return placement strategy type
+  //! @param spacename name of the space
+  //! @param config_sv string representation
   //----------------------------------------------------------------------------
-  PlacementStrategyT GetPlacementStrategy();
+  void SetSchedConfig(const std::string& spacename, std::string_view config_sv);
 
   //----------------------------------------------------------------------------
-  //! Get the placement strategy of one space, falling back to the global
+  //! Get the global default scheduler configuration
+  //!
+  //! @return scheduler configuration
+  //----------------------------------------------------------------------------
+  SchedConfig GetSchedConfig();
+
+  //----------------------------------------------------------------------------
+  //! Get the scheduler configuration of one space, falling back to the global
   //! default if the space has no override
   //!
   //! @param spacename name of the space
   //!
-  //! @return placement strategy type
+  //! @return scheduler configuration
   //----------------------------------------------------------------------------
-  PlacementStrategyT GetPlacementStrategy(const std::string& spacename);
+  SchedConfig GetSchedConfig(const std::string& spacename);
 
   //----------------------------------------------------------------------------
   //! Set both fill thresholds of one space, the one entry point that
@@ -589,7 +608,10 @@ private:
   std::atomic<bool> mIsRunning{false};                  ///< Mark if a topology is loaded
   //! TTL of the cached placement capacity in ms, see SetCapacityCacheTTL
   std::atomic<int64_t> mCapacityCacheTTLMs{kCapacityCacheTTL.count()};
-  std::atomic<PlacementStrategyT> mDefaultPlctStrategy; ///< Global default
+  //! Global default, used by a space with no override of its own. Engine and
+  //! strategy are small enough to sit in one lock-free atomic together, which
+  //! is what keeps a reader from catching a half applied change.
+  std::atomic<SchedConfig> mDefaultSchedConfig;
   std::unique_ptr<FlatScheduler> mScheduler;            ///< Placement engine
   std::unique_ptr<ClusterMgrHandler> mClusterHandler;   ///< Topology builder
   ClusterMgrMapPtrT mClusterMgrMap;                     ///< Per space topology snapshots
