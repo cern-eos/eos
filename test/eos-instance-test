@@ -2128,7 +2128,75 @@ runtest "### Ls          " unix SUCCESS "" eos ls "$lsTestDir/number\{1..3\}test
 runtest "### Ls          " unix ERROR "" command eos ls "$lsTestDir/regexx*p.tt\.ern"
 runtest "### Ls          " unix SUCCESS "" command eos ls --no-globbing "$lsTestDir/regexx*p.tt\.ern"
 runtest "### Ls          " unix SUCCESS "" command eos ls -N "$lsTestDir/regexx*p.tt\.ern"
+# Command line flags. The console rebuilds the 'mgm.option' string from the
+# flags it parses, so a flag which is unknown to the client is silently dropped
+# and never reaches the MGM. This is what happened to '-h' and made
+# 'eos ls -alhrt' report raw byte counts instead of readable sizes.
+lsOptTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/ls_option_test"
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p "$lsOptTestDir"
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir "$lsOptTestDir/subdir"
+# Sizes are scaled by a factor of 1000 and only starting at 10k, see
+# eos::common::StringConversion::GetReadableSizeString
+runtest "### Create      " unix SUCCESS "" shell "dd if=/dev/zero of=$EOS_TEST_TESTSYS/ls_file2M bs=1000 count=2000"
+runtest "### Create      " unix SUCCESS "" shell "dd if=/dev/zero of=$EOS_TEST_TESTSYS/ls_file15k bs=1000 count=15"
+runtest "### Create      " unix SUCCESS "" shell "dd if=/dev/zero of=$EOS_TEST_TESTSYS/ls_file5k bs=1000 count=5"
+runtest "### Upload      " unix SUCCESS "" upload "$EOS_TEST_TESTSYS/ls_file2M" "$lsOptTestDir/file2M"
+runtest "### Upload      " unix SUCCESS "" upload "$EOS_TEST_TESTSYS/ls_file15k" "$lsOptTestDir/file15k"
+runtest "### Upload      " unix SUCCESS "" upload "$EOS_TEST_TESTSYS/ls_file5k" "$lsOptTestDir/file5k"
+# '-h' has to give readable sizes in whatever short flag group it appears
+runtest "### Ls -lh      " unix SUCCESS "" eos ls "-lh $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -hl      " unix SUCCESS "" eos ls "-hl $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -alh     " unix SUCCESS "" eos ls "-alh $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -lha     " unix SUCCESS "" eos ls "-lha $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -alhrt   " unix SUCCESS "" eos ls "-alhrt $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -lhrt    " unix SUCCESS "" eos ls "-lhrt $lsOptTestDir | grep file15k | grep -q '15\.00 k'"
+# Below 10k the size is reported unscaled, with and without '-h'
+runtest "### Ls -lh      " unix SUCCESS "" eos ls "-lh $lsOptTestDir | grep file5k | grep -q ' 5000 '"
+# Readable sizes for a single file and for flags given after the path
+runtest "### Ls -lh      " unix SUCCESS "" eos ls "-lh $lsOptTestDir/file2M | grep -q '2\.00 M'"
+runtest "### Ls -lh      " unix SUCCESS "" eos ls "$lsOptTestDir -lh | grep file2M | grep -q '2\.00 M'"
+# Without '-h' the exact number of bytes has to be reported
+runtest "### Ls -l       " unix SUCCESS "" eos ls "-l $lsOptTestDir | grep file2M | grep -q ' 2000000 '"
+runtest "### Ls -l       " unix ERROR   "" eos ls "-l $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+# '-r' and '-t' are accepted for convenience, they must not swallow the
+# remaining flags of the command line
+runtest "### Ls -lrt     " unix SUCCESS "" eos ls "-lrt $lsOptTestDir | grep file2M | grep -q ' 2000000 '"
+# '-h' given as a flag on its own has to be understood as a readable size
+runtest "### Ls -a-l-h   " unix SUCCESS "" eos ls "-a -l -h -r -t $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -l -h    " unix SUCCESS "" eos ls "-l -h $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+runtest "### Ls -h -l    " unix SUCCESS "" eos ls "-h -l $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
+# 'ls -h' alone keeps asking for the usage, '--help' always does
+runtest "### Ls -h       " unix ERROR   "" eos ls "-h"
+runtest "### Ls --help   " unix ERROR   "" eos ls "--help"
+runtest "### Ls --help   " unix ERROR   "" eos ls "--help $lsOptTestDir"
+runtest "### Ls -h       " unix SUCCESS "" shell "command eos -b root://$EOS_TEST_REDIRECTOR ls -h 2>&1 | grep -q 'Usage: ls'"
+# '-h' must not silently imply '-l'
+runtest "### Ls -ah      " unix ERROR   "" eos ls "-ah $lsOptTestDir | grep -qE '^[-d][rwxst+-]{9} '"
+# '-a' shows the hidden entries
+runtest "### Touch       " unix SUCCESS "" eos touch "$lsOptTestDir/.hidden_file"
+runtest "### Ls          " unix ERROR   "" eos ls "$lsOptTestDir | grep -q hidden_file"
+runtest "### Ls -a       " unix SUCCESS "" eos ls "-a $lsOptTestDir | grep -q hidden_file"
+# '-d' lists the directory itself instead of its content
+runtest "### Ls -d       " unix SUCCESS "" eos ls "-d $lsOptTestDir | grep -qx ls_option_test"
+runtest "### Ls -ld      " unix SUCCESS "" eos ls "-ld $lsOptTestDir | wc -l | grep -qx 1"
+runtest "### Ls -ld      " unix SUCCESS "" eos ls "-ld $lsOptTestDir | grep -q '^d'"
+# '-F' appends a '/' to the directories
+runtest "### Ls -F       " unix SUCCESS "" eos ls "-F $lsOptTestDir | grep -qx subdir/"
+# '-i' prepends the inode information
+runtest "### Ls -li      " unix SUCCESS "" eos ls "-li $lsOptTestDir | grep file2M | grep -qE '^[0-9]+ '"
+# '-c' prepends a 34 characters wide checksum column and implies '-l'
+runtest "### Ls -c       " unix SUCCESS "" eos ls "-c $lsOptTestDir | grep file2M | grep -qE '^.{34}[-d][rwxst+-]{9} '"
+# '-n' keeps the user and group ids numerical
+runtest "### Ls -ln      " unix SUCCESS "" eos ls "-ln $lsOptTestDir | grep file2M | grep -qE '^[-d][rwxst+-]{9} +[0-9]+ +[0-9]+ +[0-9]+ '"
+# '-y' reports the backend status and implies '-l'
+runtest "### Ls -y       " unix SUCCESS "" eos ls "-y $lsOptTestDir | grep file2M | grep -qE '[-d][rwxst+-]{9} '"
+# '-s' only checks the existence of the directory without listing it
+runtest "### Ls -s       " unix SUCCESS "" eos ls "-s $lsOptTestDir"
+runtest "### Ls -s       " unix ERROR   "" eos ls "-s $lsOptTestDir | grep -q ."
+runtest "### Ls -s       " unix ERROR   "" eos ls "-s $lsOptTestDir/does_not_exist"
 # Cleanup everything
+runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $lsOptTestDir/
+runtest "### Cleanup     " unix SUCCESS "" shell "rm -f $EOS_TEST_TESTSYS/ls_file2M $EOS_TEST_TESTSYS/ls_file15k $EOS_TEST_TESTSYS/ls_file5k"
 runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $lsTestDir/
 
 # ------------------------------------------------------------------------------

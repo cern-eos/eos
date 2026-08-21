@@ -66,10 +66,37 @@ std::string MakeLsHelp(const CLI::App* app)
   return oss.str();
 }
 
+//------------------------------------------------------------------------------
+// Tell whether the given command line asks for the usage of the command.
+//
+// '-h' means 'readable sizes' as soon as anything else is given on the command
+// line, be it in a short flag group ('ls -alh <path>') or on its own
+// ('ls -a -l -h <path>'). It only shows the help when used alone, which keeps
+// the bare 'ls -h' of the legacy console working. '--help' is unambiguous and
+// always shows the help.
+//------------------------------------------------------------------------------
+bool
+LsWantsHelp(const std::string& args_line)
+{
+  std::istringstream iss(args_line);
+  std::vector<std::string> tokens;
+  std::string token;
+
+  while (iss >> token) {
+    if (token == "--help") {
+      return true;
+    }
+
+    tokens.push_back(token);
+  }
+
+  return (tokens.size() == 1) && (tokens[0] == "-h");
+}
+
 void
 ConfigureLsApp(CLI::App& app, bool& opt_l, bool& opt_y, bool& opt_a, bool& opt_i,
-               bool& opt_c, bool& opt_n, bool& opt_F, bool& opt_s, bool& opt_r,
-               bool& opt_t, bool& opt_no_globbing)
+               bool& opt_c, bool& opt_h, bool& opt_d, bool& opt_n, bool& opt_F,
+               bool& opt_s, bool& opt_r, bool& opt_t, bool& opt_no_globbing)
 {
   app.name("ls");
   app.description("list directory <path>");
@@ -81,10 +108,13 @@ ConfigureLsApp(CLI::App& app, bool& opt_l, bool& opt_y, bool& opt_a, bool& opt_i
 
   app.add_flag("-l", opt_l, "show long listing");
   app.add_flag("-y", opt_y, "show long listing with backend(tape) status");
-  // Note: '-lh' was accepted historically; '-h' alone shows help in legacy
   app.add_flag("-a", opt_a, "show hidden files");
   app.add_flag("-i", opt_i, "add inode information");
   app.add_flag("-c", opt_c, "add checksum value (implies -l)");
+  // Note: '-h' only shows the help when it is the whole command line, see
+  // LsWantsHelp
+  app.add_flag("-h", opt_h, "show readable sizes in the long listing");
+  app.add_flag("-d", opt_d, "list the directory itself and not its contents");
   app.add_flag("-n", opt_n, "show numerical user/group ids");
   app.add_flag("-F", opt_F, "append indicator '/' to directories");
   app.add_flag("-s", opt_s, "checks only if the directory exists without listing");
@@ -110,7 +140,7 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    return !LsWantsHelp(args);
   }
 
   int
@@ -125,6 +155,8 @@ public:
     bool opt_a = false;
     bool opt_i = false;
     bool opt_c = false;
+    bool opt_h = false;
+    bool opt_d = false;
     bool opt_n = false;
     bool opt_F = false;
     bool opt_s = false;
@@ -132,24 +164,35 @@ public:
     bool opt_t = false;
     bool opt_no_globbing = false;
 
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s, opt_r,
-                   opt_t, opt_no_globbing);
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_h, opt_d, opt_n, opt_F,
+                   opt_s, opt_r, opt_t, opt_no_globbing);
 
     std::vector<std::string> positionals;
     app.add_option("path", positionals);
+
+    // Help handling, using the same predicate as requiresMgm so that both stay
+    // in sync
+    std::string args_line;
+
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i) {
+        args_line.push_back(' ');
+      }
+
+      args_line += args[i];
+    }
+
+    if (LsWantsHelp(args_line)) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
 
     std::vector<std::string> cli_args = args;
     std::reverse(cli_args.begin(), cli_args.end());
     try {
       app.parse(cli_args);
     } catch (const CLI::ParseError&) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    // Help handling consistent with legacy (-h or --help)
-    if (!args.empty() && (args[0] == "-h" || args[0] == "--help")) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -173,6 +216,12 @@ public:
       add_flag('c');
       if (!opt_l)
         add_flag('l');
+    }
+    if (opt_h) {
+      add_flag('h');
+    }
+    if (opt_d) {
+      add_flag('d');
     }
     if (opt_n)
       add_flag('n');
@@ -375,14 +424,16 @@ public:
     bool opt_a = false;
     bool opt_i = false;
     bool opt_c = false;
+    bool opt_h = false;
+    bool opt_d = false;
     bool opt_n = false;
     bool opt_F = false;
     bool opt_s = false;
     bool opt_r = false;
     bool opt_t = false;
     bool opt_no_globbing = false;
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s, opt_r,
-                   opt_t, opt_no_globbing);
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_h, opt_d, opt_n, opt_F,
+                   opt_s, opt_r, opt_t, opt_no_globbing);
     const std::string help = app.help();
     fprintf(stderr, "%s", help.c_str());
   }
