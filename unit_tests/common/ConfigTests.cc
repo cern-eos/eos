@@ -64,6 +64,14 @@ TEST(ConfigTests, Configs)
   ASSERT_TRUE(std::string(env[1]) == "b=100");
   ASSERT_TRUE(std::string(env[2]) == "c=100");
   ASSERT_TRUE(env[3] == 0);
+  ASSERT_TRUE(cfgsub.SetValueByKey("sysconfig", "a", "200"));
+  ASSERT_TRUE(cfgsub.SetValueByKey("sysconfig", "d", "$a"));
+  ASSERT_EQ(cfgsub.Dump("xconf", true), "200 200 c d\n");
+  env = cfgsub.Env("sysconfig");
+  ASSERT_TRUE(std::string(env[0]) == "a=200");
+  ASSERT_TRUE(std::string(env[3]) == "d=200");
+  ASSERT_TRUE(env[4] == 0);
+  ASSERT_FALSE(cfgsub.SetValueByKey("missing", "a", "300"));
   std::string s1 = "ASDF";
   std::string s2 = "$ASDF";
   std::string s3 = "${ASDF}";
