@@ -62,6 +62,20 @@ space config <space> space.scheduler.type=geotree    # back to the legacy engine
 (The CLI takes the `space.` prefix; the config member itself is
 `scheduler.type`.)
 
+**The names are a trap.** Those two lines differ by four characters and select
+*different engines*: `geo` is `kGeoScheduler`, a flat-scheduler strategy (the
+geo-aware descent, picking capacity-weighted at each level), while `geotree` is
+`kGeoTreeLegacy`, the routing marker that hands the space to the old engine.
+`StrategyFromStr` compounds it by resolving anything it does not recognise to
+`kGeoTreeLegacy` and `SpaceCmd` does not validate the value, so a typo is
+accepted with a success message and silently keeps or moves the space onto
+geotree. Worth fixing when the marker leaves the enum: split `scheduler.type`
+into an explicit engine and, for the flat engine, a strategy — `geotree` versus
+`flat:geo`, `flat:roundrobin`, `flat:weightedrr` and so on, with today's
+spellings kept as deprecated aliases and an unknown value rejected rather than
+downgraded. The engine then reads first, and retiring geotree becomes a
+mechanical `s/flat://`.
+
 When opted in, the flat scheduler serves that space's placement, access **and**
 draining.
 
