@@ -48,7 +48,8 @@ K8S_NAMESPACE=""
 EOS_ROOT=/eos/dockertest
 EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
 EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
-XRDCP_BIN=/opt/eos/xrootd/bin/xrdcp
+# Commands run inside the EOS client container, which exposes xrdcp in PATH.
+XRDCP_BIN=${XRDCP_BIN:-xrdcp}
 
 # One loop, nothing more.
 if [ "$#" != 0 ]; then
