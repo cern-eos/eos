@@ -67,8 +67,11 @@ std::string
 CanonicalConfigStatus(const std::map<std::string, std::string>& values)
 {
   const auto raw = ValueOrUnknown(values, "configstatus");
-  return common::FileSystem::GetConfigStatusAsString(
-      common::FileSystem::GetConfigStatusFromString(raw.c_str()));
+  const auto status = common::FileSystem::GetConfigStatusFromString(raw.c_str());
+  // A value the current model has no name for - a leftover "draindead", say -
+  // is reported as unknown rather than folded into one of the six
+  return status.has_value() ? common::FileSystem::GetConfigStatusAsString(*status)
+                            : kUnknownStatus;
 }
 
 std::string

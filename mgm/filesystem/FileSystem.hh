@@ -53,19 +53,6 @@ public:
   static const std::string sNumBalanceTxTag;
 
   //----------------------------------------------------------------------------
-  //! Check if this is a drain transition i.e. enables or disabled draining
-  //!
-  //! @param new_status new configuration status to be set
-  //! @param new_status new configuration status to be set
-  //!
-  //! @return 1 if draining enabled, -1 if draining disabled, 2 if draining
-  //!         should be restarted, 0 if not a drain transition
-  //----------------------------------------------------------------------------
-  static
-  int IsDrainTransition(const eos::common::ConfigStatus old_status,
-                        const eos::common::ConfigStatus new_status);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param locator file system locator
@@ -108,39 +95,31 @@ public:
   bool ShouldBroadCast();
 
   //----------------------------------------------------------------------------
-  //! Set the configuration status of a file system. This can be used to trigger
-  //! the draining.
+  //! Apply a legacy configuration status. This is the compatibility verb: the
+  //! one word rolls three orthogonal settings into one, and this undoes that,
+  //! writing the permission mask, the lifecycle and the drain request. It is
+  //! meant for the command layer, which is where the legacy vocabulary still
+  //! arrives from; everything internal sets the key it actually means.
   //! @note Must be called with a lock on FsView::ViewMutex
   //!
-  //! @param status file system status
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool SetConfigStatus(eos::common::ConfigStatus status);
-
-  //----------------------------------------------------------------------------
-  //! Set the configuration status of a file system together with the comment
-  //! describing the change. This can be used to trigger the draining. The two
-  //! keys form one logical change and are sent out as a single batch.
-  //! @note Must be called with a lock on FsView::ViewMutex
-  //!
-  //! @param status file system status
-  //! @param status_comment comment describing the change, an empty value
-  //!        removes the key
+  //! @param status legacy file system status
+  //! @param status_comment comment describing the change, nullptr leaves the
+  //!        currently stored comment untouched, an empty value removes the key
   //! @param wait if true wait for the update to be acknowledged by QuarkDB
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetConfigStatus(eos::common::ConfigStatus status,
-                       const std::string& status_comment, bool wait = true);
+  bool SetLegacyConfigStatus(eos::common::ConfigStatus status,
+                             const std::string* status_comment = nullptr,
+                             bool wait = true);
 
   //----------------------------------------------------------------------------
   //! Set the operations this file system accepts. Writes the authoritative
   //! mask and the legacy configstatus derived from it as one durable batch, so
   //! the published status can never drift from the mask.
   //!
-  //! Unlike SetConfigStatus this has no drain side effect - starting or
-  //! stopping a drain is SetDrainRequested.
+  //! Unlike SetLegacyConfigStatus this has no drain side effect and leaves the
+  //! lifecycle alone - starting or stopping a drain is SetDrainRequested.
   //! @note Must be called with a lock on FsView::ViewMutex
   //!
   //! @param ops operations the file system should accept
@@ -166,7 +145,11 @@ public:
   bool SetDrainRequested(bool requested);
 
   //----------------------------------------------------------------------------
-  //! Set the lifecycle of this file system
+  //! Set the lifecycle of this file system on its own, leaving the permission
+  //! mask and the published legacy status alone. Only for a caller that means
+  //! exactly that and nothing else - marking a file system removable ahead of
+  //! a move, say; anything changing what the file system accepts goes through
+  //! SetSchedOps or SetLegacyConfigStatus, which keep the three keys in step.
   //! @note Must be called with a lock on FsView::ViewMutex
   //!
   //! @param lifecycle new lifecycle value
@@ -174,18 +157,6 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool SetLifecycle(eos::common::FsLifecycle lifecycle);
-
-  //----------------------------------------------------------------------------
-  //! Set a 'key' describing the filesystem
-  //! @note Must be called with a lock on FsView::ViewMutex
-  //!
-  //! @param key key to set
-  //! @param str value of the key
-  //! @param broadcast if true broadcast the change around
-  //!
-  //! @return true if successful otherwise false
-  //----------------------------------------------------------------------------
-  bool SetString(const char* key, const char* str, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Increment number of running balancing transfers
@@ -211,18 +182,22 @@ private:
   eos::common::RWMutex mRWMutex;
 
   //----------------------------------------------------------------------------
-  //! Trigger the drain transition, if any, and store the new configuration
-  //! status. Implementation shared by the two SetConfigStatus flavours.
+  //! Store the permission mask, the lifecycle and the legacy status derived
+  //! from the two as one durable batch, so an observer never catches a mask
+  //! and a lifecycle that disagree. Implementation shared by SetSchedOps and
+  //! SetLegacyConfigStatus, which differ only in where the lifecycle comes
+  //! from.
   //!
-  //! @param status file system status
+  //! @param ops operations the file system should accept
+  //! @param lifecycle lifecycle to store alongside them
   //! @param status_comment comment describing the change, nullptr leaves the
   //!        currently stored comment untouched
   //! @param wait if true wait for the update to be acknowledged by QuarkDB
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool DoSetConfigStatus(eos::common::ConfigStatus status,
-                         const std::string* status_comment, bool wait);
+  bool DoSetSchedOps(eos::common::FsOpMask ops, eos::common::FsLifecycle lifecycle,
+                     const std::string* status_comment, bool wait);
 
   //----------------------------------------------------------------------------
   //! Process shared hash update

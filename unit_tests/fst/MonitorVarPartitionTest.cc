@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "TestEnv.hh"
-#include "common/RWMutex.hh"
+#include "common/Constants.hh"
 #include "common/FileSystem.hh"
+#include "common/RWMutex.hh"
 #include "fst/storage/MonitorVarPartition.hh"
+#include "gtest/gtest.h"
 
 eos::fst::test::GTest_Logger gLogger(false);
 
@@ -37,17 +38,35 @@ EOSFSTTEST_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 struct MockFileSystem {
   eos::common::ConfigStatus status;
+  eos::common::FsOpMask sched_ops;
 
-  MockFileSystem() : status(eos::common::ConfigStatus::kRW) {}
+  MockFileSystem()
+      : status(eos::common::ConfigStatus::kRW)
+      , sched_ops(eos::common::kMaskAll)
+  {
+  }
 
   void SetString(const std::string& key, const std::string& val)
   {
-    this->status = eos::common::FileSystem::GetConfigStatusFromString(val.c_str());
+    if (key == eos::common::FS_SCHED_OPS_NAME) {
+      this->sched_ops = eos::common::ParseSchedSpec(val).value_or(eos::common::kMaskNone);
+      return;
+    }
+
+    this->status = eos::common::FileSystem::GetConfigStatusFromString(val.c_str())
+                       .value_or(eos::common::ConfigStatus::kOff);
+    this->sched_ops = eos::common::DeriveMaskFromLegacy(this->status);
   }
 
   eos::common::ConfigStatus GetConfigStatus(bool cached = false)
   {
     return this->status;
+  }
+
+  eos::common::FsOpMask
+  GetSchedOps(bool cached = false)
+  {
+    return this->sched_ops;
   }
 };
 

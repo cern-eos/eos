@@ -231,10 +231,8 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
           // only an MGM master needs to initiate draining
           eos::common::FileSystem::fsid_t fsid = 0;
           long long errc = 0;
-          std::string configstatus = "";
           std::string bootstatus = "";
           std::string space;
-          eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
           eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
           // read the id from the hash and the current error value
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -244,10 +242,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
           if (fs) {
             fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
             errc = (int) fs->GetLongLong("stat.errc");
-            configstatus = fs->GetString("configstatus");
             bootstatus = fs->GetString("stat.boot");
-            cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(
-                          configstatus.c_str());
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
             space = fs->getCoreParams().getSpace();
 
@@ -272,11 +267,13 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             }
           }
 
-          if (fs && fsid && errc &&
-              (cfgstatus >= eos::common::ConfigStatus::kRO) &&
+          if (fs && fsid && errc && eos::common::AllowsAnyClient(fs->GetSchedOps()) &&
               (bstatus == eos::common::BootStatus::kOpsError)) {
-            // Case when we take action and explicitly ask to start a drain job
-            fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
+            // Case when we take action and explicitly ask to start a drain
+            // job. Reads only - what the legacy "drain" status meant - and
+            // then the drain request, which used to ride along with it.
+            fs->SetSchedOps(eos::common::kMaskAllReads);
+            fs->SetDrainRequested(true);
 
             if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
               bool status = gOFS->mFsScheduler->SetDiskOps(fs->getCoreParams().getSpace(),

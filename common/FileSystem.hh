@@ -88,15 +88,15 @@ enum class ActiveStatus : int8_t {
   kOverload = 2
 };
 
-//! Values for a configuration status - stored persistently in the
-//! filesystem configuration
-//! forcing an int8_t as we wouldn't need a larger range of integers for these statuses
+//! What a filesystem is configured to accept, in the legacy one-dimensional
+//! form. Kept only as a derived projection of the FsOpMask under
+//! FS_SCHED_OPS_NAME - see DeriveLegacyConfigStatus - for the FSTs, the
+//! geotree engine, the capacity sums and monitoring. Nothing
+//! scheduling-related reads it any more. The order is significant: several
+//! consumers still compare against kRO or kDrain.
 enum class ConfigStatus : int8_t {
-  kUnknown = -1,
   kOff = 0,
   kEmpty,
-  kDrainDead,
-  kGroupDrain,
   kDrain,
   kRO,
   kWO,
@@ -550,9 +550,17 @@ public:
   static DrainStatus GetDrainStatusFromString(const char* ss);
 
   //----------------------------------------------------------------------------
-  //! Parse a configuration status into the enum value
+  //! Parse a configuration status into the enum value. The accepted vocabulary
+  //! is exactly "rw", "wo", "ro", "drain", "off" and "empty"; anything else -
+  //! including the retired "draindead", "groupdrain" and "unknown" - is a parse
+  //! failure the caller has to answer for, rather than a sentinel value that
+  //! then has to be checked for everywhere.
+  //!
+  //! @param ss string to parse, may be null
+  //!
+  //! @return the status, or nullopt if the string names none of the six
   //----------------------------------------------------------------------------
-  static ConfigStatus GetConfigStatusFromString(const char*  ss);
+  static std::optional<ConfigStatus> GetConfigStatusFromString(const char* ss);
 
   //----------------------------------------------------------------------------
   //! Parse a lifecycle value, defaulting to kActive for anything unrecognised
@@ -589,6 +597,20 @@ public:
   //----------------------------------------------------------------------------
   static FsLifecycle ResolveLifecycle(const std::string& lifecycle,
                                       const std::string& configstatus);
+
+  //----------------------------------------------------------------------------
+  //! Resolve whether a drain is requested for a filesystem out of its stored
+  //! values. Prefers FS_DRAIN_REQUESTED_NAME and falls back to the legacy
+  //! configstatus, which was itself the drain trigger before the verb was
+  //! split out of it - same shape as ResolveSchedOps and ResolveLifecycle.
+  //!
+  //! @param drain_requested raw value of FS_DRAIN_REQUESTED_NAME, empty if unset
+  //! @param configstatus raw value of the legacy configstatus key
+  //!
+  //! @return true if a drain should be running on this filesystem
+  //----------------------------------------------------------------------------
+  static bool ResolveDrainRequested(const std::string& drain_requested,
+                                    const std::string& configstatus);
 
   //----------------------------------------------------------------------------
   //! Convert input to file system id

@@ -39,6 +39,7 @@ using eos::common::FsOpMask;
 using eos::common::kMaskAll;
 using eos::common::kMaskNone;
 using eos::common::kNumSchedOps;
+using eos::common::MaskOfActivity;
 using eos::common::ParseSchedOps;
 using eos::common::ParseSchedSpec;
 using eos::common::SchedActivity;
@@ -213,10 +214,29 @@ TEST(FsOps, LegacyMigration)
   EXPECT_EQ(DeriveMaskFromLegacy(ConfigStatus::kDrain), ParseSchedSpec("drain"));
   EXPECT_EQ(DeriveMaskFromLegacy(ConfigStatus::kOff), ParseSchedSpec("none"));
   EXPECT_EQ(DeriveMaskFromLegacy(ConfigStatus::kEmpty), ParseSchedSpec("none"));
+}
 
-  // A retired status has no successor: the caller fences the filesystem off
-  // rather than guessing at an intent the model no longer has
-  EXPECT_FALSE(DeriveMaskFromLegacy(ConfigStatus::kUnknown).has_value());
+//------------------------------------------------------------------------------
+// The accepted configstatus vocabulary is exactly the six surviving values.
+// A retired one no longer parses at all, which is what fences a filesystem
+// still carrying it off instead of guessing at an intent the model dropped.
+//------------------------------------------------------------------------------
+TEST(FsOps, LegacyVocabulary)
+{
+  using eos::common::FileSystem;
+
+  for (const char* accepted : {"rw", "wo", "ro", "drain", "off", "empty"}) {
+    const auto status = FileSystem::GetConfigStatusFromString(accepted);
+    ASSERT_TRUE(status.has_value()) << accepted << " must still parse";
+    EXPECT_STREQ(FileSystem::GetConfigStatusAsString(*status), accepted);
+  }
+
+  for (const char* retired : {"draindead", "groupdrain", "unknown", "down", ""}) {
+    EXPECT_FALSE(FileSystem::GetConfigStatusFromString(retired).has_value())
+        << retired << " must not parse";
+  }
+
+  EXPECT_FALSE(FileSystem::GetConfigStatusFromString(nullptr).has_value());
 }
 
 //------------------------------------------------------------------------------
@@ -273,22 +293,17 @@ TEST(FsOps, LegacyRoundTrip)
 {
   for (const ConfigStatus status :
        {ConfigStatus::kRW, ConfigStatus::kRO, ConfigStatus::kWO, ConfigStatus::kOff}) {
-    const auto mask = DeriveMaskFromLegacy(status);
-    ASSERT_TRUE(mask.has_value());
-    EXPECT_EQ(DeriveLegacyConfigStatus(*mask, false), status)
+    EXPECT_EQ(DeriveLegacyConfigStatus(DeriveMaskFromLegacy(status), false), status)
         << "round trip lost " << int(static_cast<int8_t>(status));
   }
 
   // kEmpty is distinguished from kOff by the lifecycle, not by the mask
-  const auto empty_mask = DeriveMaskFromLegacy(ConfigStatus::kEmpty);
-  ASSERT_TRUE(empty_mask.has_value());
-  EXPECT_EQ(DeriveLegacyConfigStatus(*empty_mask, true), ConfigStatus::kEmpty);
-
+  EXPECT_EQ(DeriveLegacyConfigStatus(DeriveMaskFromLegacy(ConfigStatus::kEmpty), true),
+            ConfigStatus::kEmpty);
   // kDrain shares its bits with kRO, so it projects back as kRO - the drain
   // request itself lives in its own key
-  const auto drain_mask = DeriveMaskFromLegacy(ConfigStatus::kDrain);
-  ASSERT_TRUE(drain_mask.has_value());
-  EXPECT_EQ(DeriveLegacyConfigStatus(*drain_mask, false), ConfigStatus::kRO);
+  EXPECT_EQ(DeriveLegacyConfigStatus(DeriveMaskFromLegacy(ConfigStatus::kDrain), false),
+            ConfigStatus::kRO);
 }
 
 //------------------------------------------------------------------------------
@@ -315,4 +330,46 @@ TEST(FsOps, LifecycleResolution)
 
   // An unparsable lifecycle is not a reason to call a filesystem removable
   EXPECT_EQ(FileSystem::ResolveLifecycle("nonsense", "empty"), FsLifecycle::kActive);
+}
+
+//------------------------------------------------------------------------------
+// The drain request resolves from its own key when present and falls back to
+// the legacy status, which used to be the drain trigger itself. The fallback
+// is what keeps a drain running across an upgrade, and the explicit "0" is
+// what stops it coming back once an operator has stopped it - a mask that
+// takes only internal traffic projects to "drain", so an absent key there
+// would re-arm the engine on every failover.
+//------------------------------------------------------------------------------
+TEST(FsOps, DrainRequestResolution)
+{
+  using eos::common::FileSystem;
+  // The explicit key wins in both directions
+  EXPECT_TRUE(FileSystem::ResolveDrainRequested("1", "rw"));
+  EXPECT_FALSE(FileSystem::ResolveDrainRequested("0", "drain"));
+  // Absent, so the legacy status answers
+  EXPECT_TRUE(FileSystem::ResolveDrainRequested("", "drain"));
+
+  for (const char* status : {"rw", "ro", "wo", "off", "empty", "", "draindead"}) {
+    EXPECT_FALSE(FileSystem::ResolveDrainRequested("", status))
+        << "legacy status '" << status << "'";
+  }
+}
+
+//------------------------------------------------------------------------------
+// The two new configuration keys accept what the help text promises
+//------------------------------------------------------------------------------
+TEST(FsOps, SchedKeyVocabulary)
+{
+  for (const char* preset : {"rw", "ro", "wo", "drain", "internal", "clientro", "none"}) {
+    EXPECT_TRUE(ParseSchedSpec(preset).has_value()) << preset;
+  }
+
+  EXPECT_EQ(ParseSchedSpec("internal"), MaskOfActivity(SchedActivity::kInternal));
+  EXPECT_EQ(ParseSchedSpec("client:r,internal:ruc"), ParseSchedSpec("clientro"));
+  // 'w' is the convenience alias for both writes
+  EXPECT_EQ(ParseSchedSpec("client:rw,internal:rw"), ParseSchedSpec("rw"));
+
+  for (const char* rejected : {"draindead", "client", "client:x", "on", "off"}) {
+    EXPECT_FALSE(ParseSchedSpec(rejected).has_value()) << rejected;
+  }
 }

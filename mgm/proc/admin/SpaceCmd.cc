@@ -47,6 +47,7 @@
 #include "namespace/interface/IView.hh"
 #include <algorithm>
 #include <cctype>
+#include <optional>
 
 EOSMGMNAMESPACE_BEGIN
 static const std::string BALANCER_KEY_PREFIX = "balancer";
@@ -1255,7 +1256,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         }
       }
     } else {
-      if (key != "configstatus") {
+      if ((key != "configstatus") && (key != "sched")) {
         std_err << "error: not an allowed parameter <" + key + ">\n";
         ret_c = EINVAL;
       }
@@ -1266,10 +1267,21 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
       if (fs) {
         // check the allowed strings
-        if (((key == "configstatus") &&
-             (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-              eos::common::ConfigStatus::kUnknown))) {
-          fs->SetString(key.c_str(), value.c_str());
+        std::optional<eos::common::ConfigStatus> legacy_status;
+        std::optional<eos::common::FsOpMask> sched_ops;
+
+        if (key == "configstatus") {
+          legacy_status =
+              eos::common::FileSystem::GetConfigStatusFromString(value.c_str());
+        } else if (key == "sched") {
+          sched_ops = eos::common::ParseSchedSpec(value);
+        }
+
+        if (legacy_status.has_value()) {
+          fs->SetLegacyConfigStatus(*legacy_status);
+          FsView::gFsView.StoreFsConfig(fs, false);
+        } else if (sched_ops.has_value()) {
+          fs->SetSchedOps(*sched_ops);
           FsView::gFsView.StoreFsConfig(fs, false);
         } else {
           errno = 0;
