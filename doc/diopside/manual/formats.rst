@@ -24,7 +24,7 @@ must be enabled on the MGM:
    success: enabled IO report store
 
 Compressed report log files
---------------------------
+---------------------------
 
 ZSTD-compressed report logs can be enabled via environment variables in
 [xrd.cf.mgm]{.title-ref}. When enabled, reports are written as compressed,
@@ -61,7 +61,7 @@ sec.app=eoscp``
 .. epigraph::
 
    =================== ==================================================================
-   TAG                 Description                                                      
+   TAG                 Description
    =================== ==================================================================
    log                 uuid to correlate log entries
    path                logical path
@@ -138,9 +138,9 @@ sec.app=eoscp``
    iow_err             1 (io error during write) otherwise 0
    =================== ==================================================================
 
-   
-.. note::  
-    
+
+.. note::
+
    In case of TPC transfers, only one of `tpc.src` or `tpc.dst` is available, depending on the type of TPC transfer
 
 FST deletion records
@@ -153,11 +153,11 @@ application *deletion* :
 dc_tns=968438733&dm_ts=1525425793&dm_tns=968438733&da_ts=1525425793&da_tns=968438733&dsize=2202&
 sec.app=deletion``
 
-.. epigraph:: 
+.. epigraph::
 
-   =========== =========================================================== 
-   TAG         Description                                              
-   =========== =========================================================== 
+   =========== ===========================================================
+   TAG         Description
+   =========== ===========================================================
    log         uuid to correlate log entries
    host        FST host name
    fid         file id of the file deleted
@@ -172,8 +172,8 @@ sec.app=deletion``
    da_tns      access timestamp on local disk in ns of the deleted file
    dsize       size of the file before deletion
    sec.app     always: deletion
-   =========== =========================================================== 
- 
+   =========== ===========================================================
+
 MGM deletion records
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -189,11 +189,11 @@ record tagged with application *recycle* :
 ``log=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&host=test.cern.ch:1094&fid=1056325&ruid=0&
 rgid=0dc_ts=1525425819&dc_tns=351463254&dm_ts=1525425804&dm_tns=182997000&dsize=2202&sec.app=recycle``
 
-.. epigraph:: 
+.. epigraph::
 
-   =========== ========================================================== 
+   =========== ==========================================================
    TAG         Description
-   =========== ========================================================== 
+   =========== ==========================================================
    log         always: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
    host        MGM host name
    fid         file id
@@ -205,4 +205,4 @@ rgid=0dc_ts=1525425819&dc_tns=351463254&dm_ts=1525425804&dm_tns=182997000&dsize=
    dm_tns      modification timestamp in ns of the deleted file
    dsize       size of the file before deletion
    sec.app     rm,recycle (see above)
-   =========== ========================================================== 
+   =========== ==========================================================

@@ -17,7 +17,7 @@ Introduction
 This release is based on XRootD V5.
 
 ``v5.4.11 Diopside``
-===================
+====================
 
 2026-08-05
 
@@ -32,7 +32,7 @@ Bug
 
 
 ``v5.4.10 Diopside``
-===================
+====================
 
 2026-07-30
 
@@ -579,7 +579,7 @@ Bug
 ----
 
 * FST: Fix undefined behaviour due to order of evaluation of the method
-parameters which was leading to files not having the checksum value set.
+  parameters which was leading to files not having the checksum value set.
 
 
 ``v5.3.12 Diopside``
@@ -591,7 +591,7 @@ Note
 -----
 
 * Update eos-xrootd dependency to version 5.8.2 which matches xrootd-5.8.2
-plus an important fix for missing responses in the XRootD client.
+  plus an important fix for missing responses in the XRootD client.
 
 
 Bug
@@ -1196,7 +1196,7 @@ New Feature
 
 * MGM - return EBUSY and HTTP::CONFLICT when opening a file locked via the xattr interface (collaborative editing)
 
-  ``v5.2.14 Diopside``
+``v5.2.14 Diopside``
 ====================
 
 2024-02-13
@@ -1690,7 +1690,7 @@ This release is based on eos-xrootd-5.5.10/xrootd-5.5.5
 Bug
 ---
 * This release updates to using eos-xrootd-5.5.10 which includes
-a fix for a regression when higher fdlimits are needed
+  a fix for a regression when higher fdlimits are needed
 
 
 ``v5.1.19 Diopside``

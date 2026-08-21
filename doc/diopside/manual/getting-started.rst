@@ -12,7 +12,7 @@ Our recommended way to install a production ready EOS instance is using RPM conf
 A Kubernetes-based demonstrator is available for testing purposes.
 
 EOS installation with Kubernetes and Helm for test / demonstration
------------------------------------------------------------------
+------------------------------------------------------------------
 The `EOS Charts repository <https://gitlab.cern.ch/eos/eos-charts>`_ provides Helm charts for the deployment of EOS in Kubernetes for test and demonstration purposes.
 A working Kubernetes cluster (`v1.20.15` or newer) and the Helm package manager (`v3.8.0` or newer) are required.
 
@@ -56,13 +56,13 @@ The resulting cluster will consist of 8 pods:
   {...cut...}
 
   eos fs ls
-  ┌───────────────────────────────────────────┬────┬──────┬────────────────────────────────┬────────────────┬────────────────┬────────────┬──────────────┬────────────┬────────┬────────────────┐
-  │host                                       │port│    id│                            path│      schedgroup│          geotag│        boot│  configstatus│       drain│  active│          health│
-  └───────────────────────────────────────────┴────┴──────┴────────────────────────────────┴────────────────┴────────────────┴────────────┴──────────────┴────────────┴────────┴────────────────┘
-   eos-fst-0.eos-fst.default.svc.cluster.local 1095      1                     /fst_storage        default.0      docker::k8s       booted             rw      nodrain   online              N/A
-   eos-fst-1.eos-fst.default.svc.cluster.local 1095      2                     /fst_storage        default.1      docker::k8s       booted             rw      nodrain   online              N/A
-   eos-fst-2.eos-fst.default.svc.cluster.local 1095      3                     /fst_storage        default.2      docker::k8s       booted             rw      nodrain   online              N/A
-   eos-fst-3.eos-fst.default.svc.cluster.local 1095      4                     /fst_storage        default.3      docker::k8s       booted             rw      nodrain   online              N/A
+  ┌───────────────────────────────────────────┬────┬──────┬────────────────────────────────┬────────────────┬────────────────┬────────────┬────────────────────┬────────────┬────────┬────────────────┐
+  │host                                       │port│    id│                            path│      schedgroup│          geotag│        boot│               sched│       drain│  active│          health│
+  └───────────────────────────────────────────┴────┴──────┴────────────────────────────────┴────────────────┴────────────────┴────────────┴────────────────────┴────────────┴────────┴────────────────┘
+   eos-fst-0.eos-fst.default.svc.cluster.local 1095      1                     /fst_storage        default.0      docker::k8s       booted                   rw     nodrain   online              N/A
+   eos-fst-1.eos-fst.default.svc.cluster.local 1095      2                     /fst_storage        default.1      docker::k8s       booted                   rw     nodrain   online              N/A
+   eos-fst-2.eos-fst.default.svc.cluster.local 1095      3                     /fst_storage        default.2      docker::k8s       booted                   rw     nodrain   online              N/A
+   eos-fst-3.eos-fst.default.svc.cluster.local 1095      4                     /fst_storage        default.3      docker::k8s       booted                   rw     nodrain   online              N/A
 
 EOS up in few minutes
 ---------------------

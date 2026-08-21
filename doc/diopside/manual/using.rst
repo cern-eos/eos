@@ -1272,7 +1272,7 @@ inline.
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | visze                 | 517.10 Mb        | virtual memory used by the running daemon                                  |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
-    |    ALL   | rss                   | 35.13 Mb         | resident memory used by the running daemon                                  |
+    |    ALL   | rss                   | 35.13 Mb         | resident memory used by the running daemon                                 |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | pid                   | 1689             | process id of the running daemon                                           |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
@@ -2213,7 +2213,7 @@ your target hierarchy:
 
 * 0 size files
 
-.. code-bloc:: bash
+.. code-block:: bash
 
    eos find --format fid,checksumtype,size /eos/<instance>/archive_dir/ | grep " size=0 "
 
@@ -2455,6 +2455,246 @@ is a bottleneck encountered in your clusters.
     mgmofs.queue_path /var/eos/ns-queue
 
 
+.. index::
+   pair: Filesystem; Scheduling permissions
+   pair: Filesystem; Draining
+
+.. _fs_sched_permissions:
+
+Filesystem scheduling permissions
+---------------------------------
+
+Every filesystem carries a set of permissions telling the scheduler what the
+filesystem may be used for. The set has two dimensions - the *traffic class*
+and the *direction*:
+
++----------------+-------------------------------------------------------------------+
+| Traffic class  | What it covers                                                    |
++================+===================================================================+
+| ``client``     | everything a user asks for                                        |
++----------------+-------------------------------------------------------------------+
+| ``internal``   | everything EOS moves on its own: draining, balancing, conversion  |
+|                | and fsck repairs                                                  |
++----------------+-------------------------------------------------------------------+
+
++----------------+-------------------------------------------------------------------+
+| Direction      | What it covers                                                    |
++================+===================================================================+
+| ``r``          | read an existing replica                                          |
++----------------+-------------------------------------------------------------------+
+| ``u``          | update an existing replica                                        |
++----------------+-------------------------------------------------------------------+
+| ``c``          | create a new replica on this filesystem                           |
++----------------+-------------------------------------------------------------------+
+
+The two classes are independent, and that is the point of the split: a disk can
+be closed to users while draining, balancing and conversion keep running
+through it.
+
+Setting the permissions
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   eos fs config <fsid> sched=<spec> [--comment "<reason>"]
+
+``<spec>`` is the **complete** permission set of the filesystem: it replaces
+whatever was configured before, it is not added to it. There is no incremental
+form - to change one thing, state the whole set you want.
+
+``sched=`` changes only what the filesystem accepts. It never starts or stops a
+drain and never takes the filesystem out of service - use ``drain=`` and
+``configstatus=off|empty`` for that.
+
+``<spec>`` is either one of the presets:
+
++---------------+-----------------------------------------------------------------+
+| Preset        | Meaning                                                         |
++===============+=================================================================+
+| ``rw``        | everything, both classes                                        |
++---------------+-----------------------------------------------------------------+
+| ``ro``        | reads only, both classes                                        |
++---------------+-----------------------------------------------------------------+
+| ``wo``        | writes only - update and create - both classes                  |
++---------------+-----------------------------------------------------------------+
+| ``drain``     | the same permissions as ``ro``; see ``drain=`` for the verb     |
++---------------+-----------------------------------------------------------------+
+| ``internal``  | no client traffic at all, internal traffic unrestricted         |
++---------------+-----------------------------------------------------------------+
+| ``clientro``  | clients may read, internal traffic unrestricted                 |
++---------------+-----------------------------------------------------------------+
+| ``none``      | nothing at all                                                  |
++---------------+-----------------------------------------------------------------+
+
+or the explicit form: a comma separated list of ``<class>:<letters>`` terms,
+where the letters are ``r``, ``u``, ``c`` and ``w`` as a shorthand for both
+writes (``uc``).
+
+.. warning::
+   A traffic class left out of the spec is allowed **nothing** - it does not
+   keep its previous permissions. Write ``sched=client:r,internal:ruc``, not
+   ``sched=client:r``, if internal traffic is supposed to keep working.
+
+Examples
+^^^^^^^^
+
+Each of these sets the complete permission set of the filesystem; they are
+alternatives, not steps building on one another.
+
+.. code-block:: bash
+
+   # no client traffic at all, but draining, balancing, conversion and fsck
+   # may still use the disk
+   eos fs config 12 sched=internal
+
+   # the same, except that clients may also read
+   eos fs config 12 sched=clientro
+
+   # ... which is this, written explicitly
+   eos fs config 12 sched=client:r,internal:ruc
+
+   # no new files land on the disk, but reads and updates still work for
+   # everyone
+   eos fs config 12 sched=client:ru,internal:ru
+
+   # only the internal machinery may touch it - useful for a disk that should
+   # be filled by a conversion or a group balancing run, not by users
+   eos fs config 12 sched=internal:ruc
+
+   # back to normal
+   eos fs config 12 sched=rw
+
+   # quiesce a whole node ahead of an intervention, without stopping drains
+   eos node config eos-fst-1.eos.cern.ch:1095 sched=internal
+
+Reading the permissions back
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``fs ls`` shows the resolved permissions in the ``sched`` column. It replaces
+the old ``configstatus`` column, which said the same thing in a vocabulary that
+cannot name half of these states:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/> fs ls
+
+   #.................................................................................................................................
+   #                   host (#...) #   id #           path #     schedgroup #       boot #               sched #      drain # active
+   #.................................................................................................................................
+        lxfsra02a05.cern.ch (1095)      1          /data01        default.0       booted                    rw      nodrain   online
+        lxfsra02a05.cern.ch (1095)      2          /data02       default.10       booted              internal      nodrain   online
+        lxfsra02a05.cern.ch (1095)      3          /data03        default.1       booted              clientro      nodrain   online
+
+A filesystem whose permissions do not match a preset is shown in the explicit
+form, e.g. ``client:ru,internal:ruc``.
+
+The derived ``configstatus`` is still there for whoever needs it - ``fs ls -l``
+and ``fs ls -m`` print both columns, and ``fs status <fsid>`` dumps every key:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/> fs ls -m 2 | tr ' ' '\n' | grep -E "^(configstatus|sched)="
+   configstatus=drain
+   sched=internal
+
+The second filesystem above is the interesting one: its permissions say
+"internal traffic only", which has no legacy equivalent, so the derived
+``configstatus`` reads ``drain`` even though no drain is running.
+
+Draining
+^^^^^^^^
+
+Whether a filesystem is being drained is a setting of its own, independent of
+the permissions:
+
+.. code-block:: bash
+
+   eos fs config <fsid> drain=on
+   eos fs config <fsid> drain=off
+
+The permissions of the filesystem being drained do not, on their own, decide
+whether the drain can finish. For a replicated file the drain prefers to read
+from a *different* replica, and for an erasure-coded file the missing stripe
+can be reconstructed from the others - in both cases the data is re-created
+elsewhere and the copy here is dropped, without this disk ever being read.
+
+Its permissions matter only for the data that exists nowhere else, and for that
+the disk has to stay readable for internal traffic - ``sched=ro``,
+``sched=internal`` and ``sched=clientro`` all do. Draining a disk that serves
+nothing at all is accepted, but anything it holds as a sole copy has no source
+to be re-created from.
+
+.. code-block:: bash
+
+   # the classical "drain this disk": read-only for everyone, drain started
+   eos fs config 12 sched=ro
+   eos fs config 12 drain=on
+
+   # drain it while users can no longer touch it at all
+   eos fs config 12 sched=internal
+   eos fs config 12 drain=on
+
+   # stop the drain but leave the permissions as they are
+   eos fs config 12 drain=off
+
+Because the drain request is stored on its own, an MGM failover restarts
+exactly the drains that were asked for, and a finished drain is not restarted
+by a later permission change.
+
+.. note::
+   ``drain=`` is a per-filesystem key. ``node config`` and ``space config`` fan
+   out ``configstatus=`` and ``sched=``, but not ``drain=``.
+
+Legacy configuration status
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``configstatus=`` is kept as a compatibility key: one word sets the
+permissions, the drain request and whether the filesystem is in service, all at
+once.
+
++--------------------+---------------------------------------------------------------+
+| ``configstatus``   | Equivalent to                                                 |
++====================+===============================================================+
+| ``rw``             | ``sched=rw``                                                  |
++--------------------+---------------------------------------------------------------+
+| ``wo``             | ``sched=wo``                                                  |
++--------------------+---------------------------------------------------------------+
+| ``ro``             | ``sched=ro``                                                  |
++--------------------+---------------------------------------------------------------+
+| ``drain``          | ``sched=ro`` **and** ``drain=on``                             |
++--------------------+---------------------------------------------------------------+
+| ``off``            | ``sched=none``, filesystem taken out of service               |
++--------------------+---------------------------------------------------------------+
+| ``empty``          | ``sched=none``, filesystem marked empty - accepted only if no |
+|                    | files are stored on it any more                               |
++--------------------+---------------------------------------------------------------+
+
+.. warning::
+   These six values are the whole vocabulary. The values ``draindead``,
+   ``groupdrain``, ``unknown`` and the ``down`` alias no longer exist and are
+   rejected with an error pointing at ``sched=``.
+
+``configstatus`` is still *published* for every filesystem, derived from the
+permissions, because the FSTs, the monitoring and the capacity accounting read
+it. A filesystem that takes only internal traffic has no legacy equivalent and
+is published as ``drain``: booted and operational, but outside the client
+capacity sums.
+
+Applying to a whole node or space
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Both ``configstatus=`` and ``sched=`` fan out over every filesystem of a node
+or of a space:
+
+.. code-block:: bash
+
+   eos node config eos-fst-1.eos.cern.ch:1095 sched=ro
+   eos node config eos-fst-1.eos.cern.ch:1095 configstatus=rw
+
+   eos space config spare sched=none
+   eos space config default configstatus=rw
+
+
 FlatScheduler configuration
 ---------------------------
 
@@ -2508,6 +2748,80 @@ to attract less writes.
 
    # configure weight as 0 for disk with fsid 10
    eos sched configure weight default 10 0
+
+
+Disabling geotag branches
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A whole geotag branch can be excluded from scheduling, which is the topology
+level equivalent of the per-filesystem permissions described in
+:ref:`fs_sched_permissions`. The rules are persisted per space and survive an
+MGM restart:
+
+.. code-block:: bash
+
+   eos sched disable add <space> <geotag> [<spec>]   # default: all
+   eos sched disable rm  <space> <geotag> [<spec>]
+   eos sched disable ls  [<space>]
+
+``<spec>`` names the operations the branch is denied. It uses the same
+vocabulary as ``fs config ... sched=``, only read the other way round - a set
+bit here *denies* rather than allows. Every accepted spelling is an alias for a
+set of the six operations:
+
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``<spec>``                        | Denies                                         | Stored as                    |
++===================================+================================================+==============================+
+| ``plct``                          | new replicas below the branch, from either     | ``client:c,internal:c``      |
+|                                   | traffic class                                  |                              |
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``access``                        | reading and updating a replica below the       | ``client:ru,internal:ru``    |
+|                                   | branch, from either traffic class              |                              |
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``all`` *(the default)*           | everything                                     | ``client:ruc,internal:ruc``  |
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``client``                        | all client traffic; drain, balancing,          | ``client:ruc``               |
+|                                   | conversion and fsck keep working               |                              |
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``internal``                      | all internal traffic; clients are unaffected   | ``internal:ruc``             |
++-----------------------------------+------------------------------------------------+------------------------------+
+| ``client:<ruc>[,internal:<ruc>]`` | exactly the operations named, with ``r`` read, | itself, normalised           |
+|                                   | ``u`` update, ``c`` create and ``w`` for both  |                              |
+|                                   | writes                                         |                              |
++-----------------------------------+------------------------------------------------+------------------------------+
+
+The **Stored as** column is what ends up in the space's ``scheduler.denied``
+configuration member, and it is the same grammar a filesystem's own
+``sched.ops`` uses - the aliases are input and display sugar, never what is
+written. Normalising means ``w`` is expanded to ``uc`` and the letters come
+back in ``r``, ``u``, ``c`` order, so ``client:w`` is stored as ``client:uc``.
+``sched disable ls`` prints the alias back whenever the rule matches one
+exactly, and the explicit form otherwise.
+
+.. note::
+   Unlike ``fs config ... sched=``, these rules accumulate: ``add`` adds the
+   named operations to whatever the branch is already denied, and ``rm``
+   removes only the ones it names, leaving the rest of the rule in place. A
+   branch with no denied operations left has no rule and disappears from
+   ``disable ls``.
+
+.. code-block:: bash
+
+   # no new replicas anywhere below rack3, reads and updates unaffected
+   eos sched disable add default site1::rack3 plct
+
+   # close rack4 to users, but let drain, balancing and conversion keep
+   # working through it
+   eos sched disable add default site1::rack4 client
+
+   # deny clients everything but reading below rack5
+   eos sched disable add default site1::rack5 client:uc
+
+   # give rack4 back to the users
+   eos sched disable rm default site1::rack4 client
+
+   # what is currently disabled
+   eos sched disable ls default
 
 
 Alternative checksums

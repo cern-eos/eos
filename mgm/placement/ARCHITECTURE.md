@@ -109,17 +109,21 @@ using the sign of the id to distinguish node kinds:
 Core types:
 
 - **`Disk`** — packed to **exactly 16 bytes** (`static_assert sizeof(Disk)==16`)
-  so 4000 disks fit in a 64 kB cache. Fields: `fsid_t id`, atomic
-  `config_status`, atomic `active_status`, atomic `weight` (uint8), atomic
+  so 4000 disks fit in a 64 kB cache. Fields: `fsid_t id`, atomic `ops`
+  (`FsOpMask`, §9), atomic `active_status`, atomic `weight` (uint8), atomic
   `percent_used` (uint8), atomic `free_gib` (uint32), atomic `booked_gib`
-  (uint32). The atomics allow live status/weight/space updates **without
-  rebuilding the topology**. The three space-related fields are not
-  interchangeable: `percent_used` drives how *attractive* a disk is
+  (uint32). `ops` is one bit per `SchedOp` — the traffic class (client or
+  internal) crossed with the direction (read, update, create) — and
+  `Disk::AllowsOp()` is the single question every selection point asks of it.
+  It replaced the one-dimensional `config_status`, which could not say "no
+  client traffic but keep draining through this disk". The atomics allow live
+  status/weight/space updates **without rebuilding the topology**. The three
+  space-related fields are not interchangeable: `percent_used` drives how *attractive* a disk is
   (`GetEffectiveWeight`), `free_gib` whether a given file *fits*, `booked_gib`
   remembers what was placed but is not yet visible to the FST's statfs (§7).
 - **`Bucket`** — `id`, `parent`, `geo_atom` (the geotag atom naming it, e.g.
   `"rack3"`, empty for the root and groups), `total_weight`, `bucket_type`,
-  `level`, `std::vector<item_id_t> items` (children), an atomic `disabled_ops`
+  `level`, `std::vector<item_id_t> items` (children), an atomic `denied_ops`
   mask (§9), plus three fields the descent reads directly:
   - `child_type` (`ChildType`: `kNone`, `kDisks`, `kGroups`, `kGeoBuckets`) —
     **the kind of the children, stated rather than sniffed**. The builder calls
@@ -280,11 +284,13 @@ XrdMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-sp
   interface (`Placement`) plus the shared validity helpers every strategy must
   agree on: `ValidateArgs` (resolves the start bucket through `GetBucket`, the
   same validity definition used everywhere else), `ValidDisk` (bounds +
-  `excludefs` + online + config status ≥ requested + free space),
-  `ValidPlacementDisk` (`ValidDisk` plus the per-disk disabled-branch test, §5)
-  and `IsAccessCandidate` (zero-fsid + `forcedfsid` narrowing + `excludefs` +
-  `ValidDisk`). Header-only. A strategy picks *items within one bucket*; geo
-  awareness belongs to the `FlatScheduler` layer (§5, §6), not here. Access does
+  `excludefs` + the disabled-branch test + online + the disk's own `ops` mask
+  allows the requested `SchedOp` + free space) and `IsAccessCandidate`
+  (zero-fsid + `forcedfsid` narrowing + `excludefs` + `ValidDisk`). Since the
+  branch rules speak the same `FsOpMask` vocabulary as a disk's own permissions
+  (§9), both are the same question and `ValidDisk` asks it once — there is no
+  separate placement-only selector any more. Header-only. A strategy picks
+  *items within one bucket*; geo awareness belongs to the `FlatScheduler` layer (§5, §6), not here. Access does
   **not** go through this interface — it does not vary per placement strategy —
   but the helpers above are shared with the access path.
 - **`ClusterBuilder`** (`ClusterBuilder.hh/.cc`) — turns a
@@ -433,10 +439,10 @@ strategy pick over the whole group instead of one per level. Nothing is lost by
 it — the group *is* the failure domain, its disks sit on distinct nodes by
 design. Disabled branches survive the shortcut too: the interior buckets are
 never visited, so instead of the bucket refusing entry, each candidate disk
-answers for itself in `SelectionStrategy::ValidPlacementDisk()`, which resolves
-`IsBranchDisabled()` against the disk's real geo ancestry — the flat view holds
+answers for itself in `SelectionStrategy::ValidDisk()`, which resolves
+`IsBranchDenied()` against the disk's real geo ancestry — the flat view holds
 ids and never becomes a parent, so that ancestry is intact. The walk is only
-paid while a rule is live; `HasPlctDisabledBranches()` short-circuits it to a
+paid while a rule is live; `HasDeniedBranches()` short-circuits it to a
 single load otherwise.
 
 **Deficit redistribution (up-root fallback).** A branch that cannot take its
@@ -519,9 +525,9 @@ The access path has no descent — the candidates are the few replicas of one
 file — so geo awareness is a **proximity filter** in `FlatScheduler::Access`.
 
 1. `MarkUnavailableReplicas` flags every replica that cannot serve the request
-   (offline, wrong config status, excluded, under a disabled branch) into
-   `unavailfs`. For a RAIN read this refuses the request (`ENETUNREACH`) unless
-   at least `n_replicas` stripes are still up.
+   (offline, mask does not allow the operation, excluded, under a denied
+   branch) into `unavailfs`. For a RAIN read this refuses the request
+   (`ENETUNREACH`) unless at least `n_replicas` stripes are still up.
 2. The remaining replicas are ranked by how many leading geotag atoms they share
    with the client (`ClusterData::GetGeoOverlap`, a bounded walk up the
    `disk_parents` index comparing atom *strings*). Everything below the best
@@ -681,22 +687,88 @@ the single-key setters validate against the stored pair, so lowering the cap
 below the configured warning requires lowering the warning first (the boot
 restore applies both as a pair for that reason).
 
-**Disabled branches** — exclude a geotag branch from scheduling:
+**Per-filesystem permissions.** What a single filesystem accepts is an
+`FsOpMask` (`common/FsOps.hh`) — one bit per `SchedOp`, i.e. per traffic class
+(`kClient`, `kInternal`) crossed with direction (`kRead`, `kUpdate`, `kCreate`).
+It is stored on the filesystem's shared hash under `sched.ops` and mirrored onto
+`Disk::ops` through `FsScheduler::SetDiskOps`. Every scheduling decision asks
+that mask and nothing else; the legacy `configstatus` key survives only as a
+*derived projection* of it (`DeriveLegacyConfigStatus`) for the FSTs, the
+geotree engine, the capacity sums and monitoring.
+
+The operator surface is `fs config <fsid> <key>=<value>`, and by fan-out
+`node config` / `space config`:
 
 ```
-eos sched disable add <space> <geotag> [plct|access|all]   # default all
-eos sched disable rm  <space> <geotag> [plct|access|all]
+fs config <fsid> sched=<spec>       # what the filesystem accepts, no side effects
+fs config <fsid> drain=on|off       # start/stop draining, on its own durable key
+fs config <fsid> configstatus=rw|wo|ro|drain|off|empty   # legacy compatibility
+```
+
+`<spec>` is a preset — `rw`, `ro`, `wo`, `drain`, `internal`, `clientro`,
+`none` — or the explicit `client:<ruc>[,internal:<ruc>]` form, where the letters
+are `r` read, `u` update, `c` create and `w` for both writes; a class the spec
+does not mention is allowed nothing. The headline case the old ladder could not
+express is `sched=internal`: no client traffic at all while drain, balancing,
+conversion and fsck keep flowing through the disk.
+
+Two keys sit next to the mask and are deliberately *not* folded into it:
+`lifecycle` (`kActive`, `kEmpty`, `kOff`) and `drain.requested`. Splitting the
+drain verb out means a master failover re-arms drains from what the operator
+actually asked for rather than from a status a drain is only one of several ways
+to reach. All three are resolved on read (`ResolveSchedOps`, `ResolveLifecycle`,
+`ResolveDrainRequested`), falling back to translating the legacy `configstatus`
+when the new key has never been written — so an instance upgraded in place
+behaves identically from first boot with no migration write.
+
+**Disabled branches** — deny a geotag branch a set of operations:
+
+```
+eos sched disable add <space> <geotag> [<spec>]   # default all
+eos sched disable rm  <space> <geotag> [<spec>]
 eos sched disable ls  [<space>]
 ```
 
+`<spec>` is the same `FsOpMask` vocabulary, read as what the branch is closed
+*for*. `ParseDeniedSpec` accepts three alias groups plus the explicit form, and
+every one of them lands on a mask:
+
+| `<spec>` | Denied `SchedOp`s | Mask | Persisted as |
+|---|---|---|---|
+| `plct` | both classes × create | `0x24` | `client:c,internal:c` |
+| `access` | both classes × {read, update} | `0x1b` | `client:ru,internal:ru` |
+| `all` *(default)* | all six | `0x3f` | `client:ruc,internal:ruc` |
+| `client` | client × {read, update, create} | `0x07` | `client:ruc` |
+| `internal` | internal × {read, update, create} | `0x38` | `internal:ruc` |
+| `client:<ruc>[,internal:<ruc>]` | exactly the letters named | — | itself, normalised |
+
+Normalised means `w` expands to `uc` and the letters come back in `r,u,c` order,
+so `client:w` is stored as `client:uc`.
+
+The persisted form is `eos::common::FormatSchedOps` — **the same grammar a
+filesystem's own `sched.ops` carries**, so the two persisted representations of
+a mask read alike and a store/restore round trip cannot lose an alias that has
+no exact mask. It is deliberately *not* `FormatSchedMask`: that one prefers
+preset names, and `ro` on a deny mask reads as the exact opposite of what the
+rule does. `DeniedOpsToStr` — which does print the aliases back — is display
+only, for `disable ls` and the log lines.
+
+`eos sched disable add default rack3 client` closes a rack to users while drain
+and balancing keep working through it.
+
 Two simplifications against geotree, both consequences of the flat design:
-- Geotree's five optypes collapse to two bits (`kDisabledPlct`,
-  `kDisabledAccess`): every placement kind flows through one `Schedule` descent
-  and every read through one `Access` path.
+- Geotree's five optypes collapse onto the same six-bit mask a filesystem
+  carries: every placement kind flows through one `Schedule` descent and every
+  read through one `Access` path, so the rule and the disk answer the same
+  question and `ValidDisk` asks it once (§3).
 - Per-group scope drops: the geo hierarchy repeats below every group, so one rule
   flags its branch under each of them.
 
-Mechanics: a rule sets `Bucket::disabled_ops` (atomic) only on the bucket its
+`add` ORs into the branch's existing rule and `rm` clears the named bits,
+dropping the rule when nothing is left — the opposite of `fs config sched=`,
+which replaces the mask outright.
+
+Mechanics: a rule sets `Bucket::denied_ops` (atomic) only on the bucket its
 geotag resolves to — the descent passes *down* through it and the access check
 walks *up* through it, so the subtree needs no marking.
 `ClusterData::ApplyDisabledBranches` clears and re-resolves the whole rule set
@@ -705,8 +777,13 @@ the manager's rules; a geotag matching no bucket is skipped, not an error).
 Placement enforces it as an entry guard in
 `PlaceInBucket` (so the spill pass re-routes the shortfall); access enforces it via
 `IsAccessCandidate` and `MarkUnavailableReplicas` (disabled replicas reported like
-unreachable ones, RAIN semantics follow). Persisted as two space config members
-(`scheduler.disabled.plct` / `.access`, comma-separated geotag lists).
+unreachable ones, RAIN semantics follow). Persisted as **one** space config
+member, `scheduler.denied`, holding `<geotag>=<spec>` pairs separated by `;` —
+one key rather than one per operation, because a rule now denies an arbitrary
+set of them. The two keys it replaced (`scheduler.disabled.plct` /
+`.access`, comma-separated geotag lists) are still read at boot so a space
+configured before the upgrade restores unchanged, and are deleted the first time
+a rule of that space is touched.
 
 **State introspection** — `sched show state [space]` prints one block per space
 (strategy vs global default, fill limits vs defaults, epoch, topology/status/
@@ -740,10 +817,11 @@ bucket + one GROUP bucket per scheduling group + one `Disk` per filesystem
 `stat.geotag`). It is handed the existing manager map so that a space configured
 but not yet populated is carried forward rather than dropped (§9).
 
-**Live updates.** Status/weight via `FsScheduler::SetDiskStatus/Weight` (driven
-from `FsView.cc`); fill level and free space via
-`SetDiskPercentUsed/SetDiskFreeSpace` from the FST publish listener (§7) — all
-in-place atomic edits, no rebuild.
+**Live updates.** Permission mask via `FsScheduler::SetDiskOps`, status and
+weight via `SetDiskStatus`/`SetDiskWeight` (all driven from `FsView.cc`, which
+watches the `sched.ops` key on the filesystem's shared hash); fill level and
+free space via `SetDiskPercentUsed`/`SetDiskFreeSpace` from the FST publish
+listener (§7) — all in-place atomic edits, no rebuild.
 
 **Incremental topology.** Structural changes reach the scheduler inline, next to
 the geotree hooks in `FsView::Register` / `UnRegister` / `MoveGroup`:
@@ -771,17 +849,21 @@ path while geotree remains the default.)
 **Placement capacity.** `Scheduler::GetPlacementCapacity(space)` answers the
 `sched.capacity` column of `space ls` and the coarse ENOSPC guard on every FUSE
 file create. It sums `ClusterData::GetWritableFreeGiB()` — one pass over the
-disks summing `free_gib` where the disk is online, config ≥ rw and not under a
-`kDisabledPlct` branch (the same criteria `ValidDisk` applies, prebookings
-already discounted). Because the FUSE guard asks on every create and this is an
-O(disks) pass, `ClusterMgr` caches it (value + steady-clock expiry + the epoch it
+disks summing `free_gib` where the disk is online, allows a client create and
+is not under a branch denied that operation (the same criteria `ValidDisk`
+applies, prebookings already discounted). Because the FUSE guard asks on every
+create and this is an O(disks) pass, `ClusterMgr` caches it (value + steady-clock expiry + the epoch it
 was computed at, all atomic): a hit is three loads, an epoch bump invalidates
 immediately, and the TTL (default 5 s) only bounds staleness against in-place
 edits. It is deliberately *not* a maintained running total — that would be a
 second source of truth every space-mutating call could desynchronize.
 
-**Draining.** A drain destination is a normal `kRW` placement into the same
-group — the flat side needs no dedicated drain policy.
+**Draining.** Whether a filesystem is draining is the durable `drain.requested`
+key, not a configuration status: `FsView::ReapplyDrainStatus` re-arms from it
+after a master failover, and drain completion clears both it and the mask
+(`fs config <fsid> drain=on|off` is the operator verb, §9). The *destination* of
+a drain transfer is a normal internal-create placement into the same group — the
+flat side needs no dedicated drain policy.
 `DrainTransferJob::SelectDstFs` delegates to `Scheduler::PlaceDrainReplica`,
 which tries the flat path first (setting `bookingsize` to the drained file's
 size so the placement books space) and falls back to the geotree engine's
@@ -789,9 +871,9 @@ dedicated `draining` policy. The drain job never names an engine.
 
 **Master transition.** `QdbMaster::SlaveToMaster` calls
 `mFsScheduler->UpdateClusterData()` next to the geotree `forceRefresh`, so a
-failover rebuilds the flat snapshot too (re-reading fs availability; each
-manager re-stamps its own fill limits and disabled branches onto the rebuilt
-snapshot).
+failover rebuilds the flat snapshot too (re-reading fs availability and
+permission masks; each manager re-stamps its own fill limits and disabled
+branches onto the rebuilt snapshot).
 
 ---
 

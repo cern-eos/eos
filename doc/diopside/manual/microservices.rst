@@ -30,6 +30,7 @@ The Converter Engine is responsible for scheduling and performing file
 conversion jobs. A conversion job means rewriting a file with a different
 storage parameter: layout, replica number, space or placement policy. The
 functionality is used for several purposes:
+
 * for the Balancer to rewrite files to achieve a new placement
 * for the LRU policy to rewrite a file with a new layout e.g. rewrite a
   file with 2 replica into a RAID-6 like RAIN layout with the benefit of
@@ -176,6 +177,7 @@ This command will also print a summary of the converter configuration
 and the number of files tracked by the converter:
 
 .. code-block:: bash
+
    eos ns stat | grep -i "conve"
    ALL      converter info                   pool=converter      min=64  max=100  size=64   queue_sz=0
    ALL      tracker info                     tracker=convert size=0
@@ -901,9 +903,19 @@ You can see filesystems in error state and the error text on the MGM node doing:
 Central File System View and State Machine
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each filesystem in EOS has a configuration, boot state and drain state.
+Each filesystem in EOS has scheduling permissions, a boot state and a drain
+state.
 
-The possible configuration states are self explaining:
+The scheduling permissions say what the filesystem may be used for, separately
+for client traffic and for the internal traffic of drain, balancing, conversion
+and fsck. They are the ``sched`` column of ``fs ls`` and are set with
+``fs config <fsid> sched=<spec>``; see :ref:`fs_sched_permissions` for the full
+description and for examples.
+
+The legacy ``configstatus`` is still published for every filesystem, derived
+from the permissions, and it can still be set directly as a shorthand. Since it
+only restates what ``sched`` already says, ``fs ls`` no longer shows it - use
+``fs ls -l``, ``fs ls -m`` or ``fs status <fsid>`` to see both side by side.
 
 .. epigraph::
 
@@ -911,12 +923,15 @@ The possible configuration states are self explaining:
    state          definition
    ============= ======================================================================================
    rw            filesystem set in read write mode
-   wo            filesystem set in write-once mode
+   wo            filesystem set in write-only mode
    ro            filesystem set in read-only mode
-   drain         filesystem set in drain mode
+   drain         filesystem set read-only and draining
    off           filesystem set disabled
    empty         filesystem is empty e.g. contains no files any more
    ============= ======================================================================================
+
+These six values are the whole vocabulary of the key. A filesystem that takes
+only internal traffic has no legacy equivalent and is published as ``drain``.
 
 File systems involved in any kind of IO need to be in boot state booted.
 
@@ -926,14 +941,14 @@ The configured file systems are shown via:
 
    EOS Console [root://localhost] |/> fs ls
 
-   #.........................................................................................................................
-   #                   host (#...) #   id #           path #     schedgroup #       boot # configstatus #      drain # active
-   #.........................................................................................................................
-        lxfsra02a05.cern.ch (1095)      1          /data01        default.0       booted             rw      nodrain   online
-        lxfsra02a05.cern.ch (1095)      2          /data02       default.10       booted             rw      nodrain   online
-        lxfsra02a05.cern.ch (1095)      3          /data03        default.1       booted             rw      nodrain   online
-        lxfsra02a05.cern.ch (1095)      4          /data04        default.2       booted             rw      nodrain   online
-        lxfsra02a05.cern.ch (1095)      5          /data05        default.3       booted             rw      nodrain   online
+   #.................................................................................................................................
+   #                   host (#...) #   id #           path #     schedgroup #       boot #               sched #      drain # active
+   #.................................................................................................................................
+        lxfsra02a05.cern.ch (1095)      1          /data01        default.0       booted                    rw      nodrain   online
+        lxfsra02a05.cern.ch (1095)      2          /data02       default.10       booted                    rw      nodrain   online
+        lxfsra02a05.cern.ch (1095)      3          /data03        default.1       booted                    rw      nodrain   online
+        lxfsra02a05.cern.ch (1095)      4          /data04        default.2       booted              internal      nodrain   online
+        lxfsra02a05.cern.ch (1095)      5          /data05        default.3       booted              clientro      nodrain   online
 
 As shown each file system has also a drain state. Drain states can be:
 
@@ -1118,12 +1133,19 @@ The values can be modified via:
 Example Drain Process
 """""""""""""""""""""
 
-We need to drain filesystem 20. However the file system is still fully operational
-hence we use status drain.
+We need to drain filesystem 20. However the file system is still fully
+operational, so we set it read-only and ask for the drain.
+
+``fs config 20 configstatus=drain`` is the one-word shorthand for exactly the
+two commands below. Setting ``sched=`` and ``drain=`` separately is what lets
+you drain a filesystem under other permissions - ``sched=internal`` for
+instance drains it while it is completely closed to users, see
+:ref:`fs_sched_permissions`.
 
 .. code-block:: bash
 
-   EOS Console [root://localhost] |/> fs config 20 configstatus=drain
+   EOS Console [root://localhost] |/> fs config 20 sched=ro
+   EOS Console [root://localhost] |/> fs config 20 drain=on
    EOS Console [root://localhost] |/> fs ls -d
 
    #......................................................................................................................
@@ -1591,7 +1613,7 @@ the following LRU policies:
    Automatic time based cleanup of empty directories                                     ctime
    Time based LRU cache with expiration time settings                                    ctime
    Automatic time based layout conversion if a file reaches a defined age                ctime
-   Automatic size based layout conversion if a file fulfills a given size rule          size
+   Automatic size based layout conversion if a file fulfills a given size rule           size
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
@@ -1894,9 +1916,9 @@ Intervals and config parameters for file systems(FS)
 These values are set as global defaults on the space. A file system should get the values from the space when it is newly created.
 Below you can find a brief description of the parameters influencing the scanning procedure.
 
-===================  ===============   ===========================================================
+===================  ================  ===========================================================
 Name                 Default           Description
-===================  ===============   ===========================================================
+===================  ================  ===========================================================
 scan_disk_interval   14400 [s] (4h)    interval at which files in the FS should be scanned, by the FST itself
 scan_ns_interval     259200 [s] (3d)   interval at which files in the FS are compares against the
                                        namespace information from QuarkDB
@@ -1905,7 +1927,7 @@ scan_rain_interval   2419200 [s] (4w)  target interval at which all rain files s
 scan_ns_rate         50 [Hz]           rate limit the requests to QuarkDB for the namespace scans
 scanrate             100 [MB/s]        rate limit bandwidth used by the scanner when reading files
                                        from disk
-===================  ===============   ===========================================================
+===================  ================  ===========================================================
 
 **scan_disk_interval** and **scan_ns_interval** are skewed by a random factor per FS so that not all disks become busy at the same time.
 
@@ -1998,14 +2020,17 @@ To enable the FST scan you have to set the variable `scaninterval` on the space 
    bootcheck                        := 0
    bootsenttime                     := 1612456466
    configstatus                     := rw
+   drain.requested                  := 0
    host                             := fst-1.eos.grid.vbc.ac.at
    hostport                         := fst-1.eos.grid.vbc.ac.at:1095
    id                               := 1
+   lifecycle                        := active
    local.drain                      := nodrain
    path                             := /srv/data/data.00
    port                             := 1095
    queue                            := /eos/fst-1.eos.grid.vbc.ac.at:1095/fst
    queuepath                        := /eos/fst-1.eos.grid.vbc.ac.at:1095/fst/srv/data/data.00
+   sched.ops                        := rw
 
    [...] defaults for these are taken from MGM, scanterval must be set!
    scan_disk_interval               := 14400

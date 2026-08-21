@@ -41,15 +41,15 @@ The classical configuration includes the following configuration files:
 
 .. epigraph::
 
-   ============== ============================ ==========================
-   Service        Configuration File           Type
-   ============== ============================ ==========================
-   MGM            /etc/xrd.cf.mgm              XRootD
-   FST            /etc/xrd.cf.fst              XRootD
-   MQ             /etc/xrd.cf.mq               XRootD
-   QDB            /etc/xrootd/xrootd-quarkdb.cfg XRootD
-   ALL            /etc/sysconfig/eos_env       Sysconfig
-   ============== ============================ ==========================
+   ======= ============================== =========
+   Service Configuration File             Type
+   ======= ============================== =========
+   MGM     /etc/xrd.cf.mgm                XRootD
+   FST     /etc/xrd.cf.fst                XRootD
+   MQ      /etc/xrd.cf.mq                 XRootD
+   QDB     /etc/xrootd/xrootd-quarkdb.cfg XRootD
+   ALL     /etc/sysconfig/eos_env         Sysconfig
+   ======= ============================== =========
 
 
 You can find an example `sysconfig` file with explanation of configuration variables under `/etc/sysconfig/eos_env.example`

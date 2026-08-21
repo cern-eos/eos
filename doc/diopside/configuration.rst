@@ -1,3 +1,4 @@
+:orphan:
 
 ZSTD-compressed rotating logging
 --------------------------------
@@ -29,4 +30,3 @@ EOS supports an optional ZSTD-compressed, time-rotated logging mode that replace
 - Per-tag naming:
 
   - Per-tag compressed streams are only created for the canonical fan-out tag set used by MGM (e.g. ``Grpc``, ``Http``, ``DrainJob``, ``ZMQ`` …). Source-module names are mapped into this set using the same alias rules as the fan-out configuration (e.g. ``HttpHandler`` → ``Http``, ``Drainer`` → ``DrainJob``). Modules without a canonical tag do not get their own `.zst` stream.
-
