@@ -119,13 +119,17 @@ done
 
 eos file info ${EOS_DRAIN_DIR}/replica/slow_writer.dat
 
-# Start draining and wait for it to finish
+# Start draining and wait for it to finish. The drain status has a column of
+# its own; the scheduling column next to it reads "ro" while the drain runs and
+# "empty" once it is done, so there is no "drain" word to look for there.
 eos fs config 1 configstatus=drain
-eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
+# Give the drain engine a moment to publish the initial status
+sleep 2
+eos fs ls | grep " 1 " | grep "prepare\|waiting\|draining\|stalling"
 
 while [[ $? -eq 0 ]]; do
   sleep 2
-  eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
+  eos fs ls | grep " 1 " | grep "prepare\|waiting\|draining\|stalling"
 done
 
 eos fs ls # debug print on what the status is right now;
