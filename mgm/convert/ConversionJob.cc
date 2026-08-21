@@ -22,19 +22,19 @@
  ************************************************************************/
 
 #include "mgm/convert/ConversionJob.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
 #include "common/Timing.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/Prefetcher.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-
+#include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Checksum.hh"
 
 //------------------------------------------------------------------------------
 // Utility functions to help with file conversion
@@ -148,6 +148,7 @@ void ConversionJob::DoIt() noexcept
   std::string source_xs_postconversion;
   bool overwrite_checksum;
   uint64_t source_size;
+  bool source_obfuscated = false;
   eos::IFileMD::LocationVector src_locations;
   eos::IFileMD::LocationVector src_unlink_loc;
   gOFS->MgmStats.Add("ConversionJobStarted", 0, 0, 1);
@@ -170,6 +171,7 @@ void ConversionJob::DoIt() noexcept
     source_size = fmd->getSize();
     src_locations = fmd->getLocations();
     src_unlink_loc = fmd->getUnlinkedLocations();
+    source_obfuscated = fmd->hasAttribute(eos::kAttrObfuscateKey);
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs);
     // Check if conversion requests a checksum rewrite
     std::string file_checksum = LayoutId::GetChecksumString(fmd->getLayoutId());
@@ -222,6 +224,11 @@ void ConversionJob::DoIt() noexcept
              << "&eos.rgid=" << DAEMONGID
              << "&eos.encodepath=curl"
              << "&eos.app=" + app_tag;
+
+  if (source_obfuscated) {
+    // An obfuscated file has to be copied exactly as it is stored on disk.
+    url_params << "&eos.obfuscate=0";
+  }
   url_src.SetParams(url_params.str());
   url_src.SetPath(eos::common::StringConversion::curl_escaped(mSourcePath));
   XrdCl::URL url_dst = NewUrl();
