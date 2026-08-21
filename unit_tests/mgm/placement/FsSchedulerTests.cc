@@ -157,6 +157,27 @@ TEST(FsScheduler, SetSchedConfigSpace)
             eos::mgm::placement::kGeoTreeSchedConfig);
 }
 
+TEST(FsScheduler, GlobalDefaultReachesASpaceWithNoOverride)
+{
+  using namespace eos::mgm::placement;
+  FsScheduler fs_scheduler(2048, std::make_unique<TestClusterMgrHandler>());
+  fs_scheduler.UpdateClusterData();
+  // What LoadConfig does for a space carrying no scheduler.type: nothing. It
+  // used to push the empty value through anyway, which stored an explicit
+  // geotree override and made the global default unreachable for every space
+  // that existed at boot.
+  fs_scheduler.SetSchedConfig("roundrobin");
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("default"),
+            FlatConfig(PlacementStrategyT::kRoundRobin));
+  // An override still wins over it, and clearing the global default does not
+  // reach back into the space
+  fs_scheduler.SetSchedConfig("default", "weightedrandom");
+  fs_scheduler.SetSchedConfig("geotree");
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("default"),
+            FlatConfig(PlacementStrategyT::kWeightedRandom));
+  EXPECT_EQ(fs_scheduler.GetSchedConfig("tape"), kGeoTreeSchedConfig);
+}
+
 TEST(FsScheduler, FillLimitsValidation)
 {
   using namespace eos::mgm::placement;

@@ -286,7 +286,18 @@ FsScheduler::LoadConfig()
       continue;
     }
 
-    SetSchedConfig(spacename, space->GetConfigMember("scheduler.type"));
+    // Only when the space actually carries the key. Restoring an absent one
+    // used to write an explicit geotree override onto every space at boot,
+    // which made the global default from "sched configure type" dead for every
+    // space that existed then - GetSchedConfig found an override and never
+    // looked at it - and made HasConfiguration answer yes for spaces holding
+    // no configuration at all.
+    const std::string type_str = space->GetConfigMember("scheduler.type");
+
+    if (!type_str.empty()) {
+      SetSchedConfig(spacename, type_str);
+    }
+
     // Restore the configured fill thresholds, falling back to the default
     // for whichever of the two is not set. Applied as a pair so that the
     // restore cannot trip over the warn < cap ordering.

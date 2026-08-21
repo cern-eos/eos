@@ -199,12 +199,26 @@ SchedCmd::ShowSubCmd(const eos::console::SchedProto_ShowProto& show)
 {
   eos::console::ReplyProto reply;
   if (show.option() == eos::console::SchedProto_ShowProto::TYPE) {
-    auto config = gOFS->mFsScheduler->GetSchedConfig();
+    const auto default_config = gOFS->mFsScheduler->GetSchedConfig();
+    auto config = default_config;
+
     if (!show.spacename().empty()) {
       config = gOFS->mFsScheduler->GetSchedConfig(show.spacename());
     }
+
     std::ostringstream oss;
-    oss << "Scheduler Type:" << placement::SchedConfigToStr(config) << std::endl;
+    oss << "Scheduler Type: " << placement::SchedConfigToStr(config);
+
+    // Say where the value came from, the same way "show state" does - without
+    // it there is no way to tell a space override from the global default
+    if (!show.spacename().empty()) {
+      oss << ((config != default_config)
+                  ? " (space override, global default: " +
+                        placement::SchedConfigToStr(default_config) + ")"
+                  : " (global default)");
+    }
+
+    oss << std::endl;
     reply.set_std_out(oss.str());
     reply.set_retc(0);
 
