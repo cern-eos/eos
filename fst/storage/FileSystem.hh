@@ -24,18 +24,19 @@
 #ifndef __EOSFST_FILESYSTEM_HH__
 #define __EOSFST_FILESYSTEM_HH__
 
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
+#include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include "fst/Namespace.hh"
+#include "fst/io/FileIo.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/storage/FileSystem.hh"
-#include "fst/io/FileIo.hh"
-#include "common/Logging.hh"
-#include "common/FileSystem.hh"
-#include "common/StringConversion.hh"
-#include "common/FileId.hh"
-#include <vector>
 #include <list>
-#include <queue>
 #include <map>
+#include <mutex>
+#include <queue>
+#include <vector>
 
 namespace eos::mq
 {
@@ -110,6 +111,30 @@ public:
   {
     return mLocalUuid;;
   }
+
+  //----------------------------------------------------------------------------
+  //! Cache the space name by resolving it from the shared hash. Only called
+  //! when the file system is registered - must not be called from a shared
+  //! hash update callback as it accesses the hash itself.
+  //----------------------------------------------------------------------------
+  void SetLocalSpace();
+
+  //----------------------------------------------------------------------------
+  //! Cache the space name extracted from the given scheduling group. Used from
+  //! the shared hash update callback where the hash must not be accessed.
+  //!
+  //! @param schedgroup scheduling group in the <space>.<index> format
+  //----------------------------------------------------------------------------
+  void SetLocalSpace(const std::string& schedgroup);
+
+  //----------------------------------------------------------------------------
+  //! Get the cached space name. The space is only refreshed when the MGM
+  //! broadcasts a new scheduling group ie. on "fs mv", therefore this avoids
+  //! resolving it from the shared hash on every call.
+  //!
+  //! @return space name or empty string if not yet known
+  //----------------------------------------------------------------------------
+  std::string GetLocalSpace() const;
 
   //----------------------------------------------------------------------------
   //! Configure scanner thread - possibly start the scanner
@@ -240,6 +265,11 @@ private:
   //! Local file system uuid irrespective of the shared hash status, populated
   //! the first time the *id* is broadcasted from the mgm
   std::string mLocalUuid;
+  //! Cached space name, refreshed whenever the mgm broadcasts a new
+  //! scheduling group. Guarded since it is written from the shared hash
+  //! update callback and read from the IO threads.
+  mutable std::mutex mLocalSpaceMutex;
+  std::string mLocalSpace;
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
   unsigned long last_blocks_free;

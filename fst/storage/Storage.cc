@@ -1156,7 +1156,7 @@ Storage::GetFileSystemSpace(eos::common::FileSystem::fsid_t fsid) const
   FileSystem* fs = GetFileSystemById(fsid);
 
   if (fs) {
-    space = fs->GetSpace();
+    space = fs->GetLocalSpace();
   }
 
   return space;
