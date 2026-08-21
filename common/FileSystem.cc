@@ -1076,8 +1076,10 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
                                                            hash.get("configstatus"));
           const FsLifecycle lifecycle = FileSystem::ResolveLifecycle(
               hash.get(FS_LIFECYCLE_NAME), hash.get("configstatus"));
+          const bool draining = FileSystem::ResolveDrainRequested(
+              hash.get(FS_DRAIN_REQUESTED_NAME), hash.get("configstatus"));
           table_mq_data.back().push_back(
-              TableCell(FileSystem::FormatSchedState(ops, lifecycle), format));
+              TableCell(FileSystem::FormatSchedState(ops, lifecycle, draining), format));
           table_mq_header.push_back(std::make_tuple("sched", width, format));
         }
       }
@@ -1379,15 +1381,21 @@ FileSystem::ResolveDrainRequested(const std::string& drain_requested,
 // Render the scheduling state of a filesystem
 //------------------------------------------------------------------------------
 std::string
-FileSystem::FormatSchedState(FsOpMask ops, FsLifecycle lifecycle)
+FileSystem::FormatSchedState(FsOpMask ops, FsLifecycle lifecycle, bool drain_requested)
 {
-  // Only where the mask has nothing left to say: "none" covers both a drained
-  // file system and one that was switched off, and the drained state is the
-  // one an operator watches a drain for. A lifecycle that is not active but
-  // still carries a mask renders as the mask, exactly as the legacy
-  // configstatus projection did.
+  // "none" covers both a drained file system and one that was switched off,
+  // and the drained state is the one an operator watches a drain for. A
+  // lifecycle that is not active but still carries a mask renders as the mask,
+  // exactly as the legacy configstatus projection did.
   if ((ops == kMaskNone) && (lifecycle != FsLifecycle::kActive)) {
     return GetLifecycleAsString(lifecycle);
+  }
+
+  // "drain" and "ro" are the same permissions under two names, which is why
+  // FormatSchedMask cannot choose between them and always says "ro". Here the
+  // drain request is known, so the more telling of the two names can be used.
+  if (drain_requested && (ops == kMaskAllReads)) {
+    return "drain";
   }
 
   return FormatSchedMask(ops);

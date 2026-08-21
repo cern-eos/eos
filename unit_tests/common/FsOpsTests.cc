@@ -335,27 +335,39 @@ TEST(FsOps, LifecycleResolution)
 }
 
 //------------------------------------------------------------------------------
-// The scheduling state names the lifecycle where the mask has nothing left to
-// say. A drain that finished leaves an empty mask behind, and "none" there
-// would look the same as a filesystem an operator switched off - hiding the
-// very state the drain was run to reach.
+// The scheduling state names what the mask alone cannot. A drain that finished
+// leaves an empty mask behind, and "none" there would look the same as a
+// filesystem an operator switched off - hiding the very state the drain was
+// run to reach. A drain in progress leaves the "ro" mask, which says nothing
+// about the drain at all.
 //------------------------------------------------------------------------------
 TEST(FsOps, SchedState)
 {
   using eos::common::FileSystem;
   // What a finished drain leaves behind
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kEmpty), "empty");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kEmpty, false), "empty");
   // and what an operator switching a filesystem off does, told apart from it
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kOff), "off");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kOff, false), "off");
   // An empty mask with nothing else to explain it stays "none"
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kActive), "none");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kActive, false), "none");
+
+  // A running drain picks the name the two share their permissions under
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAllReads, FsLifecycle::kActive, true),
+            "drain");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAllReads, FsLifecycle::kActive, false),
+            "ro");
+  // but only there: a filesystem draining under permissions of its own keeps
+  // its own name, the drain column next to it reporting the drain
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskInternalAll, FsLifecycle::kActive, true),
+            "internal");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAll, FsLifecycle::kActive, true), "rw");
 
   // The mask wins wherever it still says something: a filesystem left marked
   // empty but handed a mask again is not idle, and reporting "empty" would
   // hide traffic it accepts. The legacy projection read it the same way.
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAll, FsLifecycle::kEmpty), "rw");
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAllReads, FsLifecycle::kOff), "ro");
-  EXPECT_EQ(FileSystem::FormatSchedState(kMaskInternalAll, FsLifecycle::kActive),
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAll, FsLifecycle::kEmpty, false), "rw");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAllReads, FsLifecycle::kOff, false), "ro");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskInternalAll, FsLifecycle::kActive, false),
             "internal");
 }
 
