@@ -37,6 +37,8 @@ using eos::common::FormatSchedOps;
 using eos::common::FsLifecycle;
 using eos::common::FsOpMask;
 using eos::common::kMaskAll;
+using eos::common::kMaskAllReads;
+using eos::common::kMaskInternalAll;
 using eos::common::kMaskNone;
 using eos::common::kNumSchedOps;
 using eos::common::MaskOfActivity;
@@ -330,6 +332,31 @@ TEST(FsOps, LifecycleResolution)
 
   // An unparsable lifecycle is not a reason to call a filesystem removable
   EXPECT_EQ(FileSystem::ResolveLifecycle("nonsense", "empty"), FsLifecycle::kActive);
+}
+
+//------------------------------------------------------------------------------
+// The scheduling state names the lifecycle where the mask has nothing left to
+// say. A drain that finished leaves an empty mask behind, and "none" there
+// would look the same as a filesystem an operator switched off - hiding the
+// very state the drain was run to reach.
+//------------------------------------------------------------------------------
+TEST(FsOps, SchedState)
+{
+  using eos::common::FileSystem;
+  // What a finished drain leaves behind
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kEmpty), "empty");
+  // and what an operator switching a filesystem off does, told apart from it
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kOff), "off");
+  // An empty mask with nothing else to explain it stays "none"
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskNone, FsLifecycle::kActive), "none");
+
+  // The mask wins wherever it still says something: a filesystem left marked
+  // empty but handed a mask again is not idle, and reporting "empty" would
+  // hide traffic it accepts. The legacy projection read it the same way.
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAll, FsLifecycle::kEmpty), "rw");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskAllReads, FsLifecycle::kOff), "ro");
+  EXPECT_EQ(FileSystem::FormatSchedState(kMaskInternalAll, FsLifecycle::kActive),
+            "internal");
 }
 
 //------------------------------------------------------------------------------

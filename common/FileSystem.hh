@@ -613,6 +613,23 @@ public:
                                     const std::string& configstatus);
 
   //----------------------------------------------------------------------------
+  //! Render the scheduling state of a filesystem, what the "sched" column of
+  //! every "fs ls" listing shows.
+  //!
+  //! A drained filesystem and an administratively disabled one both end up
+  //! with an empty mask, so "none" on its own cannot tell them apart and hides
+  //! the very state a drain was run to reach. Where the mask has nothing left
+  //! to say, name the lifecycle instead. Falls back to the mask whenever the
+  //! mask still says something, which is what the legacy projection did too.
+  //!
+  //! @param ops resolved permission mask
+  //! @param lifecycle resolved lifecycle
+  //!
+  //! @return "empty", "off" or the rendered mask
+  //----------------------------------------------------------------------------
+  static std::string FormatSchedState(FsOpMask ops, FsLifecycle lifecycle);
+
+  //----------------------------------------------------------------------------
   //! Convert input to file system id
   //!
   //! @param value input string
