@@ -26,6 +26,8 @@ clone_docker:
   script:
     - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    # The temporary vanilla XRootD build installs xrdcp under /usr/bin.
+    - sed -i 's|/opt/eos/xrootd/bin/xrdcp|/usr/bin/xrdcp|' eos-docker/image/etc/xrd/xrd.cf.fst
     - |
       cat << 'REPO_EOF' >> eos-docker/docker/repos/eos.repo.in
 
@@ -45,7 +47,7 @@ clone_docker:
       gpgkey=https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
       metadata_expire=1d
       repo_gpgcheck=1
-      priority=1
+      priority=5
       gpgcheck=1
       enabled=1
       REPO_EOF
