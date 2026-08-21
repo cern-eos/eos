@@ -446,6 +446,18 @@ eos_quota() {
     echo eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
 
+# 'quota rmnode' without --really-want asks to type back a random confirmation
+# code. Feed it a wrong one - the quota node must survive and the command must
+# return an error.
+eos_quota_rmnode_noconfirm() {
+    echo eos quota rmnode -p $1 "(answering with a wrong confirmation code)" >& $EOSLASTLOG; echo "wrong-confirmation-code" | eval command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR quota rmnode -p $1 >> $EOSCERTLOG 2>&1
+}
+
+# Succeeds only if a quota node is defined for exactly the given path
+eos_quota_node_exists() {
+    echo eos quota ls -m $1 >& $EOSLASTLOG; eval command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR quota ls -m $1 2>> $EOSCERTLOG | grep "space=${1%/}" >> $EOSCERTLOG 2>&1
+}
+
 eos_defaultcc() {
     echo eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
@@ -1129,7 +1141,12 @@ runtest "### Quota     " unix SUCCESS "" eos quota set -g 99 -p /eos/$EOS_TEST_I
 runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/testproj/1k" "-ODeos.ruid=3"
 runtest "### QUpdate   " unix SUCCESS "" eos quota ls -m "/eos/$EOS_TEST_INSTANCE/test/testproj" | grep "gid=project space=/eos/$EOS_TEST_INSTANCE/test/testproj"
 runtest "### Rem       " unix IGNORE  "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
+# 'quota rmnode' without --really-want must ask for a confirmation code and must
+# not touch the quota node when the code is not typed back correctly
+runtest "### RmdQuota  " unix ERROR   "" eos_quota_rmnode_noconfirm "/eos/$EOS_TEST_INSTANCE/test/testproj/"
+runtest "### QUpdate   " unix SUCCESS "" eos_quota_node_exists "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 runtest "### RmdQuota  " unix SUCCESS "" eos quota rmnode --really-want -p "/eos/$EOS_TEST_INSTANCE/test/testproj/"
+runtest "### QUpdate   " unix ERROR   "" eos_quota_node_exists "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 fi
 ################################################################################

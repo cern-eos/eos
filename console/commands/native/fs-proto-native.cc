@@ -316,7 +316,10 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    // Confirmation is handled inside FsHelper where applicable
+    if (helper.NeedsConfirmation() && !helper.ConfirmOperation()) {
+      global_retc = EINTR;
+      return 0;
+    }
     global_retc = helper.Execute();
     return 0;
   }
