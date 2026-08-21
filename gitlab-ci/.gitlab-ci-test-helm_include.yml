@@ -89,9 +89,17 @@
       ######## EOS-CHARTS/SERVER ########
       HELM_EOS_SERVER_VERSION=0.9.2
       HELM_EOS_SERVER_REGISTRY=oci://registry.cern.ch/eos/charts/server
-      helm install eos $HELM_EOS_SERVER_REGISTRY --wait --timeout 30m0s \
+      HELM_EOS_SERVER_DIR=eos-server-chart
+      helm pull $HELM_EOS_SERVER_REGISTRY --version $HELM_EOS_SERVER_VERSION \
+        --untar --untardir $HELM_EOS_SERVER_DIR
+      # TODO(upstream eos-charts): Resolve XRootD tools from the image PATH.
+      # This temporary rewrite lets the vanilla XRootD CI image use /usr/bin.
+      find $HELM_EOS_SERVER_DIR/server/charts/fst/templates \
+        $HELM_EOS_SERVER_DIR/server/charts/mgm/templates \
+        $HELM_EOS_SERVER_DIR/server/charts/qdb/templates \
+        -type f -exec sed -i 's|/opt/eos/xrootd/bin/|/usr/bin/|g' {} \;
+      helm install eos $HELM_EOS_SERVER_DIR/server --wait --timeout 30m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml \
-        --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
         --set-string global.tag=$IMAGE_TAG
     - |
