@@ -505,9 +505,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "drain") {
-          // The drain verb, pulled out of the status. Orthogonal to the mask,
-          // though a drain only makes progress off a file system whose mask
-          // still allows an internal read.
+          // The drain verb, pulled out of the status. Orthogonal to the mask:
+          // DrainTransferJob::BuildTpcSrc prefers another replica as the
+          // source, so the mask here only decides whether the data this file
+          // system holds as a sole copy can be moved off at all.
           if (!fs->SetDrainRequested(value == "on")) {
             stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
