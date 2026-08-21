@@ -29,12 +29,6 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 namespace {
-constexpr FsOpMask kMaskClientAll = MaskOfActivity(SchedActivity::kClient);
-constexpr FsOpMask kMaskInternalAll = MaskOfActivity(SchedActivity::kInternal);
-constexpr FsOpMask kMaskAllReads = MaskOfDirection(SchedDirection::kRead);
-constexpr FsOpMask kMaskAllUpdates = MaskOfDirection(SchedDirection::kUpdate);
-constexpr FsOpMask kMaskAllCreates = MaskOfDirection(SchedDirection::kCreate);
-
 constexpr FsOpMask kMaskClientRead =
     (SchedOp{SchedActivity::kClient, SchedDirection::kRead}).Bit();
 
@@ -239,7 +233,7 @@ FormatSchedMask(FsOpMask mask)
 //------------------------------------------------------------------------------
 // Translate a legacy ConfigStatus into a mask
 //------------------------------------------------------------------------------
-std::optional<FsOpMask>
+FsOpMask
 DeriveMaskFromLegacy(ConfigStatus status)
 {
   switch (status) {
@@ -256,13 +250,9 @@ DeriveMaskFromLegacy(ConfigStatus status)
   case ConfigStatus::kEmpty:
   case ConfigStatus::kOff:
     return kMaskNone;
-
-  default:
-    // A status with no successor. The caller treats this as unset and fences
-    // the filesystem off rather than guessing at an intent that no longer
-    // exists in the model.
-    return std::nullopt;
   }
+
+  return kMaskNone;
 }
 
 //------------------------------------------------------------------------------

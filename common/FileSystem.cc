@@ -605,24 +605,12 @@ const char*
 FileSystem::GetConfigStatusAsString(ConfigStatus status)
 {
   switch (status) {
-  case ConfigStatus::kUnknown: {
-    return "unknown";
-  }
-
   case ConfigStatus::kOff: {
     return "off";
   }
 
   case ConfigStatus::kEmpty: {
     return "empty";
-  }
-
-  case ConfigStatus::kDrainDead: {
-    return "draindead";
-  }
-
-  case ConfigStatus::kGroupDrain: {
-    return "groupdrain";
   }
 
   case ConfigStatus::kDrain: {
@@ -640,11 +628,9 @@ FileSystem::GetConfigStatusAsString(ConfigStatus status)
   case ConfigStatus::kRW: {
     return "rw";
   }
+  }
 
-  default: {
-    return "unknown";
-  }
-  }
+  return "off";
 }
 
 //------------------------------------------------------------------------------
@@ -705,15 +691,11 @@ FileSystem::GetStatusFromString(const char* ss)
 //------------------------------------------------------------------------------
 // Return configuration status from a string representation
 //------------------------------------------------------------------------------
-ConfigStatus
+std::optional<ConfigStatus>
 FileSystem::GetConfigStatusFromString(const char* ss)
 {
   if (!ss) {
-    return ConfigStatus::kOff;
-  }
-
-  if (!strcmp(ss, "unknown")) {
-    return ConfigStatus::kUnknown;
+    return std::nullopt;
   }
 
   if (!strcmp(ss, "off")) {
@@ -722,10 +704,6 @@ FileSystem::GetConfigStatusFromString(const char* ss)
 
   if (!strcmp(ss, "empty")) {
     return ConfigStatus::kEmpty;
-  }
-
-  if (!strcmp(ss, "draindead")) {
-    return ConfigStatus::kDrainDead;
   }
 
   if (!strcmp(ss, "drain")) {
@@ -744,11 +722,10 @@ FileSystem::GetConfigStatusFromString(const char* ss)
     return ConfigStatus::kRW;
   }
 
-  if (!strcmp(ss, "down")) {
-    return ConfigStatus::kOff;
-  }
-
-  return ConfigStatus::kUnknown;
+  // "draindead", "groupdrain" and "unknown" land here on purpose. A filesystem
+  // still carrying one of them from before the upgrade has no equivalent in
+  // the current model, and the callers fence it off rather than guess.
+  return std::nullopt;
 }
 
 //------------------------------------------------------------------------------
@@ -1091,6 +1068,14 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
           table_mq_data.back().push_back(
             TableCell(usage, format, unit));
           table_mq_header.push_back(std::make_tuple("usage", width, format));
+        } else if (formattags["compute"] == "sched") {
+          // Resolved rather than read straight off the hash: a file system of
+          // an instance upgraded in place carries no mask yet, and a blank
+          // column would read as "nothing allowed" instead of "same as before"
+          const FsOpMask ops = FileSystem::ResolveSchedOps(hash.get(FS_SCHED_OPS_NAME),
+                                                           hash.get("configstatus"));
+          table_mq_data.back().push_back(TableCell(FormatSchedMask(ops), format));
+          table_mq_header.push_back(std::make_tuple("sched", width, format));
         }
       }
     }
@@ -1153,7 +1138,10 @@ FileSystemCoreParams FileSystem::getCoreParams()
   GroupLocator groupLocator;
   GroupLocator::parseGroup(hash.get("schedgroup"), groupLocator);
   std::string uuid = hash.get("uuid");
-  ConfigStatus cfg = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  // A value with no successor fences the filesystem off, same as everywhere
+  // else the legacy key is read
+  ConfigStatus cfg = GetConfigStatusFromString(hash.get("configstatus").c_str())
+                         .value_or(ConfigStatus::kOff);
   std::string sharedfs = hash.get("sharedfs");
   return FileSystemCoreParams(atoi(id.c_str()), mLocator, groupLocator, uuid,
                               cfg, sharedfs);
@@ -1205,10 +1193,12 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 
   fs.mPublishTimestamp = (size_t) hash.getLongLong("stat.publishtimestamp");
   fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
-  fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str())
+                         .value_or(ConfigStatus::kOff);
   fs.mSchedOps = ResolveSchedOps(hash.get(FS_SCHED_OPS_NAME), hash.get("configstatus"));
   fs.mLifecycle = ResolveLifecycle(hash.get(FS_LIFECYCLE_NAME), hash.get("configstatus"));
-  fs.mDrainRequested = (hash.get(FS_DRAIN_REQUESTED_NAME) == "1");
+  fs.mDrainRequested =
+      ResolveDrainRequested(hash.get(FS_DRAIN_REQUESTED_NAME), hash.get("configstatus"));
   fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
   fs.mActiveStatus = mActStatus.load();
   //headroom can be configured as KMGTP so the string should be properly converted
@@ -1273,7 +1263,8 @@ FileSystem::GetConfigStatus(bool cached)
     }
   }
 
-  cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
+  cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str())
+                      .value_or(ConfigStatus::kOff);
   return cConfigStatus;
 }
 
@@ -1326,17 +1317,18 @@ FileSystem::ResolveLifecycle(const std::string& lifecycle,
   }
 
   // The legacy status carried the lifecycle in two of its values; every other
-  // one meant a filesystem in service
-  switch (GetConfigStatusFromString(configstatus.c_str())) {
-  case ConfigStatus::kEmpty:
+  // one - and anything unparsable - meant a filesystem in service
+  const auto legacy = GetConfigStatusFromString(configstatus.c_str());
+
+  if (legacy == ConfigStatus::kEmpty) {
     return FsLifecycle::kEmpty;
-
-  case ConfigStatus::kOff:
-    return FsLifecycle::kOff;
-
-  default:
-    return FsLifecycle::kActive;
   }
+
+  if (legacy == ConfigStatus::kOff) {
+    return FsLifecycle::kOff;
+  }
+
+  return FsLifecycle::kActive;
 }
 
 //------------------------------------------------------------------------------
@@ -1359,9 +1351,25 @@ FileSystem::ResolveSchedOps(const std::string& sched_ops, const std::string& con
   // No stored mask: translate the legacy status, so an instance that has not
   // been reconfigured since the upgrade schedules exactly as it did before.
   // A status with no successor yields no operations rather than a guess.
-  const auto legacy =
-      DeriveMaskFromLegacy(GetConfigStatusFromString(configstatus.c_str()));
-  return legacy.value_or(kMaskNone);
+  const auto legacy = GetConfigStatusFromString(configstatus.c_str());
+  return legacy.has_value() ? DeriveMaskFromLegacy(*legacy) : kMaskNone;
+}
+
+//------------------------------------------------------------------------------
+// Resolve whether draining is requested
+//------------------------------------------------------------------------------
+bool
+FileSystem::ResolveDrainRequested(const std::string& drain_requested,
+                                  const std::string& configstatus)
+{
+  if (!drain_requested.empty()) {
+    return (drain_requested == "1");
+  }
+
+  // Nothing has written the key yet, which on an instance upgraded in place is
+  // every filesystem. The legacy status was the drain trigger, so read it as
+  // one - otherwise a drain in flight across the upgrade would silently stop.
+  return (GetConfigStatusFromString(configstatus.c_str()) == ConfigStatus::kDrain);
 }
 
 //----------------------------------------------------------------------------
@@ -1401,7 +1409,8 @@ FileSystem::GetLifecycle()
 bool
 FileSystem::IsDrainRequested()
 {
-  return (GetString(FS_DRAIN_REQUESTED_NAME) == "1");
+  return ResolveDrainRequested(GetString(FS_DRAIN_REQUESTED_NAME),
+                               GetString("configstatus"));
 }
 
 //----------------------------------------------------------------------------

@@ -158,8 +158,15 @@ MaskOfDirection(SchedDirection direction)
 }
 
 static constexpr FsOpMask kMaskNone = 0;
-static constexpr FsOpMask kMaskAll = static_cast<FsOpMask>(
-    MaskOfActivity(SchedActivity::kClient) | MaskOfActivity(SchedActivity::kInternal));
+//! Everything one traffic class may ask for
+static constexpr FsOpMask kMaskClientAll = MaskOfActivity(SchedActivity::kClient);
+static constexpr FsOpMask kMaskInternalAll = MaskOfActivity(SchedActivity::kInternal);
+//! One direction, both traffic classes
+static constexpr FsOpMask kMaskAllReads = MaskOfDirection(SchedDirection::kRead);
+static constexpr FsOpMask kMaskAllUpdates = MaskOfDirection(SchedDirection::kUpdate);
+static constexpr FsOpMask kMaskAllCreates = MaskOfDirection(SchedDirection::kCreate);
+static constexpr FsOpMask kMaskAll =
+    static_cast<FsOpMask>(kMaskClientAll | kMaskInternalAll);
 
 //----------------------------------------------------------------------------
 //! Check whether a mask allows one operation
@@ -198,6 +205,34 @@ AllowsAnyWrite(FsOpMask mask)
 {
   return AllowsAnyOfDirection(mask, SchedDirection::kUpdate) ||
          AllowsAnyOfDirection(mask, SchedDirection::kCreate);
+}
+
+//----------------------------------------------------------------------------
+//! Check whether a mask allows any operation of the given traffic class
+//----------------------------------------------------------------------------
+constexpr bool
+AllowsAnyOfActivity(FsOpMask mask, SchedActivity activity)
+{
+  return (mask & MaskOfActivity(activity)) != 0;
+}
+
+//----------------------------------------------------------------------------
+//! Check whether a mask still admits client traffic of any kind. What a call
+//! site asking "is this file system still in service for users" wants.
+//----------------------------------------------------------------------------
+constexpr bool
+AllowsAnyClient(FsOpMask mask)
+{
+  return AllowsAnyOfActivity(mask, SchedActivity::kClient);
+}
+
+//----------------------------------------------------------------------------
+//! Check whether a mask still admits internal traffic of any kind
+//----------------------------------------------------------------------------
+constexpr bool
+AllowsAnyInternal(FsOpMask mask)
+{
+  return AllowsAnyOfActivity(mask, SchedActivity::kInternal);
 }
 
 //----------------------------------------------------------------------------
@@ -240,14 +275,16 @@ std::optional<FsOpMask> ParseSchedSpec(std::string_view spec);
 std::string FormatSchedMask(FsOpMask mask);
 
 //----------------------------------------------------------------------------
-//! Translate a legacy ConfigStatus into a mask.
+//! Translate a legacy ConfigStatus into a mask. Every one of the six statuses
+//! has an exact equivalent; the values that did not - "draindead",
+//! "groupdrain" and "unknown" - no longer parse at all, so a caller reading a
+//! stored legacy value fences the filesystem off at the parse instead.
 //!
 //! @param status legacy configuration status
 //!
-//! @return the equivalent mask, or nullopt for a value that has no successor,
-//!         which the caller should treat as unset
+//! @return the equivalent mask
 //----------------------------------------------------------------------------
-std::optional<FsOpMask> DeriveMaskFromLegacy(ConfigStatus status);
+FsOpMask DeriveMaskFromLegacy(ConfigStatus status);
 
 //----------------------------------------------------------------------------
 //! Project a mask back onto the legacy ConfigStatus that is still published

@@ -24,15 +24,16 @@
 #ifndef __EOSFST_STORAGE_MONITORVARPARTITION__HH__
 #define __EOSFST_STORAGE_MONITORVARPARTITION__HH__
 
-#include "common/Logging.hh"
+#include "common/Constants.hh"
 #include "common/FileSystem.hh"
+#include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "fst/Namespace.hh"
 #include "fst/storage/FileSystem.hh"
-#include <unistd.h>
-#include <sys/statvfs.h>
-#include <string>
 #include <errno.h>
+#include <string>
+#include <sys/statvfs.h>
+#include <unistd.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -100,7 +101,13 @@ public:
         eos::common::RWMutexReadLock fs_rd_lock(mtx);
 
         for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
-          if ((*fs)->GetConfigStatus() != eos::common::ConfigStatus::kRO) {
+          // Only file systems that still take a write of any kind. Asking the
+          // mask rather than the legacy status also stops this from quietly
+          // promoting an "off" or draining file system back to read-only.
+          if (eos::common::AllowsAnyWrite((*fs)->GetSchedOps())) {
+            // The mask is what the MGM schedules on; the legacy status is what
+            // everything else still reads, so both have to move together
+            (*fs)->SetString(eos::common::FS_SCHED_OPS_NAME, "ro");
             (*fs)->SetString("configstatus", "ro");
           }
         }

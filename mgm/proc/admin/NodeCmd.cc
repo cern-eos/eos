@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <optional>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -371,7 +372,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
   }
 
   // Handle file system specific configurations
-  if (config.node_key() == "configstatus") {
+  if ((config.node_key() == "configstatus") || (config.node_key() == "sched")) {
     return ConfigFsSpecific(set_nodes, config.node_key(), config.node_value(),
                             reply);
   }
@@ -466,9 +467,16 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
                           eos::console::ReplyProto& reply)
 {
   using eos::common::FileSystem;
+  std::optional<eos::common::ConfigStatus> legacy_status;
+  std::optional<eos::common::FsOpMask> sched_ops;
 
-  if ((FileSystem::GetConfigStatusFromString(value.c_str()) ==
-       eos::common::ConfigStatus::kUnknown)) {
+  if (key == "configstatus") {
+    legacy_status = FileSystem::GetConfigStatusFromString(value.c_str());
+  } else {
+    sched_ops = eos::common::ParseSchedSpec(value);
+  }
+
+  if (!legacy_status.has_value() && !sched_ops.has_value()) {
     reply.set_std_err("error: not an allowed parameter <" + value + ">");
     reply.set_retc(EINVAL);
     return;
@@ -498,7 +506,7 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
         continue;
       }
 
-      if (value == "empty") {
+      if (legacy_status == eos::common::ConfigStatus::kEmpty) {
         // Check if the file system is really empty
         if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId())) {
           eos_static_info("msg=\"trying to set a file system that still "
@@ -510,7 +518,12 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
         }
       }
 
-      fs->SetString(key.c_str(), value.c_str());
+      if (legacy_status.has_value()) {
+        fs->SetLegacyConfigStatus(*legacy_status);
+      } else {
+        fs->SetSchedOps(*sched_ops);
+      }
+
       FsView::gFsView.StoreFsConfig(fs, false);
     }
 

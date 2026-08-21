@@ -1033,7 +1033,8 @@ ReadFilesystemIoPressure(const FilesystemPressureSource& source, const int64_t n
   eos::mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), source.locator, true,
                                   false);
   if (!hash.get(keys, values) ||
-      FileSystem::GetConfigStatusFromString(values["configstatus"].c_str()) <
+      FileSystem::GetConfigStatusFromString(values["configstatus"].c_str())
+              .value_or(eos::common::ConfigStatus::kOff) <
           eos::common::ConfigStatus::kRO ||
       FileSystem::GetStatusFromString(values["stat.boot"].c_str()) !=
           eos::common::BootStatus::kBooted) {

@@ -253,6 +253,11 @@ DrainFs::SuccessfulDrain()
       batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
                              eos::common::FileSystem::GetLifecycleAsString(
                                  eos::common::FsLifecycle::kEmpty));
+      // A drained file system takes nothing at all, and the drain that just
+      // finished must not be re-armed by ReapplyDrainStatus after a failover
+      batch.setStringDurable(eos::common::FS_SCHED_OPS_NAME,
+                             eos::common::FormatSchedMask(eos::common::kMaskNone));
+      batch.setStringDurable(eos::common::FS_DRAIN_REQUESTED_NAME, "0");
       FsView::gFsView.StoreFsConfig(fs);
     }
 

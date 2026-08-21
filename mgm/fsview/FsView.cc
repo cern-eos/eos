@@ -1538,6 +1538,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.alias.port:format=oqs|";
     format += "key=stat.boot:format=os|";
     format += "key=configstatus:format=os|";
+    format += "compute=sched:format=os|";
     format += "key=headroom:format=os|";
     format += "key=stat.errc:format=os|";
     format += "key=stat.errmsg:format=oqs|";
@@ -1639,6 +1640,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=headroom:width=10:format=+f|";
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
+    format += "compute=sched:width=20:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
     format += "key=stat.active:width=8:format=s|";
@@ -1666,6 +1668,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.geotag:width=16:format=s|";
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
+    format += "compute=sched:width=20:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
     format += "key=stat.active:width=8:format=s|";
@@ -2696,15 +2699,16 @@ FsView::ReapplyDrainStatus()
   eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
 
   for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
-    eos::common::ConfigStatus cs = it->second->GetConfigStatus();
-
-    if ((cs == eos::common::ConfigStatus::kDrain) ||
-        (cs == eos::common::ConfigStatus::kDrainDead) ||
-        (cs == eos::common::ConfigStatus::kGroupDrain)) {
-      it->second->SetConfigStatus(cs);
-      gOFS->mFsScheduler->SetDiskOps(mIdView.lookupSpaceByID(it->first), it->first,
-                                     it->second->GetSchedOps());
+    // The drain request is a durable key of its own, so a failover re-arms
+    // from what the operator actually asked for rather than from a status
+    // that a drain is only one of several ways to reach
+    if (!it->second->IsDrainRequested()) {
+      continue;
     }
+
+    it->second->SetDrainRequested(true);
+    gOFS->mFsScheduler->SetDiskOps(mIdView.lookupSpaceByID(it->first), it->first,
+                                   it->second->GetSchedOps());
   }
 }
 //------------------------------------------------------------------------------
@@ -3262,21 +3266,13 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
   batch.setStringDurable("uuid", uuid);
 
   for (auto it = configmap.begin(); it != configmap.end(); it++) {
-    // Set config parameters except for the "configstatus" which can trigger a
-    // drain job. This in turn could try to update the status of the file
-    // system and will deadlock trying to get the transaction mutex. Therefore,
-    // we update the configstatus outside this transaction.
-    if (it->first != "configstatus") {
-      batch.setStringDurable(it->first, it->second);
-    }
+    // Every key goes into the one batch, "configstatus" included: it is a
+    // plain stored value now, not a verb, so restoring it starts nothing.
+    // Re-arming a drain is ReapplyDrainStatus, off the drain request key.
+    batch.setStringDurable(it->first, it->second);
   }
 
   fs->applyBatch(batch);
-  auto it_cfg = configmap.find("configstatus");
-
-  if (it_cfg != configmap.end()) {
-    fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
-  }
 
   if (!Register(fs, fs->getCoreParams())) {
     eos_err("msg=\"cannot register filesystem from config\" queuepath=\"%s\"",

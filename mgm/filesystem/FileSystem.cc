@@ -202,94 +202,34 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
   NotifyFsListener(std::move(upd));
 }
 
-//----------------------------------------------------------------------------
-// Set the configuration status of a file system
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Apply a legacy configuration status
+//------------------------------------------------------------------------------
 bool
-FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
+FileSystem::SetLegacyConfigStatus(eos::common::ConfigStatus status,
+                                  const std::string* status_comment, bool wait)
 {
-  return DoSetConfigStatus(new_status, nullptr, true);
-}
+  using eos::common::ConfigStatus;
+  using eos::common::FsLifecycle;
+  // The one word rolls three orthogonal settings into one. Take it apart here,
+  // at the edge, so nothing below this point has to know the legacy vocabulary
+  FsLifecycle lifecycle = FsLifecycle::kActive;
 
-//----------------------------------------------------------------------------
-// Set the configuration status of a file system together with the comment
-// describing the change
-//----------------------------------------------------------------------------
-bool
-FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status,
-                            const std::string& status_comment, bool wait)
-{
-  return DoSetConfigStatus(new_status, &status_comment, wait);
-}
-
-//----------------------------------------------------------------------------
-// Trigger the drain transition, if any, and store the new configuration status
-//----------------------------------------------------------------------------
-bool
-FileSystem::DoSetConfigStatus(eos::common::ConfigStatus new_status,
-                              const std::string* status_comment, bool wait)
-{
-  using eos::common::DrainStatus;
-  eos::common::ConfigStatus old_status = GetConfigStatus();
-  int drain_tx = IsDrainTransition(old_status, new_status);
-
-  // Only master drains and updates the configuration status
-  if (!ShouldBroadCast()) {
-    return true;
+  if (status == ConfigStatus::kEmpty) {
+    lifecycle = FsLifecycle::kEmpty;
+  } else if (status == ConfigStatus::kOff) {
+    lifecycle = FsLifecycle::kOff;
   }
 
-  std::string out_msg;
-
-  if (drain_tx > 0) {
-    if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-      eos_static_err("%s", out_msg.c_str());
-      return false;
-    }
-  } else {
-    if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-      eos_static_debug("%s", out_msg.c_str());
-      // Drain already stopped make sure we also update the drain status
-      // if this was a finished drain ie. has status drained or failed
-      DrainStatus st = GetDrainStatus();
-
-      if ((st == DrainStatus::kDrained) || (st == DrainStatus::kDrainFailed) ||
-          (st == DrainStatus::kDrainExpired)) {
-        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-      }
-    }
+  // The drain request goes first, and a refusal aborts the whole change: the
+  // status ladder behaved the same way, leaving the file system as it was
+  // when the engine would not start
+  if (!SetDrainRequested(status == ConfigStatus::kDrain)) {
+    return false;
   }
 
-  eos::common::FileSystemUpdateBatch batch;
-  batch.setStringDurable("configstatus",
-                         eos::common::FileSystem::GetConfigStatusAsString(new_status));
-  // The mask is what the scheduler reads, so a legacy status change has to
-  // carry it along in the same batch - otherwise a previously written mask
-  // would keep winning and this change would silently have no effect.
-  const auto ops = eos::common::DeriveMaskFromLegacy(new_status);
-  batch.setStringDurable(
-      eos::common::FS_SCHED_OPS_NAME,
-      eos::common::FormatSchedMask(ops.value_or(eos::common::kMaskNone)));
-  // Likewise the lifecycle, which the removal and boot guards read. Two of the
-  // legacy values carried it; every other one means a filesystem in service.
-  eos::common::FsLifecycle lifecycle = eos::common::FsLifecycle::kActive;
-
-  if (new_status == eos::common::ConfigStatus::kEmpty) {
-    lifecycle = eos::common::FsLifecycle::kEmpty;
-  } else if (new_status == eos::common::ConfigStatus::kOff) {
-    lifecycle = eos::common::FsLifecycle::kOff;
-  }
-
-  batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
-                         eos::common::FileSystem::GetLifecycleAsString(lifecycle));
-
-  if (status_comment) {
-    // The status and its comment are one logical change, so they go out as one
-    // batch. An empty comment removes the key - a durable update with an empty
-    // value is a deletion.
-    batch.setStringDurable("statuscomment", *status_comment);
-  }
-
-  return applyBatch(batch, wait);
+  return DoSetSchedOps(eos::common::DeriveMaskFromLegacy(status), lifecycle,
+                       status_comment, wait);
 }
 
 //------------------------------------------------------------------------------
@@ -299,6 +239,16 @@ bool
 FileSystem::SetSchedOps(eos::common::FsOpMask ops, const std::string* status_comment,
                         bool wait)
 {
+  return DoSetSchedOps(ops, GetLifecycle(), status_comment, wait);
+}
+
+//------------------------------------------------------------------------------
+// Store the permission mask, the lifecycle and the derived legacy status
+//------------------------------------------------------------------------------
+bool
+FileSystem::DoSetSchedOps(eos::common::FsOpMask ops, eos::common::FsLifecycle lifecycle,
+                          const std::string* status_comment, bool wait)
+{
   // Only the master owns the configuration
   if (!ShouldBroadCast()) {
     return true;
@@ -307,10 +257,12 @@ FileSystem::SetSchedOps(eos::common::FsOpMask ops, const std::string* status_com
   eos::common::FileSystemUpdateBatch batch;
   batch.setStringDurable(eos::common::FS_SCHED_OPS_NAME,
                          eos::common::FormatSchedMask(ops));
+  batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
+                         eos::common::FileSystem::GetLifecycleAsString(lifecycle));
   // Publish the legacy projection in the same batch. Everything that still
   // reads configstatus - the FSTs, the geotree engine, the capacity sums and
   // monitoring - therefore sees a value that is always a function of the mask.
-  const bool is_empty = (GetLifecycle() == eos::common::FsLifecycle::kEmpty);
+  const bool is_empty = (lifecycle == eos::common::FsLifecycle::kEmpty);
   batch.setStringDurable("configstatus",
                          eos::common::FileSystem::GetConfigStatusAsString(
                              eos::common::DeriveLegacyConfigStatus(ops, is_empty)));
@@ -356,7 +308,7 @@ FileSystem::SetDrainRequested(bool requested)
   }
 
   eos::common::FileSystemUpdateBatch batch;
-  batch.setStringDurable(eos::common::FS_DRAIN_REQUESTED_NAME, requested ? "1" : "");
+  batch.setStringDurable(eos::common::FS_DRAIN_REQUESTED_NAME, requested ? "1" : "0");
   return applyBatch(batch, false);
 }
 
@@ -374,53 +326,6 @@ FileSystem::SetLifecycle(eos::common::FsLifecycle lifecycle)
   batch.setStringDurable(eos::common::FS_LIFECYCLE_NAME,
                          eos::common::FileSystem::GetLifecycleAsString(lifecycle));
   return applyBatch(batch, false);
-}
-
-//------------------------------------------------------------------------------
-// Set a 'key' describing the filesystem
-//------------------------------------------------------------------------------
-bool
-FileSystem::SetString(const char* key, const char* str, bool broadcast)
-{
-  std::string skey = key;
-
-  if (skey == "configstatus") {
-    return SetConfigStatus(GetConfigStatusFromString(str));
-  }
-
-  return eos::common::FileSystem::SetString(key, str, broadcast);
-}
-
-//------------------------------------------------------------------------------
-// Check if this is a drain transition i.e. enables or disabled draining
-//------------------------------------------------------------------------------
-int
-FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
-                              const eos::common::ConfigStatus status)
-{
-  using namespace eos::common;
-
-  // Enable draining
-  if (((old != ConfigStatus::kDrain) &&
-       (old != ConfigStatus::kDrainDead) &&
-       ((status == ConfigStatus::kDrain) ||
-        (status == ConfigStatus::kDrainDead))) ||
-      (((old == ConfigStatus::kDrain) ||
-        (old == ConfigStatus::kDrainDead)) &&
-       (status == old))) {
-    return 1;
-  }
-
-  // Stop draining
-  if (((old == common::ConfigStatus::kDrain) ||
-       (old == common::ConfigStatus::kDrainDead)) &&
-      ((status != common::ConfigStatus::kDrain) &&
-       (status != common::ConfigStatus::kDrainDead))) {
-    return -1;
-  }
-
-  // Not a drain transition
-  return 0;
 }
 
 //------------------------------------------------------------------------------

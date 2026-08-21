@@ -37,7 +37,7 @@ TEST(FstStatusCollector, PreservesIndependentStatusDimensions)
                     {"/eos/fst-02.example:1095/fst", "offline", "off", "", 1}};
   snapshot.filesystems = {
       {"/eos/fst-01.example:1095/fst", 1, "online", "rw", "nodrain", "booted", 1000, 250},
-      {"/eos/fst-01.example:1095/fst", 2, "online", "draindead", "failed", "bootfailure",
+      {"/eos/fst-01.example:1095/fst", 2, "online", "drain", "failed", "bootfailure",
        std::nullopt, std::nullopt},
       {"/eos/fst-02.example:1095/fst", 3, "offline", "wo", "waiting", "down", 2000,
        1500}};
@@ -63,7 +63,7 @@ TEST(FstStatusCollector, PreservesIndependentStatusDimensions)
   EXPECT_DOUBLE_EQ(nodes->metric[1].gauge.value, 1.0);
 
   const auto failed_drain_labels = Labels(filesystems->metric[1]);
-  EXPECT_EQ(failed_drain_labels.at("config_status"), "draindead");
+  EXPECT_EQ(failed_drain_labels.at("config_status"), "drain");
   EXPECT_EQ(failed_drain_labels.at("drain_status"), "failed");
   EXPECT_EQ(failed_drain_labels.at("boot_status"), "bootfailure");
   EXPECT_EQ(failed_drain_labels.at("fsid"), "2");

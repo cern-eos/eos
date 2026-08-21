@@ -406,8 +406,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
     if (fs) {
       // Check the allowed strings
       if (((key == "configstatus") &&
-           (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-            eos::common::ConfigStatus::kUnknown)) ||
+           eos::common::FileSystem::GetConfigStatusFromString(value.c_str())
+               .has_value()) ||
+          ((key == "sched") && eos::common::ParseSchedSpec(value).has_value()) ||
+          ((key == "drain") && ((value == "on") || (value == "off"))) ||
           (((key == eos::common::SCAN_IO_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
@@ -475,14 +477,38 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             }
           }
 
-          // Go through SetConfigStatus so that the change starts or stops the
-          // draining. The status and its comment are one logical change, so
-          // they go out as one batch. An empty comment removes the key - a
+          // The legacy word is three settings in one; SetLegacyConfigStatus
+          // takes it apart. The status and its comment are one logical change,
+          // so they go out as one batch. An empty comment removes the key - a
           // durable update with an empty value is a deletion.
           const auto new_status =
               eos::common::FileSystem::GetConfigStatusFromString(value.c_str());
 
-          if (!fs->SetConfigStatus(new_status, statusComment, false)) {
+          if (!new_status.has_value() ||
+              !fs->SetLegacyConfigStatus(*new_status, &statusComment, false)) {
+            stdErr = "error: failed to apply configuration change";
+            retc = EINVAL;
+            return retc;
+          }
+
+          FsView::gFsView.StoreFsConfig(fs);
+        } else if (key == "sched") {
+          // The mask on its own, with none of the legacy status side effects:
+          // it never starts or stops a drain and never changes the lifecycle
+          const auto ops = eos::common::ParseSchedSpec(value);
+
+          if (!ops.has_value() || !fs->SetSchedOps(*ops, &statusComment, false)) {
+            stdErr = "error: failed to apply configuration change";
+            retc = EINVAL;
+            return retc;
+          }
+
+          FsView::gFsView.StoreFsConfig(fs);
+        } else if (key == "drain") {
+          // The drain verb, pulled out of the status. Orthogonal to the mask,
+          // though a drain only makes progress off a file system whose mask
+          // still allows an internal read.
+          if (!fs->SetDrainRequested(value == "on")) {
             stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
             return retc;
@@ -530,6 +556,18 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           fs->applyBatch(batch, false);
           FsView::gFsView.StoreFsConfig(fs);
         }
+      } else if (key == "configstatus") {
+        stdErr += "error: <configstatus> accepts only rw|wo|ro|drain|off|empty"
+                  " - use sched=<spec> for the combinations it cannot name";
+        retc = EINVAL;
+      } else if (key == "sched") {
+        stdErr += "error: <sched> accepts a preset (rw|ro|wo|drain|internal|"
+                  "clientro|none) or an explicit form such as"
+                  " client:r,internal:ruc";
+        retc = EINVAL;
+      } else if (key == "drain") {
+        stdErr += "error: <drain> accepts only on|off";
+        retc = EINVAL;
       } else {
         stdErr += "error: not an allowed parameter <";
         stdErr += key.c_str();
@@ -558,15 +596,16 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 {
   using eos::common::StringConversion;
   common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
-  common::ConfigStatus configStatus =
-    common::FileSystem::GetConfigStatusFromString(configstatusStr.c_str());
+  const auto parsed_status =
+      common::FileSystem::GetConfigStatusFromString(configstatusStr.c_str());
 
   if ((!nodename.length()) || (!mountpoint.length()) || (!space.length()) ||
-      (!configstatusStr.length()) ||
-      (configStatus < eos::common::ConfigStatus::kOff)) {
+      (!configstatusStr.length()) || !parsed_status.has_value()) {
     stdErr += "error: illegal parameters";
     return EINVAL;
   }
+
+  const common::ConfigStatus configStatus = *parsed_status;
 
   // Node name comes as /eos/<host>..../, we just need <host> without domain
   std::string rnodename = nodename;
@@ -1309,8 +1348,10 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
     FileSystem::fs_snapshot_t snapshot;
 
     if (fs->SnapShotFileSystem(snapshot)) {
-      // pretend this is empty
-      fs->SetString("configstatus", "empty");
+      // Pretend this is empty so the removal guard lets it through. Only the
+      // lifecycle: the mask and the published status are what gets restored
+      // on the other side of the move.
+      fs->SetLifecycle(eos::common::FsLifecycle::kEmpty);
       std::string a;
       std::string b;
       std::string id = src;
@@ -1410,21 +1451,17 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     }
 
     // @note We can only remove a file system only if it's empty and
-    // exceptionally if we are a slave MGM and the fs is in drain mode
+    // exceptionally if we are a slave MGM and the fs is draining
     // and we got a request to remove it. The empty state from the
     // master MGM is never propagated to the slaves.
-    // The slave exception still reads the published legacy status: the
-    // explicit drain key is only written from step 8 onwards, so asking for it
-    // here would silently take the exception away in the meantime.
     const eos::common::FsLifecycle lifecycle = fs->GetLifecycle();
-    const std::string cstate = fs->GetString("configstatus");
+    const bool draining = fs->IsDrainRequested();
 
     if ((lifecycle != eos::common::FsLifecycle::kEmpty) &&
-        !((cstate == "drain") && !gOFS->mMaster->IsMaster())) {
+        !(draining && !gOFS->mMaster->IsMaster())) {
       eos_static_err("msg=\"only empty file systems can be removed\" "
-                     "lifecycle=\"%s\" cstate=\"%s\"",
-                     eos::common::FileSystem::GetLifecycleAsString(lifecycle),
-                     cstate.c_str());
+                     "lifecycle=\"%s\" draining=%d",
+                     eos::common::FileSystem::GetLifecycleAsString(lifecycle), draining);
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {
