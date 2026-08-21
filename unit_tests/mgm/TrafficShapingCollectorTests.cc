@@ -91,8 +91,8 @@ TEST(TrafficShapingCollector, EmitsComprehensiveTrafficShapingMetrics)
   EXPECT_NE(out.find("eos_io_shaping_bytes_total"), std::string::npos);
   EXPECT_NE(out.find("eos_io_shaping_operations_total"), std::string::npos);
   EXPECT_NE(out.find("app=\"root\""), std::string::npos);
-  EXPECT_NE(out.find("uid=\"1001\""), std::string::npos);
-  EXPECT_NE(out.find("gid=\"2001\""), std::string::npos);
+  EXPECT_NE(out.find("uid_id=\"1001\""), std::string::npos);
+  EXPECT_NE(out.find("gid_id=\"2001\""), std::string::npos);
 
   // 4. Policy limits & reservations
   EXPECT_NE(out.find("eos_io_shaping_policy_bytes"), std::string::npos);
