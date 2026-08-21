@@ -1074,7 +1074,10 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
           // column would read as "nothing allowed" instead of "same as before"
           const FsOpMask ops = FileSystem::ResolveSchedOps(hash.get(FS_SCHED_OPS_NAME),
                                                            hash.get("configstatus"));
-          table_mq_data.back().push_back(TableCell(FormatSchedMask(ops), format));
+          const FsLifecycle lifecycle = FileSystem::ResolveLifecycle(
+              hash.get(FS_LIFECYCLE_NAME), hash.get("configstatus"));
+          table_mq_data.back().push_back(
+              TableCell(FileSystem::FormatSchedState(ops, lifecycle), format));
           table_mq_header.push_back(std::make_tuple("sched", width, format));
         }
       }
@@ -1370,6 +1373,24 @@ FileSystem::ResolveDrainRequested(const std::string& drain_requested,
   // every filesystem. The legacy status was the drain trigger, so read it as
   // one - otherwise a drain in flight across the upgrade would silently stop.
   return (GetConfigStatusFromString(configstatus.c_str()) == ConfigStatus::kDrain);
+}
+
+//------------------------------------------------------------------------------
+// Render the scheduling state of a filesystem
+//------------------------------------------------------------------------------
+std::string
+FileSystem::FormatSchedState(FsOpMask ops, FsLifecycle lifecycle)
+{
+  // Only where the mask has nothing left to say: "none" covers both a drained
+  // file system and one that was switched off, and the drained state is the
+  // one an operator watches a drain for. A lifecycle that is not active but
+  // still carries a mask renders as the mask, exactly as the legacy
+  // configstatus projection did.
+  if ((ops == kMaskNone) && (lifecycle != FsLifecycle::kActive)) {
+    return GetLifecycleAsString(lifecycle);
+  }
+
+  return FormatSchedMask(ops);
 }
 
 //----------------------------------------------------------------------------

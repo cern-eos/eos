@@ -2588,6 +2588,26 @@ cannot name half of these states:
 A filesystem whose permissions do not match a preset is shown in the explicit
 form, e.g. ``client:ru,internal:ruc``.
 
+Two states have no permissions left to name: a filesystem that finished
+draining and one that was taken out of service both accept nothing at all.
+Rather than print ``none`` for both, the column names the state:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/> fs ls
+
+   #.................................................................................................................................
+   #                   host (#...) #   id #           path #     schedgroup #       boot #               sched #      drain # active
+   #.................................................................................................................................
+        lxfsra02a05.cern.ch (1095)      4          /data04        default.2       booted                 empty      nodrain   online
+        lxfsra02a05.cern.ch (1095)      5          /data05        default.3       booted                   off      nodrain   online
+
+``empty`` is what a successful drain leaves behind, and ``off`` is
+``fs config <fsid> configstatus=off``. ``none`` remains for a filesystem that
+is in service but has had every operation taken away from it with
+``sched=none``. The same three words appear in the ``sched`` column of
+``fs ls -l`` and of ``fs ls -m``.
+
 The derived ``configstatus`` is still there for whoever needs it - ``fs ls -l``
 and ``fs ls -m`` print both columns, and ``fs status <fsid>`` dumps every key:
 
