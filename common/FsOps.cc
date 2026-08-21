@@ -35,7 +35,8 @@ constexpr FsOpMask kMaskClientRead =
 //------------------------------------------------------------------------------
 //! Named presets, in preference order: FormatSchedMask returns the first entry
 //! whose mask matches, so "ro" wins over the identically shaped "drain". The
-//! two differ only in whether draining is requested, which is a separate key.
+//! two differ only in whether draining is requested, which is a separate key -
+//! FileSystem::FormatSchedState knows it and picks "drain" back up there.
 //------------------------------------------------------------------------------
 constexpr std::array<std::pair<std::string_view, FsOpMask>, 7> kPresets{
     {{"rw", kMaskAll},
