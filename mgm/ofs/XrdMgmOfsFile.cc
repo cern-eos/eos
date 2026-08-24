@@ -3487,9 +3487,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s sched:engine=%s sched:rt=%.02f duration=%0.03fms timing=%s", path,
-           clientinfo, Scheduler::SchedEngineName(sched_engine), sched_ms, tm.RealTime(),
-           tm.Dump().c_str());
+  eos_info("path=%s %s sched:engine=%s sched:rt=%.02fms duration=%0.03fms timing=%s",
+           path, clientinfo, Scheduler::SchedEngineName(sched_engine), sched_ms,
+           tm.RealTime(), tm.Dump().c_str());
 
   // Audit READ for successful open if read-only using global or per-dir override
   if (!isRW && gOFS->AllowAuditRead(path)) {
