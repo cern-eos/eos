@@ -44,7 +44,7 @@ Config::Load(const char* service, const char* name, bool reset)
     errorMessage = "";
   }
 
-  std::string path = "/etc/eos/config/";
+  std::string path = configDir;
   path += service;
   path += "/";
   path += name;

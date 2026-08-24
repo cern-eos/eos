@@ -39,6 +39,9 @@ EOSCOMMONNAMESPACE_BEGIN
 class Config
 {
 public:
+  //! Directory the per service configuration files live in
+  static constexpr const char* kDefaultConfigDir = "/etc/eos/config/";
+
   //----------------------------------------------------------------------------
   // Default constructor
   //----------------------------------------------------------------------------
@@ -53,6 +56,32 @@ public:
   //----------------------------------------------------------------------------
 
   bool Load(const char* service, const char* name = "default", bool reset = true);
+
+  //----------------------------------------------------------------------------
+  //! Set the directory the per service configuration files are loaded from,
+  //! see kDefaultConfigDir. Meant for the tests, which need a directory they
+  //! may write to without being root; production keeps the default.
+  //!
+  //! @param dir directory to load from, a trailing "/" is added if missing
+  //----------------------------------------------------------------------------
+  void
+  SetConfigDir(const std::string& dir)
+  {
+    configDir = dir;
+
+    if (configDir.empty() || (configDir.back() != '/')) {
+      configDir += "/";
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the directory the per service configuration files are loaded from
+  //----------------------------------------------------------------------------
+  const std::string&
+  GetConfigDir() const
+  {
+    return configDir;
+  }
 
   //----------------------------------------------------------------------------
   // Parse and possibly return a chapter entry
@@ -271,6 +300,7 @@ private:
   std::string service;
   std::string name;
   std::string hostname;
+  std::string configDir{kDefaultConfigDir};
   ConfigChapter conf;
   char* envv[1024];
 };

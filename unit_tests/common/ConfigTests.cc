@@ -21,39 +21,78 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "common/Config.hh"
 #include "common/StringConversion.hh"
+#include "gtest/gtest.h"
+#include <filesystem>
+#include <unistd.h>
+
+//------------------------------------------------------------------------------
+//! Fixture handing the test a configuration directory it may write to. The
+//! default one, Config::kDefaultConfigDir, sits under /etc and needs root -
+//! which running the unit tests must not.
+//------------------------------------------------------------------------------
+class ConfigTests : public ::testing::Test {
+protected:
+  void
+  SetUp() override
+  {
+    mConfigDir = std::filesystem::temp_directory_path() /
+                 ("eos-config-tests-" + std::to_string(getpid()));
+    std::error_code ec;
+    std::filesystem::remove_all(mConfigDir, ec);
+    ASSERT_TRUE(std::filesystem::create_directories(mConfigDir / "test"));
+  }
+
+  void
+  TearDown() override
+  {
+    std::error_code ec;
+    std::filesystem::remove_all(mConfigDir, ec);
+  }
+
+  //! Path a configuration file of the given service and name is loaded from
+  std::string
+  ConfigPath(const std::string& service, const std::string& name) const
+  {
+    return (mConfigDir / service / name).native();
+  }
+
+  std::filesystem::path mConfigDir; ///< Configuration directory of this test
+};
 
 //------------------------------------------------------------------------------
 // Test Tokens
 //------------------------------------------------------------------------------
-TEST(ConfigTests, Configs)
+TEST_F(ConfigTests, Configs)
 {
-  (void) !system("mkdir -p /etc/eos/config/test/");
-  std::string configname = "/etc/eos/config/test/default";
+  const std::string configname = ConfigPath("test", "default");
   std::string s;
   s = "[global]\nfirst line\nsecond line\nthird line\n[test]\nverify";
   eos::common::StringConversion::SaveStringIntoFile(configname.c_str(), s);
   eos::common::Config cfg;
+  cfg.SetConfigDir(mConfigDir.native());
   cfg.Load("failing", "default");
   ASSERT_TRUE(cfg.getErrc() == 2);
-  ASSERT_EQ(cfg.getMsg(),
-            "error: unable to load '/etc/eos/config/failing/default' : No such file or directory");
+  ASSERT_EQ(cfg.getMsg(), "error: unable to load '" + ConfigPath("failing", "default") +
+                              "' : No such file or directory");
   ASSERT_TRUE(!cfg.ok());
   cfg.Load("test", "default");
   ASSERT_TRUE(cfg.ok());
   ASSERT_TRUE((cfg["test"].size() == 1) && (cfg["test"][0] == "verify"));
   ASSERT_TRUE(cfg["global"].size() == 3);
   eos::common::Config cfgenoent;
+  cfgenoent.SetConfigDir(mConfigDir.native());
   cfgenoent.Load("test", "faulty");
   ASSERT_TRUE(!cfgenoent.ok());
   eos::common::Config cfgempty;
+  cfgempty.SetConfigDir(mConfigDir.native());
   s = "line without chapter";
   eos::common::StringConversion::SaveStringIntoFile(configname.c_str(), s);
   cfgempty.Load("test", "default");
   ASSERT_TRUE(!cfgempty.ok());
   eos::common::Config cfgsub;
+  cfgsub.SetConfigDir(mConfigDir.native());
   s = "[sysconfig]\na=100\nb=$a\nc=$b\n[xconf]\n$a $b c d";
   eos::common::StringConversion::SaveStringIntoFile(configname.c_str(), s);
   cfgsub.Load("test", "default");
