@@ -1146,6 +1146,23 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 }
 
 //------------------------------------------------------------------------------
+// Get the space name of the given file system id
+//------------------------------------------------------------------------------
+std::string
+Storage::GetFileSystemSpace(eos::common::FileSystem::fsid_t fsid) const
+{
+  std::string space;
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (fs) {
+    space = fs->GetLocalSpace();
+  }
+
+  return space;
+}
+
+//------------------------------------------------------------------------------
 // Check if file system is in operational state i.e. config status < kDrain
 //------------------------------------------------------------------------------
 bool

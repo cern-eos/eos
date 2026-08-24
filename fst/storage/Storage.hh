@@ -182,6 +182,15 @@ public:
   std::string GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid, const std::string& key) const;
 
   //----------------------------------------------------------------------------
+  //! Get the space name of the given file system id
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return space name or empty string if unknown file system id
+  //----------------------------------------------------------------------------
+  std::string GetFileSystemSpace(eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
   //! Cleanup orphans
   //!
   //! @param fsid file system id or 0 if cleanup is to be performed for all

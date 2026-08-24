@@ -3405,73 +3405,45 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
       ioprio_default = true;
     }
 
+    // Space name of the file system that served this transfer. Resolved here,
+    // at close time, since file systems can be moved between spaces and a
+    // later fsid lookup would report the space in effect at analysis time.
+    std::string space =
+        (gOFS.Storage ? gOFS.Storage->GetFileSystemSpace(mFsId) : std::string());
     std::string path = (mCapOpaque->Get("mgm.path") ?
                         mCapOpaque->Get("mgm.path") : mNsPath.c_str());
     std::string sanitized_path = eos::common::StringConversion::SealXrdPath(path);
-    snprintf(report, sizeof(report) - 1,
-             "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
-             "host=%s&lid=%lu&fid=%llu&fsid=%u&"
-             "ots=%lu&otms=%lu&"
-             "cts=%lu&ctms=%lu&"
-             "nrc=%lu&nwc=%lu&"
-             "rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&"
-             "rv_op=%llu&rvb_min=%llu&rvb_max=%llu&rvb_sum=%llu&rvb_sigma=%.02f&"
-             "rs_op=%llu&rsb_min=%llu&rsb_max=%llu&rsb_sum=%llu&rsb_sigma=%.02f&"
-             "rc_min=%lu&rc_max=%lu&rc_sum=%lu&rc_sigma=%.02f&"
-             "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
-             "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
-             "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
-             "usage=%.02f&iot=%.03f&idt=%.03f&lrt=%.03f&lrvt=%.03f&"
-             "lwt=%.03f&ot=%.03f&ct=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&"
-             "osize=%llu&csize=%llu&delete_on_close=%d&prio_c=%d&prio_l=%d&"
-             "prio_d=%d&forced_bw=%d&ms_sleep=%llu&ior_err=%d&iow_err=%d&%s"
-             , this->logId
-             , sanitized_path.c_str()
-             , mFstPath.c_str()
-             , this->vid.uid, this->vid.gid, mTident.c_str()
-             , gOFS.mHostName, mLid, mFileId, mFsId
-             , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
-             , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
-             , rCalls, wCalls
-             , rsum, rmin, rmax, rsigma
-             , (unsigned long long)monReadvBytes.size(), rvmin, rvmax, rvsum, rvsigma
-             , (unsigned long long)monReadSingleBytes.size(), rsmin, rsmax, rssum, rssigma
-             , rcmin, rcmax, rcsum, rcsigma
-             , wsum
-             , wmin
-             , wmax
-             , wsigma
-             , sFwdBytes
-             , sBwdBytes
-             , sXlFwdBytes
-             , sXlBwdBytes
-             , nFwdSeeks
-             , nBwdSeeks
-             , nXlFwdSeeks
-             , nXlBwdSeeks
-             , usage
-             , iot
-             , idt
-             , timeToRead
-             , timeToReadV
-             , timeToWrite
-             , timeToOpen
-             , timeToClose
-             , rt
-             , rvt
-             , wt
-             , (unsigned long long) mOpenSize
-             , (unsigned long long) mCloseSize
-             , (mDelOnClose) ? 1 : 0
-             , mIoPriorityClass
-             , mIoPriorityValue
-             , ioprio_default
-             , mBandwidth
-             , msSleep
-             , mHasReadErr
-             , mHasWriteErr
-             , eos::common::SecEntity::ToEnv(mSecString.c_str(),
-                 (sec_tpc ? "tpc" : 0)).c_str());
+    snprintf(
+        report, sizeof(report) - 1,
+        "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
+        "host=%s&lid=%lu&fid=%llu&fsid=%u&space=%s&"
+        "ots=%lu&otms=%lu&"
+        "cts=%lu&ctms=%lu&"
+        "nrc=%lu&nwc=%lu&"
+        "rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&"
+        "rv_op=%llu&rvb_min=%llu&rvb_max=%llu&rvb_sum=%llu&rvb_sigma=%.02f&"
+        "rs_op=%llu&rsb_min=%llu&rsb_max=%llu&rsb_sum=%llu&rsb_sigma=%.02f&"
+        "rc_min=%lu&rc_max=%lu&rc_sum=%lu&rc_sigma=%.02f&"
+        "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
+        "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
+        "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
+        "usage=%.02f&iot=%.03f&idt=%.03f&lrt=%.03f&lrvt=%.03f&"
+        "lwt=%.03f&ot=%.03f&ct=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&"
+        "osize=%llu&csize=%llu&delete_on_close=%d&prio_c=%d&prio_l=%d&"
+        "prio_d=%d&forced_bw=%d&ms_sleep=%llu&ior_err=%d&iow_err=%d&%s",
+        this->logId, sanitized_path.c_str(), mFstPath.c_str(), this->vid.uid,
+        this->vid.gid, mTident.c_str(), gOFS.mHostName, mLid, mFileId, mFsId,
+        space.c_str(), openTime.tv_sec, (unsigned long)openTime.tv_usec / 1000,
+        closeTime.tv_sec, (unsigned long)closeTime.tv_usec / 1000, rCalls, wCalls, rsum,
+        rmin, rmax, rsigma, (unsigned long long)monReadvBytes.size(), rvmin, rvmax, rvsum,
+        rvsigma, (unsigned long long)monReadSingleBytes.size(), rsmin, rsmax, rssum,
+        rssigma, rcmin, rcmax, rcsum, rcsigma, wsum, wmin, wmax, wsigma, sFwdBytes,
+        sBwdBytes, sXlFwdBytes, sXlBwdBytes, nFwdSeeks, nBwdSeeks, nXlFwdSeeks,
+        nXlBwdSeeks, usage, iot, idt, timeToRead, timeToReadV, timeToWrite, timeToOpen,
+        timeToClose, rt, rvt, wt, (unsigned long long)mOpenSize,
+        (unsigned long long)mCloseSize, (mDelOnClose) ? 1 : 0, mIoPriorityClass,
+        mIoPriorityValue, ioprio_default, mBandwidth, msSleep, mHasReadErr, mHasWriteErr,
+        eos::common::SecEntity::ToEnv(mSecString.c_str(), (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
   }
 

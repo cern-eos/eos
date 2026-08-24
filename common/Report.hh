@@ -62,6 +62,7 @@ public:
   unsigned long lid;       //< layout id
   unsigned long long fid;  //< file id
   unsigned long fsid;      //< filesystem id
+  std::string space;       //< space of the filesystem serving the transfer
   unsigned long long rb;   //< bytes read
   unsigned long long rb_min;    //< bytes read min
   unsigned long long rb_max;    //< bytes read max

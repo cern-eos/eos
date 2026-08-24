@@ -147,6 +147,7 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
   fst::FileSystem* fs = new fst::FileSystem(locator, gOFS.mMessagingRealm.get());
   fs->SetLocalId();
   fs->SetLocalUuid();
+  fs->SetLocalSpace();
   mFsVect.push_back(fs);
   eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
                   "fsid=%u uuid=\"%s\"",

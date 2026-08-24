@@ -98,17 +98,20 @@ struct SwitchToRootEuid {
 EOSFSTNAMESPACE_BEGIN
 
 // Set of key updates to be tracked at the file system level
-std::set<std::string> FileSystem::sFsUpdateKeys {
-  "id", "uuid", "bootsenttime",
-  eos::common::SCAN_IO_RATE_NAME,
-  eos::common::SCAN_ENTRY_INTERVAL_NAME,
-  eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
-  eos::common::SCAN_DISK_INTERVAL_NAME,
-  eos::common::SCAN_NS_INTERVAL_NAME,
-  eos::common::SCAN_NS_RATE_NAME,
-  eos::common::SCAN_ALTXS_INTERVAL_NAME,
-  eos::common::ALTXS_SYNC,
-  eos::common::ALTXS_SYNC_INTERVAL };
+std::set<std::string> FileSystem::sFsUpdateKeys{
+    "id",
+    "uuid",
+    "bootsenttime",
+    "schedgroup",
+    eos::common::SCAN_IO_RATE_NAME,
+    eos::common::SCAN_ENTRY_INTERVAL_NAME,
+    eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
+    eos::common::SCAN_DISK_INTERVAL_NAME,
+    eos::common::SCAN_NS_INTERVAL_NAME,
+    eos::common::SCAN_NS_RATE_NAME,
+    eos::common::SCAN_ALTXS_INTERVAL_NAME,
+    eos::common::ALTXS_SYNC,
+    eos::common::ALTXS_SYNC_INTERVAL};
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -155,6 +158,43 @@ FileSystem::~FileSystem()
 }
 
 //------------------------------------------------------------------------------
+// Cache the space name by resolving it from the shared hash
+//------------------------------------------------------------------------------
+void
+FileSystem::SetLocalSpace()
+{
+  SetLocalSpace(GetString("schedgroup"));
+}
+
+//------------------------------------------------------------------------------
+// Cache the space name extracted from the given scheduling group
+//------------------------------------------------------------------------------
+void
+FileSystem::SetLocalSpace(const std::string& schedgroup)
+{
+  std::string space;
+
+  if (!schedgroup.empty()) {
+    eos::common::GroupLocator group;
+    eos::common::GroupLocator::parseGroup(schedgroup, group);
+    space = group.getSpace();
+  }
+
+  std::unique_lock<std::mutex> lock(mLocalSpaceMutex);
+  mLocalSpace = std::move(space);
+}
+
+//------------------------------------------------------------------------------
+// Get the cached space name
+//------------------------------------------------------------------------------
+std::string
+FileSystem::GetLocalSpace() const
+{
+  std::unique_lock<std::mutex> lock(mLocalSpaceMutex);
+  return mLocalSpace;
+}
+
+//------------------------------------------------------------------------------
 // Process shared hash update
 //------------------------------------------------------------------------------
 void
@@ -170,6 +210,10 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
       } catch (...) {}
     } else if (upd.key == "uuid") {
       mLocalUuid = upd.value;
+    } else if (upd.key == "schedgroup") {
+      // "fs mv" does not recreate this object - the queue path carries no
+      // group - so the cached space must be refreshed explicitly here
+      SetLocalSpace(upd.value);
     }
 
     // @note handle here the updates but make sure not to access or set any
