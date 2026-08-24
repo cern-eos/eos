@@ -2,6 +2,7 @@
 // File: space-proto-native.cc
 // ----------------------------------------------------------------------
 
+#include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
@@ -127,6 +128,22 @@ std::string MakeSpaceHelp()
          "enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : "
          "configure the default lru scan interval\n"
+      << "space config <space-name> space.encryptionkey=<secret>                : define "
+         "an instance encryption key for this space - new files\n"
+      << "                                                                        "
+         "created in a directory with sys.file.obfuscate=1 are encrypted\n"
+      << "                                                                        with "
+         "it unless the client provides a key of its own. Use\n"
+      << "                                                                        "
+         "'remove' to delete it. Also accepted without the 'space.'\n"
+      << "                                                                        "
+         "prefix. Replacing or removing an existing key makes every\n"
+      << "                                                                        file "
+         "encrypted with it unreadable, so the operation asks\n"
+      << "                                                                        for an "
+         "interactive confirmation - append\n"
+      << "                                                                        "
+         "--no-confirmation to skip it in scripts.\n"
       << "space config <space-name> fs.max.ropen=<n>                            : allow "
          "more than <n> read streams per disk in the given space\n"
       << "space config <space-name> fs.max.wopen=<n>                            : allow "
@@ -664,6 +681,28 @@ public:
           return false;
         }
       }
+
+      bool noconfirmation = false;
+
+      if (tokenizer.NextToken(token)) {
+        if (token == "--no-confirmation") {
+          noconfirmation = true;
+        } else {
+          return false;
+        }
+      }
+
+      // Setting or removing the encryption key of a space can make every file
+      // encrypted with the previous key unreadable, so let the user confirm it
+      // the same way a recursive deletion is confirmed
+      std::string enc_key = config->mgmspace_key();
+
+      if (!enc_key.compare(0, 6, "space.")) {
+        enc_key.erase(0, 6);
+      }
+
+      mNeedsConfirmation =
+          (enc_key == eos::common::SPACE_ENCRYPTION_KEY_NAME) && !noconfirmation;
     } else if (token == "groupbalancer") {
       auto groupbalancer = space->mutable_groupbalancer();
 
@@ -799,6 +838,10 @@ public:
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
+      return 0;
+    }
+    if (helper.NeedsConfirmation() && !helper.ConfirmOperation()) {
+      global_retc = EINTR;
       return 0;
     }
     global_retc = helper.Execute();

@@ -24,8 +24,10 @@
 #include "SpaceCmd.hh"
 #include "common/Constants.hh"
 #include "common/Path.hh"
+#include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/SymKeys.hh"
 #include "common/token/EosTok.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/balancer/FsBalancer.hh"
@@ -215,7 +217,14 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
   for (auto& i : keylist) {
     char line[32678];
 
-    if (((i == "nominalsize") || (i == "headroom")) && !monitoring) {
+    if (i == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
+      // never expose the instance encryption key, only a fingerprint of it
+      // which is enough to tell two keys apart or to spot a key change
+      const std::string fp = eos::common::SymKey::KeyPrint16(
+          FsView::gFsView.mSpaceView[status.mgmspace()]->GetConfigMember(i), "");
+      snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
+               ("<hidden:" + fp + ">").c_str());
+    } else if (((i == "nominalsize") || (i == "headroom")) && !monitoring) {
       XrdOucString sizestring;
       // size printout
       snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
@@ -626,6 +635,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     TapeRestApiStageSubcmd(space_name, value, space, ret_c, std_out, std_err);
   }
 
+  // the encryption key is also accepted without the 'space.' prefix
+  if (key == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
+    key.insert(0, "space.");
+  }
+
   // set a space related parameter
   if (!key.compare(0, 6, "space.")) {
     key.erase(0, 6);
@@ -861,6 +875,42 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                       "' as " + value + "\n");
           ret_c = 0;
         }
+      }
+    } else if (key == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
+      applied = true;
+      const std::string old_key = space->GetConfigMember(key);
+
+      if (value == "remove") {
+        if (!space->DeleteConfigMember(key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: removed encryption key from space='" + space_name +
+                      "'\nwarning: files encrypted with this key are not "
+                      "readable anymore!\n");
+          ret_c = 0;
+        }
+      } else if (!eos::common::SymKey::IsValidEncryptionKey(
+                     eos::common::StringConversion::UnsealXrdPath(value))) {
+        // the console seals any '&' as '#AND#' before we get to see it, so
+        // validate what the admin actually typed
+        ret_c = EINVAL;
+        std_err.str("error: the encryption key must not contain any of "
+                    "the characters &=?\"' or white space");
+      } else if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        std::string msg =
+            "success: configured an encryption key in space='" + space_name + "'\n";
+
+        if (!old_key.empty() && (old_key != value)) {
+          msg += "warning: the previous encryption key of this space has been "
+                 "replaced - files encrypted with it are not readable anymore!\n";
+        }
+
+        std_out.str(msg);
+        ret_c = 0;
       }
     } else if (!key.compare(0, 5, "atime")) {
       applied = true;

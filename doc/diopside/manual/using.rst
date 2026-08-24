@@ -2313,7 +2313,7 @@ Encryption requires obfuscation to be enabled! This is done by defining on the t
 
                 [root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
 
-Encryption is additionally enabled client-side by defining the environment variable `EOS_FUSE_SECRET`. It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
+Encryption is additionally enabled client-side by defining the environment variable `EOS_FUSE_SECRET` (see `Per-Space Encryption Keys`_ below for encrypting without any client side key). It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
 
 .. code-block:: bash
 
@@ -2350,6 +2350,58 @@ The syntax in the FUSE configuration file is as shown:
                 {"encryptionkey":"655361ab-5af9-4697-8a32-8069ade18a27"}
 
 .. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` extended attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
+
+
+Per-Space Encryption Keys
+"""""""""""""""""""""""""
+
+Instead of every client bringing its own secret, an instance can define an
+encryption key per space:
+
+.. code-block:: bash
+
+                [root@host~] eos space config default encryptionkey=1234
+
+New files created in a directory carrying `sys.file.obfuscate=1` are then
+encrypted with a per file obfuscation key hashed with the key of the space the
+file is placed in - no client side configuration is involved. A key supplied by
+the client via `eos.key` or `EOS_FUSE_SECRET` always takes precedence. The space
+whose key was used is recorded per file and shown by `eos file info`:
+
+.. code-block:: bash
+
+                Crypt: encrypted (space:default)
+
+The key itself is never displayed, `eos space status` shows only a fingerprint
+of it. Use `space config <space> encryptionkey=remove` to delete it. Since both
+setting and removing it can make existing files unreadable, the command asks for
+a typed confirmation code - append `--no-confirmation` to skip that in scripts.
+
+.. WARNING:: While the encryption key of a space is changed or removed, every
+             file encrypted with the previous key is unreadable. EOS does not
+             erase the old key, it only stops using it - configuring the exact
+             same key again restores access to those files.
+
+.. WARNING:: A key rotation therefore only destroys the contents once every copy
+             of the old key is gone. The key is part of the space configuration,
+             so it is contained in `eos config dump` and in every saved or backed
+             up configuration. Those have to be purged as well if the rotation is
+             meant as a cryptographic destruction of the data. Conversely, if a
+             key is lost and no copy of it exists anywhere, the contents
+             encrypted with it cannot be recovered by any means.
+
+.. WARNING:: Do not downgrade the MGM below the version introducing this feature
+             while space encrypted files exist. An older MGM does not know the
+             `sys.encrypt.space` attribute, hands out the obfuscation key without
+             the encryption key and the FST then returns decoded garbage with a
+             successful return code instead of an error. A key which no longer
+             matches is only reported as `ENOKEY` by an MGM that understands the
+             attribute.
+
+.. NOTE:: `eosxd` creates files with a client side key, so space encryption
+          applies to files created with remote protocols only. A FUSE mount
+          reading a space encrypted file returns `ENOKEY` unless its
+          `EOS_FUSE_SECRET` is the key of the space.
 
 
 Running Authentication Front-ends

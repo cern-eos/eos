@@ -3212,6 +3212,125 @@ runtest "### EoscpRaid6  " unix SUCCESS "" eoscp_rain "reeds" "/eos/$EOS_TEST_IN
 runtest "### Cleanup     " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir"
 
 ################################################################################
+# SPACE ENCRYPTION KEY
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="spaceenc"
+# ------------------------------------------------------------------------------
+SPACEENC_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/spaceenc"
+SPACEENC_KEY1="82e9f4b4-518a-4ba1-b557-39ea36f7bdde"
+SPACEENC_KEY2="1dd23915-782a-4301-8cfd-37f99ce37a58"
+SPACEENC_USERKEY="039b9858-5bb3-4dcc-85c2-a5a333eb78b0"
+
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "$SPACEENC_DIR"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$SPACEENC_DIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.file.obfuscate=1 "$SPACEENC_DIR"
+# make sure we start without a key configured on the space
+runtest "### KeyRm     " unix IGNORE  "" eos space config default space.encryptionkey=remove --no-confirmation
+
+# without a space key files are only obfuscated
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/obfuscated"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/obfuscated | grep -c 'Crypt: obfuscated' | grep -w 1"
+
+# keys which would break the opaque info of a capability are refused
+# note the embedded single quotes - runtest eval's its arguments, without them
+# the '&' would background the command instead of reaching the MGM
+runtest "### BadKey    " unix ERROR   "" eos space config default "'space.encryptionkey=bad&key'" --no-confirmation
+runtest "### BadKey    " unix ERROR   "" eos space config default "'space.encryptionkey=bad key'" --no-confirmation
+runtest "### BadKey    " unix ERROR   "" eos space config default "'space.encryptionkey=bad=key'" --no-confirmation
+runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
+
+# the ticket documents the short form without the 'space.' prefix - both work
+runtest "### ShortForm " unix SUCCESS "" eos space config default "encryptionkey=$SPACEENC_KEY1" --no-confirmation
+runtest "### Grep      " unix SUCCESS "" eos space status "default | grep encryptionkey | grep -c hidden | grep -w 1"
+runtest "### KeyRm     " unix SUCCESS "" eos space config default encryptionkey=remove --no-confirmation
+
+# configure an instance encryption key for the default space
+runtest "### SpaceKey  " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY1" --no-confirmation
+# without --no-confirmation the console asks for a typed confirmation code -
+# with no terminal to answer it the operation is aborted and nothing changes
+runtest "### Confirm   " unix ERROR   "" shell "eos -b space config default space.encryptionkey=$SPACEENC_KEY2 < /dev/null"
+runtest "### Confirm   " unix ERROR   "" shell "eos -b space config default space.encryptionkey=remove < /dev/null"
+runtest "### Confirm   " unix ERROR   "" shell "eos -b space config rm default space.encryptionkey < /dev/null"
+# ... the originally configured key has to be untouched after those aborts
+runtest "### Confirm   " unix SUCCESS "" eos space status "default | grep encryptionkey | grep -c hidden | grep -w 1"
+# the key itself must never be printed, only a fingerprint of it
+runtest "### Hidden    " unix SUCCESS "" eos space status "default | grep encryptionkey | grep -c hidden | grep -w 1"
+runtest "### Hidden    " unix SUCCESS "" eos space status "default | grep -c $SPACEENC_KEY1 | grep -w 0"
+
+# new files are now encrypted with the key of the space they are created in
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/encrypted"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+# the key is never exposed through the file attributes either
+runtest "### Hidden    " unix SUCCESS "" eos attr ls "$SPACEENC_DIR/encrypted | grep -c $SPACEENC_KEY1 | grep -w 0"
+# and the contents come back unchanged without the client knowing any key
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.dec" "$SPACEENC_DIR/encrypted"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.dec"
+
+# rotating the key of the space destroys the contents cryptographically
+runtest "### Rotate    " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY2" --no-confirmation
+runtest "### Download  " unix ERROR   "" download "$EOS_TEST_TESTSYS/spaceenc.lost" "$SPACEENC_DIR/encrypted"
+# metadata stays accessible, only the contents are gone
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+# putting the original key back makes the file readable again
+runtest "### Restore   " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY1" --no-confirmation
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.dec2" "$SPACEENC_DIR/encrypted"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.dec2"
+
+# a file whose key was rotated away can still be overwritten, the new contents
+# are encrypted with the current key of the space
+runtest "### Rotate    " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY2" --no-confirmation
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_DIR/encrypted"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.new" "$SPACEENC_DIR/encrypted"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.new"
+
+# versioning copies the extended attributes of the previous file onto its
+# successor - make sure the encryption markers stay consistent with the data
+runtest "### Version   " unix SUCCESS "" eos attr set sys.versioning=2 "$SPACEENC_DIR"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/versioned"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "$SPACEENC_DIR/versioned"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/versioned | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.v2" "$SPACEENC_DIR/versioned"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.v2"
+# the archived version keeps its own key and stays readable as well - version
+# files are named <timestamp>.<fid>, so look the name up instead of guessing it
+# 'command' bypasses the eos() wrapper of this script, which sends stdout to the log
+SPACEENC_VERSION=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_DIR/versioned" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_VERSION\""
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.v1" "$SPACEENC_DIR/.sys.v#.versioned/$SPACEENC_VERSION"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.v1"
+runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_DIR"
+
+# a key provided by the client takes precedence over the key of the space
+runtest "### UserKey   " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/userkey" "-ODeos.key=$SPACEENC_USERKEY"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/userkey | grep -c 'Crypt: encrypted' | grep -w 1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/userkey | grep -c 'space:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.user" "$SPACEENC_DIR/userkey" "-OSeos.key=$SPACEENC_USERKEY"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.user"
+
+# a conversion has to copy the stored bytes as they are - decoding them on the
+# way out would store the file in clear and fail the checksum of the original
+runtest "### Convert   " unix SUCCESS "" eos convert file "$SPACEENC_DIR/encrypted replica:2"
+runtest "### Convert   " unix SUCCESS "" shell sleep 20
+runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Stripes: 2' | grep -w 1"
+# still encrypted, and the contents still decode with the key of the space
+runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.conv" "$SPACEENC_DIR/encrypted"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.conv"
+
+# removing the key of a space leaves the files encrypted with it unreadable
+runtest "### KeyRm     " unix SUCCESS "" eos space config default space.encryptionkey=remove --no-confirmation
+runtest "### KeyRm     " unix ERROR   "" eos space config default space.encryptionkey=remove --no-confirmation
+runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
+runtest "### Download  " unix ERROR   "" download "$EOS_TEST_TESTSYS/spaceenc.gone" "$SPACEENC_DIR/encrypted"
+# and new files fall back to plain obfuscation
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/plain"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/plain | grep -c 'Crypt: obfuscated' | grep -w 1"
+
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/spaceenc.*"
+runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$SPACEENC_DIR"
+
+################################################################################
 # OTHER TESTS
 ################################################################################
 runtest "### Ls max input " unix ERROR "" eos ls /file1/file2/file3/file4/file5/file6/file7/file8/file9/file10/file11/file12/file13/file14/file15/file16/file17/file18/file19/file20/file21/file22/file23/file24/file25/file26/file27/file28/file29/file30/file31/file32/file33/file34/file35/file36/file37/file38/file39/file40/file41/file42/file43/file44/file45/file46/file47/file48/file49/file50/file51/file52/file53/file54/file55/file56/file57/file58/file59/file60/file61/file62/file63/file64/file65/file66/file67/file68/file69/file70/file71/file72/file73/file74/file75/file76/file77/file78/file79/file80/file81/file82/file83/file84/file85/file86/file87/file88/file89/file90/file91/file92/file93/file94/file95/file96/file97/file98/file99/file100/file101/file102/file103/file104/file105/file106/file107/file108/file109/file110/file111/file112/file113/file114/file115/file116/file117/file118/file119/file120/file121/file122/file123/file124/file125/file126/file127/file128/file129/file130/file131/file132/file133/file134/file135/file136/file137/file138/file139/file140/file141/file142/file143/file144/file145/file146/file147/file148/file149/file150/file151/file152/file153/file154/file155/file156/file157/file158/file159/file160/file161/file162/file163/file164/file165/file166/file167/file168/file169/file170/file171/file172/file173/file174/file175/file176/file177/file178/file179/file180/file181/file182/file183/file184/file185/file186/file187/file188/file189/file190/file191/file192/file193/file194/file195/file196/file197/file198/file199/file200/file201/file202/file203/file204/file205/file206/file207/file208/file209/file210/file211/file212/file213/file214/file215/file216/file217/file218/file219/file220/file221/file222/file223/file224/file225/file226/file227/file228/file229/file230/file231/file232/file233/file234/file235/file236/file237/file238/file239/file240/file241/file242/file243/file244/file245/file246/file247/file248/file249/file250/file251/file252/file253/file254/file255/file256/file257/file258/file259/file260/file261/file262/file263/file264/file265/file266/file267/file268/file269/file270/file271/file272/file273/file274/file275/file276/file277/file278/file279/file280/file281/file282/file283/file284/file285/file286/file287/file288/file289/file290/file291/file292/file293/file294/file295/file296/file297/file298/file299/file300

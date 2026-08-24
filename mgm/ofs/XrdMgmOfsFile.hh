@@ -53,9 +53,11 @@
 #ifndef __EOSMGM_MGMOFSFILE__HH__
 #define __EOSMGM_MGMOFSFILE__HH__
 
-#include "common/Mapping.hh"
 #include "common/Logging.hh"
+#include "common/Mapping.hh"
 #include "mgm/proc/IProcCommand.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
 
@@ -459,6 +461,34 @@ private:
   //----------------------------------------------------------------------------
   void getCksumFromOpaque(std::string& cksumType, std::string& cksumValue);
 
+  //----------------------------------------------------------------------------
+  //! Get the encryption key configured for a given space
+  //!
+  //! @param space space name
+  //!
+  //! @return configured key or an empty string if the space has none
+  //----------------------------------------------------------------------------
+  static std::string GetSpaceEncryptionKey(const std::string& space);
+
+  //----------------------------------------------------------------------------
+  //! Apply the instance encryption key of a space, if any, to the file which
+  //! is about to be opened. For an existing file the key of the space recorded
+  //! at creation time is used, for a new file the key of the space where the
+  //! file is going to be placed. A key given by the client via 'eos.key' always
+  //! takes precedence. On success mEosKey/mEncryptionSpace are set up for the
+  //! capability handed out to the FST.
+  //!
+  //! @param path logical file path (used for error reporting and policies)
+  //! @param attrmap extended attributes of the parent directory
+  //! @param attrmapF extended attributes of the file (empty for new files)
+  //! @param isRW true if the file is opened for writing
+  //! @param isCreation true if a new file is going to be created
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR with error set
+  //----------------------------------------------------------------------------
+  int ApplySpaceEncryption(const char* path, eos::IContainerMD::XAttrMap& attrmap,
+                           eos::IFileMD::XAttrMap& attrmapF, bool isRW, bool isCreation);
+
   int oh {0}; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque {nullptr}; //< opaque info given with 'open'
@@ -467,6 +497,9 @@ private:
   std::shared_ptr<eos::IFileMD> fmd {nullptr}; //< File meta data object
   eos::common::VirtualIdentity vid; //< virtual ID of the client
   std::string mEosKey; ///< File specific encryption key
+  //! Space whose configured encryption key is used - empty if the key was
+  //! provided by the client or if the file is not encrypted at all
+  std::string mEncryptionSpace;
   //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
   int mEosObfuscate { -1};
   bool mIsZeroSize {false}; //< Mark if file is zero size

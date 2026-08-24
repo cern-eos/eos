@@ -250,4 +250,8 @@ StripInternalAppPrefix(std::string_view app)
   return std::string(app);
 }
 
+//! Space config: instance encryption key used to encrypt files created in
+//! this space whenever the client did not provide a key of its own
+static constexpr auto SPACE_ENCRYPTION_KEY_NAME = "encryptionkey";
+
 EOSCOMMONNAMESPACE_END
