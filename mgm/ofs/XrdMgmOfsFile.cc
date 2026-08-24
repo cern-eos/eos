@@ -506,6 +506,149 @@ XrdMgmOfsFile::getCksumFromOpaque(std::string& cksumType, std::string& cksumValu
   }
 }
 
+//------------------------------------------------------------------------------
+// Get the encryption key configured for a given space
+//------------------------------------------------------------------------------
+std::string
+XrdMgmOfsFile::GetSpaceEncryptionKey(const std::string& space)
+{
+  if (space.empty()) {
+    return std::string();
+  }
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  auto it = FsView::gFsView.mSpaceView.find(space);
+
+  if ((it == FsView::gFsView.mSpaceView.end()) || (it->second == nullptr)) {
+    return std::string();
+  }
+
+  const std::string key =
+      it->second->GetConfigMember(eos::common::SPACE_ENCRYPTION_KEY_NAME);
+
+  // Refuse a key which would break the opaque info of the capability, also in
+  // its sealed form - this can only happen if it was injected bypassing
+  // 'space config', e.g. by editing the configuration by hand
+  if (!key.empty() && !eos::common::SymKey::IsValidEncryptionKey(
+                          eos::common::StringConversion::UnsealXrdPath(key))) {
+    eos_static_err("msg=\"ignoring malformed space encryption key\" space=\"%s\"",
+                   space.c_str());
+    return std::string();
+  }
+
+  return key;
+}
+
+//------------------------------------------------------------------------------
+// Apply the instance encryption key of a space to the file being opened
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::ApplySpaceEncryption(const char* path,
+                                    eos::IContainerMD::XAttrMap& attrmap,
+                                    eos::IFileMD::XAttrMap& attrmapF, bool isRW,
+                                    bool isCreation)
+{
+  static const char* epname = "open";
+
+  if (!isCreation) {
+    // An existing file records the space owning the key it was encrypted with.
+    // Reads and updates have to use that very key, no matter where the file
+    // is located today and no matter which key the client provided.
+    auto it = attrmapF.find(eos::kAttrEncryptSpace);
+
+    if (it == attrmapF.end()) {
+      return SFS_OK;
+    }
+
+    const std::string enc_space = it->second;
+    const std::string space_key = GetSpaceEncryptionKey(enc_space);
+
+    if (space_key.empty()) {
+      eos_err("msg=\"space encryption key is not configured anymore\" "
+              "path=\"%s\" space=\"%s\"",
+              path, enc_space.c_str());
+      return Emsg(epname, error, ENOKEY,
+                  "open file - the encryption key of "
+                  "the space holding this file is not configured anymore ",
+                  path);
+    }
+
+    auto fp = attrmapF.find(eos::kAttrEncryptedFp);
+
+    if (fp != attrmapF.end()) {
+      const std::string cipher = attrmapF.count(eos::kAttrObfuscateKey)
+                                     ? attrmapF[eos::kAttrObfuscateKey]
+                                     : std::string();
+
+      if (fp->second != eos::common::SymKey::KeyPrint16(space_key, cipher)) {
+        eos_err("msg=\"space encryption key has changed - contents are lost\" "
+                "path=\"%s\" space=\"%s\"",
+                path, enc_space.c_str());
+        return Emsg(epname, error, ENOKEY,
+                    "open file - the encryption key of "
+                    "the space holding this file has changed ",
+                    path);
+      }
+    }
+
+    mEosKey = space_key;
+    mEncryptionSpace = enc_space;
+
+    // 'eos.obfuscate=0' is an explicit request for the raw stored bytes, as
+    // used by the converter to copy a file without decoding it - only the
+    // default (unspecified) case is turned into decoding here
+    if (mEosObfuscate < 0) {
+      mEosObfuscate = 1;
+    }
+
+    return SFS_OK;
+  }
+
+  // A new file starts from scratch - a key inherited from a previous
+  // incarnation of the same path (e.g. an open with O_TRUNC) does not apply
+  if (!mEncryptionSpace.empty()) {
+    mEosKey.clear();
+    mEncryptionSpace.clear();
+  }
+
+  // A key given by the client via 'eos.key' always wins
+  if (!mEosKey.empty()) {
+    return SFS_OK;
+  }
+
+  // Encryption requires obfuscation to be enabled for this file
+  auto it_obf = attrmap.find(eos::kAttrFileObfuscate);
+
+  if ((mEosObfuscate <= 0) && ((it_obf == attrmap.end()) || (it_obf->second != "1"))) {
+    return SFS_OK;
+  }
+
+  // Dry-run the placement policy to learn in which space the new file lands.
+  // The result is discarded, the effective layout is computed later on at the
+  // usual place.
+  std::string enc_space = "default";
+  unsigned long tmp_lid = 0;
+  unsigned long tmp_fsid = 0;
+  long tmp_group = -1;
+  std::string tmp_bw, tmp_ioprio, tmp_iotype;
+  bool tmp_sched = false;
+  Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, enc_space, *openOpaque, tmp_fsid,
+                            tmp_group, tmp_bw, tmp_sched, tmp_ioprio, tmp_iotype, isRW,
+                            true);
+  const std::string space_key = GetSpaceEncryptionKey(enc_space);
+
+  if (space_key.empty()) {
+    return SFS_OK;
+  }
+
+  mEosKey = space_key;
+  mEncryptionSpace = enc_space;
+  eos_info("msg=\"encrypting new file with the key of its space\" path=\"%s\" "
+           "space=\"%s\"",
+           path, enc_space.c_str());
+  return SFS_OK;
+}
+
 /*----------------------------------------------------------------------------*/
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
@@ -1374,6 +1517,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "open file - file has a valid extended attribute lock ", path);
   }
 
+  // ---------------------------------------------------------------------------
+  // An existing file which was encrypted with the key of a space has to be
+  // (de-)ciphered with that very key. A truncating open drops the file and
+  // creates a brand new one instead, there the policy is re-evaluated further
+  // down - which also keeps overwrites working after a key rotation.
+  // ---------------------------------------------------------------------------
+  const bool drops_content =
+      isRW && !isInjection && (open_flags & O_TRUNC) && (ocUploadUuid.length() == 0);
+
+  if (fmd && !drops_content &&
+      ApplySpaceEncryption(path, attrmap, attrmapF, isRW, false)) {
+    return SFS_ERROR;
+  }
+
   if (isRW) {
     if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
         !isInjection && !isTpc && !isRepair) {
@@ -1547,6 +1704,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Open for write for non existing file without creation flag
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
+        // A new file is created - if the space it is placed in defines an
+        // instance encryption key, encrypt it with that key. Has to happen
+        // before the namespace write lock is taken since the placement policy
+        // needs the filesystem view.
+        if (ApplySpaceEncryption(path, attrmap, attrmapF, isRW, true)) {
+          return SFS_ERROR;
+        }
+
         // creation of a new file or isOcUpload
         COMMONTIMING("write::begin", &tm);
         {
@@ -1624,18 +1789,36 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
-            if ((mEosObfuscate > 0) ||
-                (attrmap.count("sys.file.obfuscate") &&
-                 (attrmap["sys.file.obfuscate"] == "1"))) {
+            if ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
+                                        (attrmap[eos::kAttrFileObfuscate] == "1"))) {
               std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
               // attach an obfucation key
-              fmd->setAttribute("user.obfuscate.key", skey);
+              fmd->setAttribute(eos::kAttrObfuscateKey, skey);
+              attrmapF[eos::kAttrObfuscateKey] = skey;
 
               if (mEosKey.length()) {
-                fmd->setAttribute("user.encrypted", "1");
+                fmd->setAttribute(eos::kAttrEncrypted, "1");
+                attrmapF[eos::kAttrEncrypted] = "1";
+              } else {
+                attrmapF.erase(eos::kAttrEncrypted);
               }
 
-              attrmapF["user.obfuscate.key"] = skey;
+              if (mEosKey.length() && !mEncryptionSpace.empty()) {
+                // Remember which space key was used together with a low
+                // resolution fingerprint of it. This keeps reads working when
+                // the file moves to another space and turns a changed or a
+                // removed space key into a clean error instead of garbage.
+                const std::string fprint = eos::common::SymKey::KeyPrint16(mEosKey, skey);
+                fmd->setAttribute(eos::kAttrEncryptSpace, mEncryptionSpace);
+                fmd->setAttribute(eos::kAttrEncryptedFp, fprint);
+                attrmapF[eos::kAttrEncryptSpace] = mEncryptionSpace;
+                attrmapF[eos::kAttrEncryptedFp] = fprint;
+              } else {
+                // Drop any stale marker inherited from a previous incarnation
+                // of this path, they would otherwise be copied onto a version
+                attrmapF.erase(eos::kAttrEncryptSpace);
+                attrmapF.erase(eos::kAttrEncryptedFp);
+              }
             }
 
             if (ocUploadUuid.length()) {
@@ -1861,9 +2044,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (mEosObfuscate && !isFuse) {
     // add obfuscation key to redirection capability
-    if (attrmapF.count("user.obfuscate.key")) {
+    if (attrmapF.count(eos::kAttrObfuscateKey)) {
       capability += "&mgm.obfuscate.key=";
-      capability += attrmapF["user.obfuscate.key"].c_str();
+      capability += attrmapF[eos::kAttrObfuscateKey].c_str();
     }
 
     // add encryption key to redirection capability

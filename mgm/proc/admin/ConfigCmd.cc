@@ -24,11 +24,12 @@
 #include "ConfigCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
 
-#include <XrdOuc/XrdOucEnv.hh>
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
+#include "common/Constants.hh"
+#include "common/SymKeys.hh"
 #include "mgm/config/IConfigEngine.hh"
-
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -103,6 +104,40 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
   }
 }
 
+namespace {
+//----------------------------------------------------------------------------
+//! Replace every space encryption key in a configuration dump by a fingerprint
+//! of it. Dumping is a display operation - the stored configuration keeps the
+//! real value, otherwise a saved configuration could not be restored.
+//!
+//! @param dump configuration dump to sanitise in place
+//----------------------------------------------------------------------------
+void
+MaskEncryptionKeys(std::string& dump)
+{
+  const std::string tag =
+      std::string("#") + eos::common::SPACE_ENCRYPTION_KEY_NAME + " => ";
+  size_t pos = 0;
+
+  while ((pos = dump.find(tag, pos)) != std::string::npos) {
+    const size_t val_start = pos + tag.length();
+    size_t val_end = dump.find('\n', val_start);
+
+    if (val_end == std::string::npos) {
+      val_end = dump.length();
+    }
+
+    // same fingerprint as 'space status' so the two can be correlated
+    const std::string masked =
+        "<hidden:" +
+        eos::common::SymKey::KeyPrint16(dump.substr(val_start, val_end - val_start), "") +
+        ">";
+    dump.replace(val_start, val_end - val_start, masked);
+    pos = val_start + masked.length();
+  }
+}
+} // namespace
+
 //----------------------------------------------------------------------------
 // Execute dump subcommand
 //----------------------------------------------------------------------------
@@ -115,7 +150,9 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
     reply.set_std_err("error: failed to dump configuration");
     reply.set_retc(errno);
   } else {
-    reply.set_std_out(sdump.c_str());
+    std::string out = sdump.c_str();
+    MaskEncryptionKeys(out);
+    reply.set_std_out(out);
   }
 }
 

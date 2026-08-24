@@ -37,6 +37,7 @@
 #include "namespace/Resolver.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
 #include <json/json.h>
@@ -459,9 +460,15 @@ ProcCommand::FileInfo(const char* path)
                   << " StorageClass: " << (storage_class.length() ? storage_class : "none");
             }
 
-            if (xattrs.count("user.obfuscate.key")) {
-              if (xattrs.count("user.encrypted")) {
-                out << " Crypt: encrypted" << std::endl;
+            if (xattrs.count(eos::kAttrObfuscateKey)) {
+              if (xattrs.count(eos::kAttrEncrypted)) {
+                out << " Crypt: encrypted";
+
+                if (xattrs.count(eos::kAttrEncryptSpace)) {
+                  out << " (space:" << xattrs[eos::kAttrEncryptSpace] << ")";
+                }
+
+                out << std::endl;
               } else {
                 out << " Crypt: obfuscated" << std::endl;
               }
