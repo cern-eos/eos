@@ -378,7 +378,8 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
 //------------------------------------------------------------------------------
 const std::string
 XrdMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
-                                        const XrdSecEntity* client)
+                                        const XrdSecEntity* client,
+                                        const eos::common::VirtualIdentity& vid)
 {
   // Application name derived from the following in order of priority:
   // 1. eos.app=<tag>
@@ -396,6 +397,17 @@ XrdMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
         app_name.clear();
       }
     }
+  }
+
+  // Both sources are the client's to choose, so neither may claim the name of
+  // EOS's own traffic. A client that does keeps the name without the prefix -
+  // the request is served, only its label is corrected.
+  if (eos::common::IsInternalApp(app_name) && !vid.IsInternalEngine()) {
+    const std::string stripped = eos::common::StripInternalAppPrefix(app_name);
+    eos_static_info("msg=\"application name may not claim the internal traffic "
+                    "prefix\" app=\"%s\" used=\"%s\" prot=\"%s\" uid=%u",
+                    app_name.c_str(), stripped.c_str(), vid.prot.c_str(), vid.uid);
+    app_name = stripped;
   }
 
   return app_name;
@@ -686,7 +698,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_REDIRECT;
   }
 
-  std::string app_name = GetClientApplicationName(openOpaque, client);
+  std::string app_name = GetClientApplicationName(openOpaque, client, vid);
 
   // Decide if this is a FUSE access
   if (!app_name.empty()) {

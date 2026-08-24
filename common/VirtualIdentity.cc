@@ -127,6 +127,16 @@ VirtualIdentity::isNobody() const
 }
 
 //----------------------------------------------------------------------------
+// Check if this is one of EOS's own engines rather than a client
+//----------------------------------------------------------------------------
+bool
+VirtualIdentity::IsInternalEngine() const
+{
+  // XrdOucString has no const comparison operator, hence the strcmp
+  return ((strcmp(prot.c_str(), "sss") == 0) && (uid <= DAEMONUID));
+}
+
+//----------------------------------------------------------------------------
 // Return user@domain string
 //----------------------------------------------------------------------------
 std::string

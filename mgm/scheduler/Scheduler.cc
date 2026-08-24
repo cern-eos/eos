@@ -398,10 +398,9 @@ Scheduler::SchedActivityFromRequest(const char* schedclass,
     return SchedActivity::kClient;
   }
 
-  // Only an internal engine may label itself internal. They all authenticate
-  // with sss and map to the daemon account, so a client that simply types the
-  // key gets scheduled as the client it is.
-  if ((strcmp(vid.prot.c_str(), "sss") != 0) || (vid.uid > DAEMONUID)) {
+  // Only an internal engine may label itself internal, so a client that simply
+  // types the key gets scheduled as the client it is
+  if (!vid.IsInternalEngine()) {
     eos_static_info("msg=\"ignoring %s on an untrusted identity\" prot=\"%s\" "
                     "uid=%u",
                     eos::common::kSchedClassKey.data(), vid.prot.c_str(), vid.uid);

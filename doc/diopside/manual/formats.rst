@@ -170,6 +170,12 @@ The subsystem is one lowercase word, with ``-`` between words where a name
 needs two. Files touched by traffic carrying the prefix keep their access
 time, so background transfers do not look like reads.
 
+The prefix is reserved: only EOS's own engines may use it. They authenticate
+with ``sss`` and map to the daemon account, which a client cannot arrange for
+itself. A client that names itself ``eos/something`` anyway is served
+normally, but is listed as ``something`` - the prefix is taken off and the
+attempt is logged by the MGM.
+
 .. note::
 
    Earlier versions spelled some of these differently: ``groupbalancer``,

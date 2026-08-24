@@ -229,4 +229,25 @@ IsInternalApp(std::string_view app)
   return (app.compare(0, EOS_APP_PREFIX.length(), EOS_APP_PREFIX) == 0);
 }
 
+//------------------------------------------------------------------------------
+//! Take the internal traffic prefix off an application tag a client chose for
+//! itself. Only EOS's own engines may name themselves "eos/<subsystem>", see
+//! VirtualIdentity::IsInternalEngine - a client that types the prefix anyway
+//! keeps the name it picked, without it, rather than having its request
+//! refused over a label.
+//!
+//! @param app application tag, as the client spelled it
+//!
+//! @return application tag with every leading "eos/" removed
+//------------------------------------------------------------------------------
+inline std::string
+StripInternalAppPrefix(std::string_view app)
+{
+  while (IsInternalApp(app)) {
+    app.remove_prefix(EOS_APP_PREFIX.length());
+  }
+
+  return std::string(app);
+}
+
 EOSCOMMONNAMESPACE_END

@@ -34,6 +34,7 @@ using eos::common::EOS_APP_GROUP_BALANCER;
 using eos::common::EOS_APP_GROUP_DRAINER;
 using eos::common::InternalAppTag;
 using eos::common::IsInternalApp;
+using eos::common::StripInternalAppPrefix;
 
 //------------------------------------------------------------------------------
 // Every subsystem EOS schedules for itself is named the same way
@@ -82,4 +83,23 @@ TEST(AppTags, InternalIsTheOnesWithThePrefix)
   // the bare subsystem names are not internal by themselves - they are what a
   // call site passes in, never what goes out
   EXPECT_FALSE(IsInternalApp(EOS_APP_FSCK));
+}
+
+//------------------------------------------------------------------------------
+// What a client naming itself after EOS's own traffic is accounted as
+//------------------------------------------------------------------------------
+TEST(AppTags, StrippingLeavesNothingInternal)
+{
+  EXPECT_EQ(StripInternalAppPrefix("eos/drain"), "drain");
+  // however many times it is applied
+  EXPECT_EQ(StripInternalAppPrefix("eos/eos/eos/fsck"), "fsck");
+  EXPECT_FALSE(IsInternalApp(StripInternalAppPrefix("eos/eos/converter")));
+  // a client application keeps the name it chose
+  EXPECT_EQ(StripInternalAppPrefix("atlas"), "atlas");
+  EXPECT_EQ(StripInternalAppPrefix("eoscp"), "eoscp");
+  EXPECT_EQ(StripInternalAppPrefix("http/tpcpull"), "http/tpcpull");
+  EXPECT_EQ(StripInternalAppPrefix(""), "");
+  // the prefix and nothing else leaves no name at all, which is accounted as
+  // "other" like any unnamed application
+  EXPECT_EQ(StripInternalAppPrefix("eos/"), "");
 }

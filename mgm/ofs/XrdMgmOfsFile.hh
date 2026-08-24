@@ -418,11 +418,16 @@ private:
   //!
   //! @param open_opaque open opaque information
   //! @param client XrdSecEntity identifying the request
+  //! @param vid virtual identity of the request
   //!
-  //! @return application name or empty string if nothing specified
+  //! @return application name or empty string if nothing specified. The
+  //!         "eos/" prefix of internal traffic is taken off a name that does
+  //!         not come from one of EOS's own engines, see
+  //!         StripInternalAppPrefix
   //----------------------------------------------------------------------------
-  static const std::string GetClientApplicationName(XrdOucEnv* open_opaque,
-      const XrdSecEntity* client);
+  static const std::string
+  GetClientApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client,
+                           const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Get POSIX open flags from the given XRootD open mode

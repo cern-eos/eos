@@ -111,6 +111,16 @@ struct VirtualIdentity {
   bool isNobody() const;
 
   //----------------------------------------------------------------------------
+  //! Check if this is one of EOS's own engines - drain, balance, conversion,
+  //! fsck - rather than a client. They all authenticate with sss and map to
+  //! the daemon account, which is what a client cannot arrange for itself.
+  //!
+  //! This is the one definition of who may declare traffic to be internal,
+  //! shared by the "eos.schedclass" gate and the "eos/" application tags.
+  //----------------------------------------------------------------------------
+  bool IsInternalEngine() const;
+
+  //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
   bool isGateway() { return gateway; }

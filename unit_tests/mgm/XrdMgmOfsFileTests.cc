@@ -46,21 +46,86 @@ TEST(XrdMgmOfsFile, ParsingExcludFsids)
   }
 }
 
+//------------------------------------------------------------------------------
+// Identity of a client, and of one of EOS's own engines
+//------------------------------------------------------------------------------
+static eos::common::VirtualIdentity
+MakeClientVid()
+{
+  eos::common::VirtualIdentity vid;
+  vid.prot = "krb5";
+  vid.uid = 12345;
+  return vid;
+}
+
+static eos::common::VirtualIdentity
+MakeEngineVid()
+{
+  eos::common::VirtualIdentity vid;
+  vid.prot = "sss";
+  vid.uid = DAEMONUID;
+  return vid;
+}
+
 TEST(XrdMgmOfsFile, GetClientApplicationName)
 {
-  ASSERT_STREQ("", XrdMgmOfsFile::GetClientApplicationName(nullptr, nullptr).c_str());
+  const auto vid = MakeClientVid();
+  ASSERT_STREQ("",
+               XrdMgmOfsFile::GetClientApplicationName(nullptr, nullptr, vid).c_str());
   std::string opaque_str = "&key1=val1&key2=val2&key3=val3";
   XrdOucEnv env(opaque_str.c_str());
   XrdSecEntity client("test");
-  ASSERT_STREQ("",
-               XrdMgmOfsFile::GetClientApplicationName(&env, &client).c_str());
+  ASSERT_STREQ("", XrdMgmOfsFile::GetClientApplicationName(&env, &client, vid).c_str());
   client.eaAPI->Add("xrd.appname", "xrd_tag");
   ASSERT_STREQ("xrd_tag",
-               XrdMgmOfsFile::GetClientApplicationName(&env, &client).c_str());
+               XrdMgmOfsFile::GetClientApplicationName(&env, &client, vid).c_str());
   opaque_str = "&key1=val1&key2=val2&key3=val3&eos.app=eos_tag";
   XrdOucEnv env1(opaque_str.c_str());
   ASSERT_STREQ("eos_tag",
-               XrdMgmOfsFile::GetClientApplicationName(&env1, &client).c_str());
+               XrdMgmOfsFile::GetClientApplicationName(&env1, &client, vid).c_str());
   ASSERT_STREQ("eos_tag",
-               XrdMgmOfsFile::GetClientApplicationName(&env1, nullptr).c_str());
+               XrdMgmOfsFile::GetClientApplicationName(&env1, nullptr, vid).c_str());
+}
+
+TEST(XrdMgmOfsFile, ClientMayNotClaimTheInternalAppPrefix)
+{
+  const auto client_vid = MakeClientVid();
+  // eos.app, the tag a client sets itself
+  XrdOucEnv env("&eos.app=eos/drain");
+  ASSERT_STREQ(
+      "drain",
+      XrdMgmOfsFile::GetClientApplicationName(&env, nullptr, client_vid).c_str());
+  // no amount of prefixing gets one through
+  XrdOucEnv env_twice("&eos.app=eos/eos/converter");
+  ASSERT_STREQ(
+      "converter",
+      XrdMgmOfsFile::GetClientApplicationName(&env_twice, nullptr, client_vid).c_str());
+  // xrd.appname, the other source, is the client's just the same
+  XrdOucEnv empty_env("&key1=val1");
+  XrdSecEntity client("test");
+  client.eaAPI->Add("xrd.appname", "eos/fsck");
+  ASSERT_STREQ(
+      "fsck",
+      XrdMgmOfsFile::GetClientApplicationName(&empty_env, &client, client_vid).c_str());
+  // a name that merely starts with the same letters is left alone
+  XrdOucEnv env_eoscp("&eos.app=eoscp");
+  ASSERT_STREQ(
+      "eoscp",
+      XrdMgmOfsFile::GetClientApplicationName(&env_eoscp, nullptr, client_vid).c_str());
+}
+
+TEST(XrdMgmOfsFile, InternalEngineKeepsTheAppPrefix)
+{
+  const auto engine_vid = MakeEngineVid();
+  XrdOucEnv env("&eos.app=eos/converter");
+  ASSERT_STREQ(
+      "eos/converter",
+      XrdMgmOfsFile::GetClientApplicationName(&env, nullptr, engine_vid).c_str());
+  // an engine authenticating as something else is not one
+  eos::common::VirtualIdentity unix_daemon;
+  unix_daemon.prot = "unix";
+  unix_daemon.uid = DAEMONUID;
+  ASSERT_STREQ(
+      "converter",
+      XrdMgmOfsFile::GetClientApplicationName(&env, nullptr, unix_daemon).c_str());
 }

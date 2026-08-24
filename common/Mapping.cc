@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Mapping.hh"
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/Macros.hh"
 #include "common/Namespace.hh"
@@ -1120,7 +1121,18 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   if (rapp.length()) {
-    vid.app = rapp.c_str();
+    // Only EOS's own engines may name themselves "eos/<subsystem>"; a client
+    // that types the prefix is accounted under the name it chose without it
+    if (eos::common::IsInternalApp(rapp.c_str()) && !vid.IsInternalEngine()) {
+      const std::string stripped = eos::common::StripInternalAppPrefix(rapp.c_str());
+      eos_static_info("msg=\"application name may not claim the internal "
+                      "traffic prefix\" app=\"%s\" used=\"%s\" prot=\"%s\" "
+                      "uid=%u",
+                      rapp.c_str(), stripped.c_str(), vid.prot.c_str(), vid.uid);
+      vid.app = stripped;
+    } else {
+      vid.app = rapp.c_str();
+    }
   }
 
   // Check the Geo Location
