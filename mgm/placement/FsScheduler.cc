@@ -64,6 +64,14 @@ DescribeFs(eos::common::FileSystem& fs, unsigned int group_index)
   desc.percent_used = static_cast<uint8_t>(fs.GetDouble("stat.statfs.filled"));
   desc.ops = fs.GetSchedOps();
   desc.active_status = GetActiveStatus(fs.GetActiveStatus(), fs.GetStatus());
+  // "none" is how a file system spells out that it has a backing store of its
+  // own, and is recorded as no shared store at all
+  desc.sharedfs = fs.GetString("sharedfs");
+
+  if (desc.sharedfs == "none") {
+    desc.sharedfs.clear();
+  }
+
   return desc;
 }
 

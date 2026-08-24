@@ -882,7 +882,12 @@ path while geotree remains the default.)
 file create. It sums `ClusterData::GetWritableFreeGiB()` — one pass over the
 disks summing `free_gib` where the disk is online, allows a client create and
 is not under a branch denied that operation (the same criteria `ValidDisk`
-applies, prebookings already discounted). Because the FUSE guard asks on every
+applies, prebookings already discounted). File systems configured on one shared
+backing store (`sharedfs`) all publish that store's statfs figures, so only the
+first candidate among them contributes — otherwise the capacity would come out
+multiplied by the number of file systems sharing the store. The mapping lives in
+`ClusterData::shared_fs` rather than on `Disk`, which stays packed to 16 bytes;
+it is empty on an installation without shared file systems. Because the FUSE guard asks on every
 create and this is an O(disks) pass, `ClusterMgr` caches it (value + steady-clock expiry + the epoch it
 was computed at, all atomic): a hit is three loads, an epoch bump invalidates
 immediately, and the TTL (default 5 s) only bounds staleness against in-place

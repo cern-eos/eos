@@ -29,6 +29,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <set>
 #include <string_view>
 #include <unordered_map>
 #include <xxhash.h>
@@ -1042,6 +1043,13 @@ struct ClusterData {
   //! to take the full descent instead, which is where an interior denied bucket
   //! is honoured.
   DeniedBranchesFlag denied_branches;
+  //! Name of the backing store a file system shares with others, per fsid.
+  //! Several file systems can be configured on one backend, in which case they
+  //! all publish that backend's statfs figures - so the space capacity may only
+  //! count one of them, see GetWritableFreeGiB. Only the file systems that
+  //! actually name a shared backend appear here, so the map stays empty on an
+  //! installation without any.
+  std::unordered_map<fsid_t, std::string> shared_fs;
 
   //----------------------------------------------------------------------------
   //! Get the bucket with the given identifier, the one validity definition
@@ -1372,7 +1380,8 @@ struct ClusterData {
   //! criteria SelectionStrategy::ValidDisk applies, so the figure agrees with
   //! what a placement descent will actually do. The flat equivalent of the
   //! geotree totalWritableSpace aggregate behind placementSpace; bookings are
-  //! already discounted since BookSpace debits free_gib directly.
+  //! already discounted since BookSpace debits free_gib directly, and file
+  //! systems sharing one backing store are counted once, see shared_fs.
   //!
   //! @return writable free space in GiB
   //----------------------------------------------------------------------------
@@ -1380,6 +1389,12 @@ struct ClusterData {
   GetWritableFreeGiB() const
   {
     uint64_t total = 0;
+    // File systems sitting on one shared backend all report that backend's
+    // free space, so only the first candidate among them contributes it -
+    // otherwise the capacity is multiplied by the number of file systems
+    // sharing the store. Stays empty where no file system declares one, and
+    // holds views into shared_fs, which this pass does not touch.
+    std::set<std::string_view> seen_shared_fs;
 
     for (const auto& disk : disks) {
       if (disk.id == 0) {
@@ -1393,6 +1408,14 @@ struct ClusterData {
 
       if (IsBranchDenied(disk.id, kClientCreate)) {
         continue;
+      }
+
+      if (!shared_fs.empty()) {
+        auto it = shared_fs.find(disk.id);
+
+        if ((it != shared_fs.end()) && !seen_shared_fs.insert(it->second).second) {
+          continue;
+        }
       }
 
       total += disk.free_gib.load(std::memory_order_relaxed);

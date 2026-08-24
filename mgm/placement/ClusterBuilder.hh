@@ -46,6 +46,7 @@ struct FsDescription {
   uint64_t capacity{0};                               ///< Raw capacity in bytes
   uint64_t free_bytes{0};                             ///< Free space in bytes
   uint8_t percent_used{0};                            ///< Fill level in percent
+  std::string sharedfs; ///< Name of the shared backing store if any
   //! Operations this file system accepts, see common/FsOps.hh
   FsOpMask ops{eos::common::kMaskNone};
   //! Active status, already folded together with the boot status

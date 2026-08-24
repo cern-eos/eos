@@ -262,6 +262,17 @@ public:
     int GetBucketTypeOf(ItemIdT bucket_id) const;
 
     //--------------------------------------------------------------------------
+    //! Record the backing store a file system shares with other file systems,
+    //! see ClusterData::shared_fs. Call it after the disk itself was added, as
+    //! re-registering a disk drops what was recorded for it.
+    //!
+    //! @param fsid file system identifier
+    //! @param sharedfs name of the shared backing store, empty if the file
+    //!        system has one of its own
+    //--------------------------------------------------------------------------
+    void SetDiskSharedFs(fsid_t fsid, std::string_view sharedfs);
+
+    //--------------------------------------------------------------------------
     //! Remove a disk from the accumulated topology, leaving the hole shape the
     //! arrays use for an unassigned fsid. The bucket it hung from keeps its
     //! place even if emptied - zero weight keeps it out of the way, and the

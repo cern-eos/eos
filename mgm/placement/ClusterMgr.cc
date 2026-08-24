@@ -415,7 +415,26 @@ ClusterMgr::SnapshotBuilder::RemoveDisk(fsid_t fsid)
 
   mData.disks[fsid - 1] = Disk();
   mData.disk_parents[fsid - 1] = 0;
+  mData.shared_fs.erase(fsid);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Record the backing store a file system shares with other file systems
+//------------------------------------------------------------------------------
+void
+ClusterMgr::SnapshotBuilder::SetDiskSharedFs(fsid_t fsid, std::string_view sharedfs)
+{
+  if (fsid == 0) {
+    return;
+  }
+
+  if (sharedfs.empty()) {
+    mData.shared_fs.erase(fsid);
+    return;
+  }
+
+  mData.shared_fs[fsid] = std::string(sharedfs);
 }
 
 //------------------------------------------------------------------------------

@@ -168,6 +168,8 @@ AddFsToCluster(ClusterMgr::SnapshotBuilder& builder, const FsDescription& fs)
     return false;
   }
 
+  // After the disk, a re-registration drops what was recorded for it
+  builder.SetDiskSharedFs(fs.fsid, fs.sharedfs);
   return true;
 }
 

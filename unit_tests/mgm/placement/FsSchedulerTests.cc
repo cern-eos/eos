@@ -658,3 +658,31 @@ TEST(FsScheduler, PlacementCapacityTracksTopologyChanges)
   ASSERT_TRUE(fs_scheduler.RemoveFs("default", 1));
   EXPECT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 31 * (1ULL << 40));
 }
+
+TEST(FsScheduler, PlacementCapacityCountsASharedBackendOnce)
+{
+  using namespace eos::mgm::placement;
+  using namespace std::chrono_literals;
+  FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
+  fs_scheduler.UpdateClusterData();
+  fs_scheduler.SetSchedConfig("geo");
+  fs_scheduler.SetCapacityCacheTTL(0ms);
+  ASSERT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 32 * (1ULL << 40));
+  // Two file systems on one backing store both publish that store's free
+  // space, so the pair adds one file system's worth of capacity, not two
+  auto first = MakeFsDesc(33, 0, "site0");
+  first.sharedfs = "cephfs";
+  auto second = MakeFsDesc(34, 0, "site0");
+  second.sharedfs = "cephfs";
+  ASSERT_TRUE(fs_scheduler.InsertFs("default", first));
+  ASSERT_TRUE(fs_scheduler.InsertFs("default", second));
+  EXPECT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 33 * (1ULL << 40));
+  // one on a backing store of its own is counted in full
+  ASSERT_TRUE(fs_scheduler.InsertFs("default", MakeFsDesc(35, 0, "site0")));
+  EXPECT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 34 * (1ULL << 40));
+  // dropping one of the pair leaves the shared store counted, once
+  ASSERT_TRUE(fs_scheduler.RemoveFs("default", 33));
+  EXPECT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 34 * (1ULL << 40));
+  ASSERT_TRUE(fs_scheduler.RemoveFs("default", 34));
+  EXPECT_EQ(fs_scheduler.GetPlacementCapacity("default").value(), 33 * (1ULL << 40));
+}
