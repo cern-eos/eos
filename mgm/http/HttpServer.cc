@@ -108,14 +108,14 @@ HttpServer::Handler(void* cls,
         stident += headers["client-real-host"];
         eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
-        if (!vid_tmp->isGateway() ||
+        if (!vid_tmp->IsGateway() ||
             ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
           headers.erase("x-forwarded-for");
           headers.erase("x-real-ip");
         }
 
         eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(),
-                         vid_tmp->isGateway());
+                         vid_tmp->IsGateway());
 
         if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
           headers.erase("remote-user");
@@ -335,14 +335,14 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
       stident += std::string(client.host);
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
-      if (!vid_tmp->isGateway() ||
+      if (!vid_tmp->IsGateway() ||
           ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
         headers.erase("x-forwarded-for");
         headers.erase("x-real-ip");
       }
 
       eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(),
-                       vid_tmp->isGateway());
+                       vid_tmp->IsGateway());
 
       if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
         headers.erase("remote-user");

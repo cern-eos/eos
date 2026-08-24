@@ -86,8 +86,8 @@ AccessCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::AccessProto access = mReqProto.access();
 
-  if ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) && (!mVid.hasGid(eos::common::ADM_GID)) &&
-      (!mVid.sudoer)) {
+  if ((mVid.uid != 0) && (!mVid.HasUid(eos::common::ADM_UID)) &&
+      (!mVid.HasGid(eos::common::ADM_GID)) && (!mVid.sudoer)) {
     // root and admins only
     reply.set_std_out("");
     reply.set_std_err("error: you are not an access administrator!\"");

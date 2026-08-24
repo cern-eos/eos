@@ -200,7 +200,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // Each individual path/file may be mapped to a different VID
   std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
 
-  if (vid.isNobody() && !vid.deferredAuth.empty()) {
+  if (vid.IsNobody() && !vid.deferredAuth.empty()) {
     // If vid is not yet resolved, but an authentication token has been provided, then
     // we need to validate if the token allows each file to be staged
     std::string env =
@@ -669,7 +669,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // Each individual path/file may be mapped to a different VID
   std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
 
-  if (vid.isNobody() && !vid.deferredAuth.empty()) {
+  if (vid.IsNobody() && !vid.deferredAuth.empty()) {
     // If vid is not yet resolved, but an authentication token has been provided, then
     // we need to validate if the token allows each file to be polled
     std::string env =

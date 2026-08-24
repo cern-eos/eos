@@ -46,8 +46,8 @@ ProcCommand::Map()
   }
 
   if (mSubCmd == "link") {
-    if ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) ||
-        vid.hasGid(eos::common::ADM_GID)) {
+    if ((!pVid->uid) || vid.HasUid(eos::common::ADM_UID) ||
+        vid.HasGid(eos::common::ADM_GID)) {
       XrdOucString srcpath = pOpaque->Get("mgm.map.src");
       XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
 
@@ -95,9 +95,8 @@ ProcCommand::Map()
   if (mSubCmd == "unlink") {
     XrdOucString path = pOpaque->Get("mgm.map.src");
 
-    if ((!pVid->uid) ||
-        vid.hasUid(eos::common::ADM_UID) ||
-        vid.hasGid(eos::common::ADM_GID)) {
+    if ((!pVid->uid) || vid.HasUid(eos::common::ADM_UID) ||
+        vid.HasGid(eos::common::ADM_GID)) {
       eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
 
       if ((!path.length()) || (!gOFS->PathMap.count(path.c_str()))) {

@@ -460,8 +460,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
     printmap[SSTR("rid:" << rid_val)] = true;
   } else if ((display_type == "all") &&
-             ((!vid.uid) || (vid.hasUid(eos::common::ADM_UID)) ||
-              (vid.hasGid(eos::common::ADM_GID)))) {
+             ((!vid.uid) || (vid.HasUid(eos::common::ADM_UID)) ||
+              (vid.HasGid(eos::common::ADM_GID)))) {
     // Add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;
@@ -1056,9 +1056,8 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
                std::string_view type, std::string_view recycle_id)
 {
   // Basic permission checks
-  if (vid.uid && !vid.sudoer &&
-      !(vid.hasUid(eos::common::ADM_UID)) &&
-      !(vid.hasGid(eos::common::ADM_GID))) {
+  if (vid.uid && !vid.sudoer && !(vid.HasUid(eos::common::ADM_UID)) &&
+      !(vid.HasGid(eos::common::ADM_GID))) {
     std_err = "error: you cannot purge your recycle bin without being a "
               "sudo or having an admin role";
     return EPERM;

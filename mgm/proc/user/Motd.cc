@@ -39,8 +39,8 @@ ProcCommand::Motd()
   XrdOucString motdfile = gOFS->MgmMetaLogDir;
   motdfile += "/motd";
 
-  if (motdupload.length() &&
-      ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID))) {
+  if (motdupload.length() && ((!pVid->uid) || vid.HasUid(eos::common::ADM_UID) ||
+                              vid.HasGid(eos::common::ADM_GID))) {
     // root + admins can set the MOTD
     ssize_t motdlen = 0;
     char* motdout = 0;

@@ -737,7 +737,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (auto ioprio = XrdUtils::GetEnv(*openOpaque, "eos.iopriority");
       !ioprio.empty()) {
     // only operator/admins can set iopriority
-    if (vid.hasUid(11)) {
+    if (vid.HasUid(11)) {
       ioPriority = std::move(ioprio);
     } else {
       eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",

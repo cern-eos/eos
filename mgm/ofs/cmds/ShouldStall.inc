@@ -44,8 +44,7 @@ XrdMgmOfs::ShouldStall(const char* function,
   double limit = 0;
 
   // After booting don't stall FST nodes
-  if (gOFS->IsNsBooted() && (vid.prot == "sss") &&
-      vid.hasUid(DAEMONUID)) {
+  if (gOFS->IsNsBooted() && (vid.prot == "sss") && vid.HasUid(DAEMONUID)) {
     eos_static_debug("info=\"avoid stalling of the FST node\" host=%s",
                      vid.host.c_str());
     stall = false;

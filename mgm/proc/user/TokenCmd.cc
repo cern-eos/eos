@@ -160,7 +160,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     return reply;
   }
 
-  eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer,
+  eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.HasUid(0), mVid.sudoer,
                   mVid.uid, mVid.gid);
   int mode = R_OK | T_OK;
 
@@ -176,7 +176,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     eos_static_info("%s\n", token.vtoken().c_str());
 
     // check who asks for a token
-    if ((mVid.hasUid(0))) {
+    if ((mVid.HasUid(0))) {
       // we issue all the token in the world for them
     } else {
       // for user token, we only allow rwxd, nothing else;
@@ -367,7 +367,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     if (!(ret_c = eostoken.Read(token.vtoken(), key,
                                 eos::common::EosTok::sTokenGeneration.load(),
                                 false))) {
-      const bool privileged = (mVid.sudoer || mVid.hasUid(0) || (mVid.uid == 0));
+      const bool privileged = (mVid.sudoer || mVid.HasUid(0) || (mVid.uid == 0));
       int origin_rc =
           (privileged ? 0
                       : eostoken.VerifyOrigin(mVid.host, mVid.uid_string,

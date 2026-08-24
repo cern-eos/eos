@@ -1055,7 +1055,7 @@ FileCmd::TagSubcmd(const eos::console::FileTagProto& tag, const std::string& spa
 {
   std::ostringstream std_out, std_err;
 
-  if (!((mVid.prot == "sss") && mVid.hasUid(DAEMONUID)) && (mVid.uid != 0)) {
+  if (!((mVid.prot == "sss") && mVid.HasUid(DAEMONUID)) && (mVid.uid != 0)) {
     reply.set_std_err("error: permission denied - you have to be root to "
                       "run the 'tag' command");
     reply.set_retc(EPERM);

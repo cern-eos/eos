@@ -181,35 +181,35 @@ TEST(Mapping, VidAssignOperator)
   ASSERT_EQ(vid.geolocation, copy_vid.geolocation);
   ASSERT_EQ(vid.app, copy_vid.app);
   ASSERT_EQ(vid.sudoer, copy_vid.sudoer);
-  ASSERT_TRUE(vid.hasUid(2));
-  ASSERT_TRUE(copy_vid.hasUid(2));
-  ASSERT_TRUE(vid.hasUid(3));
-  ASSERT_TRUE(copy_vid.hasUid(3));
-  ASSERT_TRUE(vid.hasUid(99));
-  ASSERT_TRUE(copy_vid.hasUid(99));
-  ASSERT_FALSE(vid.hasUid(4));
-  ASSERT_FALSE(copy_vid.hasUid(4));
-  ASSERT_TRUE(vid.hasGid(4));
-  ASSERT_TRUE(copy_vid.hasGid(4));
-  ASSERT_FALSE(vid.hasGid(3));
-  ASSERT_FALSE(copy_vid.hasGid(3));
+  ASSERT_TRUE(vid.HasUid(2));
+  ASSERT_TRUE(copy_vid.HasUid(2));
+  ASSERT_TRUE(vid.HasUid(3));
+  ASSERT_TRUE(copy_vid.HasUid(3));
+  ASSERT_TRUE(vid.HasUid(99));
+  ASSERT_TRUE(copy_vid.HasUid(99));
+  ASSERT_FALSE(vid.HasUid(4));
+  ASSERT_FALSE(copy_vid.HasUid(4));
+  ASSERT_TRUE(vid.HasGid(4));
+  ASSERT_TRUE(copy_vid.HasGid(4));
+  ASSERT_FALSE(vid.HasGid(3));
+  ASSERT_FALSE(copy_vid.HasGid(3));
 }
 
 TEST(VirtualIdentity, IsLocalhost)
 {
   VirtualIdentity vid;
   vid.host = "localhost";
-  ASSERT_TRUE(vid.isLocalhost());
+  ASSERT_TRUE(vid.IsLocalhost());
   vid.host = "localhost6";
-  ASSERT_TRUE(vid.isLocalhost());
+  ASSERT_TRUE(vid.IsLocalhost());
   vid.host = "localhost.localdomain";
-  ASSERT_TRUE(vid.isLocalhost());
+  ASSERT_TRUE(vid.IsLocalhost());
   vid.host = "localhost6.localdomain6";
-  ASSERT_TRUE(vid.isLocalhost());
+  ASSERT_TRUE(vid.IsLocalhost());
   vid.host = "pickles";
-  ASSERT_FALSE(vid.isLocalhost());
+  ASSERT_FALSE(vid.IsLocalhost());
   vid.host = "asdf";
-  ASSERT_FALSE(vid.isLocalhost());
+  ASSERT_FALSE(vid.IsLocalhost());
 }
 
 
@@ -315,10 +315,10 @@ TEST_F(SecondaryGroupF, AddSecondaryGroups)
   .WillOnce(::testing::Return(std::vector<gid_t>{2, 3, 4}));
   Mapping::addSecondaryGroups(vid, name, gid);
   printvid(vid);
-  EXPECT_TRUE(vid.hasGid(2));
-  EXPECT_TRUE(vid.hasGid(3));
-  EXPECT_TRUE(vid.hasGid(4));
-  EXPECT_FALSE(vid.hasGid(5));
+  EXPECT_TRUE(vid.HasGid(2));
+  EXPECT_TRUE(vid.HasGid(3));
+  EXPECT_TRUE(vid.HasGid(4));
+  EXPECT_FALSE(vid.HasGid(5));
 }
 
 EOSCOMMONTESTING_END

@@ -110,7 +110,8 @@ ProcCommand::UserQuota()
 
   bool canQuota = false;
 
-  if ((!vid.uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID)) {
+  if ((!vid.uid) || vid.HasUid(eos::common::ADM_UID) ||
+      vid.HasGid(eos::common::ADM_GID)) {
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -199,94 +200,94 @@ ProcCommand::UserQuota()
       XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
 
       if (space.empty()) {
-	stdErr = "error: command not properly formatted";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: command not properly formatted";
+        retc = EINVAL;
+        return SFS_OK;
       }
 
       if (uid_sel.length() && gid_sel.length()) {
-	stdErr = "error: you need specify either a uid or a gid";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: you need specify either a uid or a gid";
+        retc = EINVAL;
+        return SFS_OK;
       }
 
       if (uid_sel.length()) {
-	id_type = Quota::IdT::kUid;
-	id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
+        id_type = Quota::IdT::kUid;
+        id = Mapping::UserNameToUid(uid_sel.c_str(), errc);
 
-	if (errc == EINVAL) {
-	  stdErr = "error: unable to translate uid=";
-	  stdErr += uid_sel.c_str();
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        if (errc == EINVAL) {
+          stdErr = "error: unable to translate uid=";
+          stdErr += uid_sel.c_str();
+          retc = EINVAL;
+          return SFS_OK;
+        }
       } else if (gid_sel.length()) {
-	id_type = Quota::IdT::kGid;
-	id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
-	
-	if (errc == EINVAL) {
-	  stdErr = "error: unable to translate gid=";
-	  stdErr += gid_sel.c_str();
-	  retc = EINVAL;
-	  return SFS_OK;
-	}
+        id_type = Quota::IdT::kGid;
+        id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
+
+        if (errc == EINVAL) {
+          stdErr = "error: unable to translate gid=";
+          stdErr += gid_sel.c_str();
+          retc = EINVAL;
+          return SFS_OK;
+        }
       } else {
-	stdErr = "error: no uid/gid specified for quota set";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: no uid/gid specified for quota set";
+        retc = EINVAL;
+        return SFS_OK;
       }
 
       // Deal with volume quota
       unsigned long long size = StringConversion::GetDataSizeFromString(svolume);
 
       if (svolume.length() && ((errno == EINVAL) || (errno == ERANGE))) {
-	stdErr = "error: the volume quota you specified is not a valid number";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: the volume quota you specified is not a valid number";
+        retc = EINVAL;
+        return SFS_OK;
       } else if (svolume.length()) {
-	// Set volume quota
-	if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume,
-				     size, msg, retc)) {
-	  stdOut = msg.c_str();
-	} else {
-	  stdErr = msg.c_str();
-	  return SFS_OK;
-	}
+        // Set volume quota
+        if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size, msg,
+                                     retc)) {
+          stdOut = msg.c_str();
+        } else {
+          stdErr = msg.c_str();
+          return SFS_OK;
+        }
       }
 
       // Deal with inode quota
       unsigned long long inodes = StringConversion::GetSizeFromString(sinodes);
 
       if (sinodes.length() && (errno == EINVAL)) {
-	stdErr = "error: the inode quota you specified are not a valid number";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: the inode quota you specified are not a valid number";
+        retc = EINVAL;
+        return SFS_OK;
       } else if (sinodes.length()) {
-	// Set inode quota
-	if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode,
-				     inodes, msg, retc)) {
-	  stdOut += msg.c_str();
-	} else {
-	  stdErr += msg.c_str();
-	  return SFS_OK;
-	}
+        // Set inode quota
+        if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode, inodes, msg,
+                                     retc)) {
+          stdOut += msg.c_str();
+        } else {
+          stdErr += msg.c_str();
+          return SFS_OK;
+        }
       }
 
       if ((!svolume.length()) && (!sinodes.length())) {
-	stdErr = "error: max. bytes or max. inodes values have to be defined";
-	retc = EINVAL;
-	return SFS_OK;
+        stdErr = "error: max. bytes or max. inodes values have to be defined";
+        retc = EINVAL;
+        return SFS_OK;
       }
     } else {
       retc = EPERM;
       stdErr = "error: you cannot set quota from storage node with 'sss' "
-	"authentication!";
+               "authentication!";
     }
 
     if (mSubCmd == "rm") {
       eos_notice("quota rm");
 
-      if ((pVid->prot != "sss") || pVid->isLocalhost()) {
+      if ((pVid->prot != "sss") || pVid->IsLocalhost()) {
         int errc;
 
         if (space.empty()) {

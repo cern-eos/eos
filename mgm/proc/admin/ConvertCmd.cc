@@ -72,8 +72,8 @@ ConvertCmd::ProcessRequest() noexcept
     ListSubcmd(convert.list(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kClear) {
     // check if vid has admin permissions (root, sudoer, admin user, admin group)
-    if (!vid.uid || vid.sudoer || vid.hasUid(eos::common::ADM_UID) ||
-        vid.hasGid(eos::common::ADM_GID)) {
+    if (!vid.uid || vid.sudoer || vid.HasUid(eos::common::ADM_UID) ||
+        vid.HasGid(eos::common::ADM_GID)) {
       ClearSubcmd(convert.clear(), reply);
     } else {
       reply.set_retc(EPERM);

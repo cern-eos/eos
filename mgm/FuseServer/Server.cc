@@ -1043,8 +1043,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   if (vid.uid == 0 || vid.sudoer) {
     return true;        // root & sudoers can create as any owner
   }
-  if (vid.hasUid(eos::common::ADM_UID) ||
-      vid.hasGid(eos::common::ADM_GID)) {
+  if (vid.HasUid(eos::common::ADM_UID) || vid.HasGid(eos::common::ADM_GID)) {
     return true;        // admins can create as any owner
   }
 

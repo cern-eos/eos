@@ -1029,13 +1029,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // Check if we are allowed to take sel_uid & sel_gid
   if (!vid.sudoer && !token_sudo) {
     // if we are not a sudore, scan the allowed ids
-    if (vid.hasUid(sel_uid)) {
+    if (vid.HasUid(sel_uid)) {
       vid.uid = sel_uid;
     } else {
       vid.uid = VirtualIdentity::kNobodyUid;
     }
 
-    if (vid.hasGid(sel_gid)) {
+    if (vid.HasGid(sel_gid)) {
       vid.gid = sel_gid;
     } else {
       vid.gid = VirtualIdentity::kNobodyGid;

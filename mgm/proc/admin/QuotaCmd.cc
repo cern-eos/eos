@@ -293,8 +293,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
-      mVid.hasGid(eos::common::ADM_GID)) { // @note no.03
+  if ((!mVid.uid) || mVid.HasUid(eos::common::ADM_UID) ||
+      mVid.HasGid(eos::common::ADM_GID)) { // @note no.03
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -325,7 +325,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     return;
   }
 
-  if (!(mVid.prot != "sss") && !mVid.isLocalhost()) {
+  if (!(mVid.prot != "sss") && !mVid.IsLocalhost()) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you cannot set quota from storage node with 'sss' authentication!");
     return;
@@ -383,7 +383,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
       space.c_str();
 
     if (spath.beginswith(Recycle::gRecyclingPrefix.c_str())) {
-      if (mVid.isLocalhost()) {
+      if (mVid.IsLocalhost()) {
         std_err <<
                 "warning: better use 'recycle config --size' to modify the size of the recycle bin!\n";
 
@@ -491,8 +491,8 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
-      mVid.hasGid(eos::common::ADM_GID)) { // @note no.02
+  if ((!mVid.uid) || mVid.HasUid(eos::common::ADM_UID) ||
+      mVid.HasGid(eos::common::ADM_GID)) { // @note no.02
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -523,7 +523,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
     return;
   }
 
-  if (!(mVid.prot != "sss") && !mVid.isLocalhost()) {
+  if (!(mVid.prot != "sss") && !mVid.IsLocalhost()) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you cannot set quota from storage node with 'sss' authentication!");
     return;

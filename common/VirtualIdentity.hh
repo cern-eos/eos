@@ -87,7 +87,8 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Check if the uid vector contains has the requested uid
   //----------------------------------------------------------------------------
-  inline bool hasUid(uid_t uid) const
+  inline bool
+  HasUid(uid_t uid) const
   {
     return (allowed_uids.find(uid) != allowed_uids.end());
   }
@@ -95,7 +96,8 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Check if the gid vector contains has the requested gid
   //----------------------------------------------------------------------------
-  bool hasGid(gid_t gid) const
+  bool
+  HasGid(gid_t gid) const
   {
     return (allowed_gids.find(gid) != allowed_gids.end());
   }
@@ -103,12 +105,12 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
-  bool isLocalhost() const;
+  bool IsLocalhost() const;
 
   //----------------------------------------------------------------------------
   //! Check if this client is nobody
   //----------------------------------------------------------------------------
-  bool isNobody() const;
+  bool IsNobody() const;
 
   //----------------------------------------------------------------------------
   //! Check if this is one of EOS's own engines - drain, balance, conversion,
@@ -123,7 +125,11 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
-  bool isGateway() { return gateway; }
+  bool
+  IsGateway()
+  {
+    return gateway;
+  }
 
   //----------------------------------------------------------------------------
   //! Return user@domain string

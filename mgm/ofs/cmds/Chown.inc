@@ -90,8 +90,8 @@ XrdMgmOfs::_chown(const char* path,
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(),
                      acl.CanChown());
 
-    if ((vid.uid && !vid.hasUid(eos::common::ADM_UID) &&
-         !vid.hasGid(eos::common::ADM_GID) && !acl.CanChown()) ||
+    if ((vid.uid && !vid.HasUid(eos::common::ADM_UID) &&
+         !vid.HasGid(eos::common::ADM_GID) && !acl.CanChown()) ||
         (vid.uid && !acl.IsMutable())) {
       errno = EPERM;
     } else {

@@ -619,7 +619,7 @@ ProcInterface::VidIsAdmin(const eos::common::VirtualIdentity& vid,
 
   // Hosts with 'sss' authentication can run admin commands only when the
   // login is the daemon account.
-  if ((protocol == "sss") && vid.hasUid(DAEMONUID)) {
+  if ((protocol == "sss") && vid.HasUid(DAEMONUID)) {
     return true;
   }
 
@@ -629,9 +629,8 @@ ProcInterface::VidIsAdmin(const eos::common::VirtualIdentity& vid,
   }
 
   // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
-  return (vid.hasUid(DAEMONUID) ||
-          vid.hasUid(eos::common::ADM_UID) ||
-          vid.hasGid(eos::common::ADM_GID));
+  return (vid.HasUid(DAEMONUID) || vid.HasUid(eos::common::ADM_UID) ||
+          vid.HasGid(eos::common::ADM_GID));
 }
 
 //------------------------------------------------------------------------------

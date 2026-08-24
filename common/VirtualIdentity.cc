@@ -105,7 +105,8 @@ VirtualIdentity VirtualIdentity::Nobody()
 //------------------------------------------------------------------------------
 // Check if this client is coming from localhost
 //------------------------------------------------------------------------------
-bool VirtualIdentity::isLocalhost() const
+bool
+VirtualIdentity::IsLocalhost() const
 {
   if (host == "localhost"               ||
       host == "localhost.localdomain"  ||
@@ -121,7 +122,7 @@ bool VirtualIdentity::isLocalhost() const
 // Check if this client is nobody
 //----------------------------------------------------------------------------
 bool
-VirtualIdentity::isNobody() const
+VirtualIdentity::IsNobody() const
 {
   return uid == kNobodyUid && gid == kNobodyGid;
 }

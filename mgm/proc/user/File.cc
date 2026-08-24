@@ -889,7 +889,7 @@ ProcCommand::File()
     if (mSubCmd == "tag") {
       cmdok = true;
 
-      if (!((vid.prot == "sss") && vid.hasUid(DAEMONUID)) && (vid.uid != 0)) {
+      if (!((vid.prot == "sss") && vid.HasUid(DAEMONUID)) && (vid.uid != 0)) {
         stdErr = "error: permission denied - you have to be root to "
                  "run the 'tag' command";
         retc = EPERM;
