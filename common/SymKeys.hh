@@ -29,16 +29,18 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include "google/protobuf/message.h"
+#include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
-#include <XrdOuc/XrdOucEnv.hh>
-#include "google/protobuf/message.h"
-#include <openssl/sha.h>
-#include <time.h>
-#include <string.h>
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <openssl/sha.h>
+#include <string.h>
+#include <string>
+#include <time.h>
 #include <uuid/uuid.h>
 #define EOSCOMMONSYMKEYS_GRACEPERIOD 5
 #define EOSCOMMONSYMKEYS_DELETIONOFFSET 60
@@ -305,6 +307,38 @@ public:
   //----------------------------------------------------------------------------
   static void UnobfuscateBuffer(char* buf, size_t size, off_t offset,
                                 hmac_t& hmac);
+
+  //----------------------------------------------------------------------------
+  //! Check that an encryption key can be safely carried inside the opaque
+  //! information of a redirection capability
+  //!
+  //! @param key key to validate
+  //!
+  //! @return true if the key can be used, otherwise false
+  //----------------------------------------------------------------------------
+  static bool
+  IsValidEncryptionKey(const std::string& key)
+  {
+    return (!key.empty() && (key.find_first_of("&=?\"' \t\n\r") == std::string::npos));
+  }
+
+  //----------------------------------------------------------------------------
+  //! Compute a low resolution (16-bit) fingerprint of an encryption key and
+  //! the obfuscation key of a file. Storing it alongside a file allows to
+  //! detect a wrong or a changed encryption key without ever storing the key
+  //! itself.
+  //!
+  //! @param key encryption key/secret
+  //! @param cipher per file obfuscation key
+  //!
+  //! @return decimal string representation of the fingerprint
+  //----------------------------------------------------------------------------
+  static std::string
+  KeyPrint16(const std::string& key, const std::string& cipher)
+  {
+    std::hash<std::string> secrethash;
+    return std::to_string(secrethash(key + cipher) % 65536);
+  }
 
   //----------------------------------------------------------------------------
   //! Retrieve a random cipher fitting input key <key>

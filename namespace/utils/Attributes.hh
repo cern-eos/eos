@@ -34,6 +34,14 @@ EOSNSNAMESPACE_BEGIN
 auto constexpr kAttrLinkKey = "sys.attr.link";
 auto constexpr kAttrTmpEtagKey = "sys.tmp.etag";
 auto constexpr kAttrObfuscateKey = "user.obfuscate.key";
+//! Marks a file whose obfuscation key is additionally hashed with a secret
+auto constexpr kAttrEncrypted = "user.encrypted";
+//! Low resolution fingerprint of the secret used to encrypt a file
+auto constexpr kAttrEncryptedFp = "user.encrypted.fp";
+//! Name of the space whose encryption key was used to encrypt a file
+auto constexpr kAttrEncryptSpace = "sys.encrypt.space";
+//! Directory attribute enabling obfuscation for all newly created files
+auto constexpr kAttrFileObfuscate = "sys.file.obfuscate";
 
 //------------------------------------------------------------------------------
 // Populate 'out' map with attributes found in linkedAttrs. Do not override
