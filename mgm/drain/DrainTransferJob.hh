@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
+#include "common/Constants.hh"
 #include "common/FileId.hh"
-#include "common/Logging.hh"
 #include "common/FileSystem.hh"
+#include "common/Logging.hh"
+#include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/FileMd.pb.h"
 #include <XrdCl/XrdClCopyProcess.hh>
@@ -134,26 +135,34 @@ public:
   //! @param exclude_dsts set of fs ids which are to be excluded as dest.
   //! @param drop_src mark if source replica should be dropped if operation
   //!        is successful (default true)
-  //! @param app_tag application tag for easy classification of job types
+  //! @param app_tag subsystem this job belongs to, one of the EOS_APP_*
+  //!        constants. Reported as "eos/<app_tag>", see InternalAppTag.
   //! @param balance_mode if true force transfer between given source and
   //!        destination file systems
   //! @param vid virtual identity running the job
   //! @param repair_excluded if true then try to repair also the excluded srcs
   //----------------------------------------------------------------------------
-  DrainTransferJob(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid_src,
-                   eos::common::FileSystem::fsid_t fsid_trg = 0,
-                   std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
-                   std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
-                   bool drop_src = true,
-                   const std::string& app_tag = "drain",
-                   bool balance_mode = false,
-                   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root(),
-                   bool repair_excluded = false):
-    mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainAttempt(false),
-    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode),
-    mRepairExcluded(repair_excluded), mVid(vid)
+  DrainTransferJob(
+      eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid_src,
+      eos::common::FileSystem::fsid_t fsid_trg = 0,
+      std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
+      std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {}, bool drop_src = true,
+      const std::string& app_tag = std::string(eos::common::EOS_APP_DRAIN),
+      bool balance_mode = false,
+      eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root(),
+      bool repair_excluded = false)
+      : mAppTag(app_tag)
+      , mFileId(fid)
+      , mFsIdSource(fsid_src)
+      , mFsIdTarget(fsid_trg)
+      , mTxFsIdSource(fsid_src)
+      , mStatus(Status::Ready)
+      , mRainAttempt(false)
+      , mRainReconstruct(false)
+      , mDropSrc(drop_src)
+      , mBalanceMode(balance_mode)
+      , mRepairExcluded(repair_excluded)
+      , mVid(vid)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
     mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),

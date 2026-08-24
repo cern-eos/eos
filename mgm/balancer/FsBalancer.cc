@@ -261,9 +261,9 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         no_slots = false;
         TakeTxSlot(src, dst);
         // Create and submit job
-        std::shared_ptr<DrainTransferJob> job {
-          new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
-          true, "balance", true)};
+        std::shared_ptr<DrainTransferJob> job{
+            new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {}, true,
+                                 std::string(eos::common::EOS_APP_BALANCER), true)};
         mThreadPool.PushTask<void>([job, fid, src, dst, this]() {
           job->UpdateMgmStats();
           job->DoIt();

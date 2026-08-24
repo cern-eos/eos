@@ -115,6 +115,7 @@ set(MGM_UT_SRCS
   mgm/scheduler/SchedulerBridgeTests.cc)
 
 set(COMMON_UT_SRCS
+  common/AppTagsTests.cc
   common/AssistedThreadTests.cc
   common/UtilsTests.cc
   common/FileIdTests.cc

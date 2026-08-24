@@ -130,7 +130,7 @@ sec.app=eoscp``
    sec.grps            virtual group (only VOMS)
    sec.role            virtual role (only VOMS)
    sec.info            security information e.g. DN
-   sec.app             application responsible for record e.g. balancing,gridftp,eoscp,fuse
+   sec.app             application responsible for record e.g. eoscp,fuse; EOS's own traffic is named eos/<subsystem> e.g. eos/drain,eos/groupbalancer,eos/converter,eos/fsck
    tpc.src             TPC source hostname (only on TPC transfers)
    tpc.dst             TPC destination hostname (only on TPC transfers)
    tpc.src_lfn         TPC file path at source (only on TPC transfers)
@@ -142,6 +142,43 @@ sec.app=eoscp``
 .. note::
 
    In case of TPC transfers, only one of `tpc.src` or `tpc.dst` is available, depending on the type of TPC transfer
+
+Application tags of internal traffic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A client names its application with ``?eos.app=<name>``. Everything EOS
+schedules on its own behalf names itself ``eos/<subsystem>``, so the prefix
+alone separates internal traffic from client applications, both in the report
+logs and in the per-application breakdown of ``eos io stat -x``:
+
+.. epigraph::
+
+   ==================== ==================================================================
+   Application tag      Traffic
+   ==================== ==================================================================
+   eos/drain            draining a filesystem
+   eos/balancer         balancing between the filesystems of a group
+   eos/groupbalancer    balancing between the scheduling groups of a space
+   eos/geobalancer      balancing between geotags
+   eos/groupdrainer     draining a whole scheduling group
+   eos/converter        converting a file to another layout
+   eos/fsck             repairing an inconsistency found by fsck
+   eos/fsck-scan        scanning a disk for inconsistencies
+   ==================== ==================================================================
+
+The subsystem is one lowercase word, with ``-`` between words where a name
+needs two. Files touched by traffic carrying the prefix keep their access
+time, so background transfers do not look like reads.
+
+.. note::
+
+   Earlier versions spelled some of these differently: ``groupbalancer``,
+   ``geobalancer`` and ``groupdrainer`` carried no prefix, the filesystem
+   balancer reported ``eos/balance``, and the fsck scanner ``eos/fsck_scan``.
+   Per-application configuration keyed on an old spelling has to be
+   re-pointed at the new one - that is ``eos io shaping`` policies and the
+   application-scoped space policies such as
+   ``space.bandwidth:r.app:<app>``.
 
 FST deletion records
 ^^^^^^^^^^^^^^^^^^^^^^^^

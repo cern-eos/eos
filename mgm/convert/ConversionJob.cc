@@ -184,8 +184,12 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
-  const std::string& app_tag = mConversionInfo.mAppTag.empty() ? EOS_APP_NAME :
-                               mConversionInfo.mAppTag;
+  // The app tag travels inside the conversion string, which is also the name
+  // of the conversion file, so it is carried bare and given its "eos/" prefix
+  // only here, where it goes out as the application of the transfer
+  const std::string app_tag = eos::common::InternalAppTag(
+      mConversionInfo.mAppTag.empty() ? eos::common::EOS_APP_CONVERTER
+                                      : mConversionInfo.mAppTag);
   // Construct destination CGI
   std::ostringstream dst_cgi;
   dst_cgi << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID << "&"

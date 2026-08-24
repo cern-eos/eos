@@ -268,6 +268,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 {
   using namespace eos::common;
   XrdCl::URL url_src;
+  // The application this transfer reports itself as, see InternalAppTag
+  const std::string app_tag = eos::common::InternalAppTag(mAppTag);
   eos::common::FileSystem::fs_snapshot_t src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -378,25 +380,19 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     src_params << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec="
-               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&eos.app=" << mAppTag
-               << "&eos.ruid=" << DAEMONUID
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, app_tag.c_str())
+               << "&eos.app=" << app_tag << "&eos.ruid=" << DAEMONUID
                << "&eos.rgid=" << DAEMONGID;
   } else {
     src_params << "mgm.access=read"
-               << "&mgm.lid=" << target_lid
-               << "&mgm.cid=" << fdrain.mProto.cont_id()
+               << "&mgm.lid=" << target_lid << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
                << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec="
-               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&mgm.fsid=" << src_snapshot.mId
-               << "&eos.app=" << mAppTag
-               << "&eos.ruid=" << DAEMONUID
-               << "&eos.rgid=" << DAEMONGID;
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, app_tag.c_str())
+               << "&mgm.fsid=" << src_snapshot.mId << "&eos.app=" << app_tag
+               << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID;
   }
 
   // Build the capability
@@ -456,6 +452,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 {
   using namespace eos::common;
   XrdCl::URL url_dst;
+  // The application this transfer reports itself as, see InternalAppTag
+  const std::string app_tag = eos::common::InternalAppTag(mAppTag);
   eos::common::FileSystem::fs_snapshot_t dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -488,17 +486,14 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   if (mRainReconstruct) {
     dst_params << "mgm.access=write"
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1&mgm.fid=0"
-               << "&mgm.lid=" << target_lid
-               << "&mgm.cid=" << fdrain.mProto.cont_id()
+               << "&mgm.lid=" << target_lid << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.sec="
-               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&eos.app=" << mAppTag;
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, app_tag.c_str())
+               << "&eos.app=" << app_tag;
   } else {
     dst_params << "mgm.access=write"
-               << "&mgm.lid=" << target_lid
-               << "&mgm.source.lid=" << lid
+               << "&mgm.lid=" << target_lid << "&mgm.source.lid=" << lid
                << "&mgm.source.ruid=" << fdrain.mProto.uid()
                << "&mgm.source.rgid=" << fdrain.mProto.gid()
                << "&mgm.cid=" << fdrain.mProto.cont_id()
@@ -506,13 +501,10 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath.c_str())
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec="
-               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.bookingsize="
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, app_tag.c_str())
+               << "&mgm.fsid=" << dst_snapshot.mId << "&mgm.bookingsize="
                << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size())
-               << "&eos.app=" << mAppTag
-               << "&mgm.targetsize="
+               << "&eos.app=" << app_tag << "&mgm.targetsize="
                << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size());
 
     // This is true by default for drain, but when this is set to false, we get
@@ -739,9 +731,11 @@ DrainTransferJob::UpdateMgmStats()
 {
   std::string tag_stats;
 
-  if (mAppTag == "drain") {
+  // The counter names are what "eos ns stat" has always shown, they are not
+  // the application tags of the transfers themselves
+  if (mAppTag == eos::common::EOS_APP_DRAIN) {
     tag_stats = "DrainCentral";
-  } else if (mAppTag == "balance") {
+  } else if (mAppTag == eos::common::EOS_APP_BALANCER) {
     tag_stats = "Balance";
   } else {
     tag_stats = mAppTag;

@@ -1,18 +1,19 @@
 #include "mgm/groupdrainer/GroupDrainer.hh"
-#include "mgm/convert/ConversionInfo.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/groupbalancer/StdDrainerEngine.hh"
-#include "mgm/groupbalancer/ConverterUtils.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/groupbalancer/GroupsInfoFetcher.hh"
-#include "common/utils/ContainerUtils.hh"
+#include "common/Constants.hh"
+#include "common/FileSystem.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
-#include "namespace/interface/IFsView.hh"
-#include "mgm/fsview/FsView.hh"
-#include "common/FileSystem.hh"
-#include "mgm/utils/FileSystemStatusUtils.hh"
 #include "common/utils/BackOffInvoker.hh"
+#include "common/utils/ContainerUtils.hh"
+#include "mgm/convert/ConversionInfo.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/groupbalancer/ConverterUtils.hh"
+#include "mgm/groupbalancer/GroupsInfoFetcher.hh"
+#include "mgm/groupbalancer/StdDrainerEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/utils/FileSystemStatusUtils.hh"
+#include "namespace/interface/IFsView.hh"
 
 namespace eos::mgm
 {
@@ -322,7 +323,9 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return;
   }
 
-  conv_tag += "^groupdrainer^";
+  conv_tag += "^";
+  conv_tag += eos::common::EOS_APP_GROUP_DRAINER;
+  conv_tag += "^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
   std::string err_msg;
 

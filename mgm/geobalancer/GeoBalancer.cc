@@ -22,21 +22,22 @@
  ************************************************************************/
 
 #include "mgm/geobalancer/GeoBalancer.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/Prefetcher.hh"
-#include "common/StringConversion.hh"
+#include "common/Constants.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
+#include "common/StringConversion.hh"
 #include "common/utils/RandUtils.hh"
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucTrace.hh>
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
 #include <Xrd/XrdScheduler.hh>
-#include <random>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <cmath>
+#include <random>
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -360,7 +361,9 @@ GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   }
 
   std::string conv_tag = file_path;
-  conv_tag += "^geobalancer^";
+  conv_tag += "^";
+  conv_tag += eos::common::EOS_APP_GEO_BALANCER;
+  conv_tag += "^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
   std::string err_msg;
 

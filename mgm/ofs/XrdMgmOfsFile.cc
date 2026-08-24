@@ -1978,9 +1978,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (fmd && atimeage) {
-    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter", "fsck"};
-
-    if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
+    // Traffic EOS generates for itself - drain, balance, conversion, fsck -
+    // must not move the access time of the files it touches, and says so by
+    // naming itself "eos/<subsystem>", see InternalAppTag
+    if (!eos::common::IsInternalApp(app_name)) {
       // do a potential atime update, we don't need a name
       try {
         if (fmd->setATimeNow(atimeage)) {

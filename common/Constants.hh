@@ -26,6 +26,8 @@
 #include "common/Namespace.hh"
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <string_view>
 #include <sys/types.h>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -164,5 +166,67 @@ static constexpr auto SPACE_CACHE_HIGH_WATERMARK_NAME = "cache.high_watermark";
 //! Default cache watermarks (percent of filesystem capacity used)
 static constexpr auto SPACE_CACHE_LOW_WATERMARK_DEFAULT = "70";
 static constexpr auto SPACE_CACHE_HIGH_WATERMARK_DEFAULT = "85";
+
+//------------------------------------------------------------------------------
+//! Application tags of the traffic EOS generates for itself
+//!
+//! The application an IO request belongs to is reported by "eos.app" and shown
+//! per application by "eos io stat -x". Everything EOS schedules on its own
+//! behalf - draining, balancing, conversion, fsck - names itself
+//! "eos/<subsystem>", so that one prefix tells internal traffic apart from the
+//! client applications listed next to it. The subsystem is one lowercase word,
+//! with "-" between words where a name needs two.
+//------------------------------------------------------------------------------
+//! Prefix marking traffic EOS generates for itself, see InternalAppTag
+static constexpr std::string_view EOS_APP_PREFIX = "eos/";
+//! Draining a filesystem
+static constexpr std::string_view EOS_APP_DRAIN = "drain";
+//! Balancing between the filesystems of a group
+static constexpr std::string_view EOS_APP_BALANCER = "balancer";
+//! Balancing between the scheduling groups of a space
+static constexpr std::string_view EOS_APP_GROUP_BALANCER = "groupbalancer";
+//! Balancing between geotags
+static constexpr std::string_view EOS_APP_GEO_BALANCER = "geobalancer";
+//! Draining a whole scheduling group
+static constexpr std::string_view EOS_APP_GROUP_DRAINER = "groupdrainer";
+//! Converting a file to another layout, the default of the converter engine
+static constexpr std::string_view EOS_APP_CONVERTER = "converter";
+//! Repairing an inconsistency found by fsck
+static constexpr std::string_view EOS_APP_FSCK = "fsck";
+//! Scanning the disk for inconsistencies, on the FST
+static constexpr std::string_view EOS_APP_FSCK_SCAN = "fsck-scan";
+
+//------------------------------------------------------------------------------
+//! Get the application tag naming one of EOS's own subsystems
+//!
+//! @param subsystem subsystem name, one of the EOS_APP_* constants
+//!
+//! @return application tag, "eos/<subsystem>"
+//!
+//! @note idempotent: a tag that already carries the prefix is returned as it
+//!       is, so a caller passing a full tag cannot end up with "eos/eos/..."
+//------------------------------------------------------------------------------
+inline std::string
+InternalAppTag(std::string_view subsystem)
+{
+  if (subsystem.compare(0, EOS_APP_PREFIX.length(), EOS_APP_PREFIX) == 0) {
+    return std::string(subsystem);
+  }
+
+  return std::string(EOS_APP_PREFIX).append(subsystem);
+}
+
+//------------------------------------------------------------------------------
+//! Check whether an application tag names traffic EOS generates for itself
+//!
+//! @param app application tag, as reported by "eos.app"
+//!
+//! @return true if this is internal traffic, false for a client application
+//------------------------------------------------------------------------------
+inline bool
+IsInternalApp(std::string_view app)
+{
+  return (app.compare(0, EOS_APP_PREFIX.length(), EOS_APP_PREFIX) == 0);
+}
 
 EOSCOMMONNAMESPACE_END

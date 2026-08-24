@@ -694,11 +694,17 @@ Traffic from the groupbalancer is tagged as ``eos/groupbalancer`` and visible in
     io │             application│    1min│    5min│      1h│     24h
    └───┴────────────────────────┴────────┴────────┴────────┴────────┘
    out        eos/groupbalancer  86.41 G 190.89 G   2.95 T  19.15 T
-   out          eos/replication        0   1.49 G  52.96 G  52.96 G
+   out              eos/drain        0   1.49 G  52.96 G  52.96 G
    out                    other      605   1.33 K  10.77 K  64.73 K
    in         eos/groupbalancer  18.91 G  85.30 G   2.83 T  19.04 T
-   in           eos/replication        0   1.43 G  52.90 G  52.90 G
+   in                eos/drain        0   1.43 G  52.90 G  52.90 G
    in                     other      605   1.33 K  10.77 K  64.73 K
+
+Every subsystem EOS runs on its own behalf names itself ``eos/<subsystem>``,
+so the prefix alone tells its traffic apart from the client applications
+listed next to it: ``eos/drain``, ``eos/balancer``, ``eos/groupbalancer``,
+``eos/geobalancer``, ``eos/groupdrainer``, ``eos/converter``, ``eos/fsck``
+and ``eos/fsck-scan``.
 
 .. index::
    pair: Group Balancer; Log Files

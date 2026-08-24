@@ -22,16 +22,17 @@
  ************************************************************************/
 
 #include "mgm/fsck/FsckEntry.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/proc/proc_fs.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include "common/StringConversion.hh"
+#include "common/Constants.hh"
 #include "common/LayoutId.hh"
+#include "common/StringConversion.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/proc_fs.hh"
+#include "mgm/stat/Stat.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 
 using eos::common::StringConversion;
@@ -369,8 +370,8 @@ FsckEntry::RepairBestEffort()
     }
 
     // Trigger an fsck repair job (much like a drain job) doing a TPC
-    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
-                                     bad_fsids, true, "eos/fsck", false);
+    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids, bad_fsids, true,
+                                     std::string(eos::common::EOS_APP_FSCK), false);
     repair_job->DoIt();
 
     if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -505,8 +506,8 @@ FsckEntry::RepairMgmXsSzDiff()
     if (good_fsids.size() < num_nominal_rep) {
       for (auto bad_fsid : bad_fsids) {
         // Trigger an fsck repair job (much like a drain job) doing a TPC
-        auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
-                                         bad_fsids, true, "fsck", false);
+        auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids, bad_fsids, true,
+                                         std::string(eos::common::EOS_APP_FSCK), false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -679,8 +680,8 @@ FsckEntry::RepairFstXsSzDiff()
 
   for (auto bad_fsid : bad_fsids) {
     // Trigger an fsck repair job (much like a drain job) doing a TPC
-    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
-                                     bad_fsids, true, "fsck", false);
+    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids, bad_fsids, true,
+                                     std::string(eos::common::EOS_APP_FSCK), false);
     repair_job->DoIt();
 
     if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -893,8 +894,9 @@ FsckEntry::RepairRainInconsistencies()
     repair_excluded = true;
   }
 
-  auto repair_job = mRepairFactory(mFid, src_fsid, 0, bad_fsids, bad_fsids,
-                                   drop_src_fsid, "fsck", repair_excluded);
+  auto repair_job =
+      mRepairFactory(mFid, src_fsid, 0, bad_fsids, bad_fsids, drop_src_fsid,
+                     std::string(eos::common::EOS_APP_FSCK), repair_excluded);
   repair_job->DoIt();
 
   if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -1077,8 +1079,8 @@ FsckEntry::RepairReplicaInconsistencies()
         // Trigger a fsck repair job but without dropping the source, this is
         // similar to adjust replica
         eos::common::FileSystem::fsid_t good_fsid = mMgmFmd.locations(0);
-        auto repair_job = mRepairFactory(mFid, good_fsid, 0, {}, to_drop,
-                                         false, "fsck", false);
+        auto repair_job = mRepairFactory(mFid, good_fsid, 0, {}, to_drop, false,
+                                         std::string(eos::common::EOS_APP_FSCK), false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {

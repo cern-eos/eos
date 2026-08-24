@@ -1634,8 +1634,9 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
       SSTR("/.fxid:" << std::hex << fid << std::dec << "?mgm.pcmd=open"
                      << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
                      << "&xrd.wantprot=sss"
-                     << "&eos.app=eos/fsck_scan"
-                     << "&" << eos::common::kSchedClassKey << "="
+                     << "&eos.app="
+                     << eos::common::InternalAppTag(eos::common::EOS_APP_FSCK_SCAN) << "&"
+                     << eos::common::kSchedClassKey << "="
                      << eos::common::kSchedClassInternal);
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
