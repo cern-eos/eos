@@ -272,7 +272,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     if (authz_obj && !authz.empty() && (authz.find("Bearer%20") == 0)) {
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
           XrdAccPriv_None) {
-        vid = VirtualIdentity::Nobody();
+        // Downgrade to 'nobody' but keep prot/tident - a full reset via
+        // VirtualIdentity::Nobody() clears vid.prot, which makes the
+        // protocol dependent logic downstream misbehave. Most visibly
+        // XrdMgmOfsFile::open would then pick the FST XRootD port instead
+        // of the HTTP one when building the redirection for an HTTP client.
+        vid.toNobody();
         std::string nobearer = authz.substr(9);
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "jwt={%s}[%s]", path.c_str(), env,
@@ -314,7 +319,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
       if (authz_obj->Access(client, path.c_str(), acc_op, &op_env) ==
           XrdAccPriv_None) {
-        vid = VirtualIdentity::Nobody();
+        // Downgrade to 'nobody' but keep prot/tident - see comment in the
+        // HTTPS bearer token branch above
+        vid.toNobody();
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "authz=\"%s\" jwt={%s}", path.c_str(), env,
                        authz.c_str(),
@@ -358,7 +365,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) == XrdAccPriv_None) {
         // In principle we will never get here if XrdMgmAuthz is chained since
         // it says ok if there is a user name defined
-        vid = VirtualIdentity::Nobody();
+        // Downgrade to 'nobody' but keep prot/tident - see comment in the
+        // HTTPS bearer token branch above
+        vid.toNobody();
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "authz=\"%s\" jwt={%s}",  path.c_str(), env,
                        authz.c_str(),
