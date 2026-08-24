@@ -2,6 +2,7 @@
 
 #include "mgm/shaping/TrafficShaping.hh"
 
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -69,13 +70,15 @@ FormatValue(std::string& out, double value)
   } else if (std::isinf(value)) {
     out += (value < 0 ? "-Inf" : "+Inf");
   } else {
-    char buf[64];
-    if (value == std::floor(value) && std::abs(value) < 1e15) {
-      std::snprintf(buf, sizeof(buf), "%.0f", value);
+    char buf[128];
+    const auto result =
+        std::to_chars(buf, buf + sizeof(buf), value, std::chars_format::general);
+    if (result.ec == std::errc{}) {
+      out.append(buf, result.ptr);
     } else {
-      std::snprintf(buf, sizeof(buf), "%.6g", value);
+      std::snprintf(buf, sizeof(buf), "%.17g", value);
+      out += buf;
     }
-    out += buf;
   }
 }
 

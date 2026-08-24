@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mgm/monitoring/EosExporterCollector.hh"
 #include "mgm/monitoring/FstStatusCollector.hh"
 #include "mgm/monitoring/MgmStatusCollector.hh"
 #include "mgm/monitoring/TrafficShapingCollector.hh"
@@ -34,6 +35,7 @@ private:
   std::function<bool()> mShouldCollect;
   MgmStatusCollector mMgmStatusCollector;
   FstStatusCollector mFstStatusCollector;
+  EosExporterCollector mEosExporterCollector;
   TrafficShapingCollector mTrafficShapingCollector;
   std::unique_ptr<XrdMetrics::Collector> mCollector;
 };

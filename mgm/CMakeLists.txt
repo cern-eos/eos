@@ -274,6 +274,8 @@ add_library(
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
   monitoring/FstStatusCollector.cc
   monitoring/FstStatusCollector.hh
+  monitoring/EosExporterCollector.cc
+  monitoring/EosExporterCollector.hh
   monitoring/MgmStatusCollector.cc
   monitoring/MgmStatusCollector.hh
   monitoring/Monitoring.cc

@@ -50,6 +50,7 @@ set(MGM_UT_SRCS
   mgm/EgroupTests.cc
   mgm/FileSystemRegistryTests.cc
   mgm/FsViewTests.cc
+  mgm/EosExporterCollectorTests.cc
   mgm/FstStatusCollectorTests.cc
   mgm/MgmStatusCollectorTests.cc
   mgm/TrafficShapingCollectorTests.cc

@@ -16,6 +16,7 @@ XrdMetricsCollector::XrdMetricsCollector(
     , mShouldCollect(std::move(should_collect))
     , mMgmStatusCollector(mCluster, std::move(mgm_status_snapshot))
     , mFstStatusCollector(mCluster)
+    , mEosExporterCollector(mCluster)
     , mTrafficShapingCollector(engine, mCluster)
 {
   try {
@@ -49,6 +50,7 @@ XrdMetricsCollector::Collect(std::string& out) const
   // Master-only metrics: FST status and traffic shaping
   if (mShouldCollect && mShouldCollect()) {
     mFstStatusCollector.Collect(out);
+    mEosExporterCollector.Collect(out);
     mTrafficShapingCollector.Collect(out);
   }
 }
