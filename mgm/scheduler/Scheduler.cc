@@ -22,15 +22,38 @@
  ************************************************************************/
 
 #include "mgm/scheduler/Scheduler.hh"
-#include "mgm/quota/Quota.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/placement/FsScheduler.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 std::mutex Scheduler::sMapMutex;
 std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
+
+//------------------------------------------------------------------------------
+// Name of a scheduling engine, for logs
+//------------------------------------------------------------------------------
+const char*
+Scheduler::SchedEngineName(SchedEngine engine)
+{
+  switch (engine) {
+  case SchedEngine::kFlat:
+    return "flat";
+
+  case SchedEngine::kGeoTree:
+    return "geotree";
+
+  case SchedEngine::kFlatFallback:
+    return "geotree-fb";
+
+  case SchedEngine::kNone:
+  default:
+    return "none";
+  }
+}
 
 //------------------------------------------------------------------------------
 // Get the number of replicas that should stay in the client's geolocation
@@ -114,6 +137,10 @@ Scheduler::FlatSchedulerPlacement(PlacementArguments* args,
     return EINVAL;
   }
 
+  // From here on the flat scheduler owns this request. The caller needs to tell
+  // a routing rejection above from an engine failure below, and a return code
+  // cannot carry that - FsScheduler reports both as EINVAL on the access path.
+  args->flat_engine_ran = true;
   const placement::PlacementStrategyT strategy = config.strategy;
 
   uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(args->lid) + 1;
@@ -162,12 +189,30 @@ int
 Scheduler::Placement(PlacementArguments* args)
 {
   // The one place that decides which engine schedules a placement: the flat
-  // scheduler first, the legacy geotree engine as the fallback.
-  if (!FlatSchedulerPlacement(args)) {
-    return 0;
+  // scheduler first, the legacy geotree engine as the fallback. Each engine
+  // invocation is timed on its own so that the two can be compared. Samples go
+  // in under uid/gid 0 on purpose - a StatAvg is ~31kB and Stat::Add allocates
+  // one per uid *and* one per gid, so accounting these to the client would cost
+  // tens of MB per tag on a busy instance for a breakdown nobody reads. The
+  // aggregated row in 'eos ns stat' is identical either way.
+  ScopedExecTiming timer;
+  int rc = FlatSchedulerPlacement(args);
+
+  if (args->flat_engine_ran) {
+    args->sched_exec_ms += timer.Record("Sched::Placement::Flat");
+
+    if (rc == 0) {
+      args->sched_engine = SchedEngine::kFlat;
+      return 0;
+    }
   }
 
-  return GeoTreePlacement(args);
+  timer.Restart();
+  rc = GeoTreePlacement(args);
+  args->sched_exec_ms += timer.Record("Sched::Placement::GeoTree");
+  args->sched_engine =
+      args->flat_engine_ran ? SchedEngine::kFlatFallback : SchedEngine::kGeoTree;
+  return rc;
 }
 
 //------------------------------------------------------------------------------
@@ -425,16 +470,34 @@ Scheduler::Access(AccessArguments* args)
     return ENODATA;
   }
 
-  int rc = 0;
-  // Both engines need this, so it happens before either of them is asked
+  // Both engines need this, so it happens before either of them is asked - and
+  // outside the timed region, since it belongs to neither of them
   MarkTriedLocationsUnavailable(args);
+  // See Scheduler::Placement for why the samples are accounted to uid/gid 0
+  ScopedExecTiming timer;
+  int rc = FlatSchedulerAccess(args);
 
-  if (!FlatSchedulerAccess(args)) {
-    eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
-                     *args->fsindex);
-  } else {
-    eos_static_info("%s", "msg=\"Failed access via FlatScheduler, falling back to geotree\"");
+  if (args->flat_engine_ran) {
+    args->sched_exec_ms += timer.Record("Sched::Access::Flat");
+
+    if (rc == 0) {
+      args->sched_engine = SchedEngine::kFlat;
+      eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
+                       *args->fsindex);
+    }
+  }
+
+  if (rc) {
+    if (args->flat_engine_ran) {
+      eos_static_info("%s",
+                      "msg=\"Failed access via FlatScheduler, falling back to geotree\"");
+    }
+
+    timer.Restart();
     rc = GeoTreeAccess(args);
+    args->sched_exec_ms += timer.Record("Sched::Access::GeoTree");
+    args->sched_engine =
+        args->flat_engine_ran ? SchedEngine::kFlatFallback : SchedEngine::kGeoTree;
   }
 
   if (rc == 0) {
@@ -530,6 +593,9 @@ Scheduler::FlatSchedulerAccess(AccessArguments* args, placement::FsScheduler& fs
     return EINVAL;
   }
 
+  // See FlatSchedulerPlacement - from here on a non-zero return is a real
+  // failure of this engine, not a routing rejection
+  args->flat_engine_ran = true;
   const placement::PlacementStrategyT strategy = config.strategy;
 
   placement::AccessArgs access_args{
@@ -593,7 +659,12 @@ Scheduler::PlaceDrainReplica(
     // job has already tried
     args.excludefs.assign(existing_repl.begin(), existing_repl.end());
     args.excludefs.insert(args.excludefs.end(), exclude_dsts.begin(), exclude_dsts.end());
+    // Drain gets its own tags: it is internal, single stripe and group pinned
+    // traffic running at a rate nothing like client opens, so folding it into
+    // Sched::Placement::* would poison the client facing comparison
+    ScopedExecTiming timer;
     auto result = gOFS->mFsScheduler->Schedule(spacename, args);
+    timer.Record("Sched::DrainPlacement::Flat");
 
     if (result && (result.n_filled >= 1)) {
       eos_static_debug("msg=\"flat scheduler selected drain destination\" "
@@ -624,6 +695,7 @@ Scheduler::PlaceDrainReplica(
     return 0;
   }
 
+  ScopedExecTiming geo_timer;
   bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
       group, 1, &new_repl, (ino64_t)fid,
       NULL, // entrypoints
@@ -634,6 +706,7 @@ Scheduler::PlaceDrainReplica(
       0,  // ncollocatedfs
       &excludes,
       &fsid_geotags); // excludeGeoTags
+  geo_timer.Record("Sched::DrainPlacement::GeoTree");
 
   if (!res || new_repl.empty()) {
     eos_static_err("msg=\"could not place new drain replica\" fxid=%08llx", fid);

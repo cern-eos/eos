@@ -78,6 +78,51 @@ Stat::AddExec(const char* tag, float exectime)
   }
 }
 
+//------------------------------------------------------------------------------
+// Record a counter increment and an execution time for the same tag under a
+// single lock acquisition
+//------------------------------------------------------------------------------
+void
+Stat::AddExecTiming(const char* tag, uid_t uid, gid_t gid, float exectime,
+                    const std::string& app)
+{
+  XrdSysMutexHelper lock(mMutex);
+  StatsUid[tag][uid] += 1;
+  StatsGid[tag][gid] += 1;
+  StatAvgUid[tag][uid].Add(1);
+  StatAvgGid[tag][gid].Add(1);
+
+  if (!app.empty()) {
+    StatsApp[tag][app] += 1;
+    StatAvgApp[tag][app].Add(1);
+  }
+
+  StatExec[tag].push_back(exectime);
+  CumulativeTimeExec[tag] += exectime;
+
+  // we average over 100 entries
+  if (StatExec[tag].size() > 100) {
+    StatExec[tag].pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Record one sample under the given tag
+//------------------------------------------------------------------------------
+double
+ScopedExecTiming::Record(const char* tag, uid_t uid, gid_t gid, const std::string& app)
+{
+  const double elapsed = Elapsed();
+
+  // Same guard the EXEC_TIMING_END macro carries: the scheduler bridge is
+  // exercised by unit tests that run without an MGM instance
+  if (gOFS != nullptr) {
+    gOFS->MgmStats.AddExecTiming(tag, uid, gid, (float)elapsed, app);
+  }
+
+  return elapsed;
+}
+
 /*----------------------------------------------------------------------------*/
 // warning: you have to lock the mutex if directly used
 unsigned long long
@@ -666,8 +711,8 @@ Stat::Clear()
     StatAvgGid[ittag->first].resize(1000);
     StatAvgApp[ittag->first].clear();
     StatAvgApp[ittag->first].resize(1000);
+    // Only clear() as resize would append 1000 0-filled samples
     StatExec[ittag->first].clear();
-    StatExec[ittag->first].resize(1000);
     CumulativeTimeExec[ittag->first] = 0.0;
   }
 }
@@ -761,7 +806,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     double avg = 0, sig = 0;
     double max = 0, perc = 0;
     double cumulativeExecTimeMs = 0;
-    avg = GetExec(tag, sig, max, perc);
+    avg = GetExec(tag, sig, perc, max);
     cumulativeExecTimeMs = GetCumulativeExecTime(tag);
     TableData table_data;
     table_data.emplace_back();

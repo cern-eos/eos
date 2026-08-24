@@ -1884,6 +1884,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uint64_t atimeage = 0;
   std::vector<std::string> altChecksums;
   bool computeAltXs = false;
+  // Which engine took the scheduling decision of this open, and how much time
+  // the engines spent on it. Filled in by whichever of the scheduling sites
+  // below runs - an open that reads and then re-creates pays for two.
+  Scheduler::SchedEngine sched_engine = Scheduler::SchedEngine::kNone;
+  double sched_ms = 0.0;
   // select space and layout according to policies
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
@@ -2315,6 +2320,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     retc = Quota::FilePlacement(&plctargs);
     COMMONTIMING("Scheduler::FilePlaced", &tm);
+    sched_engine = plctargs.sched_engine;
+    sched_ms += plctargs.sched_exec_ms;
     Scheduler::ReshuffleFs(selectedfs);
   } else {
     // Access existing file - fill the vector with the existing locations
@@ -2386,6 +2393,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       retc = Scheduler::Access(&acsargs);
       COMMONTIMING("Scheduler::Accessed", &tm);
+      sched_engine = acsargs.sched_engine;
+      sched_ms += acsargs.sched_exec_ms;
     }
 
     if (acsargs.isRW) {
@@ -2427,6 +2436,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         retc = Quota::FilePlacement(&plctargs);
         COMMONTIMING("Scheduler::FilePlaced", &tm);
+        sched_engine = plctargs.sched_engine;
+        sched_ms += plctargs.sched_exec_ms;
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -3005,6 +3016,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         retc = Quota::FilePlacement(&plctargs);
       }
       COMMONTIMING("Scheduler::FilePlaced", &tm);
+      sched_engine = plctargs.sched_engine;
+      sched_ms += plctargs.sched_exec_ms;
       LogSchedulingInfo(selectedfs);
 
       if (retc) {
@@ -3474,8 +3487,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s duration=%0.03fms timing=%s",
-           path, clientinfo, tm.RealTime(), tm.Dump().c_str());
+  eos_info("path=%s %s sched:engine=%s sched:rt=%.02f duration=%0.03fms timing=%s", path,
+           clientinfo, Scheduler::SchedEngineName(sched_engine), sched_ms, tm.RealTime(),
+           tm.Dump().c_str());
 
   // Audit READ for successful open if read-only using global or per-dir override
   if (!isRW && gOFS->AllowAuditRead(path)) {

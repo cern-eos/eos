@@ -243,6 +243,8 @@ TEST_F(SchedulerBridgeF, BookingsizeTooLargeFails)
   auto args = MakePlctArgs();
   args.bookingsize = 200 * kFreeSpaceUnit;
   EXPECT_EQ(Scheduler::FlatSchedulerPlacement(&args, *mFsSched), ENOSPC);
+  // The engine ran and failed - the facade must time this as a flat sample
+  EXPECT_TRUE(args.flat_engine_ran);
 }
 
 TEST_F(SchedulerBridgeF, BookingsizeSteersToDisksWithRoom)
@@ -300,6 +302,9 @@ TEST_F(SchedulerBridgeF, LegacyStrategyOptsOut)
   args.sched_strategy_cstr = "geotree";
   EXPECT_EQ(Scheduler::FlatSchedulerPlacement(&args, *mFsSched), EINVAL);
   EXPECT_TRUE(mSelected.empty());
+  // The engine never ran, so the facade must not file a flat timing sample -
+  // otherwise every geotree space open drags the flat average towards zero
+  EXPECT_FALSE(args.flat_engine_ran);
 }
 
 TEST_F(SchedulerBridgeF, OpaqueStrategyOverridesSpaceDefault)
@@ -309,9 +314,11 @@ TEST_F(SchedulerBridgeF, OpaqueStrategyOverridesSpaceDefault)
   mFsSched->SetSchedConfig("geotree");
   auto args = MakePlctArgs();
   EXPECT_EQ(Scheduler::FlatSchedulerPlacement(&args, *mFsSched), EINVAL);
+  EXPECT_FALSE(args.flat_engine_ran);
   args.sched_strategy_cstr = "rr";
   EXPECT_EQ(Scheduler::FlatSchedulerPlacement(&args, *mFsSched), 0);
   EXPECT_EQ(mSelected.size(), 2u);
+  EXPECT_TRUE(args.flat_engine_ran);
 }
 
 TEST(SchedulerBridge, GetCollocatedReplicas)
@@ -422,6 +429,9 @@ TEST_F(SchedulerBridgeF, AccessLegacySpaceFallsThrough)
   auto args = MakeAccessArgs();
   EXPECT_EQ(Scheduler::FlatSchedulerAccess(&args, *mFsSched), EINVAL);
   EXPECT_EQ(mFsIndex, 99u);
+  // A routing rejection, not an engine failure - and on the access path the
+  // return code alone cannot tell the two apart
+  EXPECT_FALSE(args.flat_engine_ran);
 }
 
 TEST_F(SchedulerBridgeF, AccessWithoutForcedSpaceUsesDefaultStrategy)

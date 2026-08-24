@@ -55,6 +55,29 @@ public:
   { kScattered, kHybrid, kGathered };
 
   //----------------------------------------------------------------------------
+  //! Engine that took a scheduling decision, as reported back to the caller.
+  //! Deliberately not placement::SchedEngineT - this needs a kNone and a
+  //! kFlatFallback that have no meaning as a *configuration*, and pulling in
+  //! SelectionStrategy.hh would drag ClusterDataTypes.hh and xxhash.h into
+  //! every consumer of this header.
+  //----------------------------------------------------------------------------
+  enum class SchedEngine : uint8_t {
+    kNone = 0,    //!< no engine ran (early return before scheduling)
+    kFlat,        //!< the flat scheduler decided
+    kGeoTree,     //!< the geotree engine decided, the space is routed to it
+    kFlatFallback //!< the flat scheduler ran, failed, and geotree decided
+  };
+
+  //----------------------------------------------------------------------------
+  //! Name of a scheduling engine, for logs
+  //!
+  //! @param engine engine that produced a decision
+  //!
+  //! @return static string naming the engine
+  //----------------------------------------------------------------------------
+  static const char* SchedEngineName(SchedEngine engine);
+
+  //----------------------------------------------------------------------------
   //! File placement structs and methods
   //----------------------------------------------------------------------------
   struct PlacementArguments {
@@ -94,6 +117,15 @@ public:
     std::vector<unsigned int>* selected_filesystems;
     //! file systems not to be used by the scheduler
     std::vector<unsigned int>* exclude_filesystems;
+    /// OUTPUT
+    //! whether the flat scheduler actually ran, as opposed to declining the
+    //! request because the space is routed to the geotree engine. A return code
+    //! cannot carry this - EINVAL means both things on the access path.
+    bool flat_engine_ran;
+    //! engine that produced the answer
+    SchedEngine sched_engine;
+    //! milliseconds spent inside the scheduling engines, fallback included
+    double sched_exec_ms;
 
     //--------------------------------------------------------------------------
     //! Constructor
@@ -115,6 +147,9 @@ public:
         , alreadyused_filesystems(0)
         , selected_filesystems(0)
         , exclude_filesystems(0)
+        , flat_engine_ran(false)
+        , sched_engine(SchedEngine::kNone)
+        , sched_exec_ms(0.0)
     {}
 
     //--------------------------------------------------------------------------
@@ -283,6 +318,15 @@ public:
     std::vector<unsigned int>* unavailfs;
     //! filesystem ids to exclude from access scheduling (eos.excludefsid)
     const std::vector<uint32_t>* exclude_filesystems;
+    /// OUTPUT
+    //! whether the flat scheduler actually ran, as opposed to declining the
+    //! request because the space is routed to the geotree engine. A return code
+    //! cannot carry this - FsScheduler::Access reports both as EINVAL.
+    bool flat_engine_ran;
+    //! engine that produced the answer
+    SchedEngine sched_engine;
+    //! milliseconds spent inside the scheduling engines, fallback included
+    double sched_exec_ms;
 
     //--------------------------------------------------------------------------
     //! Constructor
@@ -301,6 +345,9 @@ public:
         , fsindex(nullptr)
         , unavailfs(nullptr)
         , exclude_filesystems(nullptr)
+        , flat_engine_ran(false)
+        , sched_engine(SchedEngine::kNone)
+        , sched_exec_ms(0.0)
     {}
 
     //--------------------------------------------------------------------------

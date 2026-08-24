@@ -22,17 +22,18 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
+#include "mgm/Namespace.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
-#include <google/sparse_hash_map>
-#include <vector>
-#include <map>
-#include <string>
+#include <chrono>
 #include <deque>
+#include <google/sparse_hash_map>
+#include <map>
 #include <math.h>
+#include <string>
 #include <sys/time.h>
+#include <vector>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -524,6 +525,17 @@ public:
 
   void AddExec(const char* tag, float exectime);
 
+  //----------------------------------------------------------------------------
+  //! Record one timed call of a tag: the call counter and the execution time in
+  //! a single lock acquisition. Add() followed by AddExec() does the same thing
+  //! but takes mMutex twice, which on a path as hot as open() is contention
+  //! paid for nothing. Both halves are needed - PrintOutTotal builds its table
+  //! from the keys of StatsUid, so a tag that only ever reaches AddExec never
+  //! shows up in 'eos ns stat' at all.
+  //----------------------------------------------------------------------------
+  void AddExecTiming(const char* tag, uid_t uid, gid_t gid, float exectime,
+                     const std::string& app = "");
+
   // warning: you have to lock the mutex if directly used
   unsigned long long GetTotal(const char* tag);
   double GetCumulativeExecTime(const char* tag);
@@ -582,6 +594,62 @@ public:
   void Circulate(ThreadAssistant& assistant) noexcept;
 
   ~Stat() = default;
+};
+
+//------------------------------------------------------------------------------
+//! Scoped execution timer. Unlike the EXEC_TIMING_BEGIN/END macros it declares
+//! no fixed identifiers, so several can coexist in one scope, and it does not
+//! decide up front which tag the sample belongs to - which is what a facade
+//! that only learns which engine ran once the call returned needs. A timer that
+//! is never recorded costs one clock read and is simply discarded.
+//------------------------------------------------------------------------------
+class ScopedExecTiming {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor - starts the clock
+  //----------------------------------------------------------------------------
+  ScopedExecTiming()
+      : mStart(std::chrono::steady_clock::now())
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Start a new measurement, e.g. before the fallback engine runs
+  //----------------------------------------------------------------------------
+  void
+  Restart()
+  {
+    mStart = std::chrono::steady_clock::now();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Milliseconds elapsed since construction or the last Restart. Kept as a
+  //! double - a scheduling decision costs tens of microseconds, so casting to
+  //! whole milliseconds would floor nearly every sample to zero.
+  //----------------------------------------------------------------------------
+  double
+  Elapsed() const
+  {
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() -
+                                                     mStart)
+        .count();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Record one sample under the given tag, no-op without an MGM instance
+  //!
+  //! @param tag statistics tag to record under
+  //! @param uid user id to account the call to
+  //! @param gid group id to account the call to
+  //! @param app application name, if any
+  //!
+  //! @return the elapsed milliseconds, so the caller can also propagate it
+  //----------------------------------------------------------------------------
+  double Record(const char* tag, uid_t uid = 0, gid_t gid = 0,
+                const std::string& app = "");
+
+private:
+  std::chrono::steady_clock::time_point mStart;
 };
 
 EOSMGMNAMESPACE_END

@@ -527,6 +527,12 @@ Here is an example output of `eos ns stat`, the header columns are explained her
    all Scheduled2Drain                                    0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all SchedulingFailedBalance                            0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all SchedulingFailedDrain                              0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
+   all Sched::Access::Flat                          1.24 M   89.25   94.10   91.77   88.31     0.04      0.02     0.11     0.31      48s
+   all Sched::Access::GeoTree                       3.11 M  210.50  228.44  214.06  205.92     0.19      0.14     0.72     2.10      10m
+   all Sched::DrainPlacement::Flat                 84.10 K    0.00    2.15    1.88    0.94     0.06      0.03     0.16     0.44       5s
+   all Sched::DrainPlacement::GeoTree              12.44 K    0.00    0.00    0.31    0.12     0.38      0.27     1.31     3.02       5s
+   all Sched::Placement::Flat                     141.02 K   12.00   13.41   12.88   11.95     0.07      0.03     0.19     0.55      10s
+   all Sched::Placement::GeoTree                   92.38 K    7.25    8.02    7.61    7.14     0.41      0.30     1.44     3.90      38s
    all Stall                                            610     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all Stall::threads::104503                           347     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all Stall::threads::104562                             5     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
@@ -808,6 +814,52 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     ViewLockWWait:max
     ===========================================  ======================================================================================
 
+
+Scheduling decisions
+""""""""""""""""""""
+
+The ``Sched::`` rows measure how long a single scheduling decision takes, split
+by operation and by the engine that took it. They exist to compare the legacy
+geotree engine against the flat scheduler (see ``space config <space>
+space.scheduler.type=...``) while both are in service:
+
+.. code-block:: bash
+
+   * Sched::Placement::Flat        : new file placement decided by the flat scheduler
+   * Sched::Placement::GeoTree     : new file placement decided by the geotree engine
+   * Sched::Access::Flat           : read/update replica selection by the flat scheduler
+   * Sched::Access::GeoTree        : read/update replica selection by the geotree engine
+   * Sched::DrainPlacement::Flat   : drain destination picked by the flat scheduler
+   * Sched::DrainPlacement::GeoTree: drain destination picked by the geotree engine
+
+The ``exec(ms)``, ``sigma(ms)``, ``99p(ms)`` and ``max(ms)`` columns of a
+``Flat`` row read directly against the ``GeoTree`` row beneath it. Only the time
+spent inside the engine is measured - the ``FsView`` lock acquisition, the quota
+checks and the exclusion filtering around it are shared by both engines and are
+left out on purpose.
+
+``sum`` counts how often each engine was consulted, so on an instance where
+every space is routed to the flat scheduler a non-zero ``Sched::Placement::GeoTree``
+means the flat engine failed and fell back. A space routed to the geotree engine
+never produces a ``Flat`` sample at all: declining a request costs no measurable
+time and recording it would drag the flat average towards zero.
+
+Both successful and failed decisions are recorded under the same tag - the time
+was spent either way. A failed placement tends to return faster than a
+successful one, so a high fallback rate pulls the corresponding average down.
+
+Drain gets its own pair of tags because it is internal, single-stripe,
+group-pinned traffic running at a rate nothing like client opens; folding it
+into the placement rows would skew the client-facing comparison.
+
+The same information is logged per open in the MGM log, alongside the existing
+timing summary::
+
+   path=/eos/dev/f1 open:rt=1.42 ... sched:engine=flat sched:rt=0.08 duration=1.421ms timing=...
+
+where ``sched:engine`` is one of ``flat``, ``geotree``, ``geotree-fb`` (the flat
+scheduler ran, failed, and geotree answered) or ``none`` (the open took no
+scheduling decision), and ``sched:rt`` is the milliseconds spent in the engines.
 
 .. index::
    pair: Interfaces; Access

@@ -2435,7 +2435,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("FileInfo", 0, 0, 0);
   MgmStats.Add("FindEntries", 0, 0, 0);
   MgmStats.Add("Find", 0, 0, 0);
-  MgmStats.Add("FScheduler::Placement::Failed", 0, 0, 0);
   MgmStats.Add("Fuse", 0, 0, 0);
   MgmStats.Add("Fuse-Statvfs", 0, 0, 0);
   MgmStats.Add("Fuse-Mkdir", 0, 0, 0);
@@ -2512,6 +2511,12 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
   MgmStats.Add("DrainCentralFailed", 0, 0, 0);
   MgmStats.Add("QueryResync", 0, 0, 0);
+  MgmStats.Add("Sched::Access::Flat", 0, 0, 0);
+  MgmStats.Add("Sched::Access::GeoTree", 0, 0, 0);
+  MgmStats.Add("Sched::DrainPlacement::Flat", 0, 0, 0);
+  MgmStats.Add("Sched::DrainPlacement::GeoTree", 0, 0, 0);
+  MgmStats.Add("Sched::Placement::Flat", 0, 0, 0);
+  MgmStats.Add("Sched::Placement::GeoTree", 0, 0, 0);
   MgmStats.Add("Stall", 0, 0, 0);
   MgmStats.Add("Stat", 0, 0, 0);
   MgmStats.Add("Symlink", 0, 0, 0);
