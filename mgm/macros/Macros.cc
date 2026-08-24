@@ -28,18 +28,54 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Check whether a request announces curl encoded paths
+//------------------------------------------------------------------------------
+bool
+HasEncodePathCgi(const char* ininfo)
+{
+  static const char key[] = "eos.encodepath";
+  static const size_t klen = sizeof(key) - 1;
+
+  if (!ininfo) {
+    return false;
+  }
+
+  for (const char* p = ininfo; (p = strstr(p, key)); p += klen) {
+    // Has to open a parameter, otherwise this is the text appearing inside a
+    // value - a file named 'eos.encodepath.log' is not an announcement.
+    if ((p != ininfo) && (p[-1] != '&') && (p[-1] != '?')) {
+      continue;
+    }
+
+    // and has to be the whole key, not the prefix of a longer one
+    if ((p[klen] == '=') || (p[klen] == '&') || (p[klen] == '\0')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Decode a path transported inside an opaque CGI value
+//------------------------------------------------------------------------------
+std::string
+DecodeCgiPath(const std::string& path, const char* ininfo)
+{
+  if (HasEncodePathCgi(ininfo)) {
+    return eos::common::StringConversion::curl_unescaped(path);
+  }
+
+  return eos::common::StringConversion::UnsealXrdPath(path);
+}
+
+//------------------------------------------------------------------------------
 // Namespace map functionality
 //------------------------------------------------------------------------------
 void NamespaceMap(std::string& path, const char* ininfo,
                   const eos::common::VirtualIdentity& vid)
 {
-  XrdOucString store_path = path.c_str();
-
-  if (ininfo && strstr(ininfo, "eos.encodepath")) {
-    store_path = eos::common::StringConversion::curl_unescaped(path).c_str();
-  } else {
-    eos::common::StringConversion::UnsealXrdPath(store_path);
-  }
+  XrdOucString store_path = DecodeCgiPath(path, ininfo).c_str();
 
   if (vid.token) {
     if (vid.token->Valid()) {
