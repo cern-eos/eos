@@ -254,56 +254,55 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! - checks for prefixing and rewrites path name
 //! - remap's path names according to the configured path map
 //------------------------------------------------------------------------------
-#define NAMESPACEMAP                                                    \
-  const char* path = inpath;                                            \
-  XrdOucString store_path = path;                                         \
-  if(gOFS != nullptr) {                                                  \
-    if (inpath && ininfo && strstr(ininfo, "eos.encodepath")) {             \
-      store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
-    } else {                                                              \
-      eos::common::StringConversion::UnsealXrdPath(store_path);           \
-    }                                                                     \
-    if (vid.token && vid.token->Valid()) {        \
-      if (!strncmp(path, "/zteos64:", 9)) {         \
-        store_path = vid.token->Path().c_str();       \
-      }                 \
-    }                 \
-    if (inpath && (!(ininfo) || (ininfo && (!strstr(ininfo, "eos.prefix"))))) { \
-      XrdOucString iinpath = store_path;                                    \
-      gOFS->PathRemap(iinpath.c_str(), store_path);                        \
-    }                                                                     \
-    size_t __i = 0;                                                         \
-    size_t __n = store_path.length();                                     \
-    for (__i = 0; __i < __n; __i++) {         \
-      if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd)) /* CR,LF*/) { \
-  continue;                                                       \
-      } else {                                                          \
-  break;                                                          \
-      }                                                                 \
-    }                                                                   \
-    /* root can use all letters */                                        \
-    if ((vid.uid != 0) && (__i != (__n))) {                            \
-      path = 0;                                                           \
-    } else {                                                              \
-      const char* pf = 0;                                                   \
-      /* check for redirection with prefixes */                           \
-      if (ininfo && (pf = strstr(ininfo, "eos.prefix="))) {                \
-        if (!store_path.beginswith("/proc/")) {                            \
-          XrdOucEnv env(pf);                                              \
-          /* check for redirection with LFN rewrite */                    \
-          store_path.insert(env.Get("eos.prefix"), 0);                     \
-        }                                                                 \
-      }                                                                   \
-      if (ininfo && (pf = strstr(ininfo, "eos.lfn="))) {                   \
-        if ((!store_path.beginswith("/proc/"))) {                          \
-          XrdOucEnv env(pf);                                              \
-          store_path = env.Get("eos.lfn");                                \
-        }                                                                 \
-      }                                                                   \
-      path = store_path.c_str();                                          \
-    }                                                                   \
+#define NAMESPACEMAP                                                                     \
+  const char* path = inpath;                                                             \
+  XrdOucString store_path = path;                                                        \
+  if (gOFS != nullptr) {                                                                 \
+    if (inpath && eos::mgm::HasEncodePathCgi(ininfo)) {                                  \
+      store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str();        \
+    } else {                                                                             \
+      eos::common::StringConversion::UnsealXrdPath(store_path);                          \
+    }                                                                                    \
+    if (vid.token && vid.token->Valid()) {                                               \
+      if (!strncmp(path, "/zteos64:", 9)) {                                              \
+        store_path = vid.token->Path().c_str();                                          \
+      }                                                                                  \
+    }                                                                                    \
+    if (inpath && (!(ininfo) || (ininfo && (!strstr(ininfo, "eos.prefix"))))) {          \
+      XrdOucString iinpath = store_path;                                                 \
+      gOFS->PathRemap(iinpath.c_str(), store_path);                                      \
+    }                                                                                    \
+    size_t __i = 0;                                                                      \
+    size_t __n = store_path.length();                                                    \
+    for (__i = 0; __i < __n; __i++) {                                                    \
+      if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd)) /* CR,LF*/) {           \
+        continue;                                                                        \
+      } else {                                                                           \
+        break;                                                                           \
+      }                                                                                  \
+    }                                                                                    \
+    /* root can use all letters */                                                       \
+    if ((vid.uid != 0) && (__i != (__n))) {                                              \
+      path = 0;                                                                          \
+    } else {                                                                             \
+      const char* pf = 0;                                                                \
+      /* check for redirection with prefixes */                                          \
+      if (ininfo && (pf = strstr(ininfo, "eos.prefix="))) {                              \
+        if (!store_path.beginswith("/proc/")) {                                          \
+          XrdOucEnv env(pf);                                                             \
+          /* check for redirection with LFN rewrite */                                   \
+          store_path.insert(env.Get("eos.prefix"), 0);                                   \
+        }                                                                                \
+      }                                                                                  \
+      if (ininfo && (pf = strstr(ininfo, "eos.lfn="))) {                                 \
+        if ((!store_path.beginswith("/proc/"))) {                                        \
+          XrdOucEnv env(pf);                                                             \
+          store_path = env.Get("eos.lfn");                                               \
+        }                                                                                \
+      }                                                                                  \
+      path = store_path.c_str();                                                         \
+    }                                                                                    \
   }
-
 
 //------------------------------------------------------------------------------
 //! Define scope for tokens
@@ -452,6 +451,42 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                           \
   }
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Check whether a request announces curl encoded paths.
+//!
+//! Matches 'eos.encodepath' only where it forms a whole CGI key, i.e. where it
+//! opens a parameter and is terminated by a '=' or by the end of one. A plain
+//! substring search over the opaque information also fires on the text
+//! appearing inside a value, which would switch a request over to curl
+//! decoding just because it carries a file named 'eos.encodepath.log'. The
+//! curl decoder ignores a value it did not encode, so the visible effect of
+//! such a false positive is that the '#AND#' seal is left undecoded.
+//!
+//! @param ininfo opaque information of the request, may be null
+//!
+//! @return true if the request announces curl encoded paths
+//------------------------------------------------------------------------------
+bool HasEncodePathCgi(const char* ininfo);
+
+//------------------------------------------------------------------------------
+//! Decode a path transported inside an opaque CGI value.
+//!
+//! A '&' inside a path would otherwise be parsed as a CGI argument separator,
+//! so clients encode it before putting a path into the opaque information.
+//! Two encodings are in use: the legacy '#AND#' seal and the lossless curl
+//! percent-encoding announced by 'eos.encodepath'. This is the single place
+//! deciding between the two - NAMESPACEMAP applies the very same rule to the
+//! primary path, therefore any secondary path operand carried in the opaque
+//! information (e.g. 'mgm.file.target') has to be run through this in order to
+//! be interpreted consistently with it.
+//!
+//! @param path encoded path
+//! @param ininfo opaque information of the request, may be null
+//!
+//! @return decoded path
+//------------------------------------------------------------------------------
+std::string DecodeCgiPath(const std::string& path, const char* ininfo);
 
 //------------------------------------------------------------------------------
 //! Namespace map functionality i.e check validity of the paths, check for

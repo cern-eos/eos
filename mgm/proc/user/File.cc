@@ -21,35 +21,70 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/SecEntity.hh"
+#include "common/StringConversion.hh"
+#include "common/Utils.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/cache/ReadThroughCache.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
-#include "mgm/xattr/XattrLock.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/macros/Macros.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "namespace/Prefetcher.hh"
-#include "common/Utils.hh"
-#include "common/Path.hh"
-#include "common/LayoutId.hh"
-#include "common/SecEntity.hh"
+#include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Attributes.hh"
-#include "namespace/Resolver.hh"
+#include "namespace/utils/Checksum.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <math.h>
 #include <memory>
 
 EOSMGMNAMESPACE_BEGIN
+
+namespace {
+//------------------------------------------------------------------------------
+// Read a path operand from the opaque information verbatim.
+//
+// Compared to a plain XrdOucEnv::Get() this never yields a null c_str() for an
+// absent key - ResolveIdentifierToPath() dereferences it without a null check.
+//------------------------------------------------------------------------------
+XrdOucString
+GetPath(XrdOucEnv* opaque, const char* key)
+{
+  const char* value = opaque->Get(key);
+  return value ? value : "";
+}
+
+//------------------------------------------------------------------------------
+// Read a path operand from the opaque information and decode it the same way
+// NAMESPACEMAP decodes the primary path. Only 'mgm.path' goes through
+// NAMESPACEMAP, so every other path carried in the opaque information has to
+// be decoded explicitly to agree with it on the encoding of a '&'.
+//------------------------------------------------------------------------------
+XrdOucString
+GetDecodedPath(XrdOucEnv* opaque, const char* key, const char* ininfo)
+{
+  const char* value = opaque->Get(key);
+
+  if (!value) {
+    return "";
+  }
+
+  const std::string decoded = DecodeCgiPath(value, ininfo);
+  return decoded.c_str();
+}
+} // namespace
 
 int
 ProcCommand::File()
@@ -694,9 +729,10 @@ ProcCommand::File()
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename") {
       cmdok = true;
-      XrdOucString source = pOpaque->Get("mgm.file.source");
-      XrdOucString target = pOpaque->Get("mgm.file.target");
+      XrdOucString source = GetDecodedPath(pOpaque, "mgm.file.source", ininfo);
+      XrdOucString target = GetDecodedPath(pOpaque, "mgm.file.target", ininfo);
       if (!source.length()) {
+        // already decoded by NAMESPACEMAP
         source = spath;
       }
       if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
@@ -727,8 +763,8 @@ ProcCommand::File()
     //--------------------------------------------------------------------------
     if (mSubCmd == "rename_with_symlink") {
       cmdok = true;
-      XrdOucString source = pOpaque->Get("mgm.file.source");
-      XrdOucString target = pOpaque->Get("mgm.file.target");
+      XrdOucString source = GetDecodedPath(pOpaque, "mgm.file.source", ininfo);
+      XrdOucString target = GetDecodedPath(pOpaque, "mgm.file.target", ininfo);
 
       if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
         return SFS_OK;
@@ -758,8 +794,11 @@ ProcCommand::File()
     //--------------------------------------------------------------------------
     if (mSubCmd == "symlink") {
       cmdok = true;
-      XrdOucString source = pOpaque->Get("mgm.file.source");
-      XrdOucString target = pOpaque->Get("mgm.file.target");
+      XrdOucString source = GetPath(pOpaque, "mgm.file.source");
+      // Not decoded on purpose: a symlink target is arbitrary link text rather
+      // than a namespace path - _symlink deliberately does not namespace-map it
+      // either, so a '#AND#' in it has to survive verbatim.
+      XrdOucString target = GetPath(pOpaque, "mgm.file.target");
       XrdOucString forceS = pOpaque->Get("mgm.file.force");
       bool force = (forceS == "1");
 
@@ -993,7 +1032,7 @@ ProcCommand::File()
     if (mSubCmd == "copy") {
       cmdok = true;
       XrdOucString src = spath;
-      XrdOucString dst = pOpaque->Get("mgm.file.target");
+      XrdOucString dst = GetDecodedPath(pOpaque, "mgm.file.target", ininfo);
 
       if (!dst.length()) {
         stdErr += "error: missing destination argument";
@@ -2170,14 +2209,18 @@ ProcCommand::File()
         return SFS_OK;
       }
 
-      // Third party copy the file to a temporary name
+      // Third party copy the file to a temporary name. Both paths are about to
+      // be re-parsed as opaque information, so percent-encode them - a '&' in
+      // the file name would otherwise be read as an argument separator.
       ProcCommand Cmd;
       eos::common::Path atomicPath(spath.c_str());
       XrdOucString info;
-      info += "&mgm.cmd=file&mgm.subcmd=copy&mgm.file.target=";
-      info += atomicPath.GetAtomicPath(true);
+      info += "&mgm.cmd=file&mgm.subcmd=copy&eos.encodepath=1";
+      info += "&mgm.file.target=";
+      info += eos::common::StringConversion::curl_escaped(atomicPath.GetAtomicPath(true))
+                  .c_str();
       info += "&mgm.path=";
-      info += spath.c_str();
+      info += eos::common::StringConversion::curl_escaped(spath.c_str()).c_str();
       retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
       Cmd.AddOutput(stdOut, stdErr);
       Cmd.close();

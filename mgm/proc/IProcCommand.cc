@@ -557,7 +557,11 @@ IProcCommand::ResolveIdentifierToPath(XrdOucString& identifier,
     return false;
   };
 
-  const char* str = identifier.c_str();
+  // An XrdOucString that was never assigned anything - which is what an
+  // XrdOucEnv::Get() of an absent key yields - has a null c_str(). Normalise
+  // it here rather than in every caller, the prefix comparisons below would
+  // otherwise dereference it.
+  const char* str = identifier.c_str() ? identifier.c_str() : "";
 
   bool is_container = false;
   int base = 10;
@@ -576,7 +580,9 @@ IProcCommand::ResolveIdentifierToPath(XrdOucString& identifier,
     base = 16;
     num = str + 5;
   } else {
-    resolvedPath = identifier;
+    // 'str' rather than 'identifier' so that the resolved path is never a null
+    // XrdOucString either
+    resolvedPath = str;
     return true;
   }
 
