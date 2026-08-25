@@ -1616,6 +1616,7 @@ ProcCommand::File()
       unsigned long long fid = 0ull;
       std::shared_ptr<eos::IFileMD> fmd {nullptr};
       eos::IFileMD::LocationVector loc_vect;
+      eos::IFileMD::LocationVector unlink_vect;
       XrdOucString file_option = pOpaque->Get("mgm.file.option");
       bool nodrop = false;
 
@@ -1668,6 +1669,7 @@ ProcCommand::File()
           fid = fmd->getId();
           lid = fmd->getLayoutId();
           loc_vect = fmd->getLocations();
+          unlink_vect = fmd->getUnlinkedLocations();
           size = fmd->getSize();
         } else {
           retc = errno ? errno : EINVAL;
@@ -1766,6 +1768,13 @@ ProcCommand::File()
           std::vector<unsigned int> selectedfs;
           std::vector<unsigned int> unavailfs;
           std::vector<unsigned int> excludefs;
+
+          // A location which is only unlinked still holds the physical replica
+          // until the file system confirms the deletion. Placing the new
+          // replica there would have the pending deletion remove it right away.
+          for (const auto uloc : unlink_vect) {
+            excludefs.push_back(uloc);
+          }
 
           if (pOpaque->Get("mgm.file.excludefs")) {
             unsigned int exclude_fsid = strtoul(pOpaque->Get("mgm.file.excludefs"), 0, 10);

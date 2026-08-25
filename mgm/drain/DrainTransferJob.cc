@@ -612,6 +612,15 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     }
   }
 
+  // An unlinked location still holds the physical replica until the file system
+  // confirms the deletion. Landing there means the pending deletion removes the
+  // file underneath the running transfer, so treat it like an existing replica.
+  for (auto elem : fdrain.mProto.unlink_locations()) {
+    if (elem != EOS_TAPE_FSID) {
+      existing_repl.push_back(elem);
+    }
+  }
+
   if (group == nullptr) {
     eos_err("msg=\"unknown scheduling group\" fxid=%08llx group=\"%s\"", mFileId.load(),
             source_snapshot.mGroup.c_str());

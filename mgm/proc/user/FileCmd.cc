@@ -718,8 +718,9 @@ FileCmd::MoveSubcmd(const eos::console::FileMoveProto& move, const std::string& 
   unsigned long targetfsid = move.fsid2();
 
   if (gOFS->_movestripe(spath.c_str(), mError, mVid, sourcefsid, targetfsid)) {
-    std_err << "error: unable to move stripe";
-    reply.set_retc(errno);
+    std_err << "error: unable to move stripe " << sourcefsid << " => " << targetfsid
+            << " msg=" << mError.getErrText();
+    reply.set_retc(mError.getErrInfo());
   } else {
     std_out << "success: scheduled move from source fs=" << sourcefsid
             << " => target fs=" << targetfsid;
@@ -742,8 +743,9 @@ FileCmd::ReplicateSubcmd(const eos::console::FileReplicateProto& replicate,
   unsigned long targetfsid = replicate.fsid2();
 
   if (gOFS->_copystripe(spath.c_str(), mError, mVid, sourcefsid, targetfsid)) {
-    std_err << "error: unable to replicate stripe";
-    reply.set_retc(errno);
+    std_err << "error: unable to replicate stripe " << sourcefsid << " => " << targetfsid
+            << " msg=" << mError.getErrText();
+    reply.set_retc(mError.getErrInfo());
   } else {
     std_out << "success: scheduled replication from source fs=" << sourcefsid
             << " => target fs=" << targetfsid;
@@ -1673,6 +1675,7 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
   unsigned long long fid = 0ull;
   std::shared_ptr<eos::IFileMD> fmd{nullptr};
   eos::IFileMD::LocationVector loc_vect;
+  eos::IFileMD::LocationVector unlink_vect;
   bool nodrop = adjust.nodrop();
   int icreationsubgroup = -1;
   std::string creationspace = adjust.space();
@@ -1710,6 +1713,7 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
       fid = fmd->getId();
       lid = fmd->getLayoutId();
       loc_vect = fmd->getLocations();
+      unlink_vect = fmd->getUnlinkedLocations();
       size = fmd->getSize();
     } else {
       reply.set_retc(errno ? errno : EINVAL);
@@ -1797,6 +1801,13 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
       std::vector<unsigned int> selectedfs;
       std::vector<unsigned int> unavailfs;
       std::vector<unsigned int> excludefs;
+
+      // A location which is only unlinked still holds the physical replica
+      // until the file system confirms the deletion. Placing the new replica
+      // there would have the pending deletion remove it right away.
+      for (const auto uloc : unlink_vect) {
+        excludefs.push_back(uloc);
+      }
 
       if (!adjust.exclude_fs().empty()) {
         unsigned int exclude_fsid = strtoul(adjust.exclude_fs().c_str(), 0, 10);

@@ -545,6 +545,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
       job->UpdateMgmStats();
       job->DoIt();
       job->UpdateMgmStats();
+      // Stop tracking the file once the transfer is over.
+      gOFS->mFidTracker.RemoveEntry(fid);
     });
   }
 

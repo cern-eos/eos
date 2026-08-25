@@ -538,6 +538,32 @@ file_is_deleted () {
     return 1
 }
 ################################################################################
+# Retry a condition until it holds or the given timeout expires. Any function
+# of this script can be used as condition, it is re-evaluated once per second.
+# Use this instead of a fixed "delay" whenever waiting for an asynchronous
+# operation - a fixed sleep is either too short under load or wasted time.
+# Usage: wait_for <timeout_sec> <condition> [args ...]
+################################################################################
+wait_for () {
+    local timeout=$1
+    shift
+    local deadline=$(( $(date +%s) + timeout ))
+    echo "wait_for ${timeout}s: $*" >& $EOSLASTLOG
+
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+
+        if [ $(date +%s) -ge ${deadline} ]; then
+            echo "error: timeout after ${timeout}s waiting for: $*" >> $EOSCERTLOG 2>&1
+            return 1
+        fi
+
+        sleep 1
+    done
+}
+################################################################################
 # Count total number of runtest calls in this script
 if [ "$1" != "list" ]; then
   echo "Counting total number of tests..."
@@ -2238,21 +2264,24 @@ runtest "### Mkdir     " unix SUCCESS "" eos attr set default=replica  ${ADJUST_
 runtest "### Upload    " unix SUCCESS "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_FILE}
 adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Drop fsid " unix SUCCESS "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
-runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
-# Find a new file system where to over-replicate the current file
+# The dropped replica is only unlinked, the physical deletion on ${adj_fsid}
+# happens asynchronously - keep the new replica away from that file system so
+# that the pending deletion can not wipe it right after it was created
+runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE} --exclude-fs ${adj_fsid}
+runtest "### Check     " unix SUCCESS "" wait_for 60 eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 2"
+# Find a new file system where to over-replicate the current file - ${adj_fsid}
+# is listed as used since its pending deletion would wipe the new replica
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
-array_fsids=($list_fsids)
+array_fsids=($list_fsids ${adj_fsid})
 source_fsid=${array_fsids[0]}
 target_fsid=0
 NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 for ((i=1; i<=${NUM_FST}; i++)); do if [[ ! " ${array_fsids[*]} " =~ " $i " ]]; then target_fsid=$i; break; fi done
+runtest "### Target    " unix SUCCESS "" shell test "${target_fsid}" -ne 0
 runtest "### Replicate " unix SUCCESS "" eos file replicate ${ADJUST_TEST_FILE} ${source_fsid} ${target_fsid}
-runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3"
+runtest "### Check     " unix SUCCESS "" wait_for 60 eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 3"
 runtest "### Adjust +  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest "### Check     " unix SUCCESS "" wait_for 60 eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 2"
 runtest "### Rm        " unix SUCCESS "" eos rm -F ${ADJUST_TEST_FILE}
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${ADJUST_TEST_DIR}
 
