@@ -269,15 +269,30 @@ function corrupt_orphan() {
   local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_ORPHAN} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  local LPATH=$(echo "${CMD_OUT}" | tail -n1)
-  # Do it twice to force delete the filemd object and set the file system off
-  # so that the deletion message is not sent before we drop the list of
-  # deletions.
-  exec_cmd eos-mgm1 "eos fs config ${FSID} configstatus=off"
+  local LPATH=$(echo "${CMD_OUT}" | tail -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  # Detach the replica from the namespace without ever scheduling a deletion
+  # for it - the physical file is left untouched on disk. Note this must not
+  # rely on setting the file system "off" and dropping the deletion list
+  # afterwards, since the FSTs collect their deletions directly from QuarkDB
+  # without looking at the config status, therefore any fid that lands in the
+  # unlinked list can be removed from disk at any moment.
+  exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_ORPHAN} ${FSID} -f"
+  # Unlink the remaining replica(s) and then force remove the file metadata
+  # object so that the replica left over on fsid=${FSID} has no namespace
+  # entry pointing to it anymore i.e. it becomes an orphan
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
-  exec_cmd eos-mgm1 "eos fs dropdeletion ${FSID}"
-  exec_cmd eos-mgm1 "eos fs config ${FSID} configstatus=rw"
+  # Make sure the orphan was properly created, otherwise we would only notice
+  # this much later while waiting for the fsck errors to be collected
+  local ON_DISK=$(exec_cmd "eos-fst${FSID}" "test -f ${LPATH} && echo yes || echo no")
+  local IN_NS=$(exec_cmd eos-mgm1 "eos -r 0 0 fileinfo fxid:${FXID_ORPHAN} -m 2>/dev/null | grep -o 'fxid=[0-9a-f]*' || true")
+
+  if [[ "${ON_DISK}" != "yes" || -n "${IN_NS}" ]]; then
+    echo "error: failed to create orphan fxid=${FXID_ORPHAN} fsid=${FSID}" \
+         "(on_disk=${ON_DISK} ns_entry=\"${IN_NS}\")"
+    cleanup
+    exit 1
+  fi
 }
 
 # Corrupt file that can only be fixed by best-effort
