@@ -30,7 +30,7 @@ std::string MakeQuotaHelp()
          "volume and/or inode quota by uid or gid\n"
       << "    quota rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>] : remove configured "
          "quota type(s) for uid/gid in path\n"
-      << "    quota rmnode [-p] <path> [--really-want] : remove quota node and every "
+      << "    quota rmnode [-p] <path> : remove quota node and every "
          "defined quota on that node\n"
       << std::endl
       << "  General options:\n"
@@ -51,8 +51,7 @@ std::string MakeQuotaHelp()
       << "    => for convenience all commands can just use <path> as last argument "
          "omitting the -p|--path e.g. quota ls /eos/ ...\n"
       << "    => if <path> is not terminated with a '/' it is assumed to be a file so "
-         "it won't match the quota node with <path>/ !\n"
-      << "    => rmnode requires confirmation unless --really-want is passed\n";
+         "it won't match the quota node with <path>/ !\n";
   return oss.str();
 }
 
@@ -228,13 +227,8 @@ public:
         }
       }
     } else if (token == "rmnode") {
-      bool dontask = false;
       auto* rmnode = quota->mutable_rmnode();
       tokenizer.NextToken(token);
-      if (token == "--really-want") {
-        dontask = true;
-        tokenizer.NextToken(token);
-      }
       if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
         if (token == "--path" || token == "-p") {
           if (tokenizer.NextToken(token))
@@ -248,15 +242,6 @@ public:
         }
       } else {
         return false;
-      }
-      if (!dontask) {
-        fprintf(
-            stderr,
-            "Do you really want to delete the quota node under path: %s ?\n",
-            rmnode->space().c_str());
-        fprintf(stderr,
-                "Use --really-want to skip interactive confirmation.\n");
-        mNeedsConfirmation = true;
       }
     } else {
       return false;

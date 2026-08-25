@@ -295,7 +295,7 @@ echo "# response:$response - expect 254"
 # cleanup
 echo "----------------------------------------------------------------------"
 eos rmdir /eos/$instance/proc/openstack/
-eos quota rmnode --really-want -p /eos/$instance/openstack/manila-test/
+eos quota rmnode -p /eos/$instance/openstack/manila-test/
 eos rm -r /eos/$instance/openstack/manila-test/
 eos rmdir /eos/$instance/openstack/
 eos vid set membership 11 -sudo

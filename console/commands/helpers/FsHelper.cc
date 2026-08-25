@@ -352,8 +352,6 @@ FsHelper::ParseCommand(const char* arg)
 
         dropfiles->set_force(true);
       }
-
-      mNeedsConfirmation = true;
     }
   } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;

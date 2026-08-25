@@ -7,8 +7,8 @@ url=root://$host
 
 test -z "$1" && exit -1
 
-eos quota rmnode --really-want -p $prefix/t_source/
-eos quota rmnode --really-want -p $prefix/t_target/
+eos quota rmnode -p $prefix/t_source/
+eos quota rmnode -p $prefix/t_target/
 
 eos rm -r $prefix/t_source/
 eos rm -r $prefix/t_target/
@@ -67,11 +67,11 @@ xrdfs $url/ mv $prefix/t_source/f4 $prefix/t_target/_d3/ && exit -6
 eos find $prefix
 
 # file to file
-xrdfs $url/ mv $prefix/t_source/f5 $prefix/t_target/t1 || exit -7 
+xrdfs $url/ mv $prefix/t_source/f5 $prefix/t_target/t1 || exit -7
 xrdfs $url/ mv $prefix/t_source/f6 $prefix/t_target/t2/ && exit -7
 eos find $prefix
 
-eos quota rmnode --really-want -p $prefix/t_source/
-eos quota rmnode --really-want -p $prefix/t_target/
+eos quota rmnode -p $prefix/t_source/
+eos quota rmnode -p $prefix/t_target/
 
 exit 0

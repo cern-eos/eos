@@ -10,7 +10,7 @@ EOS_LRU_DIR=$prefix
 watermarkLruDir="$EOS_LRU_DIR/watermarkLruDir"
 
 cleanup() {
-  eos quota rmnode --really-want "$watermarkLruDir/"
+  eos quota rmnode "$watermarkLruDir/"
   eos rm -rF --no-confirmation "$EOS_LRU_DIR/"
 }
 

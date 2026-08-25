@@ -328,10 +328,6 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    if (helper.NeedsConfirmation() && !helper.ConfirmOperation()) {
-      global_retc = EINTR;
-      return 0;
-    }
     global_retc = helper.Execute();
     return 0;
   }
