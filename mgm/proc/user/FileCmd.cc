@@ -316,8 +316,9 @@ FileCmd::DropSubcmd(const eos::console::FileDropProto& drop, const std::string& 
   }
 
   if (gOFS->_dropstripe(spath.c_str(), fid, mError, mVid, fsid, forceRemove)) {
-    std_err << "error: unable to drop stripe";
-    reply.set_retc(errno);
+    std_err << "error: unable to drop stripe on fs=" << (int)fsid
+            << " msg=" << mError.getErrText();
+    reply.set_retc(mError.getErrInfo());
   } else {
     std_out << "success: dropped stripe on fs=" << (int)fsid;
   }

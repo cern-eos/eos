@@ -136,6 +136,37 @@ fresh_pair() {
 }
 
 #-------------------------------------------------------------------------------
+# Echo "<src> <dst>": a file system holding a replica of the given file and a
+# booted one that does not.
+#
+# Where a file lands is up to the scheduler, so a hardcoded file system id makes
+# the outcome of replicate/move/drop depend on placement - and since each
+# transport gets its own file, the two sides can then legitimately disagree.
+# A file without any replica yields src=0, which both sides then share so that
+# they still fail in the same way.
+#-------------------------------------------------------------------------------
+replica_fsids() {
+  local path="$1"
+  local locs src="" dst="" fsid
+
+  locs=$(eos fileinfo "${path}" -m 2>/dev/null | tr ' ' '\n' | \
+         grep -E '^fsid=' | cut -d= -f2 | tr '\n' ' ')
+  src=${locs%% *}
+
+  for fsid in $(eos fs ls -m 2>/dev/null | tr ' ' '\n' | \
+                grep -E '^id=' | cut -d= -f2 | sort -n); do
+    case " ${locs} " in
+      *" ${fsid} "*) continue ;;
+    esac
+
+    dst=${fsid}
+    break
+  done
+
+  echo "${src:-0} ${dst:-0}"
+}
+
+#-------------------------------------------------------------------------------
 # Assert that gRPC and the console return the *same* status, whatever it is.
 #
 # Used for subcommands whose success depends on instance state (spare
@@ -152,10 +183,17 @@ check_same_rc() {
   fresh_pair "${name}"
   local grpc_args=()
   local proto_args=()
+  local g_src g_dst p_src p_dst arg
+  read -r g_src g_dst <<< "$(replica_fsids "${testdir}/${name}_g")"
+  read -r p_src p_dst <<< "$(replica_fsids "${testdir}/${name}_p")"
 
   for a in "$@"; do
-    grpc_args+=("${a//@FILE@/${testdir}/${name}_g}")
-    proto_args+=("${a//@FILE@/${testdir}/${name}_p}")
+    arg="${a//@FILE@/${testdir}/${name}_g}"
+    arg="${arg//@SRCFS@/${g_src}}"
+    grpc_args+=("${arg//@DSTFS@/${g_dst}}")
+    arg="${a//@FILE@/${testdir}/${name}_p}"
+    arg="${arg//@SRCFS@/${p_src}}"
+    proto_args+=("${arg//@DSTFS@/${p_dst}}")
   done
 
   grpc_file "${grpc_args[@]}"
@@ -341,12 +379,14 @@ check_both_ok "purge" purge "${testdir}/gf1" 0
 #-------------------------------------------------------------------------------
 section "drop / move / replicate / adjustreplica"
 #-------------------------------------------------------------------------------
-# These need spare filesystems, so assert transport parity rather than success
+# These need spare filesystems, so assert transport parity rather than success.
+# @SRCFS@/@DSTFS@ resolve per side to a file system holding the file and one
+# that does not, which a hardcoded id can not do - see replica_fsids.
 check_same_rc "adjustreplica" adjrep adjustreplica "@FILE@"
 check_same_rc "adjustreplica --nodrop" adjnod adjustreplica "@FILE@" --nodrop
-check_same_rc "replicate" repl replicate "@FILE@" 1 2
-check_same_rc "move" mv move "@FILE@" 1 2
-check_same_rc "drop" drp drop "@FILE@" 1
+check_same_rc "replicate" repl replicate "@FILE@" @SRCFS@ @DSTFS@
+check_same_rc "move" mv move "@FILE@" @SRCFS@ @DSTFS@
+check_same_rc "drop" drp drop "@FILE@" @SRCFS@
 check_same_rc "drop cache" drpc drop "@FILE@" cache
 
 #-------------------------------------------------------------------------------
