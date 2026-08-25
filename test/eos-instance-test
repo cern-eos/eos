@@ -137,7 +137,10 @@ warning() {
 # Check which version of XRootD we are using
 ################################################################################
 XRD_VERS=$(xrootd -v 2>&1)
-XRD_VERS_MAJOR=${XRD_VERS:1:1}
+# The version is reported either as "v5.8.4" or as "5.8.4" depending on the
+# release, so pick the first "<major>.<minor>" rather than a fixed offset
+XRD_VERS_MAJOR=$(echo "${XRD_VERS}" | grep -oEm1 '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)
+XRD_VERS_MAJOR=${XRD_VERS_MAJOR:-0}
 
 if [ -e /etc/sysconfig/eos ];  then
 . /etc/sysconfig/eos
@@ -2741,9 +2744,9 @@ categorie="tpc"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Chmod     " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Upload    " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1"
-if [ ${XRD_VERS_MAJOR} -eq 5 ]; then
+if [ "${XRD_VERS_MAJOR}" -eq 5 ]; then
 runtest "### TPC 1     " unix SUCCESS "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
-elif [ ${XRD_VERS_MAJOR} -eq 4 ]; then
+elif [ "${XRD_VERS_MAJOR}" -eq 4 ]; then
 runtest "### TPC 1     " unix SUCCESS "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
 else
 runtest "### TPC 1     " unix SUCCESS "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
