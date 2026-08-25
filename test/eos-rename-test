@@ -7,24 +7,33 @@ url=root://$host
 
 test -z "$1" && exit -1
 
-eos quota rmnode -p $prefix/t_source/
-eos quota rmnode -p $prefix/t_target/
-eos quota rmnode -p $prefix/t_qnode/
-eos quota rmnode -p $prefix/t_qnode_new/
-eos quota rmnode -p $prefix/t_target/t_qnode_moved/
-eos quota rmnode -p $prefix/t_qlink/real/qn/
-eos quota rmnode -p $prefix/t_qlink/real/qn_new/
-eos quota rmnode -p $prefix/t_qsib/foobar/
-eos quota rmnode -p $prefix/t_qnest/outer/
-eos quota rmnode -p $prefix/t_qnest/outer/inner/
-eos quota rmnode -p $prefix/t_qnest/outer_moved/
-eos quota rmnode -p $prefix/t_qnest/outer_moved/inner/
-eos quota rmnode -p $prefix/t_qanc/plain/nested/
-eos quota rmnode -p $prefix/t_qanc/plain_new/nested/
-eos quota rmnode -p $prefix/t_qacc/src/
-eos quota rmnode -p $prefix/t_qacc/dst/
-eos quota rmnode -p $prefix/t_qacc/src/plain/nested/
-eos quota rmnode -p $prefix/t_qacc/dst/plain/nested/
+# Every quota node the test may hold, both before and after the renames. A
+# directory which is a quota node cannot be deleted, so these have to go before
+# anybody removes the test tree - on the way in to clean up after a previous
+# run, and on the way out whether the test passed or gave up half way.
+cleanup_quota_nodes() {
+  eos quota rmnode -p $prefix/t_source/
+  eos quota rmnode -p $prefix/t_target/
+  eos quota rmnode -p $prefix/t_qnode/
+  eos quota rmnode -p $prefix/t_qnode_new/
+  eos quota rmnode -p $prefix/t_target/t_qnode_moved/
+  eos quota rmnode -p $prefix/t_qlink/real/qn/
+  eos quota rmnode -p $prefix/t_qlink/real/qn_new/
+  eos quota rmnode -p $prefix/t_qsib/foobar/
+  eos quota rmnode -p $prefix/t_qnest/outer/
+  eos quota rmnode -p $prefix/t_qnest/outer/inner/
+  eos quota rmnode -p $prefix/t_qnest/outer_moved/
+  eos quota rmnode -p $prefix/t_qnest/outer_moved/inner/
+  eos quota rmnode -p $prefix/t_qanc/plain/nested/
+  eos quota rmnode -p $prefix/t_qanc/plain_new/nested/
+  eos quota rmnode -p $prefix/t_qacc/src/
+  eos quota rmnode -p $prefix/t_qacc/dst/
+  eos quota rmnode -p $prefix/t_qacc/src/plain/nested/
+  eos quota rmnode -p $prefix/t_qacc/dst/plain/nested/
+}
+
+trap cleanup_quota_nodes EXIT
+cleanup_quota_nodes
 
 eos rm -r $prefix/t_source/
 eos rm -r $prefix/t_target/
@@ -192,9 +201,5 @@ test "$nested_before" = "$(qnode_value $prefix/t_qacc/dst/plain/nested/ usedfile
 eos rmdir $prefix/t_qlink/real/qn_new && exit -9
 eos rmdir $prefix/t_qlink/link/qn_new && exit -9
 eos find $prefix
-
-eos quota rmnode -p $prefix/t_target/t_qnode_moved/
-eos quota rmnode -p $prefix/t_source/
-eos quota rmnode -p $prefix/t_target/
 
 exit 0
