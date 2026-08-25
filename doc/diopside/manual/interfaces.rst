@@ -1750,6 +1750,30 @@ A file like ``/eos/lhc/raw/2013/raw-higgs.root`` is accounted for in the first
 quota node, while a file ``/eos/lhc/raw/analysis/histo-higgs.root`` is
 accounted for in the second quota node.
 
+A quota node directory can be renamed or moved. The quota settings and the
+accounting travel along with the directory - the files inside it stay accounted
+in the very same quota node and no other quota node is modified. Since this is
+equivalent to removing and re-creating the quota node at the new location, it
+requires the ``root`` or ``adm`` role:
+
+.. code-block:: bash
+
+   eos mv /eos/lhc/raw/analysis/ /eos/lhc/raw/analysis-2013/
+
+.. note::
+
+   If the new location has a different layout policy than the old one, the
+   volume limit has to be set again with ``eos quota set``. A volume limit is
+   stored both as raw and as logical bytes, converted with the layout size
+   factor of the quota node at the time the limit was set, and that conversion
+   is not redone when the node moves.
+
+.. note::
+
+   With ``autosave`` switched off the new location of a quota node only lives
+   in memory until the configuration is written - run ``eos config save`` after
+   the rename. The MGM logs a warning when this is the case.
+
 .. index::
    pair: Quota; Listing Quotas
 

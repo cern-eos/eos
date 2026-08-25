@@ -9,9 +9,14 @@ test -z "$1" && exit -1
 
 eos quota rmnode -p $prefix/t_source/
 eos quota rmnode -p $prefix/t_target/
+eos quota rmnode -p $prefix/t_qnode/
+eos quota rmnode -p $prefix/t_qnode_new/
+eos quota rmnode -p $prefix/t_target/t_qnode_moved/
 
 eos rm -r $prefix/t_source/
 eos rm -r $prefix/t_target/
+eos rm -r $prefix/t_qnode/
+eos rm -r $prefix/t_qnode_new/
 eos mkdir -p $prefix/
 eos chown adm:adm $prefix/
 xrdfs $url mkdir $prefix/t_source/ || exit -2
@@ -71,6 +76,41 @@ xrdfs $url/ mv $prefix/t_source/f5 $prefix/t_target/t1 || exit -7
 xrdfs $url/ mv $prefix/t_source/f6 $prefix/t_target/t2/ && exit -7
 eos find $prefix
 
+# quota node rename/move - the quota node, its settings and its accounting all
+# have to follow the directory (EOS-6378)
+qnode_value() {
+  # $1 = quota node path, $2 = key of the monitoring output. Gid 99 is the
+  # project id and is therefore reported as 'gid=project'
+  eos quota ls -m -q $1 | grep "gid=project" | tr ' ' '\n' | grep "^$2=" | head -1
+}
+
+xrdfs $url mkdir $prefix/t_qnode/ || exit -8
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qnode/ || exit -8
+xrdcp /etc/passwd $url/$prefix/t_qnode/q1 || exit -8
+limit_before=$(qnode_value $prefix/t_qnode/ maxlogicalbytes)
+files_before=$(qnode_value $prefix/t_qnode/ usedfiles)
+test -n "$limit_before" || exit -8
+
+# rename within the same parent
+eos mv $prefix/t_qnode $prefix/t_qnode_new || exit -8
+# no quota node may be left behind at the old path
+eos quota ls -m -q $prefix/t_qnode/ | grep -q "space=$prefix/t_qnode/" && exit -8
+# limits and accounting have to be found at the new path
+eos quota ls -m -q $prefix/t_qnode_new/ | grep -q "space=$prefix/t_qnode_new/" || exit -8
+test "$limit_before" = "$(qnode_value $prefix/t_qnode_new/ maxlogicalbytes)" || exit -8
+test "$files_before" = "$(qnode_value $prefix/t_qnode_new/ usedfiles)" || exit -8
+
+# move into a different parent - the accounting stays in the moved quota node
+# and is not transferred to the quota node of the target parent
+target_files_before=$(qnode_value $prefix/t_target/ usedfiles)
+eos mv $prefix/t_qnode_new $prefix/t_target/t_qnode_moved || exit -8
+test "$limit_before" = "$(qnode_value $prefix/t_target/t_qnode_moved/ maxlogicalbytes)" || exit -8
+test "$files_before" = "$(qnode_value $prefix/t_target/t_qnode_moved/ usedfiles)" || exit -8
+target_files_after=$(qnode_value $prefix/t_target/ usedfiles)
+test "$target_files_before" = "$target_files_after" || exit -8
+eos find $prefix
+
+eos quota rmnode -p $prefix/t_target/t_qnode_moved/
 eos quota rmnode -p $prefix/t_source/
 eos quota rmnode -p $prefix/t_target/
 

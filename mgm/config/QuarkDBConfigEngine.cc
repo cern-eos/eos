@@ -547,7 +547,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
-                                       bool from_local)
+                                       bool from_local, bool save_config)
 {
   std::string config_key = FormFullKey(prefix, key);
   {
@@ -561,11 +561,14 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     // Make this value visible between MGM's
     PublishConfigDeletion(config_key.c_str());
     mChangelog->AddEntry("del config", FormFullKey(prefix, key), "");
-    bool overwrite = true;
-    XrdOucString err = "";
 
-    if (!SaveConfig(mConfigFile, overwrite, "", err)) {
-      eos_static_err("%s\n", err.c_str());
+    if (save_config) {
+      bool overwrite = true;
+      XrdOucString err = "";
+
+      if (!SaveConfig(mConfigFile, overwrite, "", err)) {
+        eos_static_err("%s\n", err.c_str());
+      }
     }
   }
 }

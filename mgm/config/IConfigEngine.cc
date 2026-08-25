@@ -401,6 +401,90 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
 }
 
 //------------------------------------------------------------------------------
+// Copy configuration values matching the pattern
+//------------------------------------------------------------------------------
+std::vector<std::string>
+IConfigEngine::CopyConfigValueByMatch(const char* prefix, const char* old_match,
+                                      const char* new_match)
+{
+  const std::string old_key = FormFullKey(prefix, old_match);
+  const size_t match_len = strlen(old_match);
+  // Collect the matching keys (without prefix) and their values
+  std::map<std::string, std::string> matched;
+  std::vector<std::string> created;
+  {
+    std::lock_guard lock(mMutex);
+
+    for (const auto& elem : sConfigDefinitions) {
+      if (elem.first.compare(0, old_key.length(), old_key) == 0) {
+        matched.emplace(elem.first.substr(old_key.length() - match_len), elem.second);
+      }
+    }
+
+    for (const auto& elem : matched) {
+      const std::string new_key = new_match + elem.first.substr(match_len);
+
+      if (sConfigDefinitions.count(FormFullKey(prefix, new_key.c_str())) == 0) {
+        created.push_back(new_key);
+      }
+    }
+  }
+
+  for (const auto& elem : matched) {
+    const std::string new_key = new_match + elem.first.substr(match_len);
+    SetConfigValue(prefix, new_key.c_str(), elem.second.c_str(), true, false);
+  }
+
+  if (!matched.empty()) {
+    // Save once for the whole batch instead of once per key
+    (void)AutoSave();
+  }
+
+  return created;
+}
+
+//------------------------------------------------------------------------------
+// Delete configuration values matching the pattern, with broadcast
+//------------------------------------------------------------------------------
+size_t
+IConfigEngine::DropConfigValueByMatch(const char* prefix, const char* match)
+{
+  const std::string full_match = FormFullKey(prefix, match);
+  const size_t prefix_len = full_match.length() - strlen(match);
+  std::vector<std::string> keys;
+  {
+    std::lock_guard lock(mMutex);
+
+    for (const auto& elem : sConfigDefinitions) {
+      if (elem.first.compare(0, full_match.length(), full_match) == 0) {
+        keys.push_back(elem.first.substr(prefix_len));
+      }
+    }
+  }
+
+  return DropConfigValues(prefix, keys);
+}
+
+//------------------------------------------------------------------------------
+// Delete the given configuration values, with broadcast
+//------------------------------------------------------------------------------
+size_t
+IConfigEngine::DropConfigValues(const char* prefix, const std::vector<std::string>& keys)
+{
+  if (keys.empty()) {
+    return 0;
+  }
+
+  for (const auto& key : keys) {
+    DeleteConfigValue(prefix, key.c_str(), true, false);
+  }
+
+  // Save once for the whole batch instead of once per key
+  (void)AutoSave();
+  return keys.size();
+}
+
+//------------------------------------------------------------------------------
 // Dump method for selective configuration printing
 //------------------------------------------------------------------------------
 bool

@@ -195,6 +195,7 @@ XrdMgmOfs::_rename(const char* old_name,
   bool renameVersion = false;
   bool findOk = false;
   bool quotaMove = false;
+  bool srcIsQuotaNode = false;
   XrdSfsFileExistence file_exists;
   std::string new_path = new_name;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
@@ -248,18 +249,24 @@ XrdMgmOfs::_rename(const char* old_name,
         return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
       }
 
-      // Check if old path is a quota node - this is forbidden
+      // A quota node can be renamed - it is keyed by container id in the
+      // namespace and travels along with the directory
       try {
         auto rdir = eosView->getContainer(oPath.GetPath());
         eos::MDLocking::ContainerReadLock rdirLocked(rdir.get());
-
-        if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
-          errno = EACCES;
-          return Emsg(epname, error, EACCES, "rename - source is a quota node");
-        }
+        srcIsQuotaNode = ((rdir->getFlags() & eos::QUOTA_NODE_FLAG) != 0);
       } catch (eos::MDException& e) {
         errno = ENOENT;
         return Emsg(epname, error, ENOENT, "rename - source does not exist");
+      }
+
+      // Moving a quota node moves its limits - same role as rmnode/set
+      if (srcIsQuotaNode && vid.uid && (vid.uid != eos::common::ADM_UID) &&
+          (!vid.sudoer)) {
+        errno = EPERM;
+        return Emsg(epname, error, EPERM,
+                    "rename - source is a quota node, this requires the root "
+                    "or adm role");
       }
     }
   }
@@ -399,6 +406,11 @@ XrdMgmOfs::_rename(const char* old_name,
       if (q1 != q2) {
         quotaMove = true;
       }
+
+      // A quota node carries its own accounting, no file is re-accounted
+      if (srcIsQuotaNode) {
+        quotaMove = false;
+      }
     }
 
     if (EOS_LOGS_DEBUG) {
@@ -419,6 +431,51 @@ XrdMgmOfs::_rename(const char* old_name,
 
       COMMONTIMING("rename::dir_find_files_for_quota_move", &tm);
     }
+  }
+
+  // Copy the quota configuration to the new location before touching the
+  // namespace. Both definitions are then valid and the one not matching the
+  // namespace is skipped on load, so no failure in between loses the limits.
+  struct QuotaRenameGuard {
+    std::vector<std::string> keys;
+
+    ~QuotaRenameGuard()
+    {
+      // A destructor is noexcept - never take the MGM down from here
+      try {
+        Quota::AbortRenameNodes(keys);
+      } catch (...) {
+        eos_static_err("%s", "msg=\"failed to drop the quota configuration "
+                             "copied for a rename which did not go through\"");
+      }
+    }
+  } quota_guard;
+  std::string quota_old_path;
+  std::string quota_new_path;
+
+  if (renameDir) {
+    // The quota map and configuration are keyed by the symlink-free path
+    quota_old_path = oPath.GetPath();
+    quota_new_path = nPath.GetPath();
+
+    try {
+      auto src = eosView->getContainer(oPath.GetPath());
+      quota_old_path = eosView->getUri(src.get());
+      auto tgt_parent = eosView->getContainer(nPath.GetParentPath());
+      quota_new_path = eosView->getUri(tgt_parent.get());
+
+      if (quota_new_path.back() != '/') {
+        quota_new_path += '/';
+      }
+
+      quota_new_path += nPath.GetName();
+    } catch (eos::MDException& e) {
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+
+    quota_guard.keys = Quota::PrepareRenameNodes(quota_old_path, quota_new_path);
+    COMMONTIMING("rename::rename_dir_prepare_quota_nodes", &tm);
   }
 
   {
@@ -561,6 +618,28 @@ XrdMgmOfs::_rename(const char* old_name,
 
           // Loop over all the files and subtract them from their quota node
           if (findOk) {
+            // Quota nodes the tree is accounted in before and after the move
+            eos::IQuotaNode* tree_qnode = eosView->getQuotaNode(rdir.get());
+            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+            // A sub-directory with its own quota node keeps its accounting,
+            // so its files are neither checked nor re-accounted
+            std::set<std::string> nested_qnode_dirs;
+
+            for (const auto& elem : found) {
+              try {
+                auto fdir = gOFS->eosView->getContainer(elem.first);
+
+                if (eosView->getQuotaNode(fdir.get()) != tree_qnode) {
+                  nested_qnode_dirs.insert(elem.first);
+                }
+              } catch (eos::MDException& e) {
+                eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                          e.getMessage().str().c_str());
+              }
+            }
+
+            COMMONTIMING("rename::rename_dir_find_nested_quota_nodes", &tm);
+
             if (checkQuota) {
               {
                 std::map<uid_t, unsigned long long> user_del_size;
@@ -569,6 +648,10 @@ XrdMgmOfs::_rename(const char* old_name,
                 // Compute the total quota we need to rename by uid/gid
                 for (rfoundit = found.rbegin(); rfoundit != found.rend();
                      rfoundit++) {
+                  if (nested_qnode_dirs.count(rfoundit->first)) {
+                    continue;
+                  }
+
                   // To compute the quota, we don't need to read-lock the entire tree as
                   // it will anyway not be an atomic operation without the big namespace lock taken.
                   for (fileit = rfoundit->second.begin();
@@ -655,6 +738,10 @@ XrdMgmOfs::_rename(const char* old_name,
 
             for (rfoundit = found.rbegin(); rfoundit != found.rend();
                  rfoundit++) {
+              if (nested_qnode_dirs.count(rfoundit->first)) {
+                continue;
+              }
+
               // Loop through every files
               // To compute the quota, we don't need to read-lock the entire tree as
               // it will anyway not be an atomic operation without the big namespace lock taken.
@@ -699,12 +786,8 @@ XrdMgmOfs::_rename(const char* old_name,
                   eos::MDLocking::FileReadLock locker(file.get());
 
                   if (!file->isLink()) {
-                    // Get quota nodes from file path and target directory
-                    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
-                    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
-
-                    if (old_qnode) {
-                      old_qnode->removeFile(file.get());
+                    if (tree_qnode) {
+                      tree_qnode->removeFile(file.get());
                     }
 
                     if (new_qnode) {
@@ -856,6 +939,14 @@ XrdMgmOfs::_rename(const char* old_name,
   if ((!dir) || ((!file) && (!rdir))) {
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename", old_name);
+  }
+
+  if (renameDir) {
+    // Rename went through - re-key the quota map and drop the configuration
+    // of the old location. Outside any namespace lock, it saves and broadcasts.
+    quota_guard.keys.clear();
+    Quota::CommitRenameNodes(quota_old_path, quota_new_path);
+    COMMONTIMING("rename::rename_dir_move_quota_nodes", &tm);
   }
 
   // check if this was a versioned file
