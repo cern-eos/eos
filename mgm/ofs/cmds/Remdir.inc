@@ -93,15 +93,6 @@ XrdMgmOfs::_remdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-  // Make sure this is not a quota node
-  std::string qpath = path;
-
-  if (Quota::Exists(qpath)) {
-    errno = EBUSY;
-    return Emsg(epname, error, errno, "rmdir - this is a quota node",
-                qpath.c_str());
-  }
-
   eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
   std::string aclpath;
   uid_t container_owner_uid = 0;
@@ -231,8 +222,11 @@ XrdMgmOfs::_remdir(const char* path,
     }
   }
 
-  if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid)) {
-    errno = EADDRINUSE;
+  // Make sure this is not a quota node. This has to be decided on the flag of
+  // the container and not on the path, otherwise the check is bypassed when the
+  // directory is reached through a symlink.
+  if (dh->getFlags() & eos::QUOTA_NODE_FLAG) {
+    errno = EBUSY;
     eos_err("%s is a quota node - deletion canceled", path);
     return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }

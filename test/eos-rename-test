@@ -9,9 +9,32 @@ test -z "$1" && exit -1
 
 eos quota rmnode -p $prefix/t_source/
 eos quota rmnode -p $prefix/t_target/
+eos quota rmnode -p $prefix/t_qnode/
+eos quota rmnode -p $prefix/t_qnode_new/
+eos quota rmnode -p $prefix/t_target/t_qnode_moved/
+eos quota rmnode -p $prefix/t_qlink/real/qn/
+eos quota rmnode -p $prefix/t_qlink/real/qn_new/
+eos quota rmnode -p $prefix/t_qsib/foobar/
+eos quota rmnode -p $prefix/t_qnest/outer/
+eos quota rmnode -p $prefix/t_qnest/outer/inner/
+eos quota rmnode -p $prefix/t_qnest/outer_moved/
+eos quota rmnode -p $prefix/t_qnest/outer_moved/inner/
+eos quota rmnode -p $prefix/t_qanc/plain/nested/
+eos quota rmnode -p $prefix/t_qanc/plain_new/nested/
+eos quota rmnode -p $prefix/t_qacc/src/
+eos quota rmnode -p $prefix/t_qacc/dst/
+eos quota rmnode -p $prefix/t_qacc/src/plain/nested/
+eos quota rmnode -p $prefix/t_qacc/dst/plain/nested/
 
 eos rm -r $prefix/t_source/
 eos rm -r $prefix/t_target/
+eos rm -r $prefix/t_qnode/
+eos rm -r $prefix/t_qnode_new/
+eos rm -r $prefix/t_qlink/
+eos rm -r $prefix/t_qsib/
+eos rm -r $prefix/t_qnest/
+eos rm -r $prefix/t_qanc/
+eos rm -r $prefix/t_qacc/
 eos mkdir -p $prefix/
 eos chown adm:adm $prefix/
 xrdfs $url mkdir $prefix/t_source/ || exit -2
@@ -71,6 +94,106 @@ xrdfs $url/ mv $prefix/t_source/f5 $prefix/t_target/t1 || exit -7
 xrdfs $url/ mv $prefix/t_source/f6 $prefix/t_target/t2/ && exit -7
 eos find $prefix
 
+# quota node rename/move - the quota node, its settings and its accounting all
+# have to follow the directory (EOS-6378)
+qnode_value() {
+  # $1 = quota node path, $2 = key of the monitoring output. Gid 99 is the
+  # project id and is therefore reported as 'gid=project'
+  eos quota ls -m -q $1 | grep "gid=project" | tr ' ' '\n' | grep "^$2=" | head -1
+}
+
+xrdfs $url mkdir $prefix/t_qnode/ || exit -8
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qnode/ || exit -8
+xrdcp /etc/passwd $url/$prefix/t_qnode/q1 || exit -8
+limit_before=$(qnode_value $prefix/t_qnode/ maxlogicalbytes)
+files_before=$(qnode_value $prefix/t_qnode/ usedfiles)
+test -n "$limit_before" || exit -8
+
+# rename within the same parent
+eos mv $prefix/t_qnode $prefix/t_qnode_new || exit -8
+# no quota node may be left behind at the old path
+eos quota ls -m -q $prefix/t_qnode/ | grep -q "space=$prefix/t_qnode/" && exit -8
+# limits and accounting have to be found at the new path
+eos quota ls -m -q $prefix/t_qnode_new/ | grep -q "space=$prefix/t_qnode_new/" || exit -8
+test "$limit_before" = "$(qnode_value $prefix/t_qnode_new/ maxlogicalbytes)" || exit -8
+test "$files_before" = "$(qnode_value $prefix/t_qnode_new/ usedfiles)" || exit -8
+
+# move into a different parent - the accounting stays in the moved quota node
+# and is not transferred to the quota node of the target parent
+target_files_before=$(qnode_value $prefix/t_target/ usedfiles)
+eos mv $prefix/t_qnode_new $prefix/t_target/t_qnode_moved || exit -8
+test "$limit_before" = "$(qnode_value $prefix/t_target/t_qnode_moved/ maxlogicalbytes)" || exit -8
+test "$files_before" = "$(qnode_value $prefix/t_target/t_qnode_moved/ usedfiles)" || exit -8
+target_files_after=$(qnode_value $prefix/t_target/ usedfiles)
+test "$target_files_before" = "$target_files_after" || exit -8
+eos find $prefix
+
+# number of quota configuration entries of a quota node
+qnode_cfg() {
+  eos config dump | grep -c "^quota:$1:"
+}
+
+# a quota node reached through a symlinked parent must move as well - the quota
+# map and the configuration are keyed by the symlink-free path
+eos mkdir -p $prefix/t_qlink/real/qn || exit -9
+eos ln $prefix/t_qlink/link $prefix/t_qlink/real || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qlink/real/qn/ || exit -9
+eos mv $prefix/t_qlink/link/qn $prefix/t_qlink/link/qn_new || exit -9
+test "$(qnode_cfg $prefix/t_qlink/real/qn_new/)" = "3" || exit -9
+test "$(qnode_cfg $prefix/t_qlink/real/qn/)" = "0" || exit -9
+
+# a quota node whose path is only a textual prefix of the renamed one must not
+# be touched, /foo must not match /foobar
+eos mkdir -p $prefix/t_qsib/foo || exit -9
+eos mkdir -p $prefix/t_qsib/foobar || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qsib/foobar/ || exit -9
+eos mv $prefix/t_qsib/foo $prefix/t_qsib/foo_moved || exit -9
+test "$(qnode_cfg $prefix/t_qsib/foobar/)" = "3" || exit -9
+
+# a quota node nested inside a moved quota node follows as well
+eos mkdir -p $prefix/t_qnest/outer/inner || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qnest/outer/ || exit -9
+eos quota set -g 88 -v 2TB -i 2M $prefix/t_qnest/outer/inner/ || exit -9
+eos mv $prefix/t_qnest/outer $prefix/t_qnest/outer_moved || exit -9
+test "$(qnode_cfg $prefix/t_qnest/outer_moved/)" = "3" || exit -9
+test "$(qnode_cfg $prefix/t_qnest/outer_moved/inner/)" = "3" || exit -9
+test "$(qnode_cfg $prefix/t_qnest/outer/)" = "0" || exit -9
+
+# renaming a plain directory which holds a quota node has to carry the
+# configuration of that node along
+eos mkdir -p $prefix/t_qanc/plain/nested || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qanc/plain/nested/ || exit -9
+eos mv $prefix/t_qanc/plain $prefix/t_qanc/plain_new || exit -9
+test "$(qnode_cfg $prefix/t_qanc/plain_new/nested/)" = "3" || exit -9
+test "$(qnode_cfg $prefix/t_qanc/plain/nested/)" = "0" || exit -9
+
+# moving a plain directory across a quota node boundary re-accounts its own
+# files, but the files of a nested quota node stay where they are
+xrdfs $url mkdir $prefix/t_qacc || exit -9
+xrdfs $url mkdir $prefix/t_qacc/src || exit -9
+xrdfs $url mkdir $prefix/t_qacc/src/plain || exit -9
+xrdfs $url mkdir $prefix/t_qacc/src/plain/nested || exit -9
+xrdfs $url mkdir $prefix/t_qacc/dst || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qacc/src/ || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qacc/dst/ || exit -9
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qacc/src/plain/nested/ || exit -9
+xrdcp /etc/passwd $url/$prefix/t_qacc/src/plain/p1 || exit -9
+xrdcp /etc/passwd $url/$prefix/t_qacc/src/plain/nested/n1 || exit -9
+sleep 6
+nested_before=$(qnode_value $prefix/t_qacc/src/plain/nested/ usedfiles)
+eos mv $prefix/t_qacc/src/plain $prefix/t_qacc/dst/plain || exit -9
+sleep 6
+# the file below the nested node did not move to the target quota node
+test "$(qnode_value $prefix/t_qacc/src/ usedfiles)" = "usedfiles=0" || exit -9
+test "$(qnode_value $prefix/t_qacc/dst/ usedfiles)" = "usedfiles=1" || exit -9
+test "$nested_before" = "$(qnode_value $prefix/t_qacc/dst/plain/nested/ usedfiles)" || exit -9
+
+# a quota node cannot be removed, neither directly nor through a symlink
+eos rmdir $prefix/t_qlink/real/qn_new && exit -9
+eos rmdir $prefix/t_qlink/link/qn_new && exit -9
+eos find $prefix
+
+eos quota rmnode -p $prefix/t_target/t_qnode_moved/
 eos quota rmnode -p $prefix/t_source/
 eos quota rmnode -p $prefix/t_target/
 

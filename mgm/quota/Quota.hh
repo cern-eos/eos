@@ -26,15 +26,17 @@
 
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
-#include <google/dense_hash_map>
-#include <google/sparsehash/densehashtable.h>
-#include "mgm/scheduler/Scheduler.hh"
-#include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
+#include "mgm/scheduler/Scheduler.hh"
 #include "namespace/interface/IQuota.hh"
 #include <XrdOuc/XrdOucString.hh>
+#include <google/dense_hash_map>
+#include <google/sparsehash/densehashtable.h>
+#include <string>
+#include <vector>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -489,6 +491,56 @@ public:
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
   static bool RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc);
+
+  //----------------------------------------------------------------------------
+  //! Check whether the given directory is a quota node or contains one
+  //!
+  //! @param path directory path
+  //!
+  //! @return true if there is at least one quota node at or below the path
+  //----------------------------------------------------------------------------
+  static bool HasNodesInSubtree(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Prepare the quota book-keeping for a directory about to be renamed/moved.
+  //!
+  //! The ns quota nodes are keyed by container id and are not affected by a
+  //! rename - the accounting travels along. What has to follow the new location
+  //! is the path keyed quota map and quota configuration, both for the renamed
+  //! directory itself and for any quota node below it.
+  //!
+  //! This copies the configuration to the new location, leaving the old one in
+  //! place, and has to run before the namespace is modified so that a crash in
+  //! between cannot lose the limits. Follow it by CommitRenameNodes on success
+  //! or by AbortRenameNodes otherwise.
+  //!
+  //! @param old_path old path of the directory
+  //! @param new_path new path of the directory
+  //!
+  //! @return the created configuration keys, to be handed to AbortRenameNodes
+  //----------------------------------------------------------------------------
+  static std::vector<std::string> PrepareRenameNodes(const std::string& old_path,
+                                                     const std::string& new_path);
+
+  //----------------------------------------------------------------------------
+  //! Complete the quota book-keeping after a successful namespace rename -
+  //! re-key the quota map and drop the old configuration entries.
+  //!
+  //! @param old_path old path of the renamed directory
+  //! @param new_path new path of the renamed directory
+  //!
+  //! @return number of quota nodes which have been moved
+  //----------------------------------------------------------------------------
+  static size_t CommitRenameNodes(const std::string& old_path,
+                                  const std::string& new_path);
+
+  //----------------------------------------------------------------------------
+  //! Undo PrepareRenameNodes after a failed rename by dropping the
+  //! configuration entries it created.
+  //!
+  //! @param keys keys returned by PrepareRenameNodes
+  //----------------------------------------------------------------------------
+  static void AbortRenameNodes(const std::vector<std::string>& keys);
 
   //----------------------------------------------------------------------------
   //! Get group quota values for a particular path and id

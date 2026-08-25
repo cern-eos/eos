@@ -1784,44 +1784,212 @@ Quota::RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc)
 {
   std::string path = NormalizePath(qpath);
   eos_static_debug("qpath=%s, path=%s", qpath.c_str(), path.c_str());
-  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
-  eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
-  std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
+  bool removed = false;
+  {
+    eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
+    std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
 
-  if (!squota) {
-    retc = EINVAL;
-    msg = "error: there is no quota node under path ";
-    msg += path;
-    return false;
-  } else {
-    // Remove space quota from map
-    pMapQuota.erase(path);
-    // Delete also from the pMapInodeQuota
-    (void) pMapInodeQuota.erase(squota->GetQuotaNode()->getId());
+    if (squota) {
+      removed = true;
+      // Remove space quota from map
+      pMapQuota.erase(path);
+      // Delete also from the pMapInodeQuota
+      (void)pMapInodeQuota.erase(squota->GetQuotaNode()->getId());
 
-    // Remove ns quota node
-    try {
-      std::shared_ptr<eos::IContainerMD> qcont = gOFS->eosView->getContainer(path);
-      gOFS->eosView->removeQuotaNode(qcont.get());
-      retc = 0;
-    } catch (eos::MDException& e) {
-      retc = e.getErrno();
-      msg = e.getMessage().str().c_str();
+      // Remove ns quota node
+      try {
+        std::shared_ptr<eos::IContainerMD> qcont = gOFS->eosView->getContainer(path);
+        gOFS->eosView->removeQuotaNode(qcont.get());
+        retc = 0;
+      } catch (eos::MDException& e) {
+        retc = e.getErrno();
+        msg = e.getMessage().str().c_str();
+      }
     }
+  }
 
-    // Remove all configuration entries
-    std::string match = path;
-    match += ":";
-    gOFS->mConfigEngine->DeleteConfigValueByMatch("quota", match.c_str());
+  // Remove all configuration entries - outside the namespace lock since this
+  // saves the configuration and broadcasts it
+  std::string match = path;
+  match += ":";
+  size_t num_keys = gOFS->mConfigEngine->DropConfigValueByMatch("quota", match.c_str());
+
+  if (removed) {
     msg = "success: removed space quota for ";
     msg += path;
-
-    if (!gOFS->mConfigEngine->AutoSave()) {
-      return false;
-    }
-
     return true;
   }
+
+  // No quota node, but an interrupted rename can leave a configuration behind.
+  // It is skipped on load, so this is the only way of getting rid of it.
+  if (num_keys) {
+    retc = 0;
+    msg = "success: removed left over quota configuration for ";
+    msg += path;
+    return true;
+  }
+
+  retc = EINVAL;
+  msg = "error: there is no quota node under path ";
+  msg += path;
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Check whether the given directory is a quota node or contains one
+//------------------------------------------------------------------------------
+bool
+Quota::HasNodesInSubtree(const std::string& path)
+{
+  const std::string prefix = NormalizePath(path);
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+
+  for (const auto& elem : pMapQuota) {
+    if (eos::common::startsWith(elem.first, prefix)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Prepare the quota book-keeping for a directory about to be renamed/moved
+//------------------------------------------------------------------------------
+std::vector<std::string>
+Quota::PrepareRenameNodes(const std::string& old_path, const std::string& new_path)
+{
+  const std::string old_prefix = NormalizePath(old_path);
+  const std::string new_prefix = NormalizePath(new_path);
+
+  if (old_prefix == new_prefix) {
+    return {};
+  }
+
+  // Renaming a directory is common, renaming one holding quota nodes is not -
+  // check the small quota map before scanning the big configuration map
+  if (!HasNodesInSubtree(old_prefix) || (gOFS->mConfigEngine == nullptr)) {
+    return {};
+  }
+
+  // A quota key is "<node_path>:uid=<id>:<tag>", so one prefix match covers the
+  // directory itself and every node below it
+  return gOFS->mConfigEngine->CopyConfigValueByMatch("quota", old_prefix.c_str(),
+                                                     new_prefix.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Complete the quota book-keeping after a successful namespace rename
+//------------------------------------------------------------------------------
+size_t
+Quota::CommitRenameNodes(const std::string& old_path, const std::string& new_path)
+{
+  const std::string old_prefix = NormalizePath(old_path);
+  const std::string new_prefix = NormalizePath(new_path);
+
+  if (old_prefix == new_prefix) {
+    return 0;
+  }
+
+  // Re-key the renamed directory, if it is a quota node, and any node below it
+  std::vector<std::pair<std::string, std::string>> renamed;
+  {
+    eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
+
+    for (const auto& elem : pMapQuota) {
+      if (eos::common::startsWith(elem.first, old_prefix)) {
+        renamed.emplace_back(elem.first,
+                             new_prefix + elem.first.substr(old_prefix.length()));
+      }
+    }
+
+    for (const auto& elem : renamed) {
+      auto it = pMapQuota.find(elem.first);
+
+      if (it == pMapQuota.end()) {
+        continue;
+      }
+
+      SpaceQuota* squota = it->second;
+      pMapQuota.erase(it);
+      // The target should never hold a quota node, but a leftover would leak
+      // and shadow the renamed one
+      auto stale = pMapQuota.find(elem.second);
+
+      if (stale != pMapQuota.end()) {
+        eos_static_crit("msg=\"dropping stale quota node at rename target\" "
+                        "path=\"%s\"",
+                        elem.second.c_str());
+
+        if (stale->second->GetQuotaNode()) {
+          auto inode_it = pMapInodeQuota.find(stale->second->GetQuotaNode()->getId());
+
+          if ((inode_it != pMapInodeQuota.end()) && (inode_it->second == stale->second)) {
+            pMapInodeQuota.erase(inode_it);
+          }
+        }
+
+        delete stale->second;
+        pMapQuota.erase(stale);
+      }
+
+      squota->pPath = elem.second;
+      // Let the next refresh pick up the layout size factor of the new
+      // location - recomputing it here would need the namespace lock
+      squota->mLastRefresh = 0;
+      pMapQuota[elem.second] = squota;
+      // pMapInodeQuota is keyed by container id and needs no update
+    }
+  }
+
+  // Drop the old location, PrepareRenameNodes already wrote the new one. Done
+  // outside the quota map lock since it saves and broadcasts, and skipped
+  // entirely without quota nodes. The new prefix covers a concurrent LoadNodes
+  // which re-keyed them already.
+  size_t num_keys = 0;
+
+  if ((!renamed.empty() || HasNodesInSubtree(new_prefix)) &&
+      (gOFS->mConfigEngine != nullptr)) {
+    num_keys = gOFS->mConfigEngine->DropConfigValueByMatch("quota", old_prefix.c_str());
+  }
+
+  if (!renamed.empty() || num_keys) {
+    eos_static_notice("msg=\"moved quota nodes\" old_path=\"%s\" "
+                      "new_path=\"%s\" num_nodes=%llu num_config_keys=%llu",
+                      old_prefix.c_str(), new_prefix.c_str(),
+                      (unsigned long long)renamed.size(), (unsigned long long)num_keys);
+
+    // Without autosave the new location only lives in memory
+    if (num_keys && !gOFS->mConfigEngine->GetAutoSave()) {
+      eos_static_warning("msg=\"quota nodes moved but autosave is off, run "
+                         "'eos config save' to make this persistent\" "
+                         "old_path=\"%s\" new_path=\"%s\"",
+                         old_prefix.c_str(), new_prefix.c_str());
+    }
+  }
+
+  return renamed.size();
+}
+
+//------------------------------------------------------------------------------
+// Undo PrepareRenameNodes after a failed rename
+//------------------------------------------------------------------------------
+void
+Quota::AbortRenameNodes(const std::vector<std::string>& keys)
+{
+  if (keys.empty()) {
+    return;
+  }
+
+  if (gOFS->mConfigEngine == nullptr) {
+    return;
+  }
+
+  eos_static_warning("msg=\"rename failed, dropping the quota configuration "
+                     "copied for the new location\" num_config_keys=%llu",
+                     (unsigned long long)keys.size());
+  gOFS->mConfigEngine->DropConfigValues("quota", keys);
 }
 
 //------------------------------------------------------------------------------
@@ -1865,6 +2033,7 @@ void
 Quota::LoadNodes()
 {
   std::vector<std::pair<std::string, eos::IContainerMD::id_t>> create_quota;
+  std::map<eos::IContainerMD::id_t, std::string> map_id_path;
   // Load all known nodes
   {
     std::string quota_path;
@@ -1882,6 +2051,8 @@ Quota::LoadNodes()
           quota_path += '/';
         }
 
+        map_id_path.emplace(elem, quota_path);
+
         if (!Exists(quota_path)) {
           create_quota.emplace_back(quota_path, elem);
         }
@@ -1893,10 +2064,50 @@ Quota::LoadNodes()
     }
   }
 
+  // Re-key the quota nodes whose directory was renamed in the meantime - this
+  // syncs a slave with a rename done by the master. The configuration is
+  // broadcasted by the MGM which did the rename, so it is not touched here.
+  {
+    eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
+    std::vector<std::pair<std::string, std::string>> renamed;
+
+    // The id keyed map avoids dereferencing the ns quota node, which may
+    // already be gone if it was removed on another MGM
+    for (const auto& elem : pMapInodeQuota) {
+      auto it = map_id_path.find(elem.first);
+
+      if ((it != map_id_path.end()) && (it->second != elem.second->GetSpaceNameStr())) {
+        renamed.emplace_back(elem.second->GetSpaceNameStr(), it->second);
+      }
+    }
+
+    for (const auto& elem : renamed) {
+      auto it = pMapQuota.find(elem.first);
+
+      if ((it == pMapQuota.end()) || (pMapQuota.count(elem.second) != 0)) {
+        continue;
+      }
+
+      SpaceQuota* squota = it->second;
+      pMapQuota.erase(it);
+      squota->pPath = elem.second;
+      squota->mLastRefresh = 0;
+      pMapQuota[elem.second] = squota;
+      eos_static_notice("msg=\"re-keyed renamed quota node\" old_path=\"%s\" "
+                        "new_path=\"%s\"",
+                        elem.first.c_str(), elem.second.c_str());
+    }
+  }
+
   // Load all the necessary space quota nodes. Bind directly by container id so
   // that we never re-resolve the path by name (which could rebind to a wrong or
   // shadow container) and never create a namespace container.
   for (auto it = create_quota.begin(); it != create_quota.end(); ++it) {
+    if (Exists(it->first)) {
+      // Already covered by the re-keying above
+      continue;
+    }
+
     eos_static_notice("msg=\"load quota node\" path=\"%s\" cont_id=%llu",
                       it->first.c_str(), (unsigned long long)it->second);
     (void)CreateQuotaObj(it->first, it->second);

@@ -22,12 +22,14 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include <XrdOuc/XrdOucString.hh>
+#include "mgm/Namespace.hh"
 #include <XrdOuc/XrdOucHash.hh>
-#include <sstream>
+#include <XrdOuc/XrdOucString.hh>
 #include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
 
 //------------------------------------------------------------------------------
 //! @brief Interface Class responsible to handle configuration (load, save,
@@ -209,9 +211,10 @@ public:
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to delete
   //! @param tochangelog if true add entry also to the changelog
+  //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
   virtual void DeleteConfigValue(const char* prefix, const char* key,
-                                 bool tochangelog = true) = 0;
+                                 bool tochangelog = true, bool save_config = true) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
@@ -227,6 +230,43 @@ public:
   //! @param match matching pattern
   //----------------------------------------------------------------------------
   void DeleteConfigValueByMatch(const char* prefix, const char* match);
+
+  //----------------------------------------------------------------------------
+  //! Copy all the configuration keys starting with the given pattern to keys
+  //! where the pattern is replaced by a new one, keeping the values. The old
+  //! keys are left in place - drop them once the copy is known to be valid.
+  //!
+  //! @param prefix identifies the type of configuration parameter
+  //! @param old_match matching pattern to be replaced
+  //! @param new_match pattern replacing the old one
+  //!
+  //! @return the newly created keys (without prefix), which is what needs to
+  //!         be dropped again if the operation has to be undone
+  //----------------------------------------------------------------------------
+  std::vector<std::string> CopyConfigValueByMatch(const char* prefix,
+                                                  const char* old_match,
+                                                  const char* new_match);
+
+  //----------------------------------------------------------------------------
+  //! Delete all the configuration keys starting with the given pattern. Unlike
+  //! DeleteConfigValueByMatch this broadcasts and records in the changelog.
+  //!
+  //! @param prefix identifies the type of configuration parameter
+  //! @param match matching pattern
+  //!
+  //! @return number of deleted configuration keys
+  //----------------------------------------------------------------------------
+  size_t DropConfigValueByMatch(const char* prefix, const char* match);
+
+  //----------------------------------------------------------------------------
+  //! Delete the given configuration keys, broadcasting and recording them.
+  //!
+  //! @param prefix identifies the type of configuration parameter
+  //! @param keys keys to delete (without prefix)
+  //!
+  //! @return number of deleted configuration keys
+  //----------------------------------------------------------------------------
+  size_t DropConfigValues(const char* prefix, const std::vector<std::string>& keys);
 
   //----------------------------------------------------------------------------
   //! Apply a configuration definition - the configuration engine informs the
@@ -258,7 +298,16 @@ public:
   void ResetConfig(bool apply_stall_redirect = true);
 
   //----------------------------------------------------------------------------
-  //! Set the autosave mode
+  //! Get the autosave mode
+  //----------------------------------------------------------------------------
+  inline bool
+  GetAutoSave() const
+  {
+    return mAutosave;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set autosave mode
   //----------------------------------------------------------------------------
   inline void SetAutoSave(bool val)
   {

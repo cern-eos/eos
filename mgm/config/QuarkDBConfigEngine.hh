@@ -159,8 +159,8 @@ public:
   //! @param from_local mark if change comes from local MGM or remote one
   //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
-  void DeleteConfigValue(const char* prefix, const char* key,
-                         bool from_local = true) override;
+  void DeleteConfigValue(const char* prefix, const char* key, bool from_local = true,
+                         bool save_config = true) override;
 
 private:
 #ifdef IN_TEST_HARNESS
