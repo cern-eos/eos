@@ -95,18 +95,33 @@ FsckEntry::~FsckEntry()
 //------------------------------------------------------------------------------
 // Collect MGM file metadata information
 //------------------------------------------------------------------------------
-bool
+int
 FsckEntry::CollectMgmInfo()
 {
   if (mQcl == nullptr) {
-    return false;
+    // Without a qclient we can not decide if the file exists or not, therefore
+    // treat this as a transient error so that no repair action is taken
+    eos_notice("msg=\"no qclient present, skipping mgm info collection\" "
+               "fxid=%08llx",
+               mFid);
+    return EINVAL;
   }
 
   try {
     mMgmFmd = eos::MetadataFetcher::getFileFromId(*mQcl.get(),
               FileIdentifier(mFid)).get();
   } catch (const eos::MDException& e) {
-    return false;
+    // Only ENOENT means the file is really gone from the namespace. Any other
+    // error is transient e.g. QDB not available, and must not be interpreted
+    // as a missing file, otherwise the replicas get wrongly dropped.
+    if (e.getErrno() != ENOENT) {
+      eos_err("msg=\"failed to get file metadata from QDB\" fxid=%08llx "
+              "errc=%d msg_err=\"%s\"",
+              mFid, e.getErrno(), e.what());
+      return e.getErrno();
+    }
+
+    return ENOENT;
   }
 
   if (mMgmFmd.cont_id()) {
@@ -117,11 +132,20 @@ FsckEntry::CollectMgmInfo()
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
     } catch (const eos::MDException& e) {
+      // Same reasoning as above, only a missing container marks the file as
+      // detached, a transient error must not trigger any clean-up
+      if (e.getErrno() != ENOENT) {
+        eos_err("msg=\"failed to get container metadata from QDB\" "
+                "fxid=%08llx cxid=%08llx errc=%d msg_err=\"%s\"",
+                mFid, mMgmFmd.cont_id(), e.getErrno(), e.what());
+        return e.getErrno();
+      }
+
       mMgmFmd.set_cont_id(0ull);
     }
   }
 
-  return true;
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1123,7 +1147,7 @@ void
 FsckEntry::ResyncFstMd(bool refresh_mgm_md)
 {
   if (refresh_mgm_md) {
-    CollectMgmInfo();
+    (void)CollectMgmInfo();
   }
 
   for (const auto& fsid : mMgmFmd.locations()) {
@@ -1146,7 +1170,22 @@ FsckEntry::Repair()
   if (gOFS) {
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
-    if (CollectMgmInfo() == false) {
+    const int mgm_retc = CollectMgmInfo();
+
+    if (mgm_retc && (mgm_retc != ENOENT)) {
+      // Transient error while collecting the info from QDB, skip any repair
+      // action otherwise we risk dropping replicas of a file that still
+      // exists. The error stays registered and is retried by the next fsck
+      // round.
+      eos_err("msg=\"skip repair action due to QDB error\" fxid=%08llx "
+              "fsid=%lu errc=%d err=%s",
+              mFid, *mFsidErr.begin(), mgm_retc, FsckErrToString(mReportedErr).c_str());
+      success = false;
+      NotifyOutcome(success);
+      return success;
+    }
+
+    if (mgm_retc == ENOENT) {
       eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu "
               "err=%s", mFid, *mFsidErr.begin(), FsckErrToString(mReportedErr).c_str());
       success = true;

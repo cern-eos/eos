@@ -1929,8 +1929,13 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
                 " is attached to cid=" + std::to_string(contId);
           return false;
         } catch (const eos::MDException& e) {
-          // This means the parent container does not exist so we can safely
-          // remove this file entry.
+          // Only ENOENT means the parent container really does not exist and
+          // that we can safely remove this file entry. Any other error is
+          // transient e.g. QDB not available, and must not lead to the removal
+          // of the file - rethrow so that it's reported by the outer handler.
+          if (e.getErrno() != ENOENT) {
+            throw;
+          }
         }
       }
 

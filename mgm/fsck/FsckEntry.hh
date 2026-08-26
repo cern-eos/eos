@@ -165,9 +165,13 @@ public:
   //----------------------------------------------------------------------------
   //! Collect MGM file metadata information
   //!
-  //! @return true if successful, otherwise false
+  //! @return 0 if successful, ENOENT if the file does not exist anymore in the
+  //!         namespace, otherwise the errno of the (transient) error that
+  //!         prevented us from retrieving the information. Any value other
+  //!         than 0 or ENOENT means the state of the file is unknown and no
+  //!         repair action must be taken.
   //----------------------------------------------------------------------------
-  bool CollectMgmInfo();
+  int CollectMgmInfo();
 
   //----------------------------------------------------------------------------
   //! Collect FST file metadata information from all replicas

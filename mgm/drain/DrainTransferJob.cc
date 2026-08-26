@@ -39,18 +39,26 @@ namespace
 
 //----------------------------------------------------------------------------
 // Check if container id exists
+//!
+//! @param cid container id to check
+//!
+//! @return 0 if the container exists, ENOENT if it does not exist anymore,
+//!         otherwise the errno of the (transient) error that prevented us
+//!         from doing the check. Any value other than 0 or ENOENT means the
+//!         state of the container is unknown and no clean-up must be done.
 //----------------------------------------------------------------------------
-bool ContainerExists(const eos::IContainerMD::id_t cid)
+int
+CheckContainerExists(const eos::IContainerMD::id_t cid)
 {
-  eos::IContainerMDPtr cont = nullptr;
-
   try {
-    cont = gOFS->eosDirectoryService->getContainerMD(cid, 0);
-  } catch (eos::MDException& e) {
-    cont = nullptr;
+    if (gOFS->eosDirectoryService->getContainerMD(cid, 0) == nullptr) {
+      return ENOENT;
+    }
+  } catch (const eos::MDException& e) {
+    return e.getErrno();
   }
 
-  return (cont != nullptr);
+  return 0;
 }
 }
 
@@ -91,6 +99,17 @@ DrainTransferJob::DoIt() noexcept
   try {
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
+    // Any error other than ENOENT is transient e.g. QDB not available, and
+    // must not be interpreted as a ghost entry, otherwise the file is wrongly
+    // marked as drained and its replicas are lost once the file system is
+    // removed
+    if (e.getErrno() != ENOENT) {
+      ReportError(SSTR("msg=\"failed to get file metadata\" fxid="
+                       << eos::common::FileId::Fid2Hex(mFileId)
+                       << " errc=" << e.getErrno()));
+      return;
+    }
+
     // This could be a ghost fid entry still present in the file system map
     // and we need to also drop it from there
     std::string out, err;
@@ -102,10 +121,26 @@ DrainTransferJob::DoIt() noexcept
     return;
   }
 
-  // Detect files detached from their parent or with parets containers that
+  // Detect files detached from their parent or with parent containers that
   // don't exist anymore in the namespace - just delete the file entry
-  if ((fdrain.mProto.cont_id() == 0ull) ||
-      !ContainerExists(fdrain.mProto.cont_id())) {
+  int cont_retc = 0;
+
+  if (fdrain.mProto.cont_id()) {
+    cont_retc = CheckContainerExists(fdrain.mProto.cont_id());
+
+    // Any error other than ENOENT is transient e.g. QDB not available, and
+    // must not be interpreted as a missing container, otherwise we end up
+    // dropping all the replicas of a file that is still valid
+    if (cont_retc && (cont_retc != ENOENT)) {
+      ReportError(SSTR("msg=\"failed to check parent container\" fxid="
+                       << eos::common::FileId::Fid2Hex(mFileId) << " cxid="
+                       << eos::common::FileId::Fid2Hex(fdrain.mProto.cont_id())
+                       << " errc=" << cont_retc));
+      return;
+    }
+  }
+
+  if ((fdrain.mProto.cont_id() == 0ull) || (cont_retc == ENOENT)) {
     for (const auto fsid : fdrain.mProto.unlink_locations()) {
       (void) gOFS->DropReplica(mFileId.load(), fsid);
     }
