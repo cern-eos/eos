@@ -3089,12 +3089,19 @@ metad::mdcallback(ThreadAssistant& assistant)
       eos_static_notice("refresh-dentry: remote-ino=%#lx ino=%#lx",
                         md_ino, ino);
       shared_md md;
+      std::vector<std::string> inval_entry_name;
 
       // force meta data refresh
       if (ino && mdmap.retrieveTS(ino, md)) {
         XrdSysMutexHelper mLock(md->Locker());
         md->force_refresh();
         mode = (*md)()->mode();
+        if (S_ISDIR(mode)) {
+          for (const auto& name : md->local_enoent()) {
+            inval_entry_name.push_back(name);
+          }
+          md->local_enoent().clear();
+        }
       }
 
       if (EOS_LOGS_DEBUG) {
@@ -3103,6 +3110,9 @@ metad::mdcallback(ThreadAssistant& assistant)
 
       if (EosFuse::Instance().Config().options.md_kernelcache) {
         eos_static_info("invalidate metadata cache for ino=%#lx", ino);
+        for (const auto& name : inval_entry_name) {
+          kernelcache::inval_entry(ino, name);
+        }
         kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
       }
     }
