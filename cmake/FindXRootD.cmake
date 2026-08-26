@@ -14,9 +14,9 @@ find_path(XROOTD_INCLUDE_DIR
   PATH_SUFFIXES include/xrootd)
 
 find_path(XROOTD_PRIVATE_INCLUDE_DIR
-  NAMES XrdOss/XrdOssApi.hh
+  NAMES XrdOss/XrdOss.hh
   HINTS ${XROOTD_ROOT} $ENV{XROOTD_ROOT} /opt/eos/xrootd/
-  PATH_SUFFIXES include/xrootd/private)
+  PATH_SUFFIXES include/xrootd/)
 
 find_library(XROOTD_UTILS_LIBRARY
   NAMES XrdUtils

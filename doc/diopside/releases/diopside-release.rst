@@ -14,7 +14,121 @@ Diopside Release Notes
 Introduction
 ------------
 
-This release is based on XRootD V5.
+This release is based on XRootD V5/6.
+
+
+``v5.5.1 Diopside``
+===================
+
+2026-08-26
+
+Note
+-----
+* Update eos-xrootd dependency to 6.1.1.
+
+Bug
+----
+
+* [EOS-6577] - Race condition ns recompute_tree_size and tree move operation
+* [EOS-6609] - FUSE: Versioning issue when directories/files contain '&' in the name
+* [EOS-6611] - Add tests for the format of the eos archive file
+* [EOS-6612] - NODE RM fails to clean up config entry when node is no longer in FsView
+* [EOS-6613] - MGM deadlocks when SIGSEGV
+* [EOS-6614] - Macaroon passed by authz opaque needs double encoding from the user
+* [EOS-6615] - FUSEX: stale metadata served after silent loss of MGM→client ZMQ broadcasts
+* [EOS-6618] - FST crash CheckSum::SetXSMap
+* [EOS-6620] - FST crash in XrdFstOfsFile::read via unsigned read return value
+* [EOS-6621] - Drop command triggers the loading of the file list for FileSystems
+* [EOS-6622] - Avoid adding user "nobody" as sudoer
+* [EOS-6627] - Wrong sched.capacity for sharedfs FSTs
+* [EOS-6631] - MGM: Ls - Fix -h and -d flags
+* [EOS-6632] - MGM: quota rmnode and fs dropfiles does not ask for confirmation code
+* [EOS-6633] - Conversion of obfuscated files always fails with a checksum validation error
+* [EOS-6634] - MGM: HTTP - Scitokens with wrong scope redirects to FST on XRootD port
+
+New Feature
+------------
+
+* [EOS-6429] - WLCG HTTP-TPC data integrity check
+* [EOS-6405] - Implement WLCG HTTP-TPC data integrity
+* [EOS-6430] - MGM: Add support for Repr-Digest HTTP PUT
+* [EOS-6610] - Expose gRPC API to create version folder
+* [EOS-6453] - MGM: Add support for Want-Repr-Digest HTTP GET
+* [EOS-6636] - MGM: Remove confirmation for quota rmnode and fs dropfiles
+
+
+Improvement
+------------
+
+* [EOS-6453] - MGM: Add support for Want-Repr-Digest HTTP GET
+* [EOS-6636] - MGM: Remove confirmation for quota rmnode and fs dropfiles
+* [EOS-4395] - Move the eos file command to Protobuf
+* [EOS-5525] - RFE: uniform interface to EOS MGM "space" parameters ("status" vs "config")
+* [EOS-6222] - Add space name in eos report
+* [EOS-6378] - RFE: support for quota node rename / move ("Unable to rename - source is a quota node")
+* [EOS-6447] - MGM,FST: Add the possibility to set the checksum type in addition to the checksum value of a file to be transferred
+* [EOS-6608] - Improve Fusex and IOStat space variables
+* [EOS-6616] - MGM: Add JSON output to eos find --fileinfo
+
+
+``v5.5.0 Diopside``
+===================
+
+2026-06-24
+
+Note: Update dependency to xrootd/eos-xrootd 6.0.3 release.
+
+Bug
+----
+
+* [EOS-4181] - CLI not working with escaped paths
+* [EOS-5708] - Parallel writes to EC files is not prevented
+* [EOS-5905] - CLI as root impossible via sss on IPV6 only MGM
+* [EOS-6302] - Scheduler should take into account EC
+* [EOS-6462] - space quota not updated on concurrent file deletion (commit after delete?)
+* [EOS-6556] - EOSATLAS high heartbeats for nodes, file systems fine
+* [EOS-6559] - fsck should fix files with all zero checksum and non-zero size
+* [EOS-6567] - EOS fails to compile with GRPC 1.67.0 and later
+* [EOS-6593] - Creating a symlink doesn't update eos.ttime of parent dir
+* [EOS-6595] - EOS MGM blocked after QDB master change.
+* [EOS-6600] - silence FST startup log error when FS device not accessible
+* [EOS-6604] - FUSE creates zero-byte namespace entries under immutable ACL directories
+* [EOS-6607] - Fuse crash in lxplus during open
+* FUSEX: Extend client-side unix uid transport to 33 bits to allow uids > 1M.
+
+Improvement
+------------
+
+* [EOS-4802] - Expose the EOS version through the grpc and/or XrdHTTP interfaces
+* [EOS-5755] - Honour eos.excludefsid also for read access
+* [EOS-6023] - RFE: MGM: treat /var/eos/ns-queue/ as expendable ?
+* [EOS-6389] - RFE: groupdrainer to randomize file candidates
+* [EOS-6605] - Trigger CTA regression tests using Downstream pipelines
+
+
+ ``v5.4.12 Diopside``
+===================
+
+2026-08-26
+
+Note
+----
+
+* Update eos-xrootd dependency to 5.9.7
+
+Bug
+----
+
+* [EOS-6609] - FUSE: Versioning issue when directories/files contain '&' in the name
+* [EOS-6614] - Macaroon passed by authz opaque needs double encoding from the user
+* [EOS-6627] - Wrong sched.capacity for sharedfs FSTs
+* [EOS-6634] - MGM: HTTP - Scitokens with wrong scope redirects to FST on XRootD port
+
+Improvement
+------------
+
+* [EOS-6616] - MGM: Add JSON output to eos find --fileinfo
+
 
 ``v5.4.11 Diopside``
 ====================
@@ -63,42 +177,6 @@ Bug
 
 * FUSEX/COMMON: Extend FUSE uid transport and use '.' for large uids
 * MGM: allow 'oauth2' as protocol running proc commands
-
-
-``v5.5.0 Diopside``
-===================
-
-2026-06-24
-
-Note: Update dependency to xrootd/eos-xrootd 6.0.3 release.
-
-Bug
-----
-
-* [EOS-4181] - CLI not working with escaped paths
-* [EOS-5708] - Parallel writes to EC files is not prevented
-* [EOS-5905] - CLI as root impossible via sss on IPV6 only MGM
-* [EOS-6302] - Scheduler should take into account EC
-* [EOS-6462] - space quota not updated on concurrent file deletion (commit after delete?)
-* [EOS-6556] - EOSATLAS high heartbeats for nodes, file systems fine
-* [EOS-6559] - fsck should fix files with all zero checksum and non-zero size
-* [EOS-6567] - EOS fails to compile with GRPC 1.67.0 and later
-* [EOS-6593] - Creating a symlink doesn't update eos.ttime of parent dir
-* [EOS-6595] - EOS MGM blocked after QDB master change.
-* [EOS-6600] - silence FST startup log error when FS device not accessible
-* [EOS-6604] - FUSE creates zero-byte namespace entries under immutable ACL directories
-* [EOS-6607] - Fuse crash in lxplus during open
-* FUSEX: Extend client-side unix uid transport to 33 bits to allow uids > 1M.
-
-Improvement
-------------
-
-* [EOS-4802] - Expose the EOS version through the grpc and/or XrdHTTP interfaces
-* [EOS-5755] - Honour eos.excludefsid also for read access
-* [EOS-6023] - RFE: MGM: treat /var/eos/ns-queue/ as expendable ?
-* [EOS-6389] - RFE: groupdrainer to randomize file candidates
-* [EOS-6605] - Trigger CTA regression tests using Downstream pipelines
-
 
 ``v5.4.7 Diopside``
 ===================
