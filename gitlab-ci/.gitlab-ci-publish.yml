@@ -214,9 +214,12 @@ rpm_stable_artifacts:
 .publish_dockerimage-template:
   stage: publish
   image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    name: ghcr.io/osscontainertools/kaniko:v1.28.2-debug
     entrypoint: [""]
   variables:
+    # Emit relative symlink/hardlink targets, absolute ones make docker reject
+    # the resulting layers with "invalid hardlink"
+    FF_KANIKO_RELATIVE_LINK_TARGETS: "true"
     # eos-docker (redesigned layout): single minimal Dockerfile, parameterised
     DOCKERFILE: eos-docker/docker/Dockerfile.minimal
     DIST: el-9

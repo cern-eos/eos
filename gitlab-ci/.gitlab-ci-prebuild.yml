@@ -22,8 +22,12 @@
 .prebuild-template:
   stage: prebuild
   image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    name: ghcr.io/osscontainertools/kaniko:v1.28.2-debug
     entrypoint: [""]
+  variables:
+    # Emit relative symlink/hardlink targets, absolute ones make docker reject
+    # the resulting layers with "invalid hardlink"
+    FF_KANIKO_RELATIVE_LINK_TARGETS: "true"
   script:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}-${CODENAME}"
     - export DOCKERFILE="$CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/prebuild-${PREBUILD_NAME}.Dockerfile"
