@@ -2464,9 +2464,11 @@ runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Fusex-Stat" unix ERROR "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Delay     " unix SUCCESS "" delay 1
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
