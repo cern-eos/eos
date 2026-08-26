@@ -16,6 +16,30 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.12 Diopside``
+===================
+
+2026-08-05
+
+Note
+----
+
+* Update eos-xrootd dependency to 5.9.7
+
+Bug
+----
+
+* [EOS-6609] - FUSE: Versioning issue when directories/files contain '&' in the name
+* [EOS-6614] - Macaroon passed by authz opaque needs double encoding from the user
+* [EOS-6627] - Wrong sched.capacity for sharedfs FSTs
+* [EOS-6634] - MGM: HTTP - Scitokens with wrong scope redirects to FST on XRootD port
+
+Improvement
+------------
+
+* [EOS-6616] - MGM: Add JSON output to eos find --fileinfo
+
+
 ``v5.4.11 Diopside``
 ===================
 
