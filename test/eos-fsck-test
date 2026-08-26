@@ -270,26 +270,65 @@ function corrupt_orphan() {
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  # Detach the replica from the namespace without ever scheduling a deletion
-  # for it - the physical file is left untouched on disk. Note this must not
-  # rely on setting the file system "off" and dropping the deletion list
-  # afterwards, since the FSTs collect their deletions directly from QuarkDB
-  # without looking at the config status, therefore any fid that lands in the
-  # unlinked list can be removed from disk at any moment.
+  local LDIR=$(dirname "${LPATH}")
+  local LFILE=$(basename "${LPATH}")
+  local BACKUP="/tmp/orphan_${LFILE}.tar"
+  # Save the replica together with its extended attributes - they hold the FST
+  # file metadata, so putting the tarball back is enough for the scanner to
+  # pick the file up again and report it as an orphan.
+  exec_cmd "eos-fst${FSID}" "tar cf ${BACKUP} --xattrs -C ${LDIR} ${LFILE}"
+  # Detach the replica from the namespace. Note that the force drop first
+  # unlinks the location and only then removes it, so the fid shows up for a
+  # short while in the list of unlinked files of fsid=${FSID} in QuarkDB. The
+  # FSTs collect their deletions directly from there, without looking at the
+  # config status of the file system, and they re-query as fast as they can
+  # for as long as they have something to delete. Therefore the replica that
+  # we want to keep can be removed from disk at any moment - this is what the
+  # restore further down is for.
   exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_ORPHAN} ${FSID} -f"
   # Unlink the remaining replica(s) and then force remove the file metadata
   # object so that the replica left over on fsid=${FSID} has no namespace
   # entry pointing to it anymore i.e. it becomes an orphan
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
-  # Make sure the orphan was properly created, otherwise we would only notice
-  # this much later while waiting for the fsck errors to be collected
-  local ON_DISK=$(exec_cmd "eos-fst${FSID}" "test -f ${LPATH} && echo yes || echo no")
   local IN_NS=$(exec_cmd eos-mgm1 "eos -r 0 0 fileinfo fxid:${FXID_ORPHAN} -m 2>/dev/null | grep -o 'fxid=[0-9a-f]*' || true")
 
-  if [[ "${ON_DISK}" != "yes" || -n "${IN_NS}" ]]; then
-    echo "error: failed to create orphan fxid=${FXID_ORPHAN} fsid=${FSID}" \
-         "(on_disk=${ON_DISK} ns_entry=\"${IN_NS}\")"
+  if [[ -n "${IN_NS}" ]]; then
+    echo "error: fxid=${FXID_ORPHAN} is still attached to the namespace"
+    cleanup
+    exit 1
+  fi
+
+  # Put the replica back if it was deleted in the meantime. There is no
+  # namespace entry left for it at this point so no new deletion can be
+  # scheduled, but one might still be in flight, hence we only accept the
+  # orphan once the file stayed on disk for two consecutive checks.
+  local ON_DISK="no"
+  local STABLE=0
+  local attempt
+
+  for (( attempt=1; attempt<=6; attempt++ )); do
+    exec_cmd "eos-fst${FSID}" "test -f ${LPATH} || tar xf ${BACKUP} --xattrs -C ${LDIR}"
+    sleep 2
+    ON_DISK=$(exec_cmd "eos-fst${FSID}" "test -f ${LPATH} && echo yes || echo no")
+
+    if [[ "${ON_DISK}" == "yes" ]]; then
+      STABLE=$((STABLE + 1))
+
+      if (( ${STABLE} >= 2 )); then
+        break
+      fi
+    else
+      echo "info: replica of fxid=${FXID_ORPHAN} deleted from fsid=${FSID}," \
+           "restoring it, attempt ${attempt}"
+      STABLE=0
+    fi
+  done
+
+  exec_cmd "eos-fst${FSID}" "rm -f ${BACKUP}"
+
+  if [[ "${ON_DISK}" != "yes" ]]; then
+    echo "error: failed to create orphan fxid=${FXID_ORPHAN} fsid=${FSID}"
     cleanup
     exit 1
   fi
