@@ -231,15 +231,15 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 /*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid,
-    bool notprot5)
+                                               RefreshDir isdir, bool notprot5)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
-  eos_static_debug("id=%lx pid=%lx", id, pid);
-  auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true,
-                                   "Eosxd::int::BcRefreshExtSup");
+  eos_static_debug("id=%lx pid=%lx isdir=%d", id, pid, (int)isdir);
+  auto bccaps = GetBroadcastCapsTS((isdir == RefreshDir::YES) ? id : pid, nullptr,
+                                   nullptr, true, "Eosxd::int::BcRefreshExtSup");
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
