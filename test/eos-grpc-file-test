@@ -379,6 +379,12 @@ check_both_ok "purge" purge "${testdir}/gf1" 0
 #-------------------------------------------------------------------------------
 section "version --create-folder"
 #-------------------------------------------------------------------------------
+# 'ls -la' truncates the owner column to 8 characters, so ownership is read
+# back through 'fileinfo -m' instead.
+entry_uid() {
+  eos fileinfo "$1" -m 2>/dev/null | tr ' ' '\n' | grep -E '^uid=' | cut -d= -f2
+}
+
 eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/vcf" > /dev/null 2>&1
 eos -r ${TEST_UID} ${TEST_GID} file touch "${testdir}/vcf" > /dev/null 2>&1
 check_both_ok "version --create-folder" version "${testdir}/vcf" --create-folder
@@ -396,8 +402,21 @@ eos mkdir -p "${vfdir}" > /dev/null 2>&1
 eos chown ${vuid_a}:${vuid_a} "${vfdir}" > /dev/null 2>&1
 eos chmod 700 "${vfdir}" > /dev/null 2>&1
 eos attr set sys.acl="u:${vuid_b}:rwx" "${vfdir}" > /dev/null 2>&1
-eos -r ${vuid_b} ${vuid_b} file touch "${vfdir}/file.txt" > /dev/null 2>&1
+# The file is created as root and handed over: the scenario only needs B to
+# own it, and doing it this way keeps the setup from depending on B's own
+# permissions, which is what broke it in the CI instance.
+eos file touch "${vfdir}/file.txt" > /dev/null 2>&1
+eos chown ${vuid_b}:${vuid_b} "${vfdir}/file.txt" > /dev/null 2>&1
 eos attr set sys.acl="u:${vuid_a}:rwx" "${vfdir}" > /dev/null 2>&1
+
+# Guard the setup: without this a failure here shows up as several confusing
+# failures further down rather than one telling you the file is missing.
+if [ "$(entry_uid "${vfdir}/file.txt")" = "${vuid_b}" ]; then
+  pass "create-folder: setup - the file is owned by user B"
+else
+  fail "create-folder: setup - the file is owned by user B" \
+       "$(eos ls -la "${vfdir}" 2>/dev/null)"
+fi
 
 if eos -r ${vuid_b} ${vuid_b} mkdir "${vfdir}/.sys.v#.file.txt" > /dev/null 2>&1; then
   fail "create-folder: a by-hand mkdir on behalf of the file owner fails" \
@@ -456,11 +475,7 @@ fi
 eos rm -rF --no-confirmation "${vfdir}/" > /dev/null 2>&1
 
 # Users who left have no passwd entry at all, so nothing in this path may go
-# through a name lookup. Note 'ls -la' truncates the owner column to 8 chars,
-# hence the uid is read back with 'fileinfo -m'.
-entry_uid() {
-  eos fileinfo "$1" -m 2>/dev/null | tr ' ' '\n' | grep -E '^uid=' | cut -d= -f2
-}
+# through a name lookup.
 
 # Guard: if these uids ever become resolvable on the test machine, the scenario
 # above silently stops testing what it claims to test.
