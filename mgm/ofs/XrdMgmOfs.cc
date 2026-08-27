@@ -1339,7 +1339,8 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
+      id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64(),
+      FuseServer::Caps::RefreshDir::YES);
 }
 
 void
@@ -1347,8 +1348,8 @@ XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
-    parentid.getUnderlyingUInt64());
+      eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
+      parentid.getUnderlyingUInt64(), FuseServer::Caps::RefreshDir::NO);
 }
 
 //------------------------------------------------------------------------------
