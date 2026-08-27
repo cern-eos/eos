@@ -192,6 +192,28 @@ eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $prefix/t_grpc/file unlink || exit -10
 
+#version folder
+vfdir=$prefix/t_grpc/vfolder
+eos mkdir -p $vfdir || exit -23
+eos chown 11:11 $vfdir || exit -23
+eos -r 11 11 file touch $vfdir/vfile || exit -23
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $vfdir/vfile create-version-folder | grep "\"code\": \"0\"" || exit -23
+eos ls -la $vfdir | grep ".sys.v#.vfile" | grep -w 11 || exit -23
+# no version was created, and creating the folder again is a no-op
+test $(eos ls "$vfdir/.sys.v#.vfile" | wc -l) -eq 0 || exit -23
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $vfdir/vfile create-version-folder | grep "\"code\": \"0\"" || exit -23
+# not the file owner - EPERM
+eos file touch $vfdir/other || exit -23
+eos chown 12:12 $vfdir/other || exit -23
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $vfdir/other create-version-folder | grep "\"code\": \"1\"" || exit -23
+# a directory is not a file - EISDIR
+eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
+            --token $authkey -p $vfdir create-version-folder | grep "\"code\": \"21\"" || exit -23
+eos rm -r $vfdir/ || exit -23
+
 #acls
 eos attr set sys.eval.useracl=1 $prefix/t_grpc/
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \

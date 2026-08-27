@@ -253,7 +253,7 @@ FileCmd::ProcessRequest() noexcept
       return reply;
     }
 
-    VersionSubcmd(file.version(), spath, reply);
+    VersionSubcmd(file.version(), spath, fid, reply);
     break;
 
   case eos::console::FileProto::kVersions:
@@ -2070,10 +2070,17 @@ FileCmd::PurgeSubcmd(const eos::console::FilePurgeProto& purge, const std::strin
 //------------------------------------------------------------------------------
 void
 FileCmd::VersionSubcmd(const eos::console::FileVersionProto& version,
-                       const std::string& spath, eos::console::ReplyProto& reply)
+                       const std::string& spath, unsigned long long fid,
+                       eos::console::ReplyProto& reply)
 {
   XrdOucErrInfo mError;
   std::ostringstream std_out, std_err;
+
+  if (version.create_folder()) {
+    CreateVersionFolder(spath, fid, reply);
+    return;
+  }
+
   // The client already resolves "no purge-version argument given" to -1
   // before ever sending the request, so an explicit 0 here means the user
   // really typed '0' - matching legacy behaviour, that's rejected as an
@@ -2136,6 +2143,29 @@ FileCmd::VersionSubcmd(const eos::console::FileVersionProto& version,
 
   reply.set_std_out(std_out.str());
   reply.set_std_err(std_err.str());
+}
+
+//------------------------------------------------------------------------------
+// Create the version directory of a file without creating a new version
+//------------------------------------------------------------------------------
+void
+FileCmd::CreateVersionFolder(const std::string& spath, unsigned long long fid,
+                             eos::console::ReplyProto& reply)
+{
+  XrdOucErrInfo mError;
+  std::ostringstream std_out, std_err;
+  std::string vdir;
+
+  if (gOFS->CreateVersionDirectory(fid, spath, mError, mVid, &vdir)) {
+    std_err << "error: unable to create the version directory of path=" << spath
+            << "\nerror: " << mError.getErrText();
+    reply.set_retc(mError.getErrInfo() ? mError.getErrInfo() : EIO);
+    reply.set_std_err(std_err.str());
+    return;
+  }
+
+  std_out << "info: version directory '" << vdir << "' is in place";
+  reply.set_std_out(std_out.str());
 }
 
 //------------------------------------------------------------------------------

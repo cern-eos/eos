@@ -134,8 +134,15 @@ std::string MakeFileHelp()
       << "  -commitfmd    commit the FMD to the MGM\n"
       << "  -rate <rate>  restrict verification speed to <rate> per node\n"
       << "  -resync       ask all locations to resync their file md records\n\n";
-  oss << "version <path> [purge-version]\n"
-      << "  Create a new version of a file by cloning. <purge-version> defines max versions to keep.\n\n";
+  oss << "version <path> [purge-version] [--create-folder]\n"
+      << "  Create a new version of a file by cloning. <purge-version> defines max "
+         "versions to keep.\n"
+      << "  --create-folder  only create the version directory of the file, without "
+         "creating a version.\n"
+      << "                   The directory is created with the identity of the file "
+         "owner, so this also\n"
+      << "                   works for files owned by a user who lost write access to "
+         "their location.\n\n";
   oss << "versions <path>|fid:<fid-dec>|fxid:<fid-hex> [grab-version]\n"
       << "  List versions of a file, or grab a version [grab-version].\n\n";
   oss << "workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event>\n"

@@ -182,7 +182,18 @@ private:
   //! Execute version subcommand
   //----------------------------------------------------------------------------
   void VersionSubcmd(const eos::console::FileVersionProto& version,
-                     const std::string& spath, eos::console::ReplyProto& reply);
+                     const std::string& spath, unsigned long long fid,
+                     eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Create the version directory of a file without creating a new version
+  //!
+  //! @param spath path of the file
+  //! @param fid id of the file, 0 if only the path is known
+  //! @param reply reply object
+  //----------------------------------------------------------------------------
+  void CreateVersionFolder(const std::string& spath, unsigned long long fid,
+                           eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute versions subcommand

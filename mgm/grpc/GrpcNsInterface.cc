@@ -1917,6 +1917,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
       PURGE = 1;
       LIST = 2;
       GRAB = 3;
+      CREATE_FOLDER = 4;
     }
     MDId id = 1;
     VERSION_CMD cmd = 2;
@@ -1992,6 +1993,24 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
       reply->set_msg(msg);
       return grpc::Status::OK;
     }
+  } else if (request->cmd() == eos::rpc::NSRequest::VersionRequest::CREATE_FOLDER) {
+    // create the version folder without creating a new version
+    XrdOucErrInfo error;
+    std::string vdir;
+
+    if (gOFS->CreateVersionDirectory(fid, path, error, vid, &vdir)) {
+      std::string msg = "error: unable to create the version folder of path='";
+      msg += path;
+      msg += "'\nerror: ";
+      msg += (error.getErrText() ? error.getErrText() : "");
+      reply->set_code(error.getErrInfo() ? error.getErrInfo() : EIO);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+
+    reply->set_code(0);
+    reply->set_msg("info: created version folder '" + vdir + "'");
+    return grpc::Status::OK;
   } else {
     if (request->cmd() == eos::rpc::NSRequest::VersionRequest::PURGE) {
       // purge versions
