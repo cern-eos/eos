@@ -45,6 +45,8 @@ class Caps
 {
   friend class FuseServer;
 public:
+  enum class RefreshDir { YES = true, NO = false };
+
   class capx
   {
   public:
@@ -258,12 +260,9 @@ public:
                        bool notprot5 = false
                       ); // broad cast triggered by fuse network
 
-  int BroadcastRefreshFromExternal(uint64_t
-                                   inode,
-                                   uint64_t
-                                   parent_inode,
-                                   bool notprot5 = false
-                                  ); // broad cast triggered non-fuse network
+  int BroadcastRefreshFromExternal(
+      uint64_t inode, uint64_t parent_inode, RefreshDir isdir,
+      bool notprot5 = false); // broad cast triggered non-fuse network
 
   int BroadcastDeletionFromExternal(uint64_t inode,
                                     const std::string& name,
