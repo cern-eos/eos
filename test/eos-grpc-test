@@ -199,7 +199,8 @@ eos chown 11:11 $vfdir || exit -23
 eos -r 11 11 file touch $vfdir/vfile || exit -23
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $vfdir/vfile create-version-folder | grep "\"code\": \"0\"" || exit -23
-eos ls -la $vfdir | grep ".sys.v#.vfile" | grep -w 11 || exit -23
+# read the owner back numerically - 'ls -la' prints the resolved user name
+test "$(eos fileinfo "$vfdir/.sys.v#.vfile" -m | tr ' ' '\n' | grep '^uid=' | cut -d= -f2)" = "11" || exit -23
 # no version was created, and creating the folder again is a no-op
 test $(eos ls "$vfdir/.sys.v#.vfile" | wc -l) -eq 0 || exit -23
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \

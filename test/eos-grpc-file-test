@@ -434,8 +434,7 @@ else
 fi
 
 # owned by the file owner, not by whoever can write into the directory
-if eos ls -la "${vfdir}" 2>/dev/null | grep '\.sys\.v#\.file\.txt' | \
-     grep -qw ${vuid_b}; then
+if [ "$(entry_uid "${vfdir}/.sys.v#.file.txt")" = "${vuid_b}" ]; then
   pass "create-folder: the folder is owned by the file owner"
 else
   fail "create-folder: the folder is owned by the file owner" \
