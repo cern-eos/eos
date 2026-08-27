@@ -1917,6 +1917,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
       PURGE = 1;
       LIST = 2;
       GRAB = 3;
+      CREATE_FOLDER = 4;
     }
     MDId id = 1;
     VERSION_CMD cmd = 2;
@@ -1992,6 +1993,47 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
       reply->set_msg(msg);
       return grpc::Status::OK;
     }
+  } else if (request->cmd() == eos::rpc::NSRequest::VersionRequest::CREATE_FOLDER) {
+    // create the version folder without creating a new version
+    XrdOucErrInfo error;
+    uint64_t target_fid = fid;
+
+    if (!target_fid) {
+      // Resolved as root: the caller typically cannot traverse the parent
+      // anymore. CreateVersionDirectory still enforces ownership.
+      struct stat buf;
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+      if (gOFS->_stat(path.c_str(), &buf, error, rootvid, "")) {
+        reply->set_code(errno);
+        reply->set_msg("error: unable to stat path='" + path + "'");
+        return grpc::Status::OK;
+      }
+
+      if (S_ISDIR(buf.st_mode)) {
+        reply->set_code(EISDIR);
+        reply->set_msg("error: path='" + path + "' is a directory");
+        return grpc::Status::OK;
+      }
+
+      target_fid = eos::common::FileId::InodeToFid(buf.st_ino);
+    }
+
+    std::string vdir;
+
+    if (gOFS->CreateVersionDirectory(target_fid, error, vid, &vdir)) {
+      std::string msg = "error: unable to create the version folder of path='";
+      msg += path;
+      msg += "'\nerror: ";
+      msg += (error.getErrText() ? error.getErrText() : "");
+      reply->set_code(error.getErrInfo() ? error.getErrInfo() : EIO);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+
+    reply->set_code(0);
+    reply->set_msg("info: created version folder '" + vdir + "'");
+    return grpc::Status::OK;
   } else {
     if (request->cmd() == eos::rpc::NSRequest::VersionRequest::PURGE) {
       // purge versions

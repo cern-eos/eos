@@ -28,6 +28,156 @@
 
 /*----------------------------------------------------------------------------*/
 /*
+ * @brief collect the information needed to version a given file
+ *
+ * @param fid id of the file to version
+ * @param error object
+ * @param vid virtual identity of the caller
+ * @param path return variable for the current path of the file
+ * @param vdir return variable for the version directory path
+ * @param fidvid return variable for the identity of the file owner
+ * @param filectime return variable for the creation time of the file
+ * @return SFS_OK if success otherwise SFS_ERROR
+ */
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+                              const eos::common::VirtualIdentity& vid, std::string& path,
+                              std::string& vdir, eos::common::VirtualIdentity& fidvid,
+                              time_t& filectime)
+{
+  static const char* epname = "resolveversioninfo";
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::string bname;
+  fidvid = vid;
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      path = gOFS->eosView->getUri(fmd.get()).c_str();
+      eos::common::Path cPath(path.c_str());
+      bool noversion;
+      cPath.DecodeAtomicPath(noversion);
+      vdir = cPath.GetParentPath();
+      bname = cPath.GetName();
+      fidvid.uid = fmd->getCUid();
+      fidvid.gid = fmd->getCGid();
+      fidvid.allowed_gids.insert(fidvid.gid);
+      eos::IFileMD::ctime_t ctime;
+      fmd->getCTime(ctime);
+      filectime = (time_t) ctime.tv_sec;
+    } catch (eos::MDException& e) {
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      errno = e.getErrno();
+      std::string errmsg = "translate file id - ";
+      errmsg += e.getMessage().str().c_str();
+      return Emsg(epname, error, errno, errmsg.c_str(), path.c_str());
+    }
+  }
+
+  vdir += EOS_COMMON_PATH_VERSION_FILE_PREFIX;
+  vdir += bname;
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create the given version directory if it does not exist yet
+ *
+ * @param vdir version directory path
+ * @param error object
+ * @param fidvid identity of the file owner, used to create the directory
+ * @return SFS_OK if the directory exists or was created otherwise SFS_ERROR
+ *
+ * Created as the file owner and without checking the parent permissions, so it
+ * also works for a file whose owner lost write access to its location.
+ */
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error,
+                                   eos::common::VirtualIdentity& fidvid)
+{
+  static const char* epname = "createversiondirectory";
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  struct stat buf;
+
+  // As root: the owner may not be able to traverse the parent anymore, which
+  // would turn an existing directory into an EEXIST from the _mkdir below
+  if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0)) {
+    return SFS_OK;
+  }
+
+  eos_info("msg=\"creating version directory\" version-directory=\"%s\"", vdir.c_str());
+
+  if (gOFS->_mkdir(vdir.c_str(), 0, error, fidvid, (const char*)0, nullptr, true)) {
+    return Emsg(epname, error, errno, "create version directory", vdir.c_str());
+  }
+
+  // As root again - only reads back the inherited mode
+  if (gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0)) {
+    return Emsg(epname, error, errno, "stat version directory", vdir.c_str());
+  }
+
+  // make sure, the owner can write into the version directory
+  XrdSfsMode chmod_mode = buf.st_mode | S_IRWXU;
+
+  if (gOFS->_chmod(vdir.c_str(), chmod_mode, error, rootvid, (const char*)0)) {
+    return Emsg(epname, error, errno, "chmod version directory", vdir.c_str());
+  }
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create the version directory of a file without creating a version
+ *
+ * @param fid id of the file to create the version directory for
+ * @param error object
+ * @param vid virtual identity of the caller
+ * @param vdir return variable for the version directory path
+ * @return SFS_OK if the directory exists or was created otherwise SFS_ERROR
+ */
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+                                  eos::common::VirtualIdentity& vid, std::string* vdir)
+{
+  static const char* epname = "createversiondirectory";
+  EXEC_TIMING_BEGIN("CreateVersionDirectory");
+  gOFS->MgmStats.Add("VersionDirectory", vid.uid, vid.gid, 1);
+  std::string path;
+  std::string vpath;
+  eos::common::VirtualIdentity fidvid = vid;
+  time_t filectime = 0;
+
+  if (ResolveVersionInfo(fid, error, vid, path, vpath, fidvid, filectime)) {
+    return SFS_ERROR;
+  }
+
+  if (vdir) {
+    *vdir = vpath;
+  }
+
+  if ((fidvid.uid != vid.uid) && (vid.uid)) {
+    return Emsg(epname, error, EPERM,
+                "create version directory - you are not "
+                "the owner of this file",
+                path.c_str());
+  }
+
+  if (_createVersionDirectory(vpath, error, fidvid)) {
+    return SFS_ERROR;
+  }
+
+  EXEC_TIMING_END("CreateVersionDirectory");
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
  * @brief handles file versioning for fid
  *
  * @param fid id of the file to version
@@ -41,49 +191,21 @@
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
-                   XrdOucErrInfo& error,
-                   eos::common::VirtualIdentity& vid,
-                   int max_versions,
-                   XrdOucString* versionedpath,
-                   bool simulate)
+XrdMgmOfs::Version(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+                   eos::common::VirtualIdentity& vid, int max_versions,
+                   XrdOucString* versionedpath, bool simulate)
 {
   static const char* epname = "version";
   EXEC_TIMING_BEGIN("Version");
   gOFS->MgmStats.Add("Versioning", vid.uid, vid.gid, 1);
-  std::shared_ptr<eos::IFileMD> fmd;
   std::string path;
   std::string vpath;
-  std::string bname;
   std::string versionpath;
   eos::common::VirtualIdentity fidvid = vid;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   time_t filectime = 0;
-  {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      path = gOFS->eosView->getUri(fmd.get()).c_str();
-      eos::common::Path cPath(path.c_str());
-      bool noversion;
-      cPath.DecodeAtomicPath(noversion);
-      vpath = cPath.GetParentPath();
-      bname = cPath.GetName();
-      fidvid.uid = fmd->getCUid();
-      fidvid.gid = fmd->getCGid();
-      fidvid.allowed_gids.insert(fidvid.gid);
-      eos::IFileMD::ctime_t ctime;
-      fmd->getCTime(ctime);
-      filectime = (time_t) ctime.tv_sec;
-    } catch (eos::MDException& e) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-      errno = e.getErrno();
-      std::string errmsg = "translate file id - ";
-      errmsg = +e.getMessage().str().c_str();
-      return Emsg(epname, error, errno, errmsg.c_str(), path.c_str());
-    }
+  if (ResolveVersionInfo(fid, error, vid, path, vpath, fidvid, filectime)) {
+    return SFS_ERROR;
   }
 
   if ((fidvid.uid != vid.uid) && (vid.uid)) {
@@ -91,8 +213,6 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
                 "create version - you are not the owner of this file", path.c_str());
   }
 
-  vpath += ".sys.v#.";
-  vpath += bname;
   versionpath = vpath;
   versionpath += "/";
   {
@@ -107,33 +227,13 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
     }
   }
   // Check if .version directory exists, if not create it
-  struct stat buf;
-
-  if (gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) {
-    eos_info("msg=\"creating version directory\" version-directory=\"%s\"",
-             vpath.c_str());
-
-    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0, nullptr,
-                     true)) {
-      return Emsg(epname, error, errno, "create version directory", vpath.c_str());
-    }
-
-    if (gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) {
-      return Emsg(epname, error, errno, "stat version directory", vpath.c_str());
-    }
-
-    // make sure, the owner can write into the version directory
-    XrdSfsMode chmod_mode = buf.st_mode | S_IRWXU;
-
-    if (gOFS->_chmod(vpath.c_str(), chmod_mode, error, rootvid, (const char*) 0)) {
-      return Emsg(epname, error, errno, "chmod version directory", vpath.c_str());
-    }
+  if (_createVersionDirectory(vpath, error, fidvid)) {
+    return SFS_ERROR;
   }
 
   // Rename to the version directory target
-  if ((!gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) && (!simulate) &&
-      gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0, false,
-                    false)) {
+  if (!simulate && gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0,
+                                 false, false)) {
     return Emsg(epname, error, errno, "version file", path.c_str());
   }
 

@@ -38,6 +38,7 @@ int usage(const char* prog)
           " [--sysacl] [-r] [--acl <acl>] [--position <pos>] [--front] -p <path> acl\n"
           "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
           "                [--max-version <max> -p <path> create-version\n"
+          "                                     -p <path> create-version-folder\n"
           "                                     -p <path> list-version\n"
           "                [--max-version <max> -p <path> purge-version\n"
           "                [--max-version <max> -p <path> purge-version\n"
@@ -652,6 +653,10 @@ int main(int argc, const char* argv[])
     request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::CREATE);
     request.mutable_version()->mutable_id()->set_path(path);
     request.mutable_version()->set_maxversion(max_version);
+  } else if (cmd == "create-version-folder") {
+    request.mutable_version()->set_cmd(
+        eos::rpc::NSRequest::VersionRequest::CREATE_FOLDER);
+    request.mutable_version()->mutable_id()->set_path(path);
   } else if (cmd == "list-version") {
     request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::LIST);
     request.mutable_version()->mutable_id()->set_path(path);

@@ -404,6 +404,35 @@ TEST(FileHelper, Version)
   ASSERT_EQ(file.version().purge_version(), 3);
 }
 
+TEST(FileHelper, VersionCreateFolder)
+{
+  // EOS-6637: only create the version directory, do not create a version
+  auto file = ParseOk("version /eos/f.dat --create-folder");
+  ASSERT_TRUE(file.has_version());
+  ASSERT_TRUE(file.version().create_folder());
+  ASSERT_EQ(file.version().purge_version(), -1);
+  ASSERT_EQ(file.md().path(), "/eos/f.dat");
+}
+
+TEST(FileHelper, VersionWithoutCreateFolder)
+{
+  auto file = ParseOk("version /eos/f.dat 3");
+  ASSERT_FALSE(file.version().create_folder());
+}
+
+TEST(FileHelper, VersionCreateFolderRejectsPurgeCount)
+{
+  // --create-folder creates no version, so there is nothing to purge
+  ExpectReject("version /eos/f.dat 3 --create-folder");
+}
+
+TEST(FileHelper, PurgeIgnoresCreateFolder)
+{
+  // --create-folder is a 'file version' flag only - for 'file purge' it stays
+  // a positional, i.e. an unparsable version count
+  ExpectReject("purge /eos/f.dat --create-folder");
+}
+
 TEST(FileHelper, Versions)
 {
   auto file = ParseOk("versions /eos/f.dat");

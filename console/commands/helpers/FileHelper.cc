@@ -372,26 +372,44 @@ FileHelper::ParseCommand(const char* arg)
       return false;
     }
   } else if (token == "purge" || token == "version") {
-    if (rest.empty()) {
+    bool create_folder = false;
+    std::vector<std::string> positionals;
+
+    for (const auto& a : rest) {
+      if ((token == "version") && (a == "--create-folder")) {
+        create_folder = true;
+      } else {
+        positionals.push_back(a);
+      }
+    }
+
+    if (positionals.empty()) {
       return false;
     }
 
     int32_t purge_version = -1;
 
-    if (rest.size() > 1) {
+    if (positionals.size() > 1) {
+      // --create-folder creates no version, hence there is nothing to purge
+      if (create_folder) {
+        return false;
+      }
+
       try {
-        purge_version = std::stoi(rest[1]);
+        purge_version = std::stoi(positionals[1]);
       } catch (...) {
         return false;
       }
     }
 
-    file->mutable_md()->set_path(AbsPath(rest[0].c_str()));
+    file->mutable_md()->set_path(AbsPath(positionals[0].c_str()));
 
     if (token == "purge") {
       file->mutable_purge()->set_purge_version(purge_version);
     } else {
-      file->mutable_version()->set_purge_version(purge_version);
+      eos::console::FileVersionProto* version = file->mutable_version();
+      version->set_purge_version(purge_version);
+      version->set_create_folder(create_folder);
     }
   } else if (token == "versions") {
     if (rest.empty()) {

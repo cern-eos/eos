@@ -377,6 +377,141 @@ check_both_ok "versions (list)" versions "${testdir}/gf1"
 check_both_ok "purge" purge "${testdir}/gf1" 0
 
 #-------------------------------------------------------------------------------
+section "version --create-folder"
+#-------------------------------------------------------------------------------
+eos -r ${TEST_UID} ${TEST_GID} rm -rF --no-confirmation "${testdir}/vcf" > /dev/null 2>&1
+eos -r ${TEST_UID} ${TEST_GID} file touch "${testdir}/vcf" > /dev/null 2>&1
+check_both_ok "version --create-folder" version "${testdir}/vcf" --create-folder
+
+# The scenario reported by CERNBox: a directory owned by A, B granted write
+# through a sys.acl entry, B creates a file in it, A then removes B from the
+# acl. B can no longer write into - or even traverse - the directory, yet the
+# version folder still has to end up owned by B, the file owner.
+vuid_a=4241
+vuid_b=4242
+vfdir="${testdir}/vfolder"
+
+eos rm -rF --no-confirmation "${vfdir}/" > /dev/null 2>&1
+eos mkdir -p "${vfdir}" > /dev/null 2>&1
+eos chown ${vuid_a}:${vuid_a} "${vfdir}" > /dev/null 2>&1
+eos chmod 700 "${vfdir}" > /dev/null 2>&1
+eos attr set sys.acl="u:${vuid_b}:rwx" "${vfdir}" > /dev/null 2>&1
+eos -r ${vuid_b} ${vuid_b} file touch "${vfdir}/file.txt" > /dev/null 2>&1
+eos attr set sys.acl="u:${vuid_a}:rwx" "${vfdir}" > /dev/null 2>&1
+
+if eos -r ${vuid_b} ${vuid_b} mkdir "${vfdir}/.sys.v#.file.txt" > /dev/null 2>&1; then
+  fail "create-folder: a by-hand mkdir on behalf of the file owner fails" \
+       "the mkdir succeeded, the setup does not reproduce"
+  eos rm -rF --no-confirmation "${vfdir}/.sys.v#.file.txt" > /dev/null 2>&1
+else
+  pass "create-folder: a by-hand mkdir on behalf of the file owner fails"
+fi
+
+if eos -r ${vuid_b} ${vuid_b} file version "${vfdir}/file.txt" --create-folder \
+     > /dev/null 2>&1; then
+  pass "create-folder: succeeds on behalf of the file owner"
+else
+  fail "create-folder: succeeds on behalf of the file owner"
+fi
+
+# owned by the file owner, not by whoever can write into the directory
+if eos ls -la "${vfdir}" 2>/dev/null | grep '\.sys\.v#\.file\.txt' | \
+     grep -qw ${vuid_b}; then
+  pass "create-folder: the folder is owned by the file owner"
+else
+  fail "create-folder: the folder is owned by the file owner" \
+       "$(eos ls -la "${vfdir}" 2>/dev/null)"
+fi
+
+# and writable by them, so versions can be moved into it later on
+if eos ls -la "${vfdir}" 2>/dev/null | grep '\.sys\.v#\.file\.txt' | \
+     grep -qE '^drwx'; then
+  pass "create-folder: the folder is writable by the file owner"
+else
+  fail "create-folder: the folder is writable by the file owner" \
+       "$(eos ls -la "${vfdir}" 2>/dev/null)"
+fi
+
+if [ "$(eos ls "${vfdir}/.sys.v#.file.txt" 2>/dev/null | wc -l)" -eq 0 ]; then
+  pass "create-folder: no version was created"
+else
+  fail "create-folder: no version was created" \
+       "$(eos ls "${vfdir}/.sys.v#.file.txt" 2>/dev/null)"
+fi
+
+# neither the file owner nor root - the directory owner is no exception
+if eos -r ${vuid_a} ${vuid_a} file version "${vfdir}/file.txt" --create-folder \
+     > /dev/null 2>&1; then
+  fail "create-folder: a non-owner is refused" "the directory owner was allowed"
+else
+  pass "create-folder: a non-owner is refused"
+fi
+
+if eos file version "${vfdir}" --create-folder > /dev/null 2>&1; then
+  fail "create-folder: a directory is refused" "a directory was accepted"
+else
+  pass "create-folder: a directory is refused"
+fi
+
+eos rm -rF --no-confirmation "${vfdir}/" > /dev/null 2>&1
+
+# Users who left have no passwd entry at all, so nothing in this path may go
+# through a name lookup. Note 'ls -la' truncates the owner column to 8 chars,
+# hence the uid is read back with 'fileinfo -m'.
+entry_uid() {
+  eos fileinfo "$1" -m 2>/dev/null | tr ' ' '\n' | grep -E '^uid=' | cut -d= -f2
+}
+
+# Guard: if these uids ever become resolvable on the test machine, the scenario
+# above silently stops testing what it claims to test.
+if getent passwd ${vuid_b} > /dev/null 2>&1; then
+  fail "create-folder: uid ${vuid_b} must have no passwd entry" \
+       "it resolves, so the unresolvable-user coverage is void"
+else
+  pass "create-folder: uid ${vuid_b} has no passwd entry"
+fi
+
+urdir="${testdir}/unresolvable"
+eos rm -rF --no-confirmation "${urdir}/" > /dev/null 2>&1
+eos mkdir -p "${urdir}" > /dev/null 2>&1
+eos chmod 755 "${urdir}" > /dev/null 2>&1
+
+# an unresolvable uid paired with a *resolvable* gid, and a very large uid
+for pair in "4243:100:mixed" "2000000000:2000000000:bigid"; do
+  u=${pair%%:*}; rest=${pair#*:}; g=${rest%%:*}; n=${rest##*:}
+  eos file touch "${urdir}/${n}" > /dev/null 2>&1
+  eos chown ${u}:${g} "${urdir}/${n}" > /dev/null 2>&1
+
+  if eos -r ${u} ${g} file version "${urdir}/${n}" --create-folder > /dev/null 2>&1 &&
+     [ "$(entry_uid "${urdir}/.sys.v#.${n}")" = "${u}" ]; then
+    pass "create-folder: uid=${u} gid=${g} owns its version folder"
+  else
+    fail "create-folder: uid=${u} gid=${g} owns its version folder" \
+         "got uid=$(entry_uid "${urdir}/.sys.v#.${n}")"
+  fi
+done
+
+# Reva's own path when use_grpc is on: a sudoer key assuming the identity of a
+# user who left, rather than acting as itself
+eos file touch "${urdir}/viagrpc" > /dev/null 2>&1
+eos chown ${vuid_b}:${vuid_b} "${urdir}/viagrpc" > /dev/null 2>&1
+eos vid set membership ${TEST_UID} +sudo > /dev/null 2>&1
+${GRPC} --uid ${vuid_b} --gid ${vuid_b} file version "${urdir}/viagrpc" \
+        --create-folder > /dev/null 2>&1
+grpc_rc=$?
+eos vid set membership ${TEST_UID} -sudo > /dev/null 2>&1
+
+if [ ${grpc_rc} -eq 0 ] &&
+   [ "$(entry_uid "${urdir}/.sys.v#.viagrpc")" = "${vuid_b}" ]; then
+  pass "create-folder: grpc sudoer acting as a user who left"
+else
+  fail "create-folder: grpc sudoer acting as a user who left" \
+       "rc=${grpc_rc} uid=$(entry_uid "${urdir}/.sys.v#.viagrpc")"
+fi
+
+eos rm -rF --no-confirmation "${urdir}/" > /dev/null 2>&1
+
+#-------------------------------------------------------------------------------
 section "drop / move / replicate / adjustreplica"
 #-------------------------------------------------------------------------------
 # These need spare filesystems, so assert transport parity rather than success.
