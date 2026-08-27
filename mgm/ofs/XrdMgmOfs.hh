@@ -1313,7 +1313,8 @@ public:
   //! Collect the information needed to version a given file: its current path,
   //! the path of its version directory and the identity of its owner.
   //!
-  //! @param fid id of the file to version
+  //! @param fid id of the file to version, 0 if only the path is known
+  //! @param inpath path of the file, only used when fid is 0
   //! @param error error object
   //! @param vid virtual identity of the caller
   //! @param path return variable for the current path of the file
@@ -1323,25 +1324,27 @@ public:
   //!
   //! @return SFS_OK if success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
-  int ResolveVersionInfo(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
-                         const eos::common::VirtualIdentity& vid, std::string& path,
-                         std::string& vdir, eos::common::VirtualIdentity& fidvid,
-                         time_t& filectime);
+  int ResolveVersionInfo(eos::common::FileId::fileid_t fid, const std::string& inpath,
+                         XrdOucErrInfo& error, const eos::common::VirtualIdentity& vid,
+                         std::string& path, std::string& vdir,
+                         eos::common::VirtualIdentity& fidvid, time_t& filectime);
 
   //----------------------------------------------------------------------------
   //! Create the version directory of a file without creating a new version.
   //! The privileged counterpart of creating it "by hand": it is created as the
   //! file owner, without checking the parent permissions.
   //!
-  //! @param fid id of the file to create the version directory for
+  //! @param fid id of the file to create the version directory for, 0 if only
+  //!        the path is known
+  //! @param inpath path of the file, only used when fid is 0
   //! @param error error object
   //! @param vid virtual identity of the caller
   //! @param vdir return variable for the version directory path
   //!
   //! @return SFS_OK if the directory exists or was created, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
-  int CreateVersionDirectory(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
-                             eos::common::VirtualIdentity& vid,
+  int CreateVersionDirectory(eos::common::FileId::fileid_t fid, const std::string& inpath,
+                             XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
                              std::string* vdir = nullptr);
 
   //----------------------------------------------------------------------------

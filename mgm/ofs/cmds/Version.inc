@@ -30,7 +30,8 @@
 /*
  * @brief collect the information needed to version a given file
  *
- * @param fid id of the file to version
+ * @param fid id of the file to version, 0 if only the path is known
+ * @param inpath path of the file, only used when fid is 0
  * @param error object
  * @param vid virtual identity of the caller
  * @param path return variable for the current path of the file
@@ -41,7 +42,8 @@
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
+                              const std::string& inpath, XrdOucErrInfo& error,
                               const eos::common::VirtualIdentity& vid, std::string& path,
                               std::string& vdir, eos::common::VirtualIdentity& fidvid,
                               time_t& filectime)
@@ -54,8 +56,14 @@ XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid, XrdOucErrInfo& 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      path = gOFS->eosView->getUri(fmd.get()).c_str();
+      if (fid) {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+        path = gOFS->eosView->getUri(fmd.get()).c_str();
+      } else {
+        path = inpath;
+        fmd = gOFS->eosView->getFile(path);
+      }
+
       eos::common::Path cPath(path.c_str());
       bool noversion;
       cPath.DecodeAtomicPath(noversion);
@@ -71,9 +79,19 @@ XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid, XrdOucErrInfo& 
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
       errno = e.getErrno();
-      std::string errmsg = "translate file id - ";
-      errmsg += e.getMessage().str().c_str();
-      return Emsg(epname, error, errno, errmsg.c_str(), path.c_str());
+
+      // Looking up a container by path fails with ENOENT, which is misleading
+      // for a directory that is plainly there - report it as such instead
+      if (!fid && (errno == ENOENT)) {
+        try {
+          gOFS->eosView->getContainer(path);
+          errno = EISDIR;
+        } catch (eos::MDException& ee) {
+          // not a container either, ENOENT was right
+        }
+      }
+
+      return Emsg(epname, error, errno, "resolve version info", path.c_str());
     }
   }
 
@@ -134,7 +152,9 @@ XrdMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error
 /*
  * @brief create the version directory of a file without creating a version
  *
- * @param fid id of the file to create the version directory for
+ * @param fid id of the file to create the version directory for, 0 if only the
+ *        path is known
+ * @param inpath path of the file, only used when fid is 0
  * @param error object
  * @param vid virtual identity of the caller
  * @param vdir return variable for the version directory path
@@ -142,7 +162,8 @@ XrdMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid,
+                                  const std::string& inpath, XrdOucErrInfo& error,
                                   eos::common::VirtualIdentity& vid, std::string* vdir)
 {
   static const char* epname = "createversiondirectory";
@@ -153,7 +174,7 @@ XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid, XrdOucErrIn
   eos::common::VirtualIdentity fidvid = vid;
   time_t filectime = 0;
 
-  if (ResolveVersionInfo(fid, error, vid, path, vpath, fidvid, filectime)) {
+  if (ResolveVersionInfo(fid, inpath, error, vid, path, vpath, fidvid, filectime)) {
     return SFS_ERROR;
   }
 
@@ -204,7 +225,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
   eos::common::VirtualIdentity fidvid = vid;
   time_t filectime = 0;
 
-  if (ResolveVersionInfo(fid, error, vid, path, vpath, fidvid, filectime)) {
+  if (ResolveVersionInfo(fid, "", error, vid, path, vpath, fidvid, filectime)) {
     return SFS_ERROR;
   }
 

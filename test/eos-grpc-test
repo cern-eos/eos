@@ -209,7 +209,7 @@ eos file touch $vfdir/other || exit -23
 eos chown 12:12 $vfdir/other || exit -23
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $vfdir/other create-version-folder | grep "\"code\": \"1\"" || exit -23
-# a directory - EISDIR
+# a directory is not a file - EISDIR
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $vfdir create-version-folder | grep "\"code\": \"21\"" || exit -23
 eos rm -r $vfdir/ || exit -23

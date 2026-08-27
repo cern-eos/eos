@@ -1996,32 +1996,9 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
   } else if (request->cmd() == eos::rpc::NSRequest::VersionRequest::CREATE_FOLDER) {
     // create the version folder without creating a new version
     XrdOucErrInfo error;
-    uint64_t target_fid = fid;
-
-    if (!target_fid) {
-      // Resolved as root: the caller typically cannot traverse the parent
-      // anymore. CreateVersionDirectory still enforces ownership.
-      struct stat buf;
-      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-
-      if (gOFS->_stat(path.c_str(), &buf, error, rootvid, "")) {
-        reply->set_code(errno);
-        reply->set_msg("error: unable to stat path='" + path + "'");
-        return grpc::Status::OK;
-      }
-
-      if (S_ISDIR(buf.st_mode)) {
-        reply->set_code(EISDIR);
-        reply->set_msg("error: path='" + path + "' is a directory");
-        return grpc::Status::OK;
-      }
-
-      target_fid = eos::common::FileId::InodeToFid(buf.st_ino);
-    }
-
     std::string vdir;
 
-    if (gOFS->CreateVersionDirectory(target_fid, error, vid, &vdir)) {
+    if (gOFS->CreateVersionDirectory(fid, path, error, vid, &vdir)) {
       std::string msg = "error: unable to create the version folder of path='";
       msg += path;
       msg += "'\nerror: ";

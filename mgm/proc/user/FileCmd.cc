@@ -2154,33 +2154,9 @@ FileCmd::CreateVersionFolder(const std::string& spath, unsigned long long fid,
 {
   XrdOucErrInfo mError;
   std::ostringstream std_out, std_err;
-
-  // Resolved as root: the caller typically cannot traverse the parent anymore,
-  // which is the whole point. CreateVersionDirectory still enforces ownership.
-  if (!fid) {
-    struct stat buf;
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-
-    if (gOFS->_stat(spath.c_str(), &buf, mError, rootvid, "")) {
-      std_err << "error: unable to stat path=" << spath;
-      reply.set_retc(errno);
-      reply.set_std_err(std_err.str());
-      return;
-    }
-
-    if (S_ISDIR(buf.st_mode)) {
-      std_err << "error: '" << spath << "' is not a file";
-      reply.set_retc(EISDIR);
-      reply.set_std_err(std_err.str());
-      return;
-    }
-
-    fid = eos::common::FileId::InodeToFid(buf.st_ino);
-  }
-
   std::string vdir;
 
-  if (gOFS->CreateVersionDirectory(fid, mError, mVid, &vdir)) {
+  if (gOFS->CreateVersionDirectory(fid, spath, mError, mVid, &vdir)) {
     std_err << "error: unable to create the version directory of path=" << spath
             << "\nerror: " << mError.getErrText();
     reply.set_retc(mError.getErrInfo() ? mError.getErrInfo() : EIO);
