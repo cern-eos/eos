@@ -1124,13 +1124,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
       if (!strcmp("wfendpoint", var)) {
         if ((val = Config.GetWord())) {
-          try {
-            wfEndpointUrl = val;
-            Eroute.Say("=====> mgmofs.wfendpoint : ", val);
-          } catch (const std::exception& ex) {
-            Eroute.Emsg("Config", "argument for wfendpoint is invalid: ", ex.what());
-            NoGo = 1;
-          }
+          wfEndpointUrl = val;
+          Eroute.Say("=====> mgmofs.wfendpoint : ", val);
         }
       }
 
@@ -1211,9 +1206,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   if (!wfEndpointUrl.empty()) {
-    // Set the WFE endpoint
-    ProtoWFEndpoint =
-        WFEndpoint::from_config(wfEndpointUrl, TlsCertPath, TlsKeyPath, JwtTokenPath);
+    try {
+      // Set the WFE endpoint
+      ProtoWFEndpoint =
+          WFEndpoint::from_config(wfEndpointUrl, TlsCertPath, TlsKeyPath, JwtTokenPath);
+    } catch (const std::exception& ex) {
+      Eroute.Emsg("Config", "argument for wfendpoint is invalid: ", ex.what());
+      return 1;
+    }
   }
 
   // Make sure we have a proper QuarkDB configuration present

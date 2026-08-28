@@ -2942,9 +2942,6 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  eos_static_info("Connecting to endpoint %s with scheme 'grpcs'",
-                  endpoint.address().c_str());
-
   cta::xrd::Response response;
   auto root_certs = gOFS->ConcatenatedServerRootCA;
   // Instantiate service object only once, static is thread-safe

@@ -66,7 +66,14 @@ struct WFEndpoint {
   from_config(const std::string& endpointUrl, const std::string& certPath,
               const std::string& keyPath, const std::string& jwtTokenPath)
   {
-    const bool hasMtls = !certPath.empty() && !keyPath.empty();
+    if (certPath.empty() != keyPath.empty()) {
+      throw std::invalid_argument(
+          "mTLS requires both a client certificate and a private key: " +
+          std::string(certPath.empty() ? "wftlscertpath" : "wftlskeypath") +
+          " is not set.");
+    }
+
+    const bool hasMtls = !certPath.empty(); // key is now known to be provided
     const bool hasJwt = !jwtTokenPath.empty();
 
     if (hasMtls && hasJwt) {

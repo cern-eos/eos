@@ -23,6 +23,7 @@
 
 #include "common/wfe/WFEClient.hh"
 #include "jwt-cpp/jwt.h"
+#include <grpc++/grpc++.h>
 
 // GRPCS_JWT: TLS with root certs and JWT token
 WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
@@ -33,20 +34,7 @@ WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
     , m_certPath(std::nullopt)
     , m_keyPath(std::nullopt)
 {
-  grpc::SslCredentialsOptions ssl_options;
-
-  if (rootCerts.has_value()) {
-    std::string rootCertsContents;
-    eos::common::StringConversion::LoadFileIntoString(rootCerts.value().c_str(),
-                                                      rootCertsContents);
-    ssl_options.pem_root_certs = rootCertsContents;
-  } else {
-    ssl_options.pem_root_certs = ""; // grpc will use default root certs if left blank
-  }
-  eos_static_info("value used in pem_root_certs is %s",
-                  ssl_options.pem_root_certs.c_str());
-
-  auto credentials = grpc::SslCredentials(ssl_options);
+  auto credentials = buildCredentials(rootCerts, std::nullopt, std::nullopt);
 
   eos_static_info("Connecting to endpoint %s with scheme grpcs",
                   m_endpoint.address().c_str());
@@ -67,27 +55,7 @@ WFEGrpcClient::WFEGrpcClient(const WFEndpoint endpoint,
     , m_certPath(certPathStr)
     , m_keyPath(keyPathStr)
 {
-  grpc::SslCredentialsOptions sslOptions;
-
-  if (rootCerts.has_value()) {
-    std::string rootCertsContents;
-    eos::common::StringConversion::LoadFileIntoString(rootCerts.value().c_str(),
-                                                      rootCertsContents);
-    sslOptions.pem_root_certs = rootCertsContents;
-  } else {
-    sslOptions.pem_root_certs = ""; // grpc will use default root certs if left blank
-  }
-  eos_static_info("value used in pem_root_certs is %s",
-                  sslOptions.pem_root_certs.c_str());
-
-  eos::common::StringConversion::LoadFileIntoString(certPathStr.c_str(),
-                                                    sslOptions.pem_cert_chain);
-  eos::common::StringConversion::LoadFileIntoString(keyPathStr.c_str(),
-                                                    sslOptions.pem_private_key);
-  eos_static_info("Using mTLS. Client cert path=\"%s\" key path=\"%s\"",
-                  certPathStr.c_str(), keyPathStr.c_str());
-
-  auto credentials = grpc::SslCredentials(sslOptions);
+  auto credentials = buildCredentials(rootCerts, certPathStr, keyPathStr);
 
   eos_static_info("Connecting to endpoint %s with scheme grpcs",
                   m_endpoint.address().c_str());

@@ -677,13 +677,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
         if (!strcmp("wfendpoint", var)) {
           if ((val = Config.GetWord())) {
-            try {
-              wfEndpointUrl = val;
-              Eroute.Say("=====> fstofs.wfendpoint : ", val);
-            } catch (const std::exception& ex) {
-              Eroute.Emsg("Config", "argument for wfendpoint is invalid: ", ex.what());
-              NoGo = 1;
-            }
+            wfEndpointUrl = val;
+            Eroute.Say("=====> fstofs.wfendpoint : ", val);
           }
         }
 
@@ -751,8 +746,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (!wfEndpointUrl.empty()) {
     // Set the workflow endpoint
-    gConfig.ProtoWFEndpoint = WFEndpoint::from_config(
-        wfEndpointUrl, gConfig.TlsCertPath, gConfig.TlsKeyPath, gConfig.JwtTokenPath);
+    try {
+      gConfig.ProtoWFEndpoint = WFEndpoint::from_config(
+          wfEndpointUrl, gConfig.TlsCertPath, gConfig.TlsKeyPath, gConfig.JwtTokenPath);
+    } catch (const std::exception& ex) {
+      Eroute.Emsg("Config", "argument for wfendpoint is invalid: ", ex.what());
+      return 1;
+    }
   }
 
   // Make sure we have a proper QuarkDB configuration present

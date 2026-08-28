@@ -29,7 +29,6 @@
 #include "cta_frontend.grpc.pb.h"
 #include "cta_frontend.pb.h"
 #include "xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
-#include <grpc++/grpc++.h>
 #include <grpcpp/security/credentials.h>
 
 class WFEClient {
@@ -78,6 +77,61 @@ public:
                                         cta::xrd::Response& response) override;
 
 private:
+  static std::shared_ptr<grpc::ChannelCredentials>
+  buildCredentials(const std::optional<std::string>& rootCerts,
+                   const std::optional<std::string>& certPathStr,
+                   const std::optional<std::string>& keyPathStr)
+  {
+    grpc::SslCredentialsOptions sslOptions;
+
+    // load CA root certificates, if they're set
+    if (rootCerts.has_value()) {
+      std::string pem;
+      const char* res =
+          eos::common::StringConversion::LoadFileIntoString(rootCerts->c_str(), pem);
+
+      if (res && pem[0] != '\0') {
+        sslOptions.pem_root_certs = std::move(pem);
+
+        eos_static_info("loaded a root certificate from %s", rootCerts->c_str());
+        eos_static_debug("root certificate contents: %s",
+                         sslOptions.pem_root_certs.c_str());
+      } else {
+        eos_static_warning(
+            "failed to load root certs from '%s', falling back to grpc default",
+            rootCerts->c_str());
+      }
+    }
+
+    // sanity check to make sure we have two paths for the client cert (cert + key)
+    if (certPathStr.has_value() != keyPathStr.has_value()) {
+      eos_static_warning("mTLS requires both cert and key paths - only one was provided "
+                         "(cert_path=%s, key_path=%s). Skipping client certificate",
+                         certPathStr.has_value() ? certPathStr->c_str() : "<none>",
+                         keyPathStr.has_value() ? keyPathStr->c_str() : "<none>");
+    } else if (certPathStr.has_value() && keyPathStr.has_value()) {
+      std::string cert, key;
+      const char* certRes =
+          eos::common::StringConversion::LoadFileIntoString(certPathStr->c_str(), cert);
+      const char* keyRes =
+          eos::common::StringConversion::LoadFileIntoString(keyPathStr->c_str(), key);
+
+      if (certRes && cert[0] != '\0' && keyRes && key[0] != '\0') {
+        sslOptions.pem_cert_chain = std::move(cert);
+        sslOptions.pem_private_key = std::move(key);
+        eos_static_info("Using mTLS. Client cert_path=\"%s\" key_path=\"%s\"",
+                        certPathStr->c_str(), keyPathStr->c_str());
+      } else {
+        eos_static_warning(
+            "failed to load client cert/key (cert_path=\"%s\" key_path=\"%s\"). "
+            "mTLS will not be used",
+            certPathStr->c_str(), keyPathStr->c_str());
+      }
+    }
+
+    return grpc::SslCredentials(sslOptions);
+  }
+
   WFEndpoint m_endpoint;
   std::unique_ptr<cta::xrd::CtaRpc::Stub> m_clientStub;
   std::optional<std::string> m_tokenPath;
