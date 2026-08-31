@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 
+#include <set>
+
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
 
@@ -473,16 +475,39 @@ EosMgmHttpHandler::ProcessRestApiPost(XrdHttpExtReq& req,
 
   // Set the request data
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-  // Response data will be stored in this string
+  // Commands replying with a gRPC stream have unbounded output, therefore
+  // their response is forwarded to the client chunk by chunk instead of being
+  // accumulated in memory first.
+  const bool is_stream = IsStreamingRestApiCmd(eosCommand);
   std::string responseData;
-  // Set the callback function to handle response data
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, EosMgmHttpHandler::WriteCallback);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+  ChunkedFwdCtx chunk_ctx{&req};
+
+  if (is_stream) {
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
+                     EosMgmHttpHandler::ChunkedWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &chunk_ctx);
+  } else {
+    // Response data will be stored in this string
+    // Set the callback function to handle response data
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, EosMgmHttpHandler::WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+  }
+
   // Perform the HTTP request
   CURLcode curlRes = curl_easy_perform(curl);
   int res = 0;
 
-  if (curlRes != CURLE_OK) {
+  if (chunk_ctx.mStarted) {
+    // The response headers are already on the wire, so a late failure can only
+    // be signalled by terminating the chunked response.
+    if (curlRes != CURLE_OK) {
+      eos_static_err("msg=\"streamed response interrupted\" cmd=\"%s\" "
+                     "err=\"%s\"",
+                     eosCommand.c_str(), curl_easy_strerror(curlRes));
+    }
+
+    res = chunk_ctx.mRetc | req.ChunkResp(nullptr, 0);
+  } else if (curlRes != CURLE_OK) {
     std::string errmsg = std::string("curl_easy_perform() failed: ") +
                          curl_easy_strerror(curlRes);
     res = req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
@@ -499,6 +524,49 @@ EosMgmHttpHandler::ProcessRestApiPost(XrdHttpExtReq& req,
   return res;
 }
 
+//------------------------------------------------------------------------------
+// Check if the given REST API gateway command replies with a gRPC stream
+//------------------------------------------------------------------------------
+bool
+EosMgmHttpHandler::IsStreamingRestApiCmd(const std::string& cmd)
+{
+  // Must be kept in sync with the rpc methods declared as returning a
+  // "stream eos.console.ReplyProto" in eos_rest_gateway_service.proto
+  static const std::set<std::string> sStreamingCmds{
+      "config_cmd", "find_cmd", "fs_cmd",    "fsck_cmd",    "group_cmd", "io_cmd",
+      "ls_cmd",     "node_cmd", "quota_cmd", "recycle_cmd", "space_cmd", "vid_cmd"};
+  return (sStreamingCmds.find(cmd) != sStreamingCmds.end());
+}
+
+//------------------------------------------------------------------------------
+// Forward a streamed response from the grpc-gateway to the client
+//------------------------------------------------------------------------------
+size_t
+EosMgmHttpHandler::ChunkedWriteCallback(void* contents, size_t size, size_t nmemb,
+                                        void* userp)
+{
+  auto* ctx = static_cast<ChunkedFwdCtx*>(userp);
+  const size_t total_size = size * nmemb;
+
+  if (!ctx->mStarted) {
+    ctx->mRetc = ctx->mReq->StartChunkedResp(200, "OK", "");
+
+    if (ctx->mRetc) {
+      // Returning a short count aborts the curl transfer
+      return 0;
+    }
+
+    ctx->mStarted = true;
+  }
+
+  ctx->mRetc = ctx->mReq->ChunkResp(static_cast<const char*>(contents), total_size);
+
+  if (ctx->mRetc) {
+    return 0;
+  }
+
+  return total_size;
+}
 
 //----------------------------------------------------------------------------
 // Forward the authentication relevant info as custom headers to the

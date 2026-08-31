@@ -115,7 +115,7 @@ service EosRestGatewayService {
 
 	// ConfigRequest method receives a request for an eos config command
 	// and returns the result of the command
-	rpc ConfigRequest(eos.console.ConfigProto) returns (eos.console.ReplyProto) {
+	rpc ConfigRequest(eos.console.ConfigProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/config_cmd"
 			body: "*"
@@ -187,7 +187,7 @@ service EosRestGatewayService {
 
 	// FsRequest method receives a request for an eos fs command
 	// and returns the result of the command
-	rpc FsRequest(eos.console.FsProto) returns (eos.console.ReplyProto) {
+	rpc FsRequest(eos.console.FsProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/fs_cmd"
 			body: "*"
@@ -214,7 +214,7 @@ service EosRestGatewayService {
 
 	// GroupRequest method receives a request for an eos group command
 	// and returns the result of the command
-	rpc GroupRequest(eos.console.GroupProto) returns (eos.console.ReplyProto) {
+	rpc GroupRequest(eos.console.GroupProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/group_cmd"
 			body: "*"
@@ -232,7 +232,7 @@ service EosRestGatewayService {
 
 	// IoRequest method receives a request for an eos io command
 	// and returns the result of the command
-	rpc IoRequest(eos.console.IoProto) returns (eos.console.ReplyProto) {
+	rpc IoRequest(eos.console.IoProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/io_cmd"
 			body: "*"
@@ -286,7 +286,7 @@ service EosRestGatewayService {
 
 	// NodeRequest method receives a request for an eos node command
 	// and returns the result of the command
-	rpc NodeRequest(eos.console.NodeProto) returns (eos.console.ReplyProto) {
+	rpc NodeRequest(eos.console.NodeProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/node_cmd"
 			body: "*"
@@ -304,7 +304,7 @@ service EosRestGatewayService {
 
 	// QuotaRequest method receives a request for an eos quota command
 	// and returns the result of the command
-	rpc QuotaRequest(eos.console.QuotaProto) returns (eos.console.ReplyProto) {
+	rpc QuotaRequest(eos.console.QuotaProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/quota_cmd"
 			body: "*"
@@ -313,7 +313,7 @@ service EosRestGatewayService {
 
 	// RecycleRequest method receives a request for an eos recycle command
 	// and returns the result of the command
-	rpc RecycleRequest(eos.console.RecycleProto) returns (eos.console.ReplyProto) {
+	rpc RecycleRequest(eos.console.RecycleProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/recycle_cmd"
 			body: "*"
@@ -358,7 +358,7 @@ service EosRestGatewayService {
 
 	// SpaceRequest method receives a request for an eos space command
 	// and returns the result of the command
-	rpc SpaceRequest(eos.console.SpaceProto) returns (eos.console.ReplyProto) {
+	rpc SpaceRequest(eos.console.SpaceProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/space_cmd"
 			body: "*"
@@ -412,7 +412,7 @@ service EosRestGatewayService {
 
 	// VidRequest method receives a request for an eos vid command
 	// and returns the result of the command
-	rpc VidRequest(eos.console.VidProto) returns (eos.console.ReplyProto) {
+	rpc VidRequest(eos.console.VidProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/vid_cmd"
 			body: "*"

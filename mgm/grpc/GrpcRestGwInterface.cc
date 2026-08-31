@@ -2,6 +2,7 @@
 
 //-----------------------------------------------------------------------------
 #include "GrpcRestGwInterface.hh"
+#include "mgm/grpc/GrpcStreamReply.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "common/Utils.hh"
@@ -452,8 +453,9 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
-    const ConfigProto* configRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid, const ConfigProto* configRequest,
+                                ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*configRequest, &json_req);
@@ -462,7 +464,7 @@ grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_config()->CopyFrom(*configRequest);
   eos::mgm::ConfigCmd configcmd(std::move(req), vid);
-  *reply = configcmd.ProcessRequest();
+  WriteStreamReply(configcmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1197,8 +1199,9 @@ grpc::Status GrpcRestGwInterface::FindCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
-    const FsProto* fsRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::FsCall(VirtualIdentity& vid, const FsProto* fsRequest,
+                            ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*fsRequest, &json_req);
@@ -1207,7 +1210,7 @@ grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_fs()->CopyFrom(*fsRequest);
   eos::mgm::FsCmd fscmd(std::move(req), vid);
-  *reply = fscmd.ProcessRequest();
+  WriteStreamReply(fscmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1412,8 +1415,9 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
-    const GroupProto* groupRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::GroupCall(VirtualIdentity& vid, const GroupProto* groupRequest,
+                               ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*groupRequest, &json_req);
@@ -1422,7 +1426,7 @@ grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_group()->CopyFrom(*groupRequest);
   eos::mgm::GroupCmd groupcmd(std::move(req), vid);
-  *reply = groupcmd.ProcessRequest();
+  WriteStreamReply(groupcmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1462,8 +1466,9 @@ grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
-    const IoProto* ioRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::IoCall(VirtualIdentity& vid, const IoProto* ioRequest,
+                            ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*ioRequest, &json_req);
@@ -1472,7 +1477,7 @@ grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_io()->CopyFrom(*ioRequest);
   eos::mgm::IoCmd iocmd(std::move(req), vid);
-  *reply = iocmd.ProcessRequest();
+  WriteStreamReply(iocmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1810,8 +1815,9 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
-    const NodeProto* nodeRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::NodeCall(VirtualIdentity& vid, const NodeProto* nodeRequest,
+                              ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*nodeRequest, &json_req);
@@ -1820,7 +1826,7 @@ grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_node()->CopyFrom(*nodeRequest);
   eos::mgm::NodeCmd nodecmd(std::move(req), vid);
-  *reply = nodecmd.ProcessRequest();
+  WriteStreamReply(nodecmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1838,8 +1844,9 @@ grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
-    const QuotaProto* quotaRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid, const QuotaProto* quotaRequest,
+                               ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*quotaRequest, &json_req);
@@ -1848,12 +1855,13 @@ grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_quota()->CopyFrom(*quotaRequest);
   eos::mgm::QuotaCmd quotacmd(std::move(req), vid);
-  *reply = quotacmd.ProcessRequest();
+  WriteStreamReply(quotacmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
-    const RecycleProto* recycleRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid, const RecycleProto* recycleRequest,
+                                 ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*recycleRequest, &json_req);
@@ -1862,7 +1870,7 @@ grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*recycleRequest);
   eos::mgm::RecycleCmd recyclecmd(std::move(req), vid);
-  *reply = recyclecmd.ProcessRequest();
+  WriteStreamReply(recyclecmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -1942,8 +1950,9 @@ grpc::Status GrpcRestGwInterface::RouteCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
-    const SpaceProto* spaceRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequest,
+                               ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*spaceRequest, &json_req);
@@ -1969,7 +1978,7 @@ grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
   }
 
   eos::mgm::SpaceCmd spacecmd(std::move(req), vid);
-  *reply = spacecmd.ProcessRequest();
+  WriteStreamReply(spacecmd.ProcessRequest(), writer);
   return grpc::Status::OK;
 }
 
@@ -2148,8 +2157,9 @@ grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
-    const VidProto* vidRequest, ReplyProto* reply)
+grpc::Status
+GrpcRestGwInterface::VidCall(VirtualIdentity& vid, const VidProto* vidRequest,
+                             ServerWriter<ReplyProto>* writer)
 {
   std::string json_req;
   (void)google::protobuf::util::MessageToJsonString(*vidRequest, &json_req);
@@ -2157,6 +2167,7 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
   // wrap the VidProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_vid()->CopyFrom(*vidRequest);
+  ReplyProto reply;
   std::string std_out1, std_out2, std_err1, std_err2;
   ProcCommand cmd1, cmd2;
   XrdOucErrInfo error1, error2;
@@ -2362,8 +2373,9 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
     std::string geotag = eos::common::SanitizeGeoTag(targetgeotag);
 
     if (geotag != targetgeotag) {
-      reply->set_std_err(geotag);
-      reply->set_retc(EINVAL);
+      reply.set_std_err(geotag);
+      reply.set_retc(EINVAL);
+      WriteStreamReply(reply, writer);
       return grpc::Status::OK;
     }
 
@@ -2439,8 +2451,9 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
   }
 
   default:
-    reply->set_std_err("error: subcommand is not supported");
-    reply->set_retc(EINVAL);
+    reply.set_std_err("error: subcommand is not supported");
+    reply.set_retc(EINVAL);
+    WriteStreamReply(reply, writer);
     return grpc::Status::OK;
   }
 
@@ -2472,10 +2485,18 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
     }
   }
 
-  reply->set_std_out(std_out1 + std_out2);
-  reply->set_std_err(std_err1 + std_err2);
-  reply->set_retc((cmd1.GetRetc() > cmd2.GetRetc()) ? cmd1.GetRetc() :
-                  cmd2.GetRetc());
+  reply.set_std_out(std_out1 + std_out2);
+  reply.set_std_err(std_err1 + std_err2);
+  // cmd2 only runs for the subcommands that need a second proc call, so its
+  // return code must not be consulted otherwise
+  int retc = cmd1.GetRetc();
+
+  if (has_cmd2 && (cmd2.GetRetc() > retc)) {
+    retc = cmd2.GetRetc();
+  }
+
+  reply.set_retc(retc);
+  WriteStreamReply(reply, writer);
   return grpc::Status::OK;
 }
 

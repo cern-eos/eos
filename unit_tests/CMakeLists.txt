@@ -61,6 +61,7 @@ set(MGM_UT_SRCS
   mgm/VidTests.cc
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
+  mgm/GrpcStreamReplyTests.cc
   mgm/FusexCastBatchTests.cc
   mgm/FuseServerClientsTests.cc
   mgm/CapsTests.cc
