@@ -8,6 +8,18 @@
 namespace eos::mgm::monitoring {
 namespace {
 
+std::size_t
+CountOccurrences(const std::string& text, const std::string& needle)
+{
+  std::size_t count = 0;
+  std::size_t position = 0;
+  while ((position = text.find(needle, position)) != std::string::npos) {
+    ++count;
+    position += needle.size();
+  }
+  return count;
+}
+
 TEST(EosExporterCollector, EmitsFilesystemViewCompatibilityContract)
 {
   EosExporterViewSnapshot snapshot;
@@ -110,6 +122,50 @@ TEST(EosExporterCollector, OmitsLegacyGaugeVectorsThatTheGoExporterNeverSet)
   EXPECT_EQ(out.find("eos_fs_drain_bytesleft"), std::string::npos);
   EXPECT_EQ(out.find("eos_ns_hanging_since_seconds"), std::string::npos);
   EXPECT_EQ(out.find("operation=\"idle\""), std::string::npos);
+}
+
+TEST(EosExporterCollector, DeduplicatesFusexSamplesByLegacyLabelSet)
+{
+  EosExporterViewSnapshot snapshot;
+  snapshot.fusex = "client=eosxd host=fuse.example version=5.2.22 mount=/eos/first\n"
+                   "client=eosxd host=fuse.example version=5.2.22 mount=/eos/second\n"
+                   "client=eosxd host=other.example version=5.4.0 mount=/eos/third\n";
+
+  std::string out;
+  EmitEosExporterViewMetrics(snapshot, "test", out);
+
+  EXPECT_EQ(CountOccurrences(out, "eos_fusex_info{"), 2U);
+  EXPECT_EQ(CountOccurrences(out, "eos_fusex_info{cluster=\"test\",host=\"fuse.example\","
+                                  "version=\"5.2.22\"} 1\n"),
+            1U);
+}
+
+TEST(EosExporterCollector, DeduplicatesInspectorSamplesWithLastValueWinning)
+{
+  EosExporterViewSnapshot snapshot;
+  snapshot.inspector = "key=last tag=accesstime::files bin=invalid-first value=1\n"
+                       "key=last tag=accesstime::files bin=invalid-second value=2\n"
+                       "key=last tag=birthtime::volume bin=86400 value=10\n"
+                       "key=last tag=birthtime::volume bin=86400 value=20\n";
+
+  std::string out;
+  EmitEosExporterViewMetrics(snapshot, "test", out);
+
+  EXPECT_EQ(CountOccurrences(out, "eos_inspector_accesstime_files{"), 1U);
+  EXPECT_NE(out.find("eos_inspector_accesstime_files{bin=\"Invalid input\","
+                     "cluster=\"test\"} 2\n"),
+            std::string::npos);
+  EXPECT_EQ(out.find("eos_inspector_accesstime_files{bin=\"Invalid input\","
+                     "cluster=\"test\"} 1\n"),
+            std::string::npos);
+
+  EXPECT_EQ(CountOccurrences(out, "eos_inspector_birthtime_volume_bytes{"), 1U);
+  EXPECT_NE(out.find("eos_inspector_birthtime_volume_bytes{bin=\"1D\","
+                     "cluster=\"test\"} 20\n"),
+            std::string::npos);
+  EXPECT_EQ(out.find("eos_inspector_birthtime_volume_bytes{bin=\"1D\","
+                     "cluster=\"test\"} 10\n"),
+            std::string::npos);
 }
 
 } // namespace

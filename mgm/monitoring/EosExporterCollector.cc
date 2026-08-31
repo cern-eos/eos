@@ -33,6 +33,8 @@ namespace eos::mgm::monitoring {
 namespace {
 
 using MonitoringRow = std::map<std::string, std::string>;
+using MetricLabels = std::map<std::string, std::string>;
+using GaugeSamples = std::map<MetricLabels, double>;
 
 enum class ValueTransform {
   kNumber,
@@ -833,16 +835,17 @@ EmitFsckMetrics(const std::string& raw, const std::string& cluster, std::string&
 void
 EmitFusexMetrics(const std::string& raw, const std::string& cluster, std::string& out)
 {
-  const auto rows = ParseMonitoringRows(raw);
-  if (!rows.empty()) {
+  GaugeSamples samples;
+  for (const auto& row : ParseMonitoringRows(raw)) {
+    samples[{{"cluster", cluster},
+             {"host", Value(row, "host")},
+             {"version", Value(row, "version")}}] = 1.0;
+  }
+  if (!samples.empty()) {
     FormatHeader(out, "eos_fusex_info", "gauge", "fusex mount information");
   }
-  for (const auto& row : rows) {
-    FormatGaugeMetric(out, "eos_fusex_info",
-                      {{"cluster", cluster},
-                       {"host", Value(row, "host")},
-                       {"version", Value(row, "version")}},
-                      1.0);
+  for (const auto& [labels, value] : samples) {
+    FormatGaugeMetric(out, "eos_fusex_info", labels, value);
   }
 }
 
@@ -906,7 +909,7 @@ EmitInspectorMetrics(const std::string& raw, const std::string& cluster, std::st
        "group::cost::disk"},
   };
   for (const auto& metric : metrics) {
-    bool emitted_header = false;
+    GaugeSamples samples;
     for (const auto& row : rows) {
       const bool matches =
           std::string_view(metric.marker) == "layout"
@@ -919,11 +922,7 @@ EmitInspectorMetrics(const std::string& raw, const std::string& cluster, std::st
       if (!ParseNumber(Value(row, metric.source), value)) {
         continue;
       }
-      if (!emitted_header) {
-        FormatHeader(out, metric.name, "gauge", metric.help);
-        emitted_header = true;
-      }
-      std::map<std::string, std::string> labels{{"cluster", cluster}};
+      MetricLabels labels{{"cluster", cluster}};
       const auto name = std::string_view(metric.name);
       if (name == "eos_inspector_layout_volume_bytes") {
         labels.emplace("layout", Value(row, "layout"));
@@ -938,6 +937,12 @@ EmitInspectorMetrics(const std::string& raw, const std::string& cluster, std::st
       } else {
         labels.emplace("bin", SecondsToHumanReadable(Value(row, "bin")));
       }
+      samples[std::move(labels)] = value;
+    }
+    if (!samples.empty()) {
+      FormatHeader(out, metric.name, "gauge", metric.help);
+    }
+    for (const auto& [labels, value] : samples) {
       FormatGaugeMetric(out, metric.name, labels, value);
     }
   }
