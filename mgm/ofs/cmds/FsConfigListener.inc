@@ -267,15 +267,23 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             }
           }
 
-          if (fs && fsid && errc && eos::common::AllowsAnyClient(fs->GetSchedOps()) &&
-              (bstatus == eos::common::BootStatus::kOpsError)) {
+          if (fs && fsid && errc && (bstatus == eos::common::BootStatus::kOpsError)) {
             // Case when we take action and explicitly ask to start a drain
             // job. Reads only - what the legacy "drain" status meant - and
             // then the drain request, which used to ride along with it.
-            fs->SetSchedOps(eos::common::kMaskAllReads);
-            fs->SetDrainRequested(true);
+            const auto actions = eos::mgm::fsutils::GetAutoDrainActions(
+                fs->GetSchedOps(), fs->IsDrainRequested());
 
-            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
+            if (actions.set_read_only) {
+              fs->SetSchedOps(eos::common::kMaskAllReads);
+            }
+
+            if (actions.request_drain) {
+              fs->SetDrainRequested(true);
+            }
+
+            if (actions.set_read_only && gOFS->mFsScheduler != nullptr &&
+                gOFS->mFsScheduler->IsRunning()) {
               bool status = gOFS->mFsScheduler->SetDiskOps(fs->getCoreParams().getSpace(),
                                                            fsid, fs->GetSchedOps());
 

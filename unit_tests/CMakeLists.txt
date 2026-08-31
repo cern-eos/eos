@@ -46,6 +46,7 @@ set(CONSOLE_UT_SRCS
 set(MGM_UT_SRCS
   mgm/AccessTests.cc
   mgm/AclCmdTests.cc
+  mgm/AutoDrainTests.cc
   mgm/ConversionInfoTests.cc
   mgm/EgroupTests.cc
   mgm/FileSystemRegistryTests.cc
