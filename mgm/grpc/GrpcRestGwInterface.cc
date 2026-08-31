@@ -622,7 +622,7 @@ grpc::Status GrpcRestGwInterface::EvictCall(VirtualIdentity& vid,
   eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the EvictProto object into a RequestProto object
   eos::console::RequestProto req;
-  req.mutable_debug()->CopyFrom(*evictRequest);
+  req.mutable_evict()->CopyFrom(*evictRequest);
   eos::mgm::EvictCmd evictcmd(std::move(req), vid);
   *reply = evictcmd.ProcessRequest();
   return grpc::Status::OK;
