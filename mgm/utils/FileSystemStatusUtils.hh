@@ -30,28 +30,6 @@
 namespace eos::mgm::fsutils
 {
 
-struct AutoDrainActions {
-  bool set_read_only;
-  bool request_drain;
-};
-
-/*!
- * Determine which state changes are needed to auto-drain a filesystem.
- *
- * @param sched_ops operations currently accepted by the filesystem
- * @param drain_requested whether a drain has already been requested
- * @return the scheduling and drain actions still required
- */
-constexpr AutoDrainActions
-GetAutoDrainActions(eos::common::FsOpMask sched_ops, bool drain_requested)
-{
-  if (!eos::common::AllowsAnyClient(sched_ops)) {
-    return {false, false};
-  }
-
-  return {sched_ops != eos::common::kMaskAllReads, !drain_requested};
-}
-
 /*!
  * Set the filesystem as drained, and if we're not shutting down, to empty as well
  * @param fsid the FSID to set the drained status to

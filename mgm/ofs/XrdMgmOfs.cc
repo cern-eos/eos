@@ -97,7 +97,6 @@
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/utils/AttrHelper.hh"
-#include "mgm/utils/FileSystemStatusUtils.hh"
 #include "mgm/wfe/WFE.hh"
 #include "mgm/workflow/Workflow.hh"
 #include "mgm/xattr/XattrLock.hh"

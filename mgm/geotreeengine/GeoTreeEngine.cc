@@ -76,27 +76,28 @@ const int GeoTreeEngine::sfgRopen = 1 << 20;
 set<string> GeoTreeEngine::gWatchedKeys;
 
 const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
-  make_pair("id", sfgId),
-  make_pair("host", sfgHost),
-  make_pair("forcegeotag", sfgGeotag),
-  make_pair("stat.geotag", sfgGeotag),
-  make_pair("stat.boot", sfgBoot),
-  make_pair("stat.active", sfgActive),
-  make_pair("configstatus", sfgConfigstatus),
-  make_pair("local.drain", sfgDrain),
-  make_pair("local.drainer", sfgDrainer),
-  make_pair("stat.nominal.filled", sfgNomfilled),
-  make_pair("stat.statfs.bavail", sfgBlkavailb),
-  make_pair("stat.statfs.filled", sfgFsfilled),
-  make_pair("stat.disk.readratemb", sfgReadratemb),
-  make_pair("stat.disk.load", sfgDiskload),
-  make_pair("stat.net.ethratemib", sfgEthmib),
-  make_pair("stat.net.inratemib", sfgInratemib),
-  make_pair("stat.net.outratemib", sfgOutratemib),
-  make_pair("stat.errc", sfgErrc),
-  make_pair("stat.publishtimestamp", sfgPubTmStmp),
-  make_pair("stat.wopen", sfgWopen),
-  make_pair("stat.ropen", sfgRopen),
+    make_pair("id", sfgId),
+    make_pair("host", sfgHost),
+    make_pair("forcegeotag", sfgGeotag),
+    make_pair("stat.geotag", sfgGeotag),
+    make_pair("stat.boot", sfgBoot),
+    make_pair("stat.active", sfgActive),
+    make_pair("configstatus", sfgConfigstatus),
+    make_pair("local.drain", sfgDrain),
+    make_pair(eos::common::FS_DRAIN_REQUESTED_NAME, sfgDrain),
+    make_pair("local.drainer", sfgDrainer),
+    make_pair("stat.nominal.filled", sfgNomfilled),
+    make_pair("stat.statfs.bavail", sfgBlkavailb),
+    make_pair("stat.statfs.filled", sfgFsfilled),
+    make_pair("stat.disk.readratemb", sfgReadratemb),
+    make_pair("stat.disk.load", sfgDiskload),
+    make_pair("stat.net.ethratemib", sfgEthmib),
+    make_pair("stat.net.inratemib", sfgInratemib),
+    make_pair("stat.net.outratemib", sfgOutratemib),
+    make_pair("stat.errc", sfgErrc),
+    make_pair("stat.publishtimestamp", sfgPubTmStmp),
+    make_pair("stat.wopen", sfgWopen),
+    make_pair("stat.ropen", sfgRopen),
 };
 
 map<string, int> GeoTreeEngine::gNotificationsBufferFs;
@@ -2472,8 +2473,10 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   if (keys & sfgDrain) {
     DrainStatus drainStatus = fs->mDrainStatus;
 
-    if (fs->mConfigStatus == common::ConfigStatus::kDrain &&
-        drainStatus == DrainStatus::kDraining) {
+    // The drain request is a durable key of its own - the legacy "drain"
+    // configstatus no longer exists, the projection of a draining file system
+    // is "ro" - so the request is what tells a drain apart from a plain ro
+    if (fs->mDrainRequested && (drainStatus == DrainStatus::kDraining)) {
       // mark as draining
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);

@@ -1731,6 +1731,22 @@ public:
   //----------------------------------------------------------------------------
   void ProcessGeotagChange(const std::string& queue);
 
+  //----------------------------------------------------------------------------
+  //! Process a change in the space usage published by the given file system
+  //!
+  //! @param queue file system queue path
+  //----------------------------------------------------------------------------
+  void ProcessFsUsageChange(const std::string& queue);
+
+  //----------------------------------------------------------------------------
+  //! Process a change in the scheduling state or the health of the given file
+  //! system i.e. sched.ops, configstatus, stat.boot or stat.errc
+  //!
+  //! @param key file system key that changed
+  //! @param queue file system queue path
+  //----------------------------------------------------------------------------
+  void ProcessFsStatusChange(const std::string& key, const std::string& queue);
+
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
   //! thread.

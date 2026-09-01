@@ -170,6 +170,139 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 }
 
 //------------------------------------------------------------------------------
+// Process a change in the space usage published by the given file system
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::ProcessFsUsageChange(const std::string& queue)
+{
+  // Keep the scheduler's view of how full a disk is up to date. Only the flat
+  // scheduler keeps a copy of these numbers, the geotree engine reads the very
+  // same keys with its own listener. This fires on every heartbeat that moves
+  // the values, so it must stay cheap: a lookup and a few atomic stores, no
+  // snapshot rebuild.
+  if ((mFsScheduler == nullptr) || !mFsScheduler->IsRunning()) {
+    return;
+  }
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+  if (fs == nullptr) {
+    return;
+  }
+
+  const auto fsid = (eos::common::FileSystem::fsid_t)fs->GetLongLong("id");
+  const std::string space = fs->getCoreParams().getSpace();
+
+  if ((fsid == 0) || space.empty()) {
+    return;
+  }
+
+  // Both keys come out of the same FST publish cycle, so either one refreshes
+  // the fill level and the free space in one go. Filled is published as a
+  // percentage between 0 and 100.
+  const double filled = fs->GetDouble("stat.statfs.filled");
+  mFsScheduler->SetDiskPercentUsed(
+      space, fsid, static_cast<uint8_t>(std::max(0.0, std::min(100.0, filled))));
+  mFsScheduler->SetDiskFreeSpace(space, fsid,
+                                 eos::mgm::placement::GetUsableFreeBytes(*fs));
+}
+
+//------------------------------------------------------------------------------
+// Process a change in the scheduling state or the health of the given
+// file system
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::ProcessFsStatusChange(const std::string& key, const std::string& queue)
+{
+  // Each key moves only a part of the state, so nothing is pushed to the
+  // scheduler that this event cannot have changed:
+  //   sched.ops, configstatus -> the operations mask of the disk
+  //   stat.boot               -> the status of the disk
+  // The automatic drain decision reads stat.errc and stat.boot, but is taken
+  // for any of the keys so that a mask put back by hand on a broken disk is
+  // caught as well. Only an MGM master takes it.
+  const bool is_master = mMaster->IsMaster();
+  const bool refresh_ops =
+      ((key == eos::common::FS_SCHED_OPS_NAME) || (key == "configstatus"));
+  const bool refresh_status = (key == "stat.boot");
+  // Only the flat scheduler keeps a copy of the file system state that has to
+  // be pushed to it, the geotree engine subscribes to the very same keys with
+  // its own listener and refreshes itself
+  const bool sched_running = ((mFsScheduler != nullptr) && mFsScheduler->IsRunning());
+
+  if (!is_master && (!sched_running || (!refresh_ops && !refresh_status))) {
+    return;
+  }
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+  if (fs == nullptr) {
+    return;
+  }
+
+  const auto fsid = (eos::common::FileSystem::fsid_t)fs->GetLongLong("id");
+  const std::string space = fs->getCoreParams().getSpace();
+
+  if ((fsid == 0) || space.empty()) {
+    // Initial state in which most of the fs parameters are not yet populated
+    return;
+  }
+
+  const eos::common::BootStatus bstatus =
+      eos::common::FileSystem::GetStatusFromString(fs->GetString("stat.boot").c_str());
+
+  if (refresh_status && sched_running &&
+      !mFsScheduler->SetDiskStatus(space, fsid, fs->GetActiveStatus(), bstatus)) {
+    eos_static_err("msg=\"failed to update the disk status in the scheduler\" "
+                   "fsid=%lu space=\"%s\"",
+                   (unsigned long)fsid, space.c_str());
+  }
+
+  if (!refresh_ops && !is_master) {
+    // A boot status change on a slave, the mask cannot have moved
+    return;
+  }
+
+  // sched.ops is the authoritative key, configstatus is only its projection,
+  // so the mask is what both the auto-drain decision and the scheduler use
+  eos::common::FsOpMask ops = fs->GetSchedOps();
+  bool push_ops = refresh_ops;
+
+  // An operations error on a file system is what triggers the automatic drain
+  // and a file system that no longer takes any client traffic - off, empty or
+  // internal only - is left alone: an operator took it out of service and an
+  // error must not drain it back in.
+  if (is_master && (fs->GetLongLong("stat.errc") != 0) &&
+      (bstatus == eos::common::BootStatus::kOpsError) &&
+      eos::common::AllowsAnyClient(ops)) {
+    // Reads only - what the legacy "drain" status meant - and then the drain
+    // request, which used to ride along with it. Both steps are skipped once
+    // they are in place, so an error repeated on every heartbeat neither
+    // rewrites the mask nor restarts the drain.
+    if ((ops != eos::common::kMaskAllReads) &&
+        fs->SetSchedOps(eos::common::kMaskAllReads)) {
+      // Track what was written rather than re-reading it, the shared hash
+      // update is not necessarily visible yet, and hand it to the scheduler
+      // now rather than waiting for our own write to come back as an event
+      ops = eos::common::kMaskAllReads;
+      push_ops = true;
+    }
+
+    if (!fs->IsDrainRequested()) {
+      fs->SetDrainRequested(true);
+    }
+  }
+
+  if (push_ops && sched_running && !mFsScheduler->SetDiskOps(space, fsid, ops)) {
+    eos_static_err("msg=\"failed to update the disk ops in the scheduler\" "
+                   "fsid=%lu space=\"%s\"",
+                   (unsigned long)fsid, space.c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
 // A thread monitoring for important key-value changes in filesystems
 //------------------------------------------------------------------------------
 void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
@@ -195,106 +328,17 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     eos::mq::FsChangeListener::Event event;
 
-    if (fs_listener->fetch(assistant, event) && !event.isDeletion()) {
-      if (event.key == "stat.geotag") {
-        ProcessGeotagChange(event.fileSystemQueue);
-      } else if ((event.key == "stat.statfs.filled") ||
-                 (event.key == "stat.statfs.freebytes")) {
-        // Keep the scheduler's view of how full a disk is up to date. Both
-        // keys come out of the same FST publish cycle, so either one refreshes
-        // both the fill level and the free space in one lookup. This fires on
-        // every heartbeat that moves the numbers, so it must stay cheap: a
-        // lookup and a few atomic stores, no snapshot rebuild.
-        if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          FileSystem* fs =
-              FsView::gFsView.mIdView.lookupByQueuePath(event.fileSystemQueue);
+    if (!fs_listener->fetch(assistant, event) || event.isDeletion()) {
+      continue;
+    }
 
-          if (fs) {
-            const auto fsid = (eos::common::FileSystem::fsid_t)fs->GetLongLong("id");
-            const std::string space = fs->getCoreParams().getSpace();
-
-            if (fsid && !space.empty()) {
-              // filled is published as a percentage between 0 and 100
-              const double filled = fs->GetDouble("stat.statfs.filled");
-              gOFS->mFsScheduler->SetDiskPercentUsed(
-                  space, fsid,
-                  static_cast<uint8_t>(std::max(0.0, std::min(100.0, filled))));
-              gOFS->mFsScheduler->SetDiskFreeSpace(
-                  space, fsid, eos::mgm::placement::GetUsableFreeBytes(*fs));
-            }
-          }
-        }
-      } else {
-        // This is a filesystem status error
-        if (gOFS->mMaster->IsMaster()) {
-          // only an MGM master needs to initiate draining
-          eos::common::FileSystem::fsid_t fsid = 0;
-          long long errc = 0;
-          std::string bootstatus = "";
-          std::string space;
-          eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
-          // read the id from the hash and the current error value
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(
-                             event.fileSystemQueue);
-
-          if (fs) {
-            fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
-            errc = (int) fs->GetLongLong("stat.errc");
-            bootstatus = fs->GetString("stat.boot");
-            bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
-            space = fs->getCoreParams().getSpace();
-
-            if (fsid == 0 || space.empty()) {
-              // We are in the initial state where most of the FS params are not populated
-              // skip further processing
-              continue;
-            }
-
-            if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->IsRunning()) {
-              // Re-resolve rather than translating cfgstatus: sched.ops is
-              // the authoritative key and configstatus is only its projection
-              bool status =
-                  gOFS->mFsScheduler->SetDiskOps(space, fsid, fs->GetSchedOps());
-              bool act_status = gOFS->mFsScheduler->SetDiskStatus(
-                  space, fsid, fs->GetActiveStatus(), bstatus);
-
-              if (!status || !act_status) {
-                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",
-                               fsid);
-              }
-            }
-          }
-
-          if (fs && fsid && errc && (bstatus == eos::common::BootStatus::kOpsError)) {
-            // Case when we take action and explicitly ask to start a drain
-            // job. Reads only - what the legacy "drain" status meant - and
-            // then the drain request, which used to ride along with it.
-            const auto actions = eos::mgm::fsutils::GetAutoDrainActions(
-                fs->GetSchedOps(), fs->IsDrainRequested());
-
-            if (actions.set_read_only) {
-              fs->SetSchedOps(eos::common::kMaskAllReads);
-            }
-
-            if (actions.request_drain) {
-              fs->SetDrainRequested(true);
-            }
-
-            if (actions.set_read_only && gOFS->mFsScheduler != nullptr &&
-                gOFS->mFsScheduler->IsRunning()) {
-              bool status = gOFS->mFsScheduler->SetDiskOps(fs->getCoreParams().getSpace(),
-                                                           fsid, fs->GetSchedOps());
-
-              if (!status) {
-                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",
-                               fsid);
-              }
-            }
-          }
-        }
-      }
+    if (event.key == "stat.geotag") {
+      ProcessGeotagChange(event.fileSystemQueue);
+    } else if ((event.key == "stat.statfs.filled") ||
+               (event.key == "stat.statfs.freebytes")) {
+      ProcessFsUsageChange(event.fileSystemQueue);
+    } else {
+      ProcessFsStatusChange(event.key, event.fileSystemQueue);
     }
   }
 }
