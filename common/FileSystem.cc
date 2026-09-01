@@ -1206,7 +1206,9 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
       ResolveDrainRequested(hash.get(FS_DRAIN_REQUESTED_NAME), hash.get("configstatus"));
   fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
   fs.mActiveStatus = mActStatus.load();
-  //headroom can be configured as KMGTP so the string should be properly converted
+  // The headroom is entered as a KMGTP size but the fs and space config
+  // handlers already normalize it to a plain byte count before storing it,
+  // so this conversion is only a safety net for a hand-edited value
   fs.mHeadRoom = StringConversion::GetSizeFromString(hash.get("headroom"));
   fs.mErrCode = (unsigned int) hash.getLongLong("stat.errc");
   fs.mBootSentTime = (time_t) hash.getLongLong("bootsenttime");

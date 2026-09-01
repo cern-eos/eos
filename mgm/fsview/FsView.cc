@@ -1711,7 +1711,7 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.statfs.freebytes?configstatus@rw:format=ol|";
     format += "sum=stat.statfs.capacity:format=ol|";
     format += "sum=stat.usedfiles:format=ol|";
-    format += "sum=stat.statfs.ffiles:format=ol|";
+    format += "sum=stat.statfs.ffree:format=ol|";
     format += "sum=stat.statfs.files:format=ol|";
     format += "geosched=totalspace:format=ol:tag=sched.capacity|";
     format += "sum=stat.statfs.capacity?configstatus@rw:format=ol|";
@@ -3616,9 +3616,8 @@ BaseView::SumLongLong(const char* param, bool lock,
     if (fs->getSharedFs() != "" && fs->getSharedFs() != "none" &&
         ((sparam == "stat.statfs.usedbytes") || (sparam == "stat.statfs.capacity") ||
          (sparam == "stat.usedfiles") || (sparam == "stat.statfs.files") ||
-         (sparam == "stat.statfs.ffiles") || (sparam == "stat.statfs.ffree") ||
-         (sparam == "stat.statfs.fused") || (sparam == "stat.statfs.freebytes") ||
-         (sparam == "stat.totalspace")) &&
+         (sparam == "stat.statfs.ffree") || (sparam == "stat.statfs.fused") ||
+         (sparam == "stat.statfs.freebytes") || (sparam == "stat.totalspace")) &&
         unique_fs.count(fs->getSharedFs())) {
       // don't account shared fs more than once for these keys
       continue;
