@@ -136,6 +136,10 @@ public:
   };
 
 private:
+  //! Default maximum age of the cached layout size factor. The factor only
+  //! changes when the quota directory's sys.forced.* attributes or the space
+  //! policy change, so it does not need to follow the usage refresh interval.
+  static constexpr time_t sLayoutFactorAge = 300;
 
   //----------------------------------------------------------------------------
   //! Get quota
@@ -201,9 +205,19 @@ private:
   void Refresh(time_t age = 0);
 
   //----------------------------------------------------------------------------
-  //! Calculate the size factor used to estimate the logical available bytes
+  //! Calculate the size factor used to estimate the logical available bytes.
+  //!
+  //! This resolves the quota node path in the namespace and evaluates the
+  //! space policies, therefore it is expensive. The resulting factor only
+  //! changes when the quota directory's sys.forced.* attributes or the space
+  //! policy change, hence it is cached.
+  //!
+  //! @param age only recompute if the cached factor is older than 'age'
+  //!            seconds. Pass 0 to force a recomputation.
+  //!
+  //! @warning Caller needs to hold a read-lock on eosViewRWMutex
   //----------------------------------------------------------------------------
-  void UpdateLogicalSizeFactor();
+  void UpdateLogicalSizeFactor(time_t age = sLayoutFactorAge);
 
   //----------------------------------------------------------------------------
   //! Update target quota values
@@ -314,11 +328,16 @@ private:
   //----------------------------------------------------------------------------
   static const char* GetTagCategory(int tag);
 
-  std::string pPath; ///< quota node path
+  std::string pPath; ///< quota node path - display only, re-keyed on rename
+  //! Id of the namespace container backing this quota node. Unlike pPath it is
+  //! stable across renames, so it is the authoritative way to get back to the
+  //! ns quota node.
+  eos::IContainerMD::id_t mContId;
   eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
   XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
   time_t mLastRefresh; ///< timestamp of last refresh call
+  time_t mLastLayoutFactorRefresh; ///< timestamp of last layout factor update
   double mLayoutSizeFactor; ///< layout dependent size factor
   bool mDirtyTarget; ///< mark to recompute target values
 
@@ -594,7 +613,16 @@ public:
 
   //----------------------------------------------------------------------------
   //! Load function to initialize all SpaceQuota's with the quota node
-  //! definition from the namespace
+  //! definition from the namespace. This does the full job: discovery of the
+  //! ns quota nodes including rename detection, followed by a refresh of every
+  //! known quota node.
+  //!
+  //! @note This resolves the URI of every ns quota node and imports the usage
+  //!       counters of every quota node, so it is expensive on an instance with
+  //!       many quota nodes. It is meant for the paths which have to rebuild
+  //!       the whole view - configuration application and master transition -
+  //!       and not for a command path. See DiscoverNodes, RefreshAllNodes and
+  //!       RefreshResponsibleNode for the pieces.
   //----------------------------------------------------------------------------
   static void LoadNodes();
 
@@ -766,6 +794,37 @@ private:
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
 
+  //! Maximum age of the usage counters imported on a command path. This is the
+  //! value which used to be passed to SpaceQuota::Refresh by LoadNodes.
+  static constexpr time_t sUsageRefreshAge = 5;
+
+  //----------------------------------------------------------------------------
+  //! Create the SpaceQuota objects for the ns quota nodes which are not known
+  //! yet and, optionally, re-key the ones whose directory was renamed.
+  //!
+  //! @param detect_renames if true, resolve the URI of every ns quota node and
+  //!        re-key the SpaceQuota objects whose path no longer matches it -
+  //!        the rename sync LoadNodes has always done. That URI resolution is
+  //!        what makes this expensive, so pass false on a command path: a
+  //!        rename is applied synchronously by CommitRenameNodes, and only the
+  //!        ids which are not known yet - normally none - are then resolved.
+  //----------------------------------------------------------------------------
+  static void DiscoverNodes(bool detect_renames);
+
+  //----------------------------------------------------------------------------
+  //! Import the ns usage counters into every known quota node.
+  //!
+  //! The namespace and quota locks are taken and released per quota node, so
+  //! that a long list of quota nodes does not block the namespace.
+  //----------------------------------------------------------------------------
+  static void RefreshAllNodes();
+
+  //----------------------------------------------------------------------------
+  //! Import the ns usage counters into the quota node responsible for a path.
+  //!
+  //! @param path path whose responsible quota node is refreshed
+  //----------------------------------------------------------------------------
+  static void RefreshResponsibleNode(const std::string& path);
 
   //----------------------------------------------------------------------------
   //! Make sure the path ends with a /

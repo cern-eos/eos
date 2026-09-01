@@ -54,14 +54,16 @@ gid_t Quota::gProjectId = 99;
 SpaceQuota::SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id)
     : eos::common::LogId()
     , pPath(path)
+    , mContId(cont_id)
     , mQuotaNode(nullptr)
     , mLastEnableCheck(0)
     , mLastRefresh(0)
+    , mLastLayoutFactorRefresh(0)
     , mLayoutSizeFactor(1.0)
     , mDirtyTarget(true)
 {
   std::shared_ptr<eos::IContainerMD> quotadir =
-      gOFS->eosDirectoryService->getContainerMD(cont_id);
+      gOFS->eosDirectoryService->getContainerMD(mContId);
 
   try {
     mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
@@ -125,8 +127,12 @@ bool
 SpaceQuota::UpdateQuotaNodeAddress()
 {
   try {
+    // Bind by container id rather than resolving pPath by name. The id is
+    // stable across renames and this is a single lookup instead of one per
+    // path component, which matters because this runs for every quota node
+    // on every refresh.
     std::shared_ptr<eos::IContainerMD> quotadir =
-      gOFS->eosView->getContainer(pPath.c_str());
+        gOFS->eosDirectoryService->getContainerMD(mContId);
     mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
 
     if (!mQuotaNode) {
@@ -144,8 +150,20 @@ SpaceQuota::UpdateQuotaNodeAddress()
 // Calculate the size factor used to estimate the logical available bytes
 //------------------------------------------------------------------------------
 void
-SpaceQuota::UpdateLogicalSizeFactor()
+SpaceQuota::UpdateLogicalSizeFactor(time_t age)
 {
+  time_t now = time(NULL);
+
+  // Resolving the path and evaluating the space policies below is expensive,
+  // so only redo it once the cached factor is older than the given age. An
+  // age of 0 forces the recomputation.
+  if (age) {
+    if ((now - age) < mLastLayoutFactorRefresh) {
+      return;
+    }
+  }
+
+  mLastLayoutFactorRefresh = now;
   XrdOucErrInfo error;
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   vid.sudoer = 1;
@@ -470,6 +488,13 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
                      long long int gid_sel, bool monitoring, bool translate_ids)
 {
   using eos::common::StringConversion;
+  // 'quota set' writes the per-id target values straight into mMapIdQuota so
+  // that they show up at once, but the aggregate target rows are only
+  // recomputed by Refresh. Do it here as well, so that the "All users"/"All
+  // groups" row can never disagree with the per-id rows printed above it while
+  // the usage refresh age has not elapsed yet. Free if nothing changed, since
+  // mDirtyTarget guards it.
+  UpdateTargetSums();
   // Make a map containing once all the defined uid's and gid's
   std::vector<std::pair<std::string, unsigned>> uids, gids;
   {
@@ -669,10 +694,16 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
     }
   }
 
-  if ((uid_sel < 0) && (gid_sel < 0)) {
-    output += table_user.GenerateTable(HEADER).c_str();
-  } else {
-    output += table_user.GenerateTable(HEADER2).c_str();
+  // Nothing was added to the table if there is no uid to print, and an empty
+  // table renders to the empty string, so skip the style setup and the empty
+  // body pass altogether. A node carrying only group quota hits this on every
+  // listing, and vice versa for the group table below.
+  if (!uids.empty()) {
+    if ((uid_sel < 0) && (gid_sel < 0)) {
+      output += table_user.GenerateTable(HEADER).c_str();
+    } else {
+      output += table_user.GenerateTable(HEADER2).c_str();
+    }
   }
 
   //! Quota node - Group
@@ -763,10 +794,12 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
     }
   }
 
-  if ((uid_sel < 0) && (gid_sel < 0)) {
-    output += table_group.GenerateTable(HEADER).c_str();
-  } else {
-    output += table_group.GenerateTable(HEADER2).c_str();
+  if (!gids.empty()) {
+    if ((uid_sel < 0) && (gid_sel < 0)) {
+      output += table_group.GenerateTable(HEADER).c_str();
+    } else {
+      output += table_group.GenerateTable(HEADER2).c_str();
+    }
   }
 
   //! Quota node - Summary
@@ -1593,6 +1626,22 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
+
+  // The layout size factor is only refreshed periodically, but the raw <->
+  // logical byte conversion below has to use an up to date value. Force a
+  // recomputation in its own scope: it needs the namespace lock, which must be
+  // taken before pMapMutex and must not be held while the configuration is
+  // saved and broadcasted further down.
+  {
+    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    SpaceQuota* squota = GetSpaceQuota(path);
+
+    if (squota) {
+      squota->UpdateLogicalSizeFactor(0);
+    }
+  }
+
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetSpaceQuota(path);
 
@@ -2027,13 +2076,27 @@ Quota::MapSizeCB(const eos::IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Load nodes
+// Discover the ns quota nodes and create the missing SpaceQuota objects
 //------------------------------------------------------------------------------
 void
-Quota::LoadNodes()
+Quota::DiscoverNodes(bool detect_renames)
 {
   std::vector<std::pair<std::string, eos::IContainerMD::id_t>> create_quota;
   std::map<eos::IContainerMD::id_t, std::string> map_id_path;
+  std::set<eos::IContainerMD::id_t> known_ids;
+
+  if (!detect_renames) {
+    // Without rename detection only the ids which are not known yet need their
+    // URI resolved below. Collect the known ones in their own scope since
+    // Quota::Exists takes pMapMutex itself, so it must not be held while the
+    // namespace is queried.
+    eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+
+    for (const auto& elem : pMapInodeQuota) {
+      known_ids.insert(elem.first);
+    }
+  }
+
   // Load all known nodes
   {
     std::string quota_path;
@@ -2042,6 +2105,12 @@ Quota::LoadNodes()
     auto set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
     for (const auto elem : set_ids) {
+      if (!detect_renames && (known_ids.count(elem) != 0)) {
+        // Already known and renames are not our business here - skip the URI
+        // resolution, which is the expensive part of this loop
+        continue;
+      }
+
       try {
         container = gOFS->eosDirectoryService->getContainerMD(elem);
         quota_path = gOFS->eosView->getUri(container.get());
@@ -2067,7 +2136,10 @@ Quota::LoadNodes()
   // Re-key the quota nodes whose directory was renamed in the meantime - this
   // syncs a slave with a rename done by the master. The configuration is
   // broadcasted by the MGM which did the rename, so it is not touched here.
-  {
+  // A rename going through this MGM is already applied synchronously by
+  // Quota::CommitRenameNodes, hence this is skipped when the caller asked not
+  // to detect renames - it also spares an exclusive pMapMutex lock.
+  if (detect_renames) {
     eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
     std::vector<std::pair<std::string, std::string>> renamed;
 
@@ -2112,35 +2184,63 @@ Quota::LoadNodes()
                       it->first.c_str(), (unsigned long long)it->second);
     (void)CreateQuotaObj(it->first, it->second);
   }
+}
 
-  // Refresh the space quota objects
+//------------------------------------------------------------------------------
+// Import the ns usage counters into every known quota node
+//------------------------------------------------------------------------------
+void
+Quota::RefreshAllNodes()
+{
+  std::vector<eos::IContainerMD::id_t> cont_ids;
   {
-    // loop over pMapQuota releasing locks each time in the iteration
+    eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    cont_ids.reserve(pMapInodeQuota.size());
+
+    for (const auto& elem : pMapInodeQuota) {
+      cont_ids.push_back(elem.first);
+    }
+  }
+
+  // Refresh one node at a time, taking and releasing both locks per node so
+  // that a long list of quota nodes does not block the namespace. Working on a
+  // snapshot is what makes releasing the locks in between safe - no iterator
+  // survives it. The snapshot is keyed by container id because a concurrent
+  // rename can re-key the path while the id stays stable.
+  for (const auto cont_id : cont_ids) {
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-    bool first = true;
-    size_t n = 0;
+    auto it = pMapInodeQuota.find(cont_id);
 
-    do {
-      auto it = pMapQuota.begin();
-      std::advance(it, n);
-
-      if (!first) {
-        rd_ns_lock.Grab(gOFS->eosViewRWMutex);
-        rd_quota_lock.Grab(pMapMutex);
-        first = false;
-      }
-
-      if (it == pMapQuota.end()) {
-        break;
-      }
-
-      it->second->Refresh(5);
-      n++;
-      rd_quota_lock.Release();
-      rd_ns_lock.Release();
-    } while (1);
+    if (it != pMapInodeQuota.end()) {
+      it->second->Refresh(sUsageRefreshAge);
+    }
   }
+}
+
+//------------------------------------------------------------------------------
+// Import the ns usage counters into the quota node responsible for a path
+//------------------------------------------------------------------------------
+void
+Quota::RefreshResponsibleNode(const std::string& path)
+{
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+
+  if (squota) {
+    squota->Refresh(sUsageRefreshAge);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Load nodes
+//------------------------------------------------------------------------------
+void
+Quota::LoadNodes()
+{
+  DiscoverNodes(true);
+  RefreshAllNodes();
 }
 
 //------------------------------------------------------------------------------
@@ -2152,9 +2252,19 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
                 bool translate_ids)
 {
   output = "";
-  // Add this to have all quota nodes visible even if they are not in
-  // the configuration file
-  LoadNodes();
+  // Add this to have all quota nodes visible even if they are not in the
+  // configuration file. Rename detection is deliberately left out: a rename is
+  // applied synchronously by CommitRenameNodes, and LoadNodes still re-syncs
+  // the whole view at configuration application and master transition.
+  DiscoverNodes(false);
+
+  // Import the usage counters of what is about to be printed only
+  if (path.empty()) {
+    RefreshAllNodes();
+  } else {
+    RefreshResponsibleNode(path);
+  }
+
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
@@ -2408,9 +2518,11 @@ std::map<std::string, std::tuple<unsigned long long,
   std::map<std::string, std::tuple<unsigned long long,
       unsigned long long,
       unsigned long long>> allGroupLogicalByteValues;
-  // Add this to have all quota nodes visible even if they are not in
-  // the configuration file
-  LoadNodes();
+  // Add this to have all quota nodes visible even if they are not in the
+  // configuration file - see Quota::PrintOut on why renames are not detected
+  // here.
+  DiscoverNodes(false);
+  RefreshAllNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
