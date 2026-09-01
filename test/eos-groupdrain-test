@@ -36,13 +36,25 @@ if [[ $# -eq 0 || $# -gt 2 ]]; then
 fi
 
 EOS_MGM_HOSTNAME=$1
-eos fs ls
-# Check preconditions and make sure draining is enabled
+
+# Check preconditions and wait for at least 14 FSTs to become online
+WAIT_TIMEOUT=120
+WAIT_INTERVAL=5
+ELAPSED=0
 FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
+while [[ ${FST_ONLINE} -lt 14 && ${ELAPSED} -lt ${WAIT_TIMEOUT} ]]; do
+  echo "Waiting for FSTs to be online (${FST_ONLINE}/14 ready)..."
+  sleep ${WAIT_INTERVAL}
+  ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+  FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+done
+
+eos fs ls
+
 if [[ ${FST_ONLINE} -lt 14 ]]; then
-      echo "error: not enough FSTs configured"
-      exit 1
+  echo "error: not enough FSTs configured (${FST_ONLINE} online, expected >= 14)"
+  exit 1
 fi
 
 # Create dummy test files
