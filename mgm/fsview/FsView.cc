@@ -4138,10 +4138,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         // Compution
         if (formattags.count("compute")) {
           if (formattags["compute"] == "usage") {
-            // compute the percentage usage
-            long long used_bytes = SumLongLong("stat.statfs.usedbytes", false);
-            long long headroom = SumLongLong("headroom", false);
-            long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(), 0, 10);
             std::string format = formattags["format"];
             unsigned int width = (formattags.count("width") ?
                                   atoi(formattags["width"].c_str()) : 0);
@@ -4152,18 +4148,49 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             }
 
             table_header.push_back(std::make_tuple(header, width, format));
+            // Used and total have to be summed over the very same set of file
+            // systems, otherwise the ratio is meaningless. The "?configstatus@rw"
+            // selector does not only pick the rw file systems, it also drops the
+            // ones that are offline or not booted - so the unselected numerator
+            // used before counted bytes whose capacity never made it into the
+            // denominator.
+            long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(), 0, 10);
+            long long used_bytes = 0;
 
-            if (!capacity) {
+            if (capacity) {
+              // A configured nominal size describes the whole view, so the used
+              // bytes are taken over the whole view as well
+              used_bytes = SumLongLong("stat.statfs.usedbytes", false);
+            } else {
+              // The capacity sum already has the headroom the FSTs keep back
+              // subtracted, so the used bytes must not be inflated by it again
               capacity = SumLongLong("stat.statfs.capacity?configstatus@rw", false);
+              used_bytes = SumLongLong("stat.statfs.usedbytes?configstatus@rw", false);
+
+              if (capacity <= 0) {
+                // Not a single file system takes client writes - the view is
+                // entirely ro, draining, internal traffic only or off. There is
+                // no client capacity to relate the used bytes to, and printing
+                // 0% would read as "empty" while the view can be completely
+                // full, so report the plain occupancy of everything it holds.
+                // Both sums are unselected, so the ratio still relates one set
+                // of file systems to itself.
+                capacity = SumLongLong("stat.statfs.capacity", false);
+                used_bytes = SumLongLong("stat.statfs.usedbytes", false);
+              }
             }
 
             double usage = 0;
 
-            if (capacity) {
-              usage = 100.0 * (used_bytes + headroom) / (capacity);
+            if (capacity > 0) {
+              usage = 100.0 * used_bytes / capacity;
 
               if (usage > 100.0) {
                 usage = 100.0;
+              }
+
+              if (usage < 0.0) {
+                usage = 0.0;
               }
             }
 
