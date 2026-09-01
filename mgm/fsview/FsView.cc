@@ -3613,16 +3613,12 @@ BaseView::SumLongLong(const char* param, bool lock,
       continue;
     }
 
-    if (fs->getSharedFs() != "" &&
-        fs->getSharedFs() != "none" &&
-        (
-          (sparam == "stat.statfs.usedbytes") ||
-          (sparam == "stat.statfs.capacity") ||
-          (sparam == "stat.usedfiles") ||
-          (sparam == "stat.statfs.files") ||
-          (sparam == "stat.statfs.ffiles") ||
-          (sparam == "stat.statfs.freebytes") ||
-          (sparam == "stat.totalspace")) &&
+    if (fs->getSharedFs() != "" && fs->getSharedFs() != "none" &&
+        ((sparam == "stat.statfs.usedbytes") || (sparam == "stat.statfs.capacity") ||
+         (sparam == "stat.usedfiles") || (sparam == "stat.statfs.files") ||
+         (sparam == "stat.statfs.ffiles") || (sparam == "stat.statfs.ffree") ||
+         (sparam == "stat.statfs.fused") || (sparam == "stat.statfs.freebytes") ||
+         (sparam == "stat.totalspace")) &&
         unique_fs.count(fs->getSharedFs())) {
       // don't account shared fs more than once for these keys
       continue;
