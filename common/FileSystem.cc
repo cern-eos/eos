@@ -802,10 +802,26 @@ bool FileSystem::applyCoreParams(const FileSystemCoreParams& params)
   FileSystemUpdateBatch batch;
   batch.setStringDurable("uuid", params.getUuid());
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
-  batch.setStringDurable("configstatus",
-                         GetConfigStatusAsString(params.getConfigStatus()));
   batch.setStringDurable("sharedfs", params.getSharedFs());
   batch.setId(params.getId());
+
+  // configstatus is a projection of the scheduling mask and every writer of
+  // the mask publishes both in one batch, so a filesystem that already carries
+  // a mask carries a matching status too. Writing the status from the core
+  // params could only pull the two apart, and ResolveSchedOps reads the mask
+  // first - the stale status would be invisible to scheduling but still steer
+  // everything that reads configstatus, the capacity sums included. Seed the
+  // status only while there is no mask to contradict.
+  //
+  // Deriving the mask from the status here instead is not an option: this runs
+  // on every config reload, and DeriveMaskFromLegacy would coarsen a stored
+  // mask each time - an "internal traffic only" filesystem projects onto the
+  // legacy 'drain' and would come back as plain reads.
+  if (GetString(FS_SCHED_OPS_NAME).empty()) {
+    batch.setStringDurable("configstatus",
+                           GetConfigStatusAsString(params.getConfigStatus()));
+  }
+
   return applyBatch(batch);
 }
 
