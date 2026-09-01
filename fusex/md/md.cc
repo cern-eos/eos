@@ -3086,6 +3086,7 @@ metad::mdcallback(ThreadAssistant& assistant)
       uint64_t md_ino = rsp->refresh_().md_ino();
       uint64_t ino = inomap.forward(md_ino);
       mode_t mode = 0;
+std::cerr << "Got REFRESH md_ino=" << md_ino << " ino=" << ino << std::endl;
       eos_static_notice("refresh-dentry: remote-ino=%#lx ino=%#lx",
                         md_ino, ino);
       shared_md md;
@@ -3097,7 +3098,9 @@ metad::mdcallback(ThreadAssistant& assistant)
         md->force_refresh();
         mode = (*md)()->mode();
         if (S_ISDIR(mode)) {
+std::cerr << "Got REFRESH, is dir myname = " << (*md)()->name() << std::endl;
           for (const auto& name : md->local_enoent()) {
+std::cerr << "Got REFRESH, push back enoent name=" << name << std::endl;
             inval_entry_name.push_back(name);
           }
           md->local_enoent().clear();
@@ -3408,6 +3411,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   ThreadAssistant::setSelfThreadName("metad::mdcommunicate");
 
   while (!assistant.terminationRequested() || shutdown == false) {
+if ((cnt%100) == 0) { std::cerr << "mdcommunicate cnt = " << cnt << std::endl; }
     try {
       std::unique_lock<std::mutex> connectionMutex(zmq_socket_mutex);
       eos_static_debug("");
@@ -3422,12 +3426,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         if (zmq_wants_to_connect()) {
           connectionMutex.unlock();
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
+std::cerr << "Slept 100ms in mdcommunicate" << std::endl;
           connectionMutex.lock();
           continue;
         }
 
         if (first) {
           // we want to see the first hearteat directly after startup
+std::cerr << "mdcommunicate doing 'first'" << std::endl;
           first = false;
           break;
         }
@@ -3437,6 +3443,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         zmq_poll(items, 1, 10);
 #pragma GCC diagnostic pop
+
+std::cerr << "zmq_poll returned items[0].revents=" << items[0].revents << std::endl;
 
         if (assistant.terminationRequested()) {
           shutdown = true;
@@ -3452,6 +3460,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           size_t more_size = sizeof(more);
           zmq_msg_t message;
           rc = zmq_msg_init(&message);
+std::cerr << "Got ZMQ_POLLIN" << std::endl;
 
           if (rc) {
             rc = 0;
@@ -3465,13 +3474,16 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
           shared_response rsp = std::make_shared<eos::fusex::response>();
           eos_static_notice("parsing response");
+std::cerr << "Got a ZMQ response" << std::endl;
 
           if (rsp->ParseFromString(s)) {
+std::cerr << "Got a ZMQ ok, will puch_back to mCbQueue" << std::endl;
             mCb.Lock();
             mCbQueue.push_back(rsp);
             mCb.Signal();
             mCb.UnLock();
           } else {
+std::cerr << "Got a ZMQ bad response" << std::endl;
             eos_static_err("unable to parse message");
           }
 

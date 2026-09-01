@@ -2439,6 +2439,9 @@ chmod 444 /etc/eos/fuse.sss.keytab
 
 # make sure /var/run/eod is ensured everytime a daemon is running... at least
 rm -rfv /var/run/eos
+which eosxd
+ls -al /usr/bin/eosxd
+rpm -qf /usr/bin/eosxd
 eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
 ls -la /test-fusex/
 
@@ -2469,6 +2472,19 @@ runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Delay     " unix SUCCESS "" delay 1
+
+eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+if [ -e "/var/log/eos/fusex/fuse.localhost.localdomain-test-fusex-.log" ]; then
+  ls -al /var/log/eos/fusex
+  cat /var/log/eos/fusex/fuse.localhost.localdomain-test-fusex-.log
+else
+  ls -al /var/log/eos/fusex
+fi
+#netstat -a -n | grep 1100
+ps auxgww | grep eosxd
+ps auxgww | grep mgm
+ss -n | grep 1100
+
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Fusex-Stat" unix SUCCESS "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"

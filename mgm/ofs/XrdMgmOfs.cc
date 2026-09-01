@@ -133,6 +133,7 @@
 #include <cstdlib>
 #include <exception>
 #include <sstream>
+#include <iostream>
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1341,6 +1342,7 @@ void
 XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
+std::cerr << "Sending broadcastrefreshfromexternel (dir) id=" << id.getUnderlyingUInt64() << " parent=" << parentid.getUnderlyingUInt64() << std::endl;
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
       id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64(),
       FuseServer::Caps::RefreshDir::YES);

@@ -148,6 +148,7 @@ FuseServer::Clients::MonitorHeartBeat()
             uuids.insert(it->first);
             mMap.erase(it->second);
             mUUIDView.erase(it->first);
+std::cerr << "Here1 erasing from mUUIDView " << it->first << std::endl;
             gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
           }
         }
@@ -168,6 +169,7 @@ FuseServer::Clients::MonitorHeartBeat()
         eos::common::RWMutexWriteLock lLock(*this);
         mMap.erase(it->second);
         mUUIDView.erase(it->first);
+std::cerr << "Here2 erasing from mUUIDView " << it->first << std::endl;
       }
     }
 
@@ -238,6 +240,8 @@ FuseServer::Clients::Dispatch(const std::string identity,
   }
 
   (this->uuidview())[hb.uuid()] = identity;
+std::cerr << "Here3 insert from mUUIDView key=" << hb.uuid() << " identity=" << identity << std::endl;
+
   lLock.Release();
   {
     // apply auth revocation requested by the client
@@ -852,6 +856,7 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
   eos::common::RWMutexReadLock lLock(*this);
 
   if (!mUUIDView.count(uuid)) {
+std::cerr << "RefreshEntry didn't find in mUUIDView uuid=" << uuid << std::endl;
     return ENOENT;
   }
 
@@ -877,6 +882,7 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
       lLock.Release();
       eos_static_debug("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
                        uuid.c_str(), clientid.c_str(), md_ino);
+std::cerr << "Doing RefreshEntry mTask->reply id=" << id << std::endl;
       gOFS->zMQ->mTask->reply(id, rspstream);
     }
   }
@@ -1033,6 +1039,7 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
     std::string uuid = it->second.heartbeat().uuid();
+if (!mUUIDView.count(uuid)) { std::cerr << "Warn, will implictly add to mUUIDView uuid=" << uuid << std::endl; }
     std::string id = mUUIDView[uuid];
 
     if (id.length()) {
