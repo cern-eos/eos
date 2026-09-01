@@ -3086,6 +3086,7 @@ metad::mdcallback(ThreadAssistant& assistant)
       uint64_t md_ino = rsp->refresh_().md_ino();
       uint64_t ino = inomap.forward(md_ino);
       mode_t mode = 0;
+std::cerr << "Got REFRESH md_ino=" << md_ino << " ino=" << ino << std::endl;
       eos_static_notice("refresh-dentry: remote-ino=%#lx ino=%#lx",
                         md_ino, ino);
       shared_md md;
@@ -3097,7 +3098,9 @@ metad::mdcallback(ThreadAssistant& assistant)
         md->force_refresh();
         mode = (*md)()->mode();
         if (S_ISDIR(mode)) {
+std::cerr << "Got REFRESH, is dir myname = " << (*md)()->name() << std::endl;
           for (const auto& name : md->local_enoent()) {
+std::cerr << "Got REFRESH, push back enoent name=" << name << std::endl;
             inval_entry_name.push_back(name);
           }
           md->local_enoent().clear();

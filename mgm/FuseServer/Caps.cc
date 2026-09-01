@@ -170,6 +170,7 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 
     if (audience && ((auth_ids.size() > (size_t)audience))) {
       if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+std::cerr << "Compiling regexp audience=" << audience << " ids.size=" << auth_ids.size() << " match=" << match << std::endl;
         suppress = false;
         eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
                        match.c_str());
@@ -209,6 +210,7 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 
     if (suppress) {
       if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+std::cerr << "matched suppress regexp clientid=" << (*cap)()->clientid() << std::endl;
         n_suppressed++;
         continue;
       }
@@ -242,6 +244,7 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid,
                                    nullptr, true, "Eosxd::int::BcRefreshExtSup");
 
   for (auto it : bccaps) {
+std::cerr << "Sending refresh id=" << (uint64_t)id << " clientiuuid=" <<  (*it)()->clientuuid() << " clientid=" << (*it)()->clientid() << " notprot5=" << notprot5 << std::endl;
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
         (*it)()->clientuuid(),
         (*it)()->clientid(),

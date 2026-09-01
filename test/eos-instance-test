@@ -2466,6 +2466,16 @@ runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Fusex-Stat" unix ERROR "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+
+XrdSecPROTOCOL=unix eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+if [ -e "/var/log/eos/fusex/fuse.localhost.localdomain-test-fusex-.log" ]; then
+  ls -al /var/log/eos/fusex
+  cat /var/log/eos/fusex/fuse.localhost.localdomain-test-fusex-.log
+else
+  ls -al /var/log/eos/fusex
+fi
+
+
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Delay     " unix SUCCESS "" delay 1
