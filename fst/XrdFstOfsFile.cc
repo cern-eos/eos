@@ -4131,9 +4131,16 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   notification->mutable_file()->mutable_owner()->set_uid(owner_uid);
   notification->mutable_file()->mutable_owner()->set_gid(owner_gid);
   notification->mutable_file()->set_size(file_size);
-  // Insert a single checksum into the checksum blob
-  CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
-                         file_lid, file_checksum);
+  // Insert the default checksum into the checksum blob
+  auto* checksumBlob = notification->mutable_file()->mutable_csb();
+  CtaCommon::SetChecksum(checksumBlob->add_cs(), file_lid, file_checksum);
+  // Insert all available alternative checksums
+  if (mChecksumGroup->HasChecksums()) {
+    for (const auto& [checksumType, checksum] : mChecksumGroup->GetAlternatives()) {
+      CtaCommon::SetChecksum(checksumBlob->add_cs(), checksumType,
+                             checksum->GetHexChecksum());
+    }
+  }
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instance_name);
   auto xrdname = getenv("XRDNAME");
