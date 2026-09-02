@@ -4,34 +4,410 @@
 echo path=$1
 grep_str=${2:-"uid=adm"}
 echo grep_str=$grep_str
+
+################################################################################
+# Reporting
+#
+# Every check names itself before it runs and says OK once it passed. A failure
+# prints what was expected next to what was found and leaves with a non-zero
+# code identifying the section.
+#
+# The commands driving the checks are run through 'run' and 'expect_fail',
+# which keep their output out of the log unless it says something: the progress
+# bars, the 'success:' lines and the errors which are the expected outcome are
+# noise. Set EOS_QUOTA_TEST_TRACE to get the shell trace of everything back.
+################################################################################
+start() {
+  current=$1
+  echo "TEST: $current"
+}
+
+ok() {
+  echo "  OK: $current"
+}
+
+# fail <code> [reason]
+fail() {
+  echo "  FAILED: $current"
+
+  if [ -n "$2" ]; then
+    echo "    $2"
+  fi
+
+  exit $1
+}
+
+# Run a command, printing its output only if it failed
+run() {
+  local out rc
+  out=$("$@" 2>&1)
+  rc=$?
+
+  if [ $rc -ne 0 ]; then
+    echo "$out"
+  fi
+
+  return $rc
+}
+
+# Run a command which has to fail - its error is the expected outcome, so it is
+# dropped. Returns non-zero if the command unexpectedly succeeded.
+expect_fail() {
+  ! "$@" >/dev/null 2>&1
+}
+
+# check_eq <code> <expected> <actual>
+check_eq() {
+  if [ "$2" != "$3" ]; then
+    fail $1 "expected '$2', got '$3'"
+  fi
+}
+
+# check_match <code> <pattern> <value> - <value> has to contain <pattern>
+check_match() {
+  if ! echo "$3" | grep -q "$2"; then
+    fail $1 "expected a match for '$2', got '$3'"
+  fi
+}
+
+# check_set <code> <what> <value> - <value> must not be empty
+check_set() {
+  if [ -z "$3" ]; then
+    fail $1 "found no $2"
+  fi
+}
+
+if [ -n "$EOS_QUOTA_TEST_TRACE" ]; then
+  set -x
+fi
+
+################################################################################
+# Set up
+#
+# The tree of the second half is created and cleaned up here, before the checks
+# on the accounting of $1 below: those compare the stored usage counters of $1
+# against a recomputed listing, and files left behind by a previous run - which
+# only a recompute sees - would make them disagree forever.
+################################################################################
+# $3 is the redirector url the caller was given. It may well carry a path -
+# eos-instance-test passes 'root://<redirector>/<path>' - while the writes
+# below build their own absolute paths, so keep only the host. A bare hostname
+# is accepted as well.
+url_host=${3:-localhost}
+url_host=${url_host#*://}
+url_host=${url_host%%/*}
+url=root://${url_host:-localhost}
+base=${1%/}/quota-ls-test
+# Uid the writes run as. Matches the uid the checks below drive through
+# 'ns update_quotanode', and is deliberately not 0 - uid 0 is exempt from every
+# check in SpaceQuota::CheckWriteQuota.
+wuid=3
+nodes="$base/t_vol $base/t_ino $base/t_scope $base/t_sum $base/t_useronly $base/t_grouponly"
+
+# A quota node directory cannot be deleted, so every node has to be dropped
+# before the tree goes - on the way in to clean up after a previous run, and on
+# the way out whatever happened in between. The files go first, while the node
+# accounting them is still there. '-F' is needed for that: deletion through the
+# recycle bin refuses the quota node directory and aborts the files with it.
+#
+# Every command in here is allowed to fail - the tree may not be there at all,
+# and the quota node directories always refuse the recursive removal - so they
+# are silenced and the tree is checked once at the end instead.
+cleanup() {
+  for n in $nodes; do
+    eos rm -rF $n/ > /dev/null 2>&1
+    eos quota rmnode -p $n/ > /dev/null 2>&1
+    eos rmdir $n/ > /dev/null 2>&1
+  done
+
+  eos rmdir $base/ > /dev/null 2>&1
+
+  # a leftover breaks the next run, so it is worth a word
+  if eos stat -d $base/ > /dev/null 2>&1; then
+    echo "  WARNING: $base/ is still there after the clean up"
+  fi
+}
+
+# The payload outlives the clean up on the way in, so it is only removed by the
+# exit trap and not by 'cleanup' itself. The verdict is printed here as well,
+# after the clean up, and the exit code of whatever got us here is handed back
+# untouched.
+on_exit() {
+  rc=$?
+  cleanup
+  rm -f $srcfile
+
+  if [ $rc -eq 0 ]; then
+    echo "eos-quota-test: OK"
+  else
+    echo "eos-quota-test: FAILED - $current"
+  fi
+
+  exit $rc
+}
+
+start "setting up the quota node tree"
+srcfile=$(mktemp /tmp/eos-quota-test.XXXXXX) || fail 3 "could not create the payload"
+# 1 MiB of payload, enough that the inode quota below is reached within a
+# handful of files whatever layout size factor the space applies
+run dd if=/dev/zero of=$srcfile bs=1048576 count=1 || fail 3 "could not fill the payload"
+
+trap on_exit EXIT
+cleanup
+run eos mkdir -p $base/ || fail 3 "could not create $base/"
+run eos chmod 777 $base/ || fail 3 "could not chmod $base/"
+ok
+
+################################################################################
+# The usage counters of $1 can be overwritten and recomputed
+#
+# 'ns update_quotanode' with values writes them straight into the ns quota node
+# and without any recomputes them from the namespace. A listing has to report
+# both.
+################################################################################
+# Recompute first, so that the counters agree with the namespace whatever state
+# the instance was left in - $a is read from the stored ones and $d from a
+# recomputation, and only a node which is already consistent has them equal.
+run eos ns update_quotanode $1 uid:$wuid
 sleep 6
 a=`eos quota ls -m $1 | grep $grep_str`
-eos ns update_quotanode $1 uid:3 inodes:1000 bytes:2000 physicalbytes:3000
+run eos ns update_quotanode $1 uid:$wuid inodes:1000 bytes:2000 physicalbytes:3000
 sleep 6
 c=`eos quota ls -m $1 | grep $grep_str`
-echo $c
-eos ns update_quotanode $1 uid:3
+run eos ns update_quotanode $1 uid:$wuid
 sleep 6
 d=`eos quota ls -m $1 | grep $grep_str`
-echo $d
 
-if [ "$a" != "$d" ]; then
-  exit -1
+start "'quota ls' lists the usage counters written by 'ns update_quotanode'"
+check_match 1 "usedbytes=3000 usedlogicalbytes=2000 usedfiles=1000" "$c"
+ok
+
+start "'quota ls' lists the recomputed usage counters"
+check_match 2 "usedbytes=1024 usedlogicalbytes=1024 usedfiles=1" "$d"
+ok
+
+start "the listing is back to what it was before the overwrite"
+check_eq 2 "$a" "$d"
+ok
+
+################################################################################
+# 'quota ls' command path and quota enforcement
+#
+# The listing used to import the usage counters of every quota node on every
+# invocation; it now discovers cheaply and refreshes only what it prints. The
+# tests below pin the behaviour which has to survive that: what a path scoped
+# listing reports, the visibility of a 'quota set' inside the refresh interval,
+# the tables a node with only user or only group quota prints, and - most
+# importantly - that a write is still refused once the quota is exhausted.
+#
+# Everything happens in quota nodes nested under $1 so that the accounting of
+# $1 itself, which the checks above depend on, is left alone.
+################################################################################
+# Quota is only enforced while it is enabled for the space - without it
+# Quota::FilePlacement skips the check and the enforcement tests below would be
+# meaningless rather than failing
+eos space status default | grep quota | grep -q on
+quota_enabled=$?
+
+if [ $quota_enabled -ne 0 ]; then
+  echo "SKIP: the enforcement checks - quota is not enabled for the space"
 fi
 
-echo $d | grep "usedbytes=1024 usedlogicalbytes=1024 usedfiles=1"
-if [ $? -eq 0 ]; then
-  echo result: $?
-else
-  echo $d
-  exit -2
+# Read one value out of the monitoring listing of a single quota node.
+# $1 = quota node path, $2 = row selector, $3 = key whose value is returned.
+# '-n' keeps the ids numeric, '-q' fails unless $1 is exactly a quota node.
+qval() {
+  eos quota ls -m -n -q $1 | grep "$2" | tr ' ' '\n' | grep "^$3=" | head -1 |
+    cut -d= -f2
+}
+
+# Create an empty quota node
+qnode() {
+  run eos mkdir -p $1/ && run eos chmod 777 $1/ && run eos quota set $2 -p $1/
+}
+
+# Write up to $2 files of 1 MiB into $1 and echo how many were accepted before
+# the first refusal. The count is the only thing on stdout.
+write_until_refused() {
+  local i=0
+
+  while [ $i -lt $2 ]; do
+    xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$1/f$i > /dev/null 2>&1 || break
+    i=$((i + 1))
+  done
+
+  echo $i
+}
+
+################################################################################
+# Volume quota is enforced
+#
+# The volume quota cannot be set below the minimum fuse booking size, 5 GB by
+# default, so the limit is not reached by writing until it is - the usage
+# counters of the ns quota node are raised past the target instead. That is the
+# value 'CheckWriteQuota' compares against the target, and it reads it out of
+# the ns quota node on every call rather than from the refreshed counters, so
+# this exercises the same decision a real exhaustion would.
+################################################################################
+if [ $quota_enabled -eq 0 ]; then
+  start "a write is refused once the volume quota is exhausted"
+  qnode $base/t_vol "-u $wuid -v 1T" || fail 4 "could not create the quota node"
+  # the first write has to be accepted, otherwise the refusal below is not the
+  # quota talking
+  run xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$base/t_vol/before ||
+    fail 4 "the first write was refused, with the quota target untouched"
+  # twice the target, so no size factor can bring it back under the limit
+  run eos ns update_quotanode $base/t_vol/ uid:$wuid inodes:1 \
+    bytes:2000000000000 physicalbytes:2000000000000 ||
+    fail 4 "could not overwrite the usage counters"
+  expect_fail xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$base/t_vol/refused ||
+    fail 4 "the write was accepted with a usage of 2T against a target of 1T"
+  # putting the real usage back lets the writes through again
+  run eos ns update_quotanode $base/t_vol/ uid:$wuid ||
+    fail 4 "could not recompute the usage counters"
+  run xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$base/t_vol/after ||
+    fail 4 "the write is still refused with the real usage back"
+  ok
 fi
 
-
-echo $c | grep "usedbytes=3000 usedlogicalbytes=2000 usedfiles=1000"
-if [ $? -eq 0 ]; then
-  exit 0
-else
-  echo $c
-  exit -2
+################################################################################
+# Inode quota is enforced
+################################################################################
+if [ $quota_enabled -eq 0 ]; then
+  start "a write is refused once the inode quota is exhausted"
+  # generous volume, so only the inode limit can refuse a write
+  qnode $base/t_ino "-u $wuid -v 1T -i 2" || fail 5 "could not create the quota node"
+  accepted=$(write_until_refused $base/t_ino 10)
+  test "$accepted" -gt 0 ||
+    fail 5 "the first write was refused, so the refusal is not the inode quota"
+  test "$accepted" -lt 10 ||
+    fail 5 "$accepted writes were accepted with an inode quota of 2"
+  run eos quota set -u $wuid -i 1M -p $base/t_ino/ ||
+    fail 5 "could not raise the inode quota"
+  run xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$base/t_ino/after ||
+    fail 5 "the write is still refused with the inode quota raised"
+  ok
 fi
+
+################################################################################
+# A path scoped listing reports the same counters as the listing of every node
+#
+# 'quota ls <path>' refreshes only the node responsible for <path> while
+# 'quota ls' refreshes all of them. Both have to report the same thing for that
+# node.
+################################################################################
+start "a path scoped listing reports the same counters as the full listing"
+qnode $base/t_scope "-u $wuid -v 1T -i 1M" || fail 6 "could not create the quota node"
+run xrdcp -f -ODeos.ruid=$wuid $srcfile $url/$base/t_scope/s1 ||
+  fail 6 "could not write the file to be accounted"
+# the counters are imported at most every 5 seconds, so let that interval pass
+# before comparing - the two listings may legitimately differ inside it
+sleep 6
+scoped=$(eos quota ls -m -n -q $base/t_scope/ | grep "uid=$wuid ")
+all=$(eos quota ls -m -n | grep "space=$base/t_scope/" | grep "uid=$wuid ")
+check_set 6 "'uid=$wuid' row in the scoped listing of $base/t_scope/" "$scoped"
+check_eq 6 "$scoped" "$all"
+ok
+
+################################################################################
+# 'quota set' is visible at once and the summary row agrees with the rows above
+#
+# A per-id target is written straight into the quota map while the 'ALL' row is
+# a sum over those targets. A listing must not report a sum which disagrees
+# with the rows printed next to it, even when it arrives inside the refresh
+# interval and therefore imports nothing.
+################################################################################
+start "'quota set' is visible in the listing which follows it"
+# the targets are all above the minimum fuse booking size, otherwise
+# 'quota set' refuses them
+qnode $base/t_sum "-u 4 -v 6G" || fail 7 "could not create the quota node"
+# first listing - this one refreshes, the node has never been listed
+first_all=$(qval $base/t_sum/ "uid=ALL" maxlogicalbytes)
+check_set 7 "'uid=ALL' row in the listing of $base/t_sum/" "$first_all"
+check_eq 7 "$(qval $base/t_sum/ "uid=4 " maxlogicalbytes)" "$first_all"
+ok
+
+start "the 'uid=ALL' row is the sum of the user targets printed next to it"
+# second id, then list again straight away. Nothing here imports counters
+# within the refresh interval, so the sum has to be recomputed by the listing
+# itself. Should more than 5 seconds pass the test still succeeds, it just
+# stops telling us anything.
+run eos quota set -u 5 -v 7G -p $base/t_sum/ || fail 7 "could not set the second user target"
+u4=$(qval $base/t_sum/ "uid=4 " maxlogicalbytes)
+u5=$(qval $base/t_sum/ "uid=5 " maxlogicalbytes)
+sum=$(qval $base/t_sum/ "uid=ALL" maxlogicalbytes)
+check_set 7 "'uid=5' row in the listing of $base/t_sum/" "$u5"
+# an exact sum, the row holds the stored per-id targets rather than a value
+# reconverted from the raw sum
+check_eq 7 "$((u4 + u5))" "$sum"
+ok
+
+start "the 'gid=ALL' row is the sum of the group targets printed next to it"
+run eos quota set -g 4 -v 8G -p $base/t_sum/ || fail 7 "could not set the first group target"
+run eos quota set -g 5 -v 9G -p $base/t_sum/ || fail 7 "could not set the second group target"
+g4=$(qval $base/t_sum/ "gid=4 " maxlogicalbytes)
+g5=$(qval $base/t_sum/ "gid=5 " maxlogicalbytes)
+gsum=$(qval $base/t_sum/ "gid=ALL" maxlogicalbytes)
+check_set 7 "'gid=5' row in the listing of $base/t_sum/" "$g5"
+check_eq 7 "$((g4 + g5))" "$gsum"
+ok
+
+################################################################################
+# A node carrying only user quota, or only group quota, still prints its table
+#
+# The listing skips the table it has no rows for. The one it does have rows for
+# must still be printed, and no per-id row may be invented for the other kind.
+# Both nodes are left empty on purpose: a file would add the writer's uid and
+# gid to the node and there would be nothing one-sided left to check.
+################################################################################
+start "a node with only user quota prints its user table and no group row"
+qnode $base/t_useronly "-u $wuid -v 1T" || fail 8 "could not create the quota node"
+eos quota ls -m -n -q $base/t_useronly/ | grep -q "uid=$wuid " ||
+  fail 8 "no 'uid=$wuid' row although a user target is set"
+# 'gid=ALL' belongs to the summary and is always printed, and so is the project
+# id - AccountNsToSpace accounts every quota node to gid 99 whether or not
+# project quota is defined. Any other per-id group row is what must not appear.
+stray=$(eos quota ls -m -n -q $base/t_useronly/ | grep -Eo "gid=[0-9]+" |
+  grep -v "^gid=99$")
+test -z "$stray" || fail 8 "group rows for a node without group quota: $stray"
+ok
+
+start "a node with only group quota prints its group table and no user row"
+# gid 99 is the project id, which takes the listing down its project branch -
+# use a plain gid here
+qnode $base/t_grouponly "-g 4 -v 1T" || fail 8 "could not create the quota node"
+eos quota ls -m -n -q $base/t_grouponly/ | grep -q "gid=4 " ||
+  fail 8 "no 'gid=4' row although a group target is set"
+# same as above for the project id
+stray=$(eos quota ls -m -n -q $base/t_grouponly/ | grep -Eo "uid=[0-9]+" |
+  grep -v "^uid=99$")
+test -z "$stray" || fail 8 "user rows for a node without user quota: $stray"
+ok
+
+################################################################################
+# The raw and the logical target are consistent right after 'quota set'
+#
+# 'quota set' stores both, converting between them with the layout size factor
+# of the quota directory. That factor is cached, so the conversion has to force
+# it up to date rather than use whatever the last listing left behind.
+################################################################################
+start "the raw and the logical target are consistent right after 'quota set'"
+raw=$(qval $base/t_useronly/ "uid=$wuid " maxbytes)
+logical=$(qval $base/t_useronly/ "uid=$wuid " maxlogicalbytes)
+check_set 9 "'maxbytes' for uid=$wuid in the listing of $base/t_useronly/" "$raw"
+check_set 9 "'maxlogicalbytes' for uid=$wuid in the listing of $base/t_useronly/" "$logical"
+test "$logical" -gt 0 || fail 9 "the logical target is $logical"
+# the factor is never below 1, so the logical target cannot exceed the raw one
+test "$raw" -ge "$logical" ||
+  fail 9 "the raw target $raw is below the logical target $logical"
+ok
+
+start "'quota ls -q' refuses a path which is not exactly a quota node"
+# '-q' names an exact quota node, so the parent of one has to be refused rather
+# than answered with the node responsible for it
+expect_fail eos quota ls -m -n -q $base/ ||
+  fail 9 "$base/ was listed although it is not a quota node itself"
+ok
+
+# the verdict is printed by the exit trap, after the clean up
+exit 0

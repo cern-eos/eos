@@ -103,6 +103,7 @@ set(MGM_UT_SRCS
   mgm/http/rest-api/tape/RestApiManagerTest.cc
   mgm/utils/AttrHelperTests.cc
   mgm/PolicyTests.cc
+  mgm/QuotaTests.cc
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
   mgm/TrafficShapingTests.cc

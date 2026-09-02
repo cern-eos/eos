@@ -63,6 +63,32 @@ public:
   //----------------------------------------------------------------------------
   SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id);
 
+#ifdef IN_TEST_HARNESS
+  //----------------------------------------------------------------------------
+  //! Constructor binding an already resolved ns quota node - unit tests only.
+  //!
+  //! The regular constructor resolves the container, registers the ns quota
+  //! node and evaluates the space policies, all of which need a live gOFS with
+  //! a namespace behind it. This one takes the ns quota node as it is, so that
+  //! the parts of SpaceQuota which only read counters out of it - and decide
+  //! whether a write fits - can be tested on their own.
+  //----------------------------------------------------------------------------
+  SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id,
+             eos::IQuotaNode* quota_node)
+      : eos::common::LogId()
+      , pPath(path)
+      , mContId(cont_id)
+      , mQuotaNode(quota_node)
+      , mLastEnableCheck(0)
+      , mLastRefresh(0)
+      , mLastLayoutFactorRefresh(0)
+      , mLastProjectRefresh(0)
+      , mLayoutSizeFactor(1.0)
+      , mDirtyTarget(true)
+  {
+  }
+#endif
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -136,10 +162,18 @@ public:
   };
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //! Default maximum age of the cached layout size factor. The factor only
   //! changes when the quota directory's sys.forced.* attributes or the space
   //! policy change, so it does not need to follow the usage refresh interval.
   static constexpr time_t sLayoutFactorAge = 300;
+
+  //! Maximum age of the project usage counters of this quota node. Unlike the
+  //! per-identity counters, they are summed over every uid of the ns quota
+  //! node, which is why they are refreshed at most this often.
+  static constexpr time_t sProjectUsageAge = 5;
 
   //----------------------------------------------------------------------------
   //! Get quota
@@ -192,7 +226,9 @@ private:
   //!
   //! @param uid user id
   //! @param gid group id
-  //! @param upd_proj_quota if true then update also the project quota
+  //! @param upd_proj_quota if true then update also the project quota, which
+  //!        is summed over every uid of the ns quota node and therefore
+  //!        recomputed at most every sProjectUsageAge seconds per quota node
   //----------------------------------------------------------------------------
   void UpdateFromQuotaNode(uid_t uid, gid_t, bool upd_proj_quota);
 
@@ -328,16 +364,41 @@ private:
   //----------------------------------------------------------------------------
   static const char* GetTagCategory(int tag);
 
+  //----------------------------------------------------------------------------
+  //! Thread safety of the members below
+  //!
+  //! A SpaceQuota is only ever reachable through Quota::pMapQuota or
+  //! Quota::pMapInodeQuota, and both accessors require the caller to hold
+  //! Quota::pMapMutex (see Quota::GetSpaceQuota and
+  //! Quota::GetResponsibleSpaceQuota). No pointer to a SpaceQuota outlives that
+  //! lock. Quota::pMapMutex is therefore the outer gate on every member below,
+  //! and holding it for write is what lets Quota::CommitRenameNodes and
+  //! Quota::DiscoverNodes re-key pPath and invalidate the refresh stamps in
+  //! place, without taking mMutex.
+  //!
+  //! mMutex serialises what concurrent holders of the read lock mutate:
+  //! mMapIdQuota and mLastProjectRefresh, which gates mMapIdQuota entries.
+  //!
+  //! It deliberately does not cover the refresh stamps, mLayoutSizeFactor or
+  //! mDirtyTarget - Refresh and UpdateLogicalSizeFactor write them outside it -
+  //! so two threads refreshing the same quota node can race there. That is
+  //! tolerated: these are independent scalars, a reader sees either the old or
+  //! the new value, and the effect is bounded to one redundant or one skipped
+  //! recomputation. The write quota decision does not depend on them, since
+  //! CheckWriteQuota reads the usage from the ns quota node on every call.
+  //----------------------------------------------------------------------------
+
   std::string pPath; ///< quota node path - display only, re-keyed on rename
   //! Id of the namespace container backing this quota node. Unlike pPath it is
   //! stable across renames, so it is the authoritative way to get back to the
   //! ns quota node.
   eos::IContainerMD::id_t mContId;
   eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
-  XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
+  XrdSysMutex mMutex;          ///< protects mMapIdQuota and mLastProjectRefresh
   time_t mLastEnableCheck; ///< timestamp of the last check
   time_t mLastRefresh; ///< timestamp of last refresh call
   time_t mLastLayoutFactorRefresh; ///< timestamp of last layout factor update
+  time_t mLastProjectRefresh;      ///< timestamp of last project usage update
   double mLayoutSizeFactor; ///< layout dependent size factor
   bool mDirtyTarget; ///< mark to recompute target values
 
@@ -781,6 +842,10 @@ private:
   //! @param qpath path of the quota node
   //!
   //! @return SpaceQuota object
+  //!
+  //! @warning Caller needs to hold a read-lock on pMapMutex and must not use
+  //!          the returned pointer after releasing it - the object can be
+  //!          deleted by RmSpaceQuota or CleanUp
   //----------------------------------------------------------------------------
   static SpaceQuota* GetSpaceQuota(const std::string& qpath);
 
@@ -791,6 +856,8 @@ private:
   //! @param path path for which we search for a responsible space quotap
   //!
   //! @return SpaceQuota object
+  //!
+  //! @warning Same locking contract as GetSpaceQuota
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
 
@@ -844,9 +911,13 @@ private:
     return path;
   }
 
-  //! Map from path to SpaceQuota object
+  //! Map from path to SpaceQuota object. Re-keyed when a quota node directory
+  //! is renamed, so a path key is only valid while pMapMutex is held.
   static std::map<std::string, SpaceQuota*> pMapQuota;
-  //! Map from container id to SpaceQuota object
+  //! Map from container id to SpaceQuota object. Holds the same objects as
+  //! pMapQuota - both are updated together under the pMapMutex write lock -
+  //! and its keys survive a rename, which is why it is the map iterated by
+  //! RefreshAllNodes.
   static std::map<eos::IContainerMD::id_t, SpaceQuota*> pMapInodeQuota;
 };
 

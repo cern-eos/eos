@@ -59,6 +59,7 @@ SpaceQuota::SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id)
     , mLastEnableCheck(0)
     , mLastRefresh(0)
     , mLastLayoutFactorRefresh(0)
+    , mLastProjectRefresh(0)
     , mLayoutSizeFactor(1.0)
     , mDirtyTarget(true)
 {
@@ -423,22 +424,26 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
     mMapIdQuota[Index(kUserFilesIs, Quota::gProjectId)] = 0;
 
     if (upd_proj_quota) {
-      // Recalculate the project quota only every 5 seconds to boost perf.
-      static XrdSysMutex lMutex;
-      static time_t lUpdateTime = 0;
-      bool docalc = false;
-      {
-        XrdSysMutexHelper lock(lMutex);
-        time_t now = time(NULL);
+      // Recalculate the project quota only every sProjectUsageAge seconds to
+      // boost perf - the loop below walks every uid of the quota node, unlike
+      // the per-identity lookups above.
+      //
+      // The throttle is per quota node on purpose. It used to be a function
+      // local static, therefore shared by every SpaceQuota object, so whichever
+      // node asked first won the window and all the others kept a project usage
+      // which could be arbitrarily old - and CheckWriteQuota compares exactly
+      // that value against the project target to allow or deny a write. The
+      // cost of getting this right scales with the number of quota nodes being
+      // written to, not with the number of quota nodes defined.
+      //
+      // Unlike the other refresh stamps, mLastProjectRefresh gates mMapIdQuota
+      // entries, so it belongs under mMutex - held for the whole of this
+      // method. It is touched nowhere else but the constructor.
+      time_t now = time(NULL);
 
-        if (lUpdateTime < now) {
-          // Next recalculation in 5 second
-          docalc = true;
-          lUpdateTime = now + 5;
-        }
-      }
-
-      if (docalc || (gid == Quota::gProjectId)) {
+      if (((now - sProjectUsageAge) >= mLastProjectRefresh) ||
+          (gid == Quota::gProjectId)) {
+        mLastProjectRefresh = now;
         mMapIdQuota[Index(kGroupBytesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
@@ -1983,10 +1988,16 @@ Quota::CommitRenameNodes(const std::string& old_path, const std::string& new_pat
         pMapQuota.erase(stale);
       }
 
+      // Writing these in place is safe under the pMapMutex write lock - see
+      // "Thread safety" in the SpaceQuota declaration.
       squota->pPath = elem.second;
       // Let the next refresh pick up the layout size factor of the new
-      // location - recomputing it here would need the namespace lock
+      // location - recomputing it here would need the namespace lock. Both
+      // stamps have to be cleared: the layout factor has an age of its own, so
+      // clearing mLastRefresh alone keeps the factor of the old location until
+      // sLayoutFactorAge elapses.
       squota->mLastRefresh = 0;
+      squota->mLastLayoutFactorRefresh = 0;
       pMapQuota[elem.second] = squota;
       // pMapInodeQuota is keyed by container id and needs no update
     }
@@ -2163,7 +2174,9 @@ Quota::DiscoverNodes(bool detect_renames)
       SpaceQuota* squota = it->second;
       pMapQuota.erase(it);
       squota->pPath = elem.second;
+      // See Quota::CommitRenameNodes on why both timestamps are cleared
       squota->mLastRefresh = 0;
+      squota->mLastLayoutFactorRefresh = 0;
       pMapQuota[elem.second] = squota;
       eos_static_notice("msg=\"re-keyed renamed quota node\" old_path=\"%s\" "
                         "new_path=\"%s\"",
@@ -2207,6 +2220,15 @@ Quota::RefreshAllNodes()
   // snapshot is what makes releasing the locks in between safe - no iterator
   // survives it. The snapshot is keyed by container id because a concurrent
   // rename can re-key the path while the id stays stable.
+  //
+  // Note that the set refreshed here comes from pMapInodeQuota while the
+  // callers list from pMapQuota. Keeping the two in step is an invariant of
+  // this file: CreateQuotaObj inserts into both, RmSpaceQuota and CleanUp erase
+  // from both, and CommitRenameNodes re-keys pMapQuota alone only because
+  // pMapInodeQuota is keyed by the container id. An entry which reached
+  // pMapQuota only would still be refreshed by the single node paths, which all
+  // resolve through pMapQuota, but the listings which go over every node would
+  // show it with whatever counters it last had.
   for (const auto cont_id : cont_ids) {
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
