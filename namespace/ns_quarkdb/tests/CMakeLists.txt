@@ -40,6 +40,7 @@ add_executable(
   MetadataTests.cc
   NextInodeProviderTest.cc
   OtherTests.cc
+  OutputSinkTests.cc
   NsTests.cc
   VariousTests.cc)
 
