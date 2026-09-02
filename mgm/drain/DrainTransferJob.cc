@@ -157,8 +157,11 @@ DrainTransferJob::DoIt() noexcept
 
   while (true) {
     if ((mFsIdTarget == 0ul) && !SelectDstFs(fdrain)) {
-      ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
-                       << eos::common::FileId::Fid2Hex(mFileId)));
+      if (mStatus != Status::Failed) {
+        ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
+                         << eos::common::FileId::Fid2Hex(mFileId)));
+      }
+
       return;
     }
 
@@ -669,7 +672,9 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                                    fdrain.mProto.size(), existing_repl, mExcludeDsts);
 
   if (target == 0) {
-    eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId.load());
+    ReportError(SSTR("msg=\"no eligible drain destination could be found\" fxid="
+                     << eos::common::FileId::Fid2Hex(mFileId) << " group=\""
+                     << source_snapshot.mGroup << "\" errc=" << ENOSPC));
     return false;
   }
 
