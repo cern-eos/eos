@@ -127,6 +127,7 @@ int main(int argc, char* argv[])
   bool withParents = false;
   uint32_t maxDepth = UINT32_MAX;
   bool json = false;
+  bool jsonlines = false;
   bool minimal = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
   ->required();
@@ -165,6 +166,8 @@ int main(int argc, char* argv[])
   scanSubcommand->add_option("--maxdepth", maxDepth,
                              "Descend only <maxdepth> levels.");
   scanSubcommand->add_flag("--json", json, "Use json output");
+  scanSubcommand->add_flag("--jsonlines", jsonlines,
+                           "Use json output, one object per line (jsonlines)");
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
@@ -190,6 +193,8 @@ int main(int argc, char* argv[])
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
                     passwordFile, connectionRetries);
   stripediffSubcommand->add_flag("--json", json, "Use json output");
+  stripediffSubcommand->add_flag("--jsonlines", jsonlines,
+                                 "Use json output, one object per line (jsonlines)");
   stripediffSubcommand->add_flag("-m", minimal,
                                  "Minimal format (faster) that can be combined with json switch");
   //----------------------------------------------------------------------------
@@ -208,6 +213,8 @@ int main(int argc, char* argv[])
   oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal,
                                        "Filter internal entries, such as versioning, aborted atomic uploads, etc");
   oneReplicaLayoutSubcommand->add_flag("--json", json, "Use json output");
+  oneReplicaLayoutSubcommand->add_flag("--jsonlines", jsonlines,
+                                       "Use json output, one object per line (jsonlines)");
   //----------------------------------------------------------------------------
   // Set-up scan-dirs subcommand..
   //----------------------------------------------------------------------------
@@ -227,6 +234,8 @@ int main(int argc, char* argv[])
   scanDirsSubcommand->add_option("--count-threshold", countThreshold,
                                  "Only print containers which contain more than the specified number of items. Useful for detecting huge containers on which 'ls' might hang");
   scanDirsSubcommand->add_flag("--json", json, "Use json output");
+  scanDirsSubcommand->add_flag("--jsonlines", jsonlines,
+                               "Use json output, one object per line (jsonlines)");
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
   //----------------------------------------------------------------------------
@@ -243,6 +252,8 @@ int main(int argc, char* argv[])
   scanFilesSubcommand->add_flag("--find-unknown-fsids", findUnknownFsids,
                                 "Only print files for which there is one or more unrecognized fsids in location vector.");
   scanFilesSubcommand->add_flag("--json", json, "Use json output");
+  scanFilesSubcommand->add_flag("--jsonlines", jsonlines,
+                                "Use json output, one object per line (jsonlines)");
   scanFilesSubcommand->add_option("--where", filterExpression,
                                   "Filter results using the given expression.\nNOTE: Filtering is done client side! All results still have to be streamed -- performance is the same.");
   //----------------------------------------------------------------------------
@@ -489,8 +500,8 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   std::unique_ptr<OutputSink> outputSink;
 
-  if (json) {
-    if (!minimal) {
+  if (json || jsonlines) {
+    if (!minimal && !jsonlines) {
       outputSink.reset(new JsonStreamSink(std::cout, std::cerr));
     } else {
       outputSink.reset(new JsonLinedStreamSink(std::cout, std::cerr));
@@ -544,12 +555,12 @@ int main(int argc, char* argv[])
   }
 
   if (stripediffSubcommand->parsed()) {
-    return inspector.stripediff(json, minimal);
+    return inspector.stripediff(json || jsonlines, minimal);
   }
 
   if (oneReplicaLayoutSubcommand->parsed()) {
     return inspector.oneReplicaLayout(showName, fullPaths, filterInternal,
-                                      std::cout, std::cerr, json);
+                                      std::cout, std::cerr, json || jsonlines);
   }
 
   if (scanFilesSubcommand->parsed()) {
