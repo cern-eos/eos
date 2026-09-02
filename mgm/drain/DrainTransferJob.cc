@@ -142,11 +142,11 @@ DrainTransferJob::DoIt() noexcept
 
   if ((fdrain.mProto.cont_id() == 0ull) || (cont_retc == ENOENT)) {
     for (const auto fsid : fdrain.mProto.unlink_locations()) {
-      (void) gOFS->DropReplica(mFileId.load(), fsid);
+      (void)gOFS->DropReplica(mFileId.load(), fsid);
     }
 
     for (const auto fsid : fdrain.mProto.locations()) {
-      (void) gOFS->DropReplica(mFileId.load(), fsid);
+      (void)gOFS->DropReplica(mFileId.load(), fsid);
     }
 
     eos_info("msg=\"drain detached entry successful\" fxid=%s",
@@ -162,10 +162,9 @@ DrainTransferJob::DoIt() noexcept
       return;
     }
 
-    // Special case when deadling with 0-size replica files
+    // Empty plain and replica files have no physical data to transfer
     if ((fdrain.mProto.size() == 0) &&
-        (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
-         LayoutId::kReplica)) {
+        (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <= LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
       return;
     }
