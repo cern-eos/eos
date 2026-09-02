@@ -284,5 +284,42 @@ public:
   static size_t WriteCallback(void* contents, size_t size, size_t nmemb,
                               std::string* output);
 
+  //----------------------------------------------------------------------------
+  //! State threaded through ChunkedWriteCallback while a streamed REST API
+  //! response is forwarded to the client
+  //----------------------------------------------------------------------------
+  struct ChunkedFwdCtx {
+    XrdHttpExtReq* mReq;  ///< XrdHttp request the chunks are sent on
+    bool mStarted{false}; ///< True once the chunked response was started
+    int mRetc{0};         ///< Return code of the last XrdHttp call
+  };
+
+  //----------------------------------------------------------------------------
+  //! Check if the given REST API gateway command replies with a gRPC stream
+  //!
+  //! Streamed commands are the ones whose output is not bounded, therefore
+  //! their reply is split by the gRPC gateway into several JSON objects that
+  //! must be forwarded to the client as they arrive.
+  //!
+  //! @param cmd command name extracted from the resource path e.g. ls_cmd
+  //!
+  //! @return true if the command replies with a stream, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsStreamingRestApiCmd(const std::string& cmd);
+
+  //----------------------------------------------------------------------------
+  //! Function used to forward a streamed response from the grpc-gateway to
+  //! the client without buffering it in the MGM
+  //!
+  //! @param contents pointer to the data received from the grpc-gateway
+  //! @param size the size of each data element received
+  //! @param nmemb the number of data elements received
+  //! @param userp ChunkedFwdCtx object holding the XrdHttp request
+  //!
+  //! @return number of bytes forwarded, a short count aborts the transfer
+  //----------------------------------------------------------------------------
+  static size_t ChunkedWriteCallback(void* contents, size_t size, size_t nmemb,
+                                     void* userp);
+
   void generateResponseHeaders(eos::common::HttpResponse * response, std::map<std::string, std::string> & normalized_headers,std::ostringstream & oss);
 };

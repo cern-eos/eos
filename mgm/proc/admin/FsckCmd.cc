@@ -25,6 +25,9 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/fsck/Fsck.hh"
+#ifdef EOS_GRPC_GATEWAY
+#include "mgm/grpc/GrpcStreamReply.hh"
+#endif
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -221,8 +224,11 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     if (gOFS->mFsckEngine->Report(out, tags, report.display_per_fs(),
                                   report.display_fxid(), report.display_lfn(),
                                   report.display_json())) {
+      // A report listing fxids or lfns grows with the number of inconsistent
+      // files, so it must not be sent as a single message - it would exceed the
+      // gRPC message size limit and be rejected by the client.
       StreamReply.set_std_out(out);
-      writer->Write(StreamReply);
+      WriteStreamReply(StreamReply, writer);
     } else {
       StreamReply.set_retc(EINVAL);
       StreamReply.set_std_err(out);

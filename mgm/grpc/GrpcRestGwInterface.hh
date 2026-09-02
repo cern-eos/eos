@@ -90,7 +90,7 @@ public:
   Status ChownCall(VirtualIdentity& vid, const ChownProto* chownRequest,
                    ReplyProto* reply);
   Status ConfigCall(VirtualIdentity& vid, const ConfigProto* configRequest,
-                    ReplyProto* reply);
+                    ServerWriter<ReplyProto>* writer);
   Status ConvertCall(VirtualIdentity& vid, const ConvertProto* convertRequest,
                      ReplyProto* reply);
   Status CpCall(VirtualIdentity& vid, const CpProto* cpRequest,
@@ -106,17 +106,17 @@ public:
   Status FindCall(VirtualIdentity& vid, const FindProto* findRequest,
                   ServerWriter<ReplyProto>* writer);
   Status FsCall(VirtualIdentity& vid, const FsProto* fsRequest,
-                ReplyProto* reply);
+                ServerWriter<ReplyProto>* writer);
   Status FsckCall(VirtualIdentity& vid, const FsckProto* fsckRequest,
                   ServerWriter<ReplyProto>* writer);
   Status GeoschedCall(VirtualIdentity& vid, const GeoschedProto* geoschedRequest,
                       ReplyProto* reply);
   Status GroupCall(VirtualIdentity& vid, const GroupProto* groupRequest,
-                   ReplyProto* reply);
+                   ServerWriter<ReplyProto>* writer);
   Status HealthCall(VirtualIdentity& vid, const HealthProto* healthRequest,
                     ReplyProto* reply);
   Status IoCall(VirtualIdentity& vid, const IoProto* ioRequest,
-                ReplyProto* reply);
+                ServerWriter<ReplyProto>* writer);
   Status LsCall(VirtualIdentity& vid, const LsProto* lsRequest,
                 ServerWriter<ReplyProto>* writer);
   Status MapCall(VirtualIdentity& vid, const MapProto* mapRequest,
@@ -128,13 +128,13 @@ public:
   Status MvCall(VirtualIdentity& vid, const MoveProto* mvRequest,
                 ReplyProto* reply);
   Status NodeCall(VirtualIdentity& vid, const NodeProto* nodeRequest,
-                  ReplyProto* reply);
+                  ServerWriter<ReplyProto>* writer);
   Status NsCall(VirtualIdentity& vid, const NsProto* nsRequest,
                 ReplyProto* reply);
   Status QuotaCall(VirtualIdentity& vid, const QuotaProto* quotaRequest,
-                   ReplyProto* reply);
+                   ServerWriter<ReplyProto>* writer);
   Status RecycleCall(VirtualIdentity& vid, const RecycleProto* recycleRequest,
-                     ReplyProto* reply);
+                     ServerWriter<ReplyProto>* writer);
   Status RmCall(VirtualIdentity& vid, const RmProto* rmRequest,
                 ReplyProto* reply);
   Status RmdirCall(VirtualIdentity& vid, const RmdirProto* rmdirRequest,
@@ -144,7 +144,7 @@ public:
   Status SchedCall(VirtualIdentity& vid, const SchedProto* schedRequest,
                    ReplyProto* reply);
   Status SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequest,
-                   ReplyProto* reply);
+                   ServerWriter<ReplyProto>* writer);
   Status StatCall(VirtualIdentity& vid, const StatProto* statRequest,
                   ReplyProto* reply);
   Status StatusCall(VirtualIdentity& vid, const StatusProto* statusRequest,
@@ -156,7 +156,7 @@ public:
   Status VersionCall(VirtualIdentity& vid, const VersionProto* versionRequest,
                      ReplyProto* reply);
   Status VidCall(VirtualIdentity& vid, const VidProto* vidRequest,
-                 ReplyProto* reply);
+                 ServerWriter<ReplyProto>* writer);
   Status WhoCall(VirtualIdentity& vid, const WhoProto* whoRequest,
                  ReplyProto* reply);
   Status WhoamiCall(VirtualIdentity& vid, const WhoamiProto* whoamiRequest,

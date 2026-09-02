@@ -280,13 +280,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.ChownCall(vid, request, reply);
   }
 
-  Status ConfigRequest(ServerContext* context, const ConfigProto* request,
-                       ReplyProto* reply) override
+  Status
+  ConfigRequest(ServerContext* context, const ConfigProto* request,
+                ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.ConfigCall(vid, request, reply);
+    return restGwInterface.ConfigCall(vid, request, writer);
   }
 
   Status ConvertRequest(ServerContext* context, const ConvertProto* request,
@@ -352,13 +353,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.FindCall(vid, request, writer);
   }
 
-  Status FsRequest(ServerContext* context, const FsProto* request,
-                   ReplyProto* reply)
+  Status
+  FsRequest(ServerContext* context, const FsProto* request,
+            ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.FsCall(vid, request, reply);
+    return restGwInterface.FsCall(vid, request, writer);
   }
 
   Status FsckRequest(ServerContext* context, const FsckProto* request,
@@ -379,13 +381,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.GeoschedCall(vid, request, reply);
   }
 
-  Status GroupRequest(ServerContext* context, const GroupProto* request,
-                      ReplyProto* reply) override
+  Status
+  GroupRequest(ServerContext* context, const GroupProto* request,
+               ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.GroupCall(vid, request, reply);
+    return restGwInterface.GroupCall(vid, request, writer);
   }
 
   Status HealthRequest(ServerContext* context, const HealthProto* request,
@@ -397,13 +400,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.HealthCall(vid, request, reply);
   }
 
-  Status IoRequest(ServerContext* context, const IoProto* request,
-                   ReplyProto* reply) override
+  Status
+  IoRequest(ServerContext* context, const IoProto* request,
+            ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.IoCall(vid, request, reply);
+    return restGwInterface.IoCall(vid, request, writer);
   }
 
   Status LsRequest(ServerContext* context, const LsProto* request,
@@ -451,13 +455,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.MvCall(vid, request, reply);
   }
 
-  Status NodeRequest(ServerContext* context, const NodeProto* request,
-                     ReplyProto* reply) override
+  Status
+  NodeRequest(ServerContext* context, const NodeProto* request,
+              ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.NodeCall(vid, request, reply);
+    return restGwInterface.NodeCall(vid, request, writer);
   }
 
   Status NsRequest(ServerContext* context, const NsProto* request,
@@ -469,22 +474,24 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.NsCall(vid, request, reply);
   }
 
-  Status QuotaRequest(ServerContext* context, const QuotaProto* request,
-                      ReplyProto* reply) override
+  Status
+  QuotaRequest(ServerContext* context, const QuotaProto* request,
+               ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.QuotaCall(vid, request, reply);
+    return restGwInterface.QuotaCall(vid, request, writer);
   }
 
-  Status RecycleRequest(ServerContext* context, const RecycleProto* request,
-                        ReplyProto* reply) override
+  Status
+  RecycleRequest(ServerContext* context, const RecycleProto* request,
+                 ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.RecycleCall(vid, request, reply);
+    return restGwInterface.RecycleCall(vid, request, writer);
   }
 
   Status RmRequest(ServerContext* context, const RmProto* request,
@@ -524,13 +531,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.SchedCall(vid, request, reply);
   }
 
-  Status SpaceRequest(ServerContext* context, const SpaceProto* request,
-                      ReplyProto* reply) override
+  Status
+  SpaceRequest(ServerContext* context, const SpaceProto* request,
+               ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.SpaceCall(vid, request, reply);
+    return restGwInterface.SpaceCall(vid, request, writer);
   }
 
   Status StatRequest(ServerContext* context, const StatProto* request,
@@ -578,13 +586,14 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.VersionCall(vid, request, reply);
   }
 
-  Status VidRequest(ServerContext* context, const VidProto* request,
-                    ReplyProto* reply) override
+  Status
+  VidRequest(ServerContext* context, const VidProto* request,
+             ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.VidCall(vid, request, reply);
+    return restGwInterface.VidCall(vid, request, writer);
   }
 
   Status WhoRequest(ServerContext* context, const WhoProto* request,
