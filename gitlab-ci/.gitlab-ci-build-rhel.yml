@@ -310,8 +310,8 @@ build_el9_vanilla_xrootd:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
     BUILD_NAME: el-9-vanilla-xrootd
-    CMAKE_OPTIONS: "-DWITHOUT_EOS_XROOTD=1"
-    RPMBUILD_OPTIONS: "--with server --without eos_xrootd_rh"
+    CMAKE_OPTIONS: "-DEOS_GRPC_GW=1"
+    RPMBUILD_OPTIONS: "--with server --with eos_grpc_gateway --without eos_xrootd_rh"
     # The vanilla xrootd packages are the ones we want to build against here
     BUILDDEP_OPTIONS: ""
   before_script:

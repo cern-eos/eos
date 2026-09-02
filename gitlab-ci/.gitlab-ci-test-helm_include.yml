@@ -107,6 +107,15 @@
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
       kubectl label pod eos-qdb-0 app=eos-qdb
+    - |
+      REST_RESPONSE=$(kubectl exec eos-mgm-0 -- curl --fail --silent --show-error \
+        --retry 30 --retry-connrefused --retry-delay 1 \
+        --connect-timeout 2 --max-time 10 \
+        --header 'Content-Type: application/json' \
+        --data '{"whoami":true}' \
+        http://127.0.0.1:8000/v1/eos/rest/gateway/whoami_cmd)
+      echo "$REST_RESPONSE"
+      echo "$REST_RESPONSE" | grep -q '"stdOut"'
 
 
 .helm_after_script_template: &helm_after_script_template
