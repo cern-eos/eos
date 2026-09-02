@@ -66,6 +66,11 @@ XrdMgmOfs::_chown(const char* path,
   // ---------------------------------------------------------------------------
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IFileMD> fmd;
+  // Tracks whether the ownership change was actually committed to the view.
+  // Don't rely on errno for this - the calls done after the update (fusex
+  // broadcast, audit, quota accounting, qclient IO) may leave errno set even
+  // when they succeed.
+  bool done = false;
   errno = 0;
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -114,6 +119,7 @@ XrdMgmOfs::_chown(const char* path,
 
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
+      done = true;
       lock.Release();
       gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
@@ -190,8 +196,10 @@ XrdMgmOfs::_chown(const char* path,
 
         fmd->setCTimeNow();
         eosView->updateFileStore(fmd.get());
+        done = true;
         lock.Release();
         gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
+        errno = 0;
         if (mAudit) {
           eos::audit::Stat afterStat;
           eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
@@ -204,10 +212,10 @@ XrdMgmOfs::_chown(const char* path,
   }
 
   // ---------------------------------------------------------------------------
-  if (cmd && (!errno)) {
-    EXEC_TIMING_END("Chmod");
+  if (done) {
+    EXEC_TIMING_END("Chown");
     return SFS_OK;
   }
 
-  return Emsg(epname, error, errno, "chown", path);
+  return Emsg(epname, error, errno ? errno : EIO, "chown", path);
 }
