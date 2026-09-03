@@ -39,7 +39,7 @@
 %define xrootd_version_min 1:6.1.1
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
-%define eos_grpc_gateway_version 0.3.0
+%define eos_grpc_gateway_version 0.3.1
 
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
