@@ -30,9 +30,30 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 static std::string to_octal_string(uint32_t v)
 {
-  std::ostringstream ss;
-  ss << std::oct << v;
-  return ss.str();
+  // Spelled out rather than via ostringstream: constructing a stream per field
+  // dominates the cost of a namespace scan.
+  char buf[24];
+  char* end = buf + sizeof(buf);
+  char* p = end;
+
+  do {
+    *--p = static_cast<char>('0' + (v & 7));
+    v >>= 3;
+  } while (v != 0);
+
+  return std::string(p, end - p);
+}
+
+//------------------------------------------------------------------------------
+//! Prefix an extended attribute key with "xattr."
+//------------------------------------------------------------------------------
+static std::string xattrPrefixed(const std::string& key)
+{
+  std::string out;
+  out.reserve(6 + key.size());
+  out.append("xattr.", 6);
+  out.append(key);
+  return out;
 }
 
 //------------------------------------------------------------------------------
@@ -83,17 +104,19 @@ static std::string populateFullPath(const eos::ns::ContainerMdProto& proto,
 template<typename T>
 static std::string serializeLocations(const T& vec)
 {
-  std::ostringstream stream;
+  // Two of these per file record; an ostringstream each time is pure overhead.
+  std::string out;
+  out.reserve(vec.size() * 8);
 
   for (int i = 0; i < vec.size(); i++) {
-    stream << vec[i];
-
-    if (i != vec.size() - 1) {
-      stream << ",";
+    if (i != 0) {
+      out.push_back(',');
     }
+
+    out.append(std::to_string(vec[i]));
   }
 
-  return stream.str();
+  return out;
 }
 
 //------------------------------------------------------------------------------
@@ -151,7 +174,9 @@ static void populateMetadata(const eos::ns::ContainerMdProto& proto,
 
   if (opts.showXAttr) {
     for (auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
-      out[SSTR("xattr." << it->first)] = it->second;
+      // "xattr." + key by concatenation: SSTR builds an ostringstream, and
+      // this runs once per extended attribute of every record.
+      out[xattrPrefixed(it->first)] = it->second;
     }
   }
 }
@@ -287,7 +312,9 @@ static void populateMetadata(const eos::ns::FileMdProto& proto,
 
   if (opts.showXAttr) {
     for (auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
-      out[SSTR("xattr." << it->first)] = it->second;
+      // "xattr." + key by concatenation: SSTR builds an ostringstream, and
+      // this runs once per extended attribute of every record.
+      out[xattrPrefixed(it->first)] = it->second;
     }
   }
 
@@ -379,7 +406,9 @@ void StreamSink::print(const std::map<std::string, std::string>& line)
          Printing::escapeNonPrintable(it->second);
   }
 
-  mOut << std::endl;
+  // '\n' rather than std::endl: flushing per record turns a streaming scan
+  // into one write() syscall per namespace entry.
+  mOut << '\n';
 }
 
 
@@ -410,7 +439,7 @@ JsonStreamSink::~JsonStreamSink()
 void JsonStreamSink::print(const std::map<std::string, std::string>& line)
 {
   if (!mFirst) {
-    mOut << "," << std::endl;
+    mOut << ",\n";
   }
 
   mFirst = false;
@@ -436,6 +465,88 @@ JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
 {
   mBuilder["indentation"] = "";  // or whatever you like
   mWriter.reset(mBuilder.newStreamWriter());
+  mBuffer.reserve(4096);
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+JsonLinedStreamSink::~JsonLinedStreamSink()
+{
+  mOut.flush();
+}
+
+//------------------------------------------------------------------------------
+// Append str to mBuffer as a quoted json string.
+//
+// Most fields are printable ASCII and can be copied between quotes as they
+// are. The rest -- notably binary xattrs such as sys.fusex.state, which the
+// writer renders as \uXXXX escapes -- are handed to jsoncpp's own quoting
+// routine, the very one the writer calls, so the bytes cannot diverge.
+//
+// Returns false if str contains a NUL, which valueToQuotedString cannot see
+// past; the caller then falls back to building a Json::Value.
+//------------------------------------------------------------------------------
+bool JsonLinedStreamSink::appendQuoted(const std::string& str)
+{
+  bool verbatim = true;
+
+  for (unsigned char c : str) {
+    if (c == '\0') {
+      return false;
+    }
+
+    if (c < 0x20 || c > 0x7e || c == '"' || c == '\\') {
+      verbatim = false;
+    }
+  }
+
+  if (verbatim) {
+    mBuffer.push_back('"');
+    mBuffer.append(str);
+    mBuffer.push_back('"');
+    return true;
+  }
+
+  mBuffer.append(Json::valueToQuotedString(str.c_str()));
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Serialize a line into mBuffer, compact
+//------------------------------------------------------------------------------
+bool JsonLinedStreamSink::fastSerialize(const std::map<std::string, std::string>&
+                                        line)
+{
+  // An empty Json::Value is null, not an empty object, so the writer emits
+  // "null" for an empty line. Leave that case to it rather than print "{}".
+  if (line.empty()) {
+    return false;
+  }
+
+  // std::map iterates in key order, which is the order jsoncpp's object
+  // members are written in too -- the two paths agree field by field.
+  mBuffer.clear();
+  mBuffer.push_back('{');
+
+  for (auto it = line.begin(); it != line.end(); it++) {
+    if (it != line.begin()) {
+      mBuffer.push_back(',');
+    }
+
+    if (!appendQuoted(it->first)) {
+      return false;
+    }
+
+    mBuffer.push_back(':');
+
+    if (!appendQuoted(it->second)) {
+      return false;
+    }
+  }
+
+  mBuffer.append("}\n");
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -443,6 +554,16 @@ JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
 //------------------------------------------------------------------------------
 void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
 {
+  // Building a Json::Value and walking it with the writer costs more than the
+  // namespace lookup that produced the record: it copies every key and value
+  // into the Value tree before the writer walks it back out. Serialize
+  // straight into a buffer instead, keeping the Value path only for records
+  // with an embedded NUL.
+  if (fastSerialize(line)) {
+    mOut.write(mBuffer.data(), mBuffer.size());
+    return;
+  }
+
   Json::Value json;
 
   for (auto it = line.begin(); it != line.end(); it++) {
@@ -458,7 +579,9 @@ void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
 void JsonLinedStreamSink::print(const Json::Value& jsonObj)
 {
   mWriter->write(jsonObj, &mOut);
-  mOut << std::endl;
+  // '\n' rather than std::endl: flushing per record turns a streaming scan
+  // into one write() syscall per namespace entry.
+  mOut << '\n';
 }
 
 EOSNSNAMESPACE_END
