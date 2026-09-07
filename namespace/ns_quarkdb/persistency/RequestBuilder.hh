@@ -73,6 +73,13 @@ public:
   static RedisRequest readFileProto(FileIdentifier id);
 
   //----------------------------------------------------------------------------
+  //! Read file protobuf metadata, passing the locality hint so the backend can
+  //! skip the locality index lookup. A stale hint costs nothing but the lookup
+  //! that would have happened anyway.
+  //----------------------------------------------------------------------------
+  static RedisRequest readFileProto(FileIdentifier id, const std::string& hint);
+
+  //----------------------------------------------------------------------------
   //! Delete container protobuf metadata.
   //----------------------------------------------------------------------------
   static RedisRequest deleteContainerProto(ContainerIdentifier id);

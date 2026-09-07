@@ -92,8 +92,25 @@ RequestBuilder::readContainerProto(ContainerIdentifier id)
 RedisRequest
 RequestBuilder::readFileProto(FileIdentifier id)
 {
-  // TODO(gbitzes): Pass locality hint when available.
   return { "LHGET", constants::sFileKey, SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
+//! Read file protobuf metadata, with a locality hint.
+//!
+//! Without a hint the backend has to consult the locality index first to find
+//! out where the field lives, costing a second lookup on every read. The hint
+//! is only an optimisation: if it is stale the backend falls back to the index
+//! and the result is the same.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::readFileProto(FileIdentifier id, const std::string& hint)
+{
+  if (hint.empty()) {
+    return readFileProto(id);
+  }
+
+  return { "LHGET", constants::sFileKey, SSTR(id.getUnderlyingUInt64()), hint };
 }
 
 //------------------------------------------------------------------------------
