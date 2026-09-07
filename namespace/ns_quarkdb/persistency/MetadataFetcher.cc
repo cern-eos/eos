@@ -24,6 +24,7 @@
 #include <functional>
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/utils/LocalityHint.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
@@ -298,6 +299,17 @@ MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
          .thenValue(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
+//------------------------------------------------------------------------------
+// Fetch file metadata info for current id, with a locality hint
+//------------------------------------------------------------------------------
+folly::Future<eos::ns::FileMdProto>
+MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id,
+                               const std::string& hint)
+{
+  return qcl.follyExec(RequestBuilder::readFileProto(id, hint))
+         .thenValue(std::bind(parseFileMdProtoResponse, _1, id));
+}
+
 //----------------------------------------------------------------------------
 // Fetch file metadata info for current id
 //------------------------------------------------------------------------------
@@ -424,7 +436,9 @@ MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
 {
   folly::Future<IContainerMD::FileMap> filemap = getFileMap(qcl, container);
   return filemap.via(executor)
-         .thenValue(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
+         .thenValue([&qcl, container](IContainerMD::FileMap fileMap) {
+    return MetadataFetcher::getFilesFromFilemap(qcl, container, fileMap);
+  });
 }
 
 //----------------------------------------------------------------------------
@@ -449,6 +463,17 @@ std::vector<folly::Future<eos::ns::FileMdProto>>
     MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl,
         const IContainerMD::FileMap& fileMap)
 {
+  return getFilesFromFilemap(qcl, ContainerIdentifier(0), fileMap);
+}
+
+//------------------------------------------------------------------------------
+// Same, but knowing the parent container, so each read can carry a locality
+// hint and save the backend an index lookup.
+//------------------------------------------------------------------------------
+std::vector<folly::Future<eos::ns::FileMdProto>>
+    MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl,
+        ContainerIdentifier container, const IContainerMD::FileMap& fileMap)
+{
   // FileMap is a hashmap, thus unsorted.. We want the results to be sorted
   // based on filename, though.
   std::map<std::string, IFileMD::id_t> sortedFileMap;
@@ -458,9 +483,17 @@ std::vector<folly::Future<eos::ns::FileMdProto>>
   }
 
   std::vector<folly::Future<eos::ns::FileMdProto>> retval;
+  const bool haveContainer = (container.getUnderlyingUInt64() != 0);
 
   for (auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
-    retval.emplace_back(getFileFromId(qcl, FileIdentifier(it->second)));
+    if (haveContainer) {
+      // The hint is exactly what the file was stored under: the parent
+      // container plus its name, which is what this map gives us.
+      retval.emplace_back(getFileFromId(qcl, FileIdentifier(it->second),
+                                        LocalityHint::build(container, it->first)));
+    } else {
+      retval.emplace_back(getFileFromId(qcl, FileIdentifier(it->second)));
+    }
   }
 
   return retval;
@@ -474,6 +507,16 @@ std::vector<folly::Future<eos::ns::FileMdProto>>
         IContainerMD::FileMap fileMap)
 {
   return getFilesFromFilemap(qcl, fileMap);
+}
+
+//------------------------------------------------------------------------------
+// Same as above, but fileMap is passed as a value, and the container is known.
+//------------------------------------------------------------------------------
+std::vector<folly::Future<eos::ns::FileMdProto>>
+    MetadataFetcher::getFilesFromFilemapV(qclient::QClient& qcl,
+        ContainerIdentifier container, IContainerMD::FileMap fileMap)
+{
+  return getFilesFromFilemap(qcl, container, fileMap);
 }
 
 //------------------------------------------------------------------------------
@@ -592,8 +635,13 @@ MetadataFetcher::getFileFromName(qclient::QClient& qcl,
                                  ContainerIdentifier parent_id,
                                  const std::string& name)
 {
+  // Parent plus name is exactly the locality hint the file is stored under,
+  // so pass it and save the backend the index lookup.
+  std::string hint = LocalityHint::build(parent_id, name);
   return getFileIDFromName(qcl, parent_id, name)
-         .thenValue(std::bind(getFileFromId, std::ref(qcl), _1));
+         .thenValue([&qcl, hint](FileIdentifier id) {
+    return getFileFromId(qcl, id, hint);
+  });
 }
 
 //----------------------------------------------------------------------------

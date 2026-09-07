@@ -61,6 +61,22 @@ public:
   getFileFromId(qclient::QClient& qcl, FileIdentifier id);
 
   //----------------------------------------------------------------------------
+  //! Fetch file metadata info for current id, passing a locality hint
+  //!
+  //! Saves the backend a locality index lookup on every read. The hint is an
+  //! optimisation only: a stale one falls back to the index, same result.
+  //!
+  //! @param qcl qclient object
+  //! @param id file id
+  //! @param hint locality hint the file is expected to live under
+  //!
+  //! @return future holding the file metadata object
+  //----------------------------------------------------------------------------
+  static folly::Future<eos::ns::FileMdProto>
+  getFileFromId(qclient::QClient& qcl, FileIdentifier id,
+                const std::string& hint);
+
+  //----------------------------------------------------------------------------
   //! Fetch container metadata info for current id
   //!
   //! @param qcl qclient object
@@ -112,10 +128,25 @@ public:
   getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::FileMap &fileMap);
 
   //----------------------------------------------------------------------------
+  //! Same, but the parent container is known, so every read carries a locality
+  //! hint built from the container and the name the file map provides.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::FileMdProto>>
+  getFilesFromFilemap(qclient::QClient& qcl, ContainerIdentifier container,
+                      const IContainerMD::FileMap &fileMap);
+
+  //----------------------------------------------------------------------------
   //! Same as above, but fileMap is passed as a value.
   //----------------------------------------------------------------------------
   static std::vector<folly::Future<eos::ns::FileMdProto>>
   getFilesFromFilemapV(qclient::QClient& qcl, IContainerMD::FileMap fileMap);
+
+  //----------------------------------------------------------------------------
+  //! Same as above, but the parent container is known.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::FileMdProto>>
+  getFilesFromFilemapV(qclient::QClient& qcl, ContainerIdentifier container,
+                       IContainerMD::FileMap fileMap);
 
   //----------------------------------------------------------------------------
   //! Fetch all file metadata within the given container.
