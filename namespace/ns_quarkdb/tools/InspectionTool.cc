@@ -25,6 +25,8 @@
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
 #include <qclient/QClient.hh>
 #include <stdint.h>
+#include <array>
+#include <iostream>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -95,6 +97,14 @@ void addDryRun(CLI::App* subcmd, bool& noDryRun)
 
 int main(int argc, char* argv[])
 {
+  //----------------------------------------------------------------------------
+  // A full-namespace scan writes millions of records to a pipe. Untie std::cout
+  // from the C streams and give it a large buffer, so the cost per record is
+  // the formatting and not the stream machinery. Must happen before any output.
+  //----------------------------------------------------------------------------
+  static std::array<char, 1 << 20> stdoutBuffer;
+  std::ios_base::sync_with_stdio(false);
+  std::cout.rdbuf()->pubsetbuf(stdoutBuffer.data(), stdoutBuffer.size());
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
   app.require_subcommand();
   //----------------------------------------------------------------------------

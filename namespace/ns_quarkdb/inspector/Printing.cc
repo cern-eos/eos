@@ -72,10 +72,37 @@ static std::string serializeLocations(const T& vec) {
 // timespec to fileinfo: Convert a timespec into
 // "1447252711.38412918"
 //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Append the decimal representation of v to out, as operator<< would
+//------------------------------------------------------------------------------
+static void appendDecimal(std::string &out, long long v) {
+  char buf[24];
+  char *end = buf + sizeof(buf);
+  char *p = end;
+  unsigned long long u = (v < 0) ? -(unsigned long long) v : (unsigned long long) v;
+
+  do {
+    *--p = (char)('0' + (u % 10));
+    u /= 10;
+  } while(u != 0);
+
+  if(v < 0) {
+    *--p = '-';
+  }
+
+  out.append(p, end - p);
+}
+
 std::string Printing::timespecToTimestamp(const struct timespec &val) {
-  std::ostringstream ss;
-  ss << val.tv_sec << "." << val.tv_nsec;
-  return ss.str();
+  // A namespace scan calls this four times per record (atime, ctime, mtime,
+  // stime). An ostringstream here costs a locale facet lookup and a couple of
+  // allocations each time, which is why this is spelled out by hand.
+  std::string out;
+  out.reserve(24);
+  appendDecimal(out, (long long) val.tv_sec);
+  out.push_back('.');
+  appendDecimal(out, (long long) val.tv_nsec);
+  return out;
 }
 
 //------------------------------------------------------------------------------

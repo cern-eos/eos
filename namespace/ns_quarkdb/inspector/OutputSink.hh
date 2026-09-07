@@ -185,6 +185,11 @@ public:
   JsonLinedStreamSink(std::ostream& out, std::ostream& err);
 
   //----------------------------------------------------------------------------
+  //! Destructor - flushes, as printing does not flush per record
+  //----------------------------------------------------------------------------
+  ~JsonLinedStreamSink();
+
+  //----------------------------------------------------------------------------
   //! Print implementation
   //----------------------------------------------------------------------------
   virtual void print(const std::map<std::string, std::string>& line) override;
@@ -195,8 +200,23 @@ public:
   virtual void print(const Json::Value& jsonObj) override;
 
 private:
+  //----------------------------------------------------------------------------
+  //! Serialize line into mBuffer as a compact json object. Returns false if
+  //! the line contains a NUL byte, which the quoting routine cannot handle;
+  //! the caller must then fall back to the jsoncpp writer.
+  //----------------------------------------------------------------------------
+  bool fastSerialize(const std::map<std::string, std::string>& line);
+
+  //----------------------------------------------------------------------------
+  //! Append str to mBuffer as a quoted json string. Returns false if str
+  //! contains a NUL byte.
+  //----------------------------------------------------------------------------
+  bool appendQuoted(const std::string& str);
+
   Json::StreamWriterBuilder mBuilder;
   std::unique_ptr<Json::StreamWriter> mWriter;
+  //! Reused across records, so steady-state printing does not allocate
+  std::string mBuffer;
 };
 
 
