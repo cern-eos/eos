@@ -69,6 +69,13 @@ HTTPS_DIR="/eos/dockertest/test/https/"
 run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
 
 #-------------------------------------------------------------------------------
+# eos-grpc-gateway functional tests - drives the HTTP/JSON REST API exposed by
+# the internal grpc-gateway sidecar with plain curl requests
+#-------------------------------------------------------------------------------
+GRPC_GATEWAY_DIR="/eos/dockertest/test/instancetest/grpcgateway.dir"
+run_test_script "grpc-gateway" eos-grpc-gateway-test --dir ${GRPC_GATEWAY_DIR}
+
+#-------------------------------------------------------------------------------
 # Archive setup test - validate the format of the produced '.archive.init' file
 # against a reference one.
 #-------------------------------------------------------------------------------

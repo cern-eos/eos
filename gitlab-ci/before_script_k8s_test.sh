@@ -9,4 +9,9 @@ export IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
 export IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
 export CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
 
+# Turn the grpc-gateway REST API on so that eos-grpc-gateway-test can exercise it.
+sed -i '/^        env:$/a\        - name: EOS_MGM_ENABLE_REST_API\n          value: "1"' eos-on-k8s/templates/eos-mgm.template.yaml
+grep -q "EOS_MGM_ENABLE_REST_API" eos-on-k8s/templates/eos-mgm.template.yaml || \
+  { echo "error: failed to enable the REST API in the eos-on-k8s MGM template"; exit 1; }
+
 ./eos-on-k8s/create-all.sh -b ${IMAGE_REPO} -i ${IMAGE_TAG} -u ${CLI_IMAGE_TAG} -n ${K8S_NAMESPACE} -k ${KRB5:-"mit"}

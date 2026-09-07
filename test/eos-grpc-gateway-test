@@ -1,0 +1,213 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------
+# File: eos-grpc-gateway-test
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Smoke-tests the eos-grpc-gateway HTTP/JSON REST API with plain curl.#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+usage() { echo '''Usage: eos-grpc-gateway-test [-h|--host <host>] [-p|--port <port>]
+                          [-t|--dir <directory on which to run tests>]
+                          [-v|--verbose]
+'''; }
+
+usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
+assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
+
+host="127.0.0.1"
+port="40054"
+testdir="/eos/${EOS_TEST_INSTANCE:-dockertest}/test/instancetest/grpcgateway.dir"
+
+if [ "$#" != 0 ]; then
+  EOL=$(printf '\1\3\3\7')
+  set -- "$@" "$EOL"
+  while [ "$1" != "$EOL" ]; do
+    opt="$1"; shift
+    case "$opt" in
+      -v|--verbose) verbose=1;;
+      -h|--host)    assert_argument "$1" "$opt"; host="$1"; shift;;
+      -p|--port)    assert_argument "$1" "$opt"; port="$1"; shift;;
+      -t|--dir)     assert_argument "$1" "$opt"; testdir="$1"; shift;;
+      --help) usage; exit 0;;
+      -|''|[!-]*) set -- "$@" "$opt";;
+      --*=*)      set -- "${opt%%=*}" "${opt#*=}" "$@";;
+      -[!-]?*)    set -- "$(echo "${opt#-}" | sed 's    /g')" "$@";;
+      --)         while [ "$1" != "$EOL" ]; do set -- "$@" "$1"; shift; done;;
+      -*)         usage_error "unknown option: '$opt'";;
+      *)          usage_error "this should NEVER happen ($opt)";;
+    esac
+  done
+  shift  # $EOL
+fi
+
+base="http://${host}:${port}/v1/eos/rest/gateway"
+b64() { printf '%s' "$1" | base64 -w0; }
+
+# Issue one gateway request and check its "retc" field.
+# Arguments: $1 description,
+#            $2 endpoint (e.g. "whoami_cmd"),
+#            $3 json body,
+#            $4 expected retc (default 0, or 'nonzero' to require a failure),
+#            $5 jq filter selecting the reply
+#               object (default '.' for unary calls, use '.result' for the
+#               streamed commands which wrap the reply)
+gw_call() {
+  local desc="$1" endpoint="$2" body="$3" expect_retc="${4:-0}" replysel="${5:-.}"
+  local resp retc brief sel="${replysel}"
+  [[ "${sel}" == "." ]] && sel=""
+
+  resp="$(curl -sS --max-time 30 -X POST "${base}/${endpoint}" \
+               -H 'Content-Type: application/json' -d "${body}")"
+  # A chunked reply runs into megabytes, keep the diagnostics readable
+  brief="${resp:0:400}"
+
+  if [[ -n "${verbose}" ]]; then
+    echo -e "\t${desc}: >> ${body}"
+    echo -e "\t${desc}: << ${brief}"
+  fi
+
+  if ! jq -e "${replysel}" >/dev/null 2>&1 <<<"${resp}"; then
+    echo -e "\terror: ${desc} -> not a valid JSON reply: ${brief}"
+    return 1
+  fi
+
+  # A streamed reply comes back as one JSON object per gRPC message and only
+  # the last of them carries the command status - see GrpcStreamReply.hh. They
+  # are slurped into an array, which leaves the unary case a single object.
+  retc="$(jq -s -r ".[-1]${sel}.retc" <<<"${resp}" 2>/dev/null)"
+  gw_objects="$(jq -s 'length' <<<"${resp}" 2>/dev/null)"
+
+  # An empty reply
+  if [[ -z "${retc}" || "${retc}" == "null" ]]; then
+    echo -e "\terror: ${desc} -> reply carries no retc: ${brief}"
+    return 1
+  fi
+
+  if [[ "${expect_retc}" == "nonzero" ]]; then
+    if [[ "${retc}" == "0" ]]; then
+      echo -e "\terror: ${desc} -> retc=0 (expected a failure): ${brief}"
+      return 1
+    fi
+  elif [[ "${retc}" != "${expect_retc}" ]]; then
+    echo -e "\terror: ${desc} -> retc=${retc} (expected ${expect_retc}): ${brief}"
+    return 1
+  fi
+
+  echo -e "\t${desc} -> retc=${retc} OK"
+  gw_stdout="$(jq -s -r "[.[]${sel}.stdOut] | add" <<<"${resp}")"
+  return 0
+}
+
+# Force a reply too big for one gRPC message and check the whole stream makes it
+# back. Long names under a deep parent buy ~1.2kB of output per file, which
+# takes the reply past the 1MB chunk size with few enough files to stay cheap.
+gw_chunked_stream() {
+  local longname deepdir npaths rc=0
+  local nfiles=900
+  longname="$(printf 'd%0240d' 1)"
+  deepdir="${testdir}/chunk/${longname}/${longname}/${longname}/${longname}"
+
+  echo "info: create ${nfiles} files to force a chunked stream"
+  eos root://${host} mkdir -p "${deepdir}" >/dev/null
+  # One console session for all of them, an 'eos touch' per file is far slower
+  for i in $(seq 1 ${nfiles}); do
+    echo "touch ${deepdir}/$(printf 'f%0240d' "${i}")"
+  done | eos root://${host} >/dev/null 2>&1
+
+  gw_call "find (chunked stream)" find_cmd "{\"Path\":\"${deepdir}/\",\"Files\":true}" 0 '.result' || return 1
+
+  if [[ "${gw_objects}" -lt 2 ]]; then
+    echo -e "\terror: find (chunked stream) -> arrived in ${gw_objects} message(s), expected a split reply"
+    rc=1
+  fi
+
+  npaths="$(grep -c . <<<"${gw_stdout}")"
+  if [[ "${npaths}" != "${nfiles}" ]]; then
+    echo -e "\terror: find (chunked stream) -> reassembled ${npaths} paths, expected ${nfiles}"
+    rc=1
+  fi
+
+  return ${rc}
+}
+
+echo "Results:"
+fail=0
+
+if ! curl -sS --max-time 10 -o /dev/null "http://${host}:${port}/" 2>/dev/null; then
+  echo -e "\terror: no gateway listening on ${host}:${port} - is EOS_MGM_ENABLE_REST_API=1 set on the MGM?"
+  exit 1
+fi
+
+echo "info: prepare gateway test directory ${testdir}"
+eos root://${host} mkdir -p "${testdir}" >/dev/null
+eos root://${host} chmod 777 "${testdir}" >/dev/null
+
+# Sanity: unauthenticated commands work and produce the expected envelope
+gw_call "whoami" whoami_cmd '{"whoami":true}'                  || fail=1
+gw_call "version" version_cmd '{}'                             || fail=1
+
+# Directory + attribute + permission round trip
+gw_call "mkdir" mkdir_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"},\"parents\":true}" || fail=1
+gw_call "attr_set" attr_cmd "{\"cmd\":\"ATTR_SET\",\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"},\"key\":\"user.gwtest\",\"value\":\"$(b64 hello)\"}" || fail=1
+
+gw_call "attr_get" attr_cmd "{\"cmd\":\"ATTR_GET\",\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"},\"key\":\"user.gwtest\"}" || fail=1
+if [[ "${gw_stdout}" != *'user.gwtest="hello"'* ]]; then
+  echo -e "\terror: attr_get -> unexpected value: ${gw_stdout}"
+  fail=1
+fi
+
+gw_call "chmod" chmod_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"},\"mode\":755}" || fail=1
+
+# File create/list/stat/find round trip
+gw_call "touch" touch_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/f1")\"}}" || fail=1
+
+gw_call "ls" ls_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"}}" 0 '.result' || fail=1
+if [[ "${gw_stdout}" != *"f1"* ]]; then
+  echo -e "\terror: ls -> expected file 'f1' missing: ${gw_stdout}"
+  fail=1
+fi
+
+gw_call "fileinfo" fileinfo_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/f1")\"},\"path\":true}" || fail=1
+
+gw_call "find" find_cmd "{\"Path\":\"${testdir}/sub/\",\"Files\":true}" 0 '.result' || fail=1
+if [[ "${gw_stdout}" != *"${testdir}/sub/f1"* ]]; then
+  echo -e "\terror: find -> expected file missing: ${gw_stdout}"
+  fail=1
+fi
+
+# Move + delete round trip
+gw_call "mv" mv_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/f1")\"},\"target\":\"$(b64 "${testdir}/sub/f2")\"}" || fail=1
+gw_call "rm" rm_cmd "{\"Path\":\"${testdir}/sub/f2\"}" || fail=1
+gw_call "rmdir" rmdir_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"}}" || fail=1
+
+# Errors have to travel back through the gateway as well
+gw_call "fileinfo on deleted file" fileinfo_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/f2")\"},\"path\":true}" nonzero || fail=1
+gw_call "ls on deleted directory" ls_cmd "{\"md\":{\"path\":\"$(b64 "${testdir}/sub/")\"}}" nonzero '.result' || fail=1
+
+# A reply too big for one gRPC message is split over several of them
+gw_chunked_stream || fail=1
+
+echo "info: cleanup gateway test directory"
+eos root://${host} rm -r --no-confirmation "${testdir}" >/dev/null 2>&1
+
+exit ${fail}

@@ -38,3 +38,8 @@ mgm:
     adminPrinc:
       name: "--set $TEST_ADMINPRINC_NAME"
       password: "--set $TEST_ADMINPRINC_PASSWORD"
+  extraEnv:
+    # Enable the internal grpc-gateway HTTP/JSON REST API so it can be
+    # exercised by eos-grpc-gateway-test
+    - name: EOS_MGM_ENABLE_REST_API
+      value: "1"
