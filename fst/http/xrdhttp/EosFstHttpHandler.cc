@@ -185,16 +185,9 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         } catch (...) {}
       }
 
-      if (response->GetResponseCode() == response->PARTIAL_CONTENT) {
-        retc = req.SendSimpleResp(response->GetResponseCode(),
-                                  response->GetResponseCodeDescription().c_str(),
-                                  response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
-                                  nullptr, content_length);
-      } else {
-        retc = req.StartChunkedResp(
-            response->GetResponseCode(), response->GetResponseCodeDescription().c_str(),
-            response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str());
-      }
+      retc = req.StartChunkedResp(
+          response->GetResponseCode(), response->GetResponseCodeDescription().c_str(),
+          response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str());
 
       if (retc) {
         return retc;
@@ -209,12 +202,14 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
       do {
         eos_static_debug("pos=%llu size=%u", pos, buffer.capacity());
-        nread = OFS->mHttpd->FileReader(handler.get(), pos, &buffer[0],
-                                        buffer.capacity());
+        nread =
+            OFS->mHttpd->FileReader(handler.get(), pos, buffer.data(), buffer.capacity());
 
         if (nread >= 0) {
           pos += nread;
-          retc |= req.ChunkResp(&buffer[0], nread);
+          if (nread > 0) {
+            retc |= req.ChunkResp(buffer.data(), nread);
+          }
           eos_static_debug("retc=%d", retc);
         } else {
           retc = -1;

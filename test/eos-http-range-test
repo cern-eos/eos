@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Check HTTP response framing against a known file, following EOS redirects.
+
+The URL and reference file must describe the same, nonempty file. This test
+only reads remote data. --empty-url optionally checks an existing empty file.
+"""
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+import argparse
+import email.parser
+import email.policy
+import http.client
+from pathlib import Path
+import ssl
+from urllib.parse import urljoin, urlsplit
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+class ResponseSocket:
+    """Keep read-ahead bytes between responses on the same socket.
+
+    HTTPResponse normally closes its buffered reader after each response.
+    That can discard an extra terminator received alongside the first body,
+    hiding malformed framing from a subsequent request in a regression test.
+    """
+
+    def __init__(self, sock):
+        self.reader = sock.makefile('rb')
+
+    def makefile(self, mode):
+        return self
+
+    def __getattr__(self, name):
+        return getattr(self.reader, name)
+
+    def close(self):
+        # The connection owner closes the reader after all requests finish.
+        pass
+
+
+def close_connection(connection):
+    if connection.response_socket is not None:
+        connection.response_socket.reader.close()
+    connection.close()
+
+
+def connect(url, context):
+    parsed = urlsplit(url)
+    require(parsed.scheme in ('http', 'https'), 'unsupported URL scheme')
+    require(not parsed.username and not parsed.password, 'URL has credentials')
+    if parsed.scheme == 'https':
+        connection = http.client.HTTPSConnection(
+            parsed.hostname, parsed.port, context=context, timeout=30)
+    else:
+        connection = http.client.HTTPConnection(
+            parsed.hostname, parsed.port, timeout=30)
+    connection.response_socket = None
+
+    def response_factory(sock, **kwargs):
+        if connection.response_socket is None:
+            connection.response_socket = ResponseSocket(sock)
+        return http.client.HTTPResponse(connection.response_socket, **kwargs)
+
+    connection.response_class = response_factory
+    path = parsed.path or '/'
+    if parsed.query:
+        path += '?' + parsed.query
+    return connection, path
+
+
+def open_file(url, context):
+    """Return the FST connection after checking the initial full response."""
+    for _ in range(6):
+        connection, path = connect(url, context)
+        try:
+            connection.request('GET', path)
+            response = connection.getresponse()
+            body = response.read()
+            if response.status in (301, 302, 303, 307, 308):
+                location = response.getheader('Location')
+                require(location is not None, 'redirect has no Location')
+                target = urljoin(url, location)
+                require(not (urlsplit(url).scheme == 'https' and
+                             urlsplit(target).scheme != 'https'),
+                        'redirect would downgrade HTTPS')
+                close_connection(connection)
+                url = target
+                continue
+            require(response.status == 200, 'full GET did not return 200')
+            return connection, path, response, body
+        except BaseException:
+            close_connection(connection)
+            raise
+    raise ValueError('too many redirects')
+
+
+def check_framing(response):
+    require(response.getheader('Transfer-Encoding') == 'chunked',
+            'successful GET must advertise chunked encoding')
+    require(response.getheader('Content-Length') is None,
+            'chunked GET must not advertise Content-Length')
+
+
+def check_file(url, expected, context):
+    connection, path, response, body = open_file(url, context)
+    try:
+        require(body == expected, 'initial full GET payload mismatch')
+        check_framing(response)
+        original_socket = connection.sock
+        require(original_socket is not None, 'server closed the connection')
+
+        def read(byte_range=None):
+            headers = {'Range': 'bytes=' + byte_range} if byte_range else {}
+            connection.request('GET', path, headers=headers)
+            result = connection.getresponse()
+            data = result.read()
+            require(connection.sock is original_socket,
+                    'response did not preserve the connection')
+            check_framing(result)
+            return result, data
+
+        if expected:
+            require(len(expected) >= 48,
+                    'reference must contain at least 48 bytes')
+            ranges = [(0, 15), (1, 16),
+                      (len(expected) - 16, len(expected) - 1),
+                      (0, len(expected) - 1)]
+            for start, end in ranges:
+                result, data = read(f'{start}-{end}')
+                require(result.status == 206, 'range did not return 206')
+                require(result.getheader('Content-Range') ==
+                        f'bytes {start}-{end}/{len(expected)}',
+                        'incorrect Content-Range')
+                require(data == expected[start:end + 1],
+                        f'range {start}-{end} payload mismatch')
+
+            result, data = read('0-15,32-47')
+            require(result.status == 206, 'multipart range did not return 206')
+            content_type = result.getheader('Content-Type', '')
+            mime = ('Content-Type: ' + content_type + '\r\n\r\n').encode()
+            message = email.parser.BytesParser(
+                policy=email.policy.default).parsebytes(mime + data)
+            require(message.get_content_type() == 'multipart/byteranges' and
+                    message.is_multipart(), 'invalid multipart response')
+            parts = list(message.iter_parts())
+            require(len(parts) == 2, 'incorrect multipart part count')
+            for part, (start, end) in zip(parts, [(0, 15), (32, 47)]):
+                require(part['Content-Range'] ==
+                        f'bytes {start}-{end}/{len(expected)}',
+                        'incorrect multipart Content-Range')
+                require(part.get_payload(decode=True) ==
+                        expected[start:end + 1],
+                        'multipart payload mismatch')
+
+        # Parse and verify the next response too: duplicate final chunks can
+        # leave the first response correct but break this request.
+        for _ in range(2):
+            result, data = read()
+            require(result.status == 200 and data == expected,
+                    'subsequent full GET mismatch')
+    finally:
+        close_connection(connection)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('url')
+    parser.add_argument('reference', type=Path)
+    parser.add_argument('--empty-url')
+    parser.add_argument('--cert')
+    parser.add_argument('--key')
+    parser.add_argument('--cacert')
+    parser.add_argument('--capath')
+    args = parser.parse_args()
+    context = ssl.create_default_context(
+        cafile=args.cacert, capath=args.capath)
+    if args.cert:
+        context.load_cert_chain(args.cert, args.key)
+    expected = args.reference.read_bytes()
+    require(len(expected) >= 48, 'reference must contain at least 48 bytes')
+    check_file(args.url, expected, context)
+    print('Full, single-range and multipart GETs passed on one connection')
+    if args.empty_url:
+        check_file(args.empty_url, b'', context)
+        print('Repeated empty GETs passed on one connection')
+
+
+if __name__ == '__main__':
+    main()
