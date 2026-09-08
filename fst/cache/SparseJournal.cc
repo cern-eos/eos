@@ -53,14 +53,16 @@ SparseJournal::~SparseJournal()
 //------------------------------------------------------------------------------
 int
 SparseJournal::Open(const std::string& cache_fs_path, uint64_t fid,
-                    uint64_t expected_size, time_t expected_mtime)
+                    uint64_t expected_size, time_t expected_mtime,
+                    uint64_t expected_generation)
 {
   std::lock_guard<std::mutex> scope_lock(mMutex);
   const std::string journal_path = DataPath(cache_fs_path, fid);
 
   if (mDataFd >= 0) {
     if ((journal_path == mJournalPath) && (fid == mFid)) {
-      if ((expected_size == mFileSize) && (expected_mtime == mMTime)) {
+      if ((expected_size == mFileSize) && (expected_mtime == mMTime) &&
+          (expected_generation == mGeneration)) {
         // Same identity - shared re-open
         return 0;
       }
@@ -68,6 +70,7 @@ SparseJournal::Open(const std::string& cache_fs_path, uint64_t fid,
       // Identity changed (file mutated) - drop cached content
       mFileSize = expected_size;
       mMTime = expected_mtime;
+      mGeneration = expected_generation;
       return TruncateLocked();
     }
 
@@ -76,6 +79,7 @@ SparseJournal::Open(const std::string& cache_fs_path, uint64_t fid,
   mFid = fid;
   mFileSize = expected_size;
   mMTime = expected_mtime;
+  mGeneration = expected_generation;
   mJournalPath = journal_path;
   eos::common::Path cpath(mJournalPath.c_str());
   (void) cpath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -94,14 +98,17 @@ SparseJournal::Open(const std::string& cache_fs_path, uint64_t fid,
 
   if (nread == (ssize_t) sizeof(hdr) && hdr.magic == kMagic &&
       hdr.fid == fid) {
-    if ((hdr.file_size != expected_size) || (hdr.mtime != expected_mtime)) {
+    if ((hdr.file_size != expected_size) || (hdr.mtime != expected_mtime) ||
+        (hdr.generation != expected_generation)) {
       eos_static_info("msg=\"cache journal stale, truncating\" fxid=%08llx "
-                      "old_size=%llu new_size=%llu", fid, hdr.file_size,
-                      expected_size);
+                      "old_size=%llu new_size=%llu old_gen=%llu new_gen=%llu",
+                      fid, hdr.file_size, expected_size, hdr.generation,
+                      expected_generation);
       ResetLocked();
     } else {
       mFileSize = hdr.file_size;
       mMTime = hdr.mtime;
+      mGeneration = hdr.generation;
       mCachedBytes = hdr.cached_bytes;
 
       if (LoadIndexLocked()) {
@@ -192,6 +199,27 @@ SparseJournal::TruncateLocked()
 // Unlink journal files
 //------------------------------------------------------------------------------
 int
+SparseJournal::UnlinkFiles(const std::string& cache_fs_path, uint64_t fid)
+{
+  const std::string data_path = DataPath(cache_fs_path, fid);
+  int rc = 0;
+
+  if (::unlink(data_path.c_str()) && (errno != ENOENT)) {
+    rc = -1;
+  }
+
+  if (::unlink((data_path + ".idx").c_str()) && (errno != ENOENT)) {
+    rc = -1;
+  }
+
+  if (::unlink((data_path + ".idx.tmp").c_str()) && (errno != ENOENT)) {
+    rc = -1;
+  }
+
+  return rc;
+}
+
+int
 SparseJournal::Unlink()
 {
   std::lock_guard<std::mutex> scope_lock(mMutex);
@@ -204,6 +232,10 @@ SparseJournal::Unlink()
     }
 
     if (::unlink(IndexPathLocked().c_str()) && errno != ENOENT) {
+      rc = -1;
+    }
+
+    if (::unlink(IndexTmpPathLocked().c_str()) && errno != ENOENT) {
       rc = -1;
     }
   }
@@ -347,6 +379,33 @@ SparseJournal::CachedBytes() const
 }
 
 uint64_t
+SparseJournal::AllocatedBytes() const
+{
+  std::lock_guard<std::mutex> scope_lock(mMutex);
+  return AllocatedBytesLocked();
+}
+
+uint64_t
+SparseJournal::AllocatedBytesLocked() const
+{
+  uint64_t bytes = 0;
+  auto add_fd = [&](int fd) {
+    if (fd < 0) {
+      return;
+    }
+
+    struct stat st {};
+
+    if (!::fstat(fd, &st)) {
+      bytes += (uint64_t) st.st_blocks * 512;
+    }
+  };
+  add_fd(mDataFd);
+  add_fd(mIndexFd);
+  return bytes;
+}
+
+uint64_t
 SparseJournal::FileSize() const
 {
   std::lock_guard<std::mutex> scope_lock(mMutex);
@@ -358,6 +417,13 @@ SparseJournal::MTime() const
 {
   std::lock_guard<std::mutex> scope_lock(mMutex);
   return mMTime;
+}
+
+uint64_t
+SparseJournal::Generation() const
+{
+  std::lock_guard<std::mutex> scope_lock(mMutex);
+  return mGeneration;
 }
 
 uint64_t
@@ -456,6 +522,7 @@ SparseJournal::PersistIndexLocked()
   hdr.mtime = mMTime;
   hdr.cached_bytes = mCachedBytes;
   hdr.nentries = mRanges.size();
+  hdr.generation = mGeneration;
   std::vector<char> blob(sizeof(Header) + mRanges.size() * 2 * sizeof(off_t));
   memcpy(blob.data(), &hdr, sizeof(hdr));
   off_t* entries = reinterpret_cast<off_t*>(blob.data() + sizeof(Header));
@@ -466,20 +533,45 @@ SparseJournal::PersistIndexLocked()
     entries[i++] = kv.second;
   }
 
-  if (::pwrite(mIndexFd, blob.data(), blob.size(), 0) !=
-      (ssize_t) blob.size()) {
+  // Write a temp index and rename over the live one so a crash cannot leave
+  // a torn in-place write that still has a plausible size.
+  const std::string tmp_path = IndexTmpPathLocked();
+  const int tfd = ::open(tmp_path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
+
+  if (tfd < 0) {
     return -1;
   }
 
-  if (::ftruncate(mIndexFd, (off_t) blob.size())) {
+  const ssize_t nwritten = ::pwrite(tfd, blob.data(), blob.size(), 0);
+
+  if (nwritten != (ssize_t) blob.size()) {
+    (void) ::close(tfd);
+    (void) ::unlink(tmp_path.c_str());
     return -1;
   }
 
 #ifdef __APPLE__
-  (void) ::fsync(mIndexFd);
+  (void) ::fsync(tfd);
 #else
-  (void) ::fdatasync(mIndexFd);
+  (void) ::fdatasync(tfd);
 #endif
+  (void) ::close(tfd);
+
+  if (::rename(tmp_path.c_str(), IndexPathLocked().c_str())) {
+    (void) ::unlink(tmp_path.c_str());
+    return -1;
+  }
+
+  if (mIndexFd >= 0) {
+    (void) ::close(mIndexFd);
+  }
+
+  mIndexFd = ::open(IndexPathLocked().c_str(), O_RDWR);
+
+  if (mIndexFd < 0) {
+    return -1;
+  }
+
   mDirty = false;
   mUnpersistedBytes = 0;
   return 0;

@@ -12,6 +12,7 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -89,6 +90,8 @@ CacheLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   mCacheFsId = atoi(cache_fsid);
   mFileSize = ssize ? strtoull(ssize, nullptr, 10) : 0;
   mMTime = smtime ? (time_t) strtoll(smtime, nullptr, 10) : 0;
+  const char* sgen = cap->Get("mgm.cache.gen");
+  mGeneration = sgen ? strtoull(sgen, nullptr, 10) : 0;
   mCacheFsPath = mOfsFile->mLocalPrefix.c_str();
 
   if (mCacheFsPath.empty()) {
@@ -128,7 +131,8 @@ CacheLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     mLru->MaybeEvictAsync();
   }
 
-  mJournal = mLru ? mLru->GetJournal(mFid, mFileSize, mMTime) : nullptr;
+  mJournal = mLru ? mLru->GetJournal(mFid, mFileSize, mMTime, mGeneration) :
+             nullptr;
 
   if (!mJournal) {
     eos_warning("msg=\"journal open failed, bridging\" fxid=%08llx", mFid);
@@ -212,7 +216,7 @@ int64_t
 CacheLayout::Read(XrdSfsFileOffset offset, char* buffer,
                   XrdSfsXferSize length, bool /*readahead*/)
 {
-  if (!mOpened || length <= 0) {
+  if (!mOpened || (length <= 0) || (offset < 0)) {
     return 0;
   }
 
@@ -220,8 +224,10 @@ CacheLayout::Read(XrdSfsFileOffset offset, char* buffer,
     return 0;
   }
 
-  if ((uint64_t)(offset + length) > mFileSize) {
-    length = (XrdSfsXferSize)(mFileSize - offset);
+  const uint64_t remaining = mFileSize - (uint64_t) offset;
+
+  if ((uint64_t) length > remaining) {
+    length = (XrdSfsXferSize) remaining;
   }
 
   if (mBridgeOnly || !mJournal || !mJournal->IsOpen()) {
@@ -315,7 +321,7 @@ CacheLayout::Read(XrdSfsFileOffset offset, char* buffer,
       mLru->mHits++;
     }
 
-    mLru->FileAccessed(mFid, mJournal->CachedBytes());
+    mLru->FileAccessed(mFid, mJournal->AllocatedBytes());
   }
 
   return (int64_t)(cur - offset);
@@ -409,8 +415,11 @@ CacheLayout::Close()
 int
 CacheLayout::Fctl(const std::string& cmd, const XrdSecEntity* client)
 {
+  (void) cmd;
   (void) client;
-  return mFileIO->fileFctl(cmd);
+  // Cache opens have no local replica; the layout FileIo points at a
+  // non-existent FST path.
+  return Emsg("CacheLayout::Fctl", *mError, ENOTSUP, "fctl cache layout");
 }
 
 EOSFSTNAMESPACE_END

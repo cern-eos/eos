@@ -31,6 +31,15 @@ CacheLru::CacheLru(eos::common::FileSystem::fsid_t fsid, std::string fs_path)
   ScanExistingJournals();
 }
 
+CacheLru::~CacheLru()
+{
+  std::lock_guard<std::mutex> scope_lock(mEvictThreadMutex);
+
+  if (mEvictThread.joinable()) {
+    mEvictThread.join();
+  }
+}
+
 //------------------------------------------------------------------------------
 // Rebuild accounting from journals left on disk (e.g. after FST restart).
 // Uses allocated blocks so sparse data files are accounted at real disk usage.
@@ -167,39 +176,64 @@ CacheLru::SetCapacityBytes(uint64_t capacity_bytes)
 //------------------------------------------------------------------------------
 std::shared_ptr<SparseJournal>
 CacheLru::GetJournal(uint64_t fid, uint64_t expected_size,
-                     time_t expected_mtime)
+                     time_t expected_mtime, uint64_t expected_generation)
 {
-  std::lock_guard<std::mutex> scope_lock(mJournalMutex);
-  auto it = mJournals.find(fid);
+  std::shared_ptr<SparseJournal> journal;
+  {
+    std::lock_guard<std::mutex> scope_lock(mJournalMutex);
+    auto it = mJournals.find(fid);
 
-  if (it != mJournals.end()) {
-    if (auto journal = it->second.lock()) {
-      if (journal->Open(mFsPath, fid, expected_size, expected_mtime)) {
-        return nullptr;
-      }
+    if (it != mJournals.end()) {
+      journal = it->second.lock();
+    }
 
-      return journal;
+    // Publish the instance before Open() so eviction treats it as in-use
+    // and two threads share one journal (single index writer).
+    if (!journal) {
+      journal = std::make_shared<SparseJournal>();
+      mJournals[fid] = journal;
     }
   }
 
-  auto journal = std::make_shared<SparseJournal>();
+  if (journal->Open(mFsPath, fid, expected_size, expected_mtime,
+                    expected_generation)) {
+    std::lock_guard<std::mutex> scope_lock(mJournalMutex);
+    auto it = mJournals.find(fid);
 
-  if (journal->Open(mFsPath, fid, expected_size, expected_mtime)) {
+    if ((it != mJournals.end()) && (it->second.lock() == journal)) {
+      mJournals.erase(it);
+    }
+
     return nullptr;
   }
 
-  mJournals[fid] = journal;
+  return journal;
+}
 
-  // Opportunistic cleanup of expired entries
-  for (auto jit = mJournals.begin(); jit != mJournals.end();) {
-    if (jit->second.expired()) {
-      jit = mJournals.erase(jit);
-    } else {
-      ++jit;
+int
+CacheLru::InvalidateJournal(uint64_t fid)
+{
+  std::shared_ptr<SparseJournal> journal;
+  {
+    std::lock_guard<std::mutex> scope_lock(mJournalMutex);
+    auto it = mJournals.find(fid);
+
+    if (it != mJournals.end()) {
+      journal = it->second.lock();
+      mJournals.erase(it);
     }
   }
 
-  return journal;
+  int rc = 0;
+
+  if (journal) {
+    rc = journal->Unlink();
+  } else {
+    rc = DropJournalFiles(fid);
+  }
+
+  FileRemoved(fid);
+  return rc;
 }
 
 void
@@ -277,43 +311,47 @@ CacheLru::EvictToLowWatermark()
   std::vector<uint64_t> victims;
   {
     std::lock_guard<std::mutex> journal_lock(mJournalMutex);
-    std::lock_guard<std::mutex> scope_lock(mMutex);
-    auto lit = mLru.rbegin();
+    {
+      std::lock_guard<std::mutex> scope_lock(mMutex);
+      auto lit = mLru.rbegin();
 
-    while ((lit != mLru.rend()) && (mUsedBytes > LowLimit())) {
-      const uint64_t fid = *lit;
-      ++lit;
-      // Skip journals still referenced by open files
-      auto jit = mJournals.find(fid);
+      while ((lit != mLru.rend()) && (mUsedBytes > LowLimit())) {
+        const uint64_t fid = *lit;
+        ++lit;
+        // Skip journals still referenced by open files
+        auto jit = mJournals.find(fid);
 
-      if ((jit != mJournals.end()) && !jit->second.expired()) {
-        continue;
+        if ((jit != mJournals.end()) && !jit->second.expired()) {
+          continue;
+        }
+
+        auto it = mMap.find(fid);
+
+        if (it != mMap.end()) {
+          mUsedBytes -= it->second.bytes;
+          // reverse_iterator points one past the erased element - recompute
+          lit = std::make_reverse_iterator(mLru.erase(it->second.it));
+          mMap.erase(it);
+        }
+
+        victims.push_back(fid);
       }
-
-      auto it = mMap.find(fid);
-
-      if (it != mMap.end()) {
-        mUsedBytes -= it->second.bytes;
-        // reverse_iterator points one past the erased element - recompute
-        lit = std::make_reverse_iterator(mLru.erase(it->second.it));
-        mMap.erase(it);
-      }
-
-      victims.push_back(fid);
     }
-  }
 
-  for (const auto fid : victims) {
-    (void) DropJournalFiles(fid);
-    mEvictions++;
+    // Unlink while still holding the journal mutex so GetJournal cannot
+    // resurrect the files between LRU removal and unlink.
+    for (const auto fid : victims) {
+      (void) DropJournalFiles(fid);
+      mEvictions++;
+    }
   }
 
   return victims.size();
 }
 
 //------------------------------------------------------------------------------
-// Background eviction trigger (CacheLru instances live for the process
-// lifetime in the registry, so a detached thread is safe)
+// Background eviction trigger. The worker is joined in the destructor so
+// shutdown cannot use-after-free the CacheLru.
 //------------------------------------------------------------------------------
 void
 CacheLru::MaybeEvictAsync()
@@ -332,10 +370,18 @@ CacheLru::MaybeEvictAsync()
     return;
   }
 
-  std::thread([this]() {
-    (void) EvictToLowWatermark();
-    mEvicting = false;
-  }).detach();
+  {
+    std::lock_guard<std::mutex> scope_lock(mEvictThreadMutex);
+
+    if (mEvictThread.joinable()) {
+      mEvictThread.join();
+    }
+
+    mEvictThread = std::thread([this]() {
+      (void) EvictToLowWatermark();
+      mEvicting = false;
+    });
+  }
 }
 
 uint64_t
@@ -367,18 +413,7 @@ CacheLru::HighLimit() const
 int
 CacheLru::DropJournalFiles(uint64_t fid) const
 {
-  const std::string data_path = SparseJournal::DataPath(mFsPath, fid);
-  int rc = 0;
-
-  if (::unlink(data_path.c_str()) && (errno != ENOENT)) {
-    rc = -1;
-  }
-
-  if (::unlink((data_path + ".idx").c_str()) && (errno != ENOENT)) {
-    rc = -1;
-  }
-
-  return rc;
+  return SparseJournal::UnlinkFiles(mFsPath, fid);
 }
 
 //------------------------------------------------------------------------------
@@ -395,6 +430,18 @@ CacheLru*
 CacheLruRegistry::GetOrCreate(eos::common::FileSystem::fsid_t fsid,
                               const std::string& fs_path)
 {
+  {
+    std::lock_guard<std::mutex> scope_lock(mMutex);
+    auto it = mCaches.find(fsid);
+
+    if (it != mCaches.end()) {
+      return it->second.get();
+    }
+  }
+
+  // Scan .eoscache outside the registry lock so the first open of one
+  // filesystem does not block every other cache FS on this FST.
+  auto lru = std::make_unique<CacheLru>(fsid, fs_path);
   std::lock_guard<std::mutex> scope_lock(mMutex);
   auto it = mCaches.find(fsid);
 
@@ -402,7 +449,6 @@ CacheLruRegistry::GetOrCreate(eos::common::FileSystem::fsid_t fsid,
     return it->second.get();
   }
 
-  auto lru = std::make_unique<CacheLru>(fsid, fs_path);
   CacheLru* ptr = lru.get();
   mCaches.emplace(fsid, std::move(lru));
   return ptr;
@@ -459,25 +505,11 @@ CacheLruRegistry::TruncateJournal(eos::common::FileSystem::fsid_t fsid,
   }
 
   if (lru) {
-    // Use the shared journal so open readers see the truncation coherently.
-    // Passing size 0/mtime 0 marks the cached identity as stale.
-    auto journal = lru->GetJournal(fid, 0, 0);
-
-    if (!journal) {
+    if (lru->InvalidateJournal(fid)) {
       return EIO;
     }
-
-    lru->FileAccessed(fid, 0);
-  } else {
-    SparseJournal journal;
-
-    if (journal.Open(path, fid, 0, 0)) {
-      return EIO;
-    }
-
-    if (journal.Truncate()) {
-      return EIO;
-    }
+  } else if (SparseJournal::UnlinkFiles(path, fid)) {
+    return EIO;
   }
 
   eos_static_info("msg=\"truncated cache journal\" fxid=%08llx fsid=%u", fid,

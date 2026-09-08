@@ -239,6 +239,27 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get read-through cache generation
+  //----------------------------------------------------------------------------
+  inline uint64_t
+  getCacheGeneration() const override
+  {
+    return runReadOp([this]() {
+      return mFile.cache_generation();
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set read-through cache generation
+  //----------------------------------------------------------------------------
+  void setCacheGeneration(uint64_t generation) override
+  {
+    runWriteOp([this, generation]() {
+      mFile.set_cache_generation(generation);
+    });
+  }
+
+  //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t

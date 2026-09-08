@@ -9,6 +9,7 @@
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
+#include <cstdint>
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN
@@ -34,7 +35,7 @@ public:
   //! Rendezvous-hash of fid over the current online FS set of the cache space
   //! so that adding/removing NVMes remaps only ~1/N of files. cache_location
   //! is not sticky - the next read may remap and rewrite the pointer; the old
-  //! journal is truncated on remapping.
+  //! journal is unlinked on remapping.
   //!
   //! @note Caller must hold FsView::gFsView.ViewMutex (read)
   //!
@@ -46,15 +47,32 @@ public:
                 const eos::IContainerMD::XAttrMap* attrmap = nullptr);
 
   //----------------------------------------------------------------------------
+  //! HRW-like placement score for (fid, fsid). Not independent keyed hashes;
+  //! a simple SplitMix of the pair. Ties break toward the lower fsid.
+  //----------------------------------------------------------------------------
+  static uint64_t PlacementScore(eos::IFileMD::id_t fid,
+                                 eos::common::FileSystem::fsid_t fsid)
+  {
+    // HRW-like: one SplitMix of the (fid, fsid) pair, not independent keyed
+    // hashes. Deterministic and stable; adding a member remaps about 1/N.
+    uint64_t score = fid;
+    score ^= (uint64_t) fsid + 0x9e3779b97f4a7c15ULL + (score << 6) +
+             (score >> 2);
+    score = (score ^ (score >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    score = (score ^ (score >> 27)) * 0x94d049bb133111ebULL;
+    return score ^ (score >> 31);
+  }
+
+  //----------------------------------------------------------------------------
   //! Best-effort notify the cache FST to truncate the journal for fid
   //----------------------------------------------------------------------------
   static bool NotifyJournalTruncate(eos::common::FileSystem::fsid_t fsid,
                                     eos::IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
-  //! If fmd has a cache_location, notify that FST to truncate its journal.
-  //! If the notification fails the cache replica reference is dropped
-  //! (cache_location cleared and persisted).
+  //! Bump the cache generation (so the next open resets a leftover journal)
+  //! and best-effort notify the cache FST to unlink the journal. cache_location
+  //! is left in place on notify failure - placement does not use it.
   //!
   //! @note Performs a synchronous FST query and may take the namespace write
   //!       lock - must NOT be called with eosViewRWMutex held

@@ -79,16 +79,18 @@ Behaviour
   referenced by open files. While above the watermark new data is bridged
   instead of admitted; already-cached ranges are still served.
 * All concurrent opens of the same file share one journal instance per
-  filesystem; the journal index is persisted (data synced first) on close,
-  on truncation and periodically, and an index failing validation on load
-  resets the journal.
+  filesystem; the journal index is persisted (data synced first, then a
+  temp index is fsynced and renamed into place) on close, on truncation
+  and periodically, and an index failing validation on load resets the
+  journal.
 * After an FST restart the cache accounting is rebuilt by scanning the
   ``.eoscache`` directory of the filesystem.
-* On authoritative write/truncate, the MGM notifies the cache FST to
-  **truncate** the journal for that fid. If the notification fails, the
-  ``cache_location`` reference is dropped so reads are no longer steered to
-  the stale journal. Stale journals are also discarded when the size/mtime
-  identity embedded in the capability no longer matches.
+* On authoritative write/truncate, the MGM bumps a per-file
+  ``cache_generation`` (sent in the next open capability) and notifies the
+  cache FST to **unlink** the journal. Placement is rendezvous-hashed and
+  does not use ``cache_location``, so a failed notify is still safe: the next
+  cache open sees the new generation and resets the leftover journal.
+  Size/mtime mismatch is an additional identity check.
 
 Placement and topology changes
 ------------------------------
@@ -97,9 +99,10 @@ Cache FS selection uses **rendezvous hashing** of the file id over the online
 members of the configured cache space:
 
 * The assignment is recomputed on every read open from the *current* online set.
-* ``cache_location`` on the file metadata is updated when the assignment
-  changes; it is a last-known pointer for ``eos file info`` and truncate
-  notify, **not** a sticky pin to the first NVMe that ever served the file.
+* ``cache_location`` on the file metadata is a last-known pointer for
+  ``eos file info`` and truncate notify, **not** a sticky pin. The first
+  assignment is persisted; remaps are sampled so the read path does not
+  write the namespace on every topology change.
 * When a file remaps (cache FS added/removed/offline), the MGM best-effort
   truncates the journal on the previous cache FS so orphans do not linger
   until LRU eviction.

@@ -3255,6 +3255,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           fmd->getMTime(mtime);
           capability += "&mgm.cache.mtime=";
           capability += std::to_string(mtime.tv_sec).c_str();
+          capability += "&mgm.cache.gen=";
+          capability += std::to_string(fmd->getCacheGeneration()).c_str();
         }
         {
           auto sit = FsView::gFsView.mSpaceView.find(space);
@@ -3287,21 +3289,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_info("msg=\"read-through cache redirect\" fxid=%08llx "
                  "cache_fsid=%u backend_fsid=%u", mFid, cache_fsid, fs_id);
         const auto previous_cache_fsid = fmd->getCacheLocation();
-        const bool need_persist = (previous_cache_fsid != cache_fsid);
+        const bool location_changed = (previous_cache_fsid != cache_fsid);
         fs_rd_lock.Release();
 
-        if (need_persist) {
-          try {
-            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-            fmd->setCacheLocation(cache_fsid);
-            gOFS->eosView->updateFileStore(fmd.get());
-          } catch (eos::MDException& e) {
-            eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
-                        "errno=%d", mFid, e.getErrno());
+        if (location_changed) {
+          // Persist the first assignment always so mutation knows the file
+          // was cached. Remaps are sampled (1/8 of fids) to limit QDB writes
+          // on the read path; generation + notify cover correctness.
+          const bool persist = (previous_cache_fsid == 0) || ((mFid & 7ull) == 0);
+
+          if (persist) {
+            try {
+              eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+              fmd->setCacheLocation(cache_fsid);
+              gOFS->eosView->updateFileStore(fmd.get());
+            } catch (eos::MDException& e) {
+              eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
+                          "errno=%d", mFid, e.getErrno());
+            }
           }
 
-          // Topology remapping (e.g. cache space grew): drop the orphan journal
-          // on the previous cache FS so it does not linger until LRU eviction
+          // Topology remapping: drop the orphan journal on the previous FS
           if (previous_cache_fsid) {
             (void) ReadThroughCache::NotifyJournalTruncate(previous_cache_fsid,
                 mFid);

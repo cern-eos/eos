@@ -14,6 +14,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 EOSFSTNAMESPACE_BEGIN
@@ -29,7 +30,10 @@ class CacheLru
 {
 public:
   CacheLru(eos::common::FileSystem::fsid_t fsid, std::string fs_path);
-  ~CacheLru() = default;
+  ~CacheLru();
+
+  CacheLru(const CacheLru&) = delete;
+  CacheLru& operator=(const CacheLru&) = delete;
 
   void SetWatermarks(unsigned low_percent, unsigned high_percent);
   void SetCapacityBytes(uint64_t capacity_bytes);
@@ -39,7 +43,14 @@ public:
   //! journal cannot be opened. All opens of the same fid share one instance.
   //----------------------------------------------------------------------------
   std::shared_ptr<SparseJournal> GetJournal(uint64_t fid,
-      uint64_t expected_size, time_t expected_mtime);
+      uint64_t expected_size, time_t expected_mtime,
+      uint64_t expected_generation = 0);
+
+  //----------------------------------------------------------------------------
+  //! Unlink the journal for fid (in-memory instance if live, else on disk).
+  //! Open readers see the unlink via the shared journal.
+  //----------------------------------------------------------------------------
+  int InvalidateJournal(uint64_t fid);
 
   void FileAccessed(uint64_t fid, uint64_t cached_bytes);
   void FileRemoved(uint64_t fid);
@@ -90,6 +101,8 @@ private:
 
   mutable std::mutex mMutex;
   std::atomic<bool> mEvicting{false};
+  std::mutex mEvictThreadMutex;
+  std::thread mEvictThread;
   eos::common::FileSystem::fsid_t mFsId{0};
   std::string mFsPath;
   unsigned mLowPercent{70};

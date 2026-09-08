@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -241,9 +242,9 @@ TEST(SparseJournal, CorruptIndexResets)
     const int fd = ::open(idx_path.c_str(), O_WRONLY);
     ASSERT_GE(fd, 0);
     const off_t bad[2] = {400, 200}; // stop < start
-    // Header is 6x uint64_t
+    // Header is 7x uint64_t (EOSJRN3)
     ASSERT_EQ((ssize_t) sizeof(bad),
-              ::pwrite(fd, bad, sizeof(bad), 6 * sizeof(uint64_t)));
+              ::pwrite(fd, bad, sizeof(bad), 7 * sizeof(uint64_t)));
     ::close(fd);
   }
   {
@@ -348,5 +349,107 @@ TEST(CacheLru, StartupScanRecoversAccounting)
   EXPECT_EQ(1u, lru.Size());
   // Allocated blocks of data + index files - at least the payload size
   EXPECT_GE(lru.UsedBytes(), 64u * 1024);
+  RemoveTempDir(root);
+}
+
+//------------------------------------------------------------------------------
+// Generation bump (failed MGM notify) must reset leftover journal content
+//------------------------------------------------------------------------------
+TEST(SparseJournal, GenerationMismatchResets)
+{
+  const std::string root = MakeTempDir();
+  ASSERT_FALSE(root.empty());
+  {
+    SparseJournal journal;
+    ASSERT_EQ(0, journal.Open(root, 7, 100, 10, 0));
+    ASSERT_EQ(0, journal.Write("stale", 5, 0));
+    EXPECT_EQ(5u, journal.CachedBytes());
+  }
+  {
+    SparseJournal journal;
+    ASSERT_EQ(0, journal.Open(root, 7, 100, 10, 1));
+    EXPECT_EQ(0u, journal.CachedBytes());
+    EXPECT_EQ(1u, journal.Generation());
+    ASSERT_EQ(0, journal.Unlink());
+  }
+  RemoveTempDir(root);
+}
+
+//------------------------------------------------------------------------------
+// Runtime LRU accounting uses allocated bytes, matching the startup scan
+//------------------------------------------------------------------------------
+TEST(CacheLru, FileAccessedUsesAllocatedBytes)
+{
+  const std::string root = MakeTempDir();
+  ASSERT_FALSE(root.empty());
+  CacheLru lru(1, root);
+  auto journal = lru.GetJournal(0x21, 1 << 20, 1, 0);
+  ASSERT_TRUE(journal != nullptr);
+  std::vector<char> blob(32 * 1024, 'y');
+  ASSERT_EQ(0, journal->Write(blob.data(), blob.size(), 0));
+  lru.FileAccessed(0x21, journal->AllocatedBytes());
+  EXPECT_EQ(journal->AllocatedBytes(), lru.UsedBytes());
+  EXPECT_GE(lru.UsedBytes(), 32u * 1024);
+  (void) journal->Unlink();
+  RemoveTempDir(root);
+}
+
+//------------------------------------------------------------------------------
+// InvalidateJournal unlinks on-disk files and drops LRU accounting
+//------------------------------------------------------------------------------
+TEST(CacheLru, InvalidateJournalUnlinks)
+{
+  const std::string root = MakeTempDir();
+  ASSERT_FALSE(root.empty());
+  CacheLru lru(1, root);
+  auto journal = lru.GetJournal(0x22, 100, 1, 0);
+  ASSERT_TRUE(journal != nullptr);
+  ASSERT_EQ(0, journal->Write("abc", 3, 0));
+  lru.FileAccessed(0x22, journal->AllocatedBytes());
+  EXPECT_EQ(1u, lru.Size());
+  const std::string path = journal->GetPath();
+  journal.reset();
+  ASSERT_EQ(0, lru.InvalidateJournal(0x22));
+  struct stat st {};
+  EXPECT_NE(0, ::stat(path.c_str(), &st));
+  EXPECT_EQ(0u, lru.Size());
+  RemoveTempDir(root);
+}
+
+//------------------------------------------------------------------------------
+// Simulate CacheLayout::Read interleaving journal hits and backend holes
+//------------------------------------------------------------------------------
+TEST(SparseJournal, CacheLayoutStyleInterleave)
+{
+  const std::string root = MakeTempDir();
+  ASSERT_FALSE(root.empty());
+  SparseJournal journal;
+  ASSERT_EQ(0, journal.Open(root, 0x55, 100, 1, 0));
+  std::vector<char> mid(20, 'M');
+  ASSERT_EQ(0, journal.Write(mid.data(), mid.size(), 40));
+  std::string backend(100, 'B');
+  std::string out(100, '\0');
+  off_t cur = 0;
+  const off_t end = 100;
+
+  while (cur < end) {
+    const auto missing = journal.MissingRanges(cur, (size_t)(end - cur));
+    const off_t seg_end = missing.empty() ? end : missing.front().offset;
+
+    if (seg_end > cur) {
+      const ssize_t n = journal.Read(&out[cur], (size_t)(seg_end - cur), cur);
+      ASSERT_EQ(seg_end - cur, n);
+      cur += n;
+      continue;
+    }
+
+    const auto& hole = missing.front();
+    memcpy(&out[hole.offset], &backend[hole.offset], hole.size);
+    cur = hole.offset + (off_t) hole.size;
+  }
+
+  EXPECT_EQ(std::string(40, 'B') + std::string(20, 'M') + std::string(40, 'B'),
+            out);
+  ASSERT_EQ(0, journal.Unlink());
   RemoveTempDir(root);
 }

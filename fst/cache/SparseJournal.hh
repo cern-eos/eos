@@ -24,9 +24,10 @@ EOSFSTNAMESPACE_BEGIN
 //!
 //! Crash consistency: the index is persisted on Truncate/Close and every
 //! kPersistThresholdBytes of newly admitted data, with the data file synced
-//! before the index. A crash loses at most the ranges admitted since the last
-//! persist - they are simply re-fetched from the backend. An index that fails
-//! validation on load resets the journal to empty.
+//! before a temp index is fsynced and renamed into place. A crash loses at
+//! most the ranges admitted since the last persist - they are simply
+//! re-fetched from the backend. An index that fails validation on load
+//! resets the journal to empty. Identity includes size, mtime and generation.
 //------------------------------------------------------------------------------
 class SparseJournal
 {
@@ -53,10 +54,11 @@ public:
   //----------------------------------------------------------------------------
   //! Open or create journal files under cache_fs_path for the given fid.
   //! Idempotent if already open with the same identity (path, fid, size,
-  //! mtime). A mismatching identity truncates the cached content.
+  //! mtime, generation). A mismatching identity truncates the cached content.
   //----------------------------------------------------------------------------
   int Open(const std::string& cache_fs_path, uint64_t fid,
-           uint64_t expected_size, time_t expected_mtime);
+           uint64_t expected_size, time_t expected_mtime,
+           uint64_t expected_generation = 0);
 
   //----------------------------------------------------------------------------
   //! Close journal files, persisting the index if dirty
@@ -69,9 +71,14 @@ public:
   int Truncate();
 
   //----------------------------------------------------------------------------
-  //! Unlink journal files from disk
+  //! Unlink journal files from disk (data, index, leftover tmp index)
   //----------------------------------------------------------------------------
   int Unlink();
+
+  //----------------------------------------------------------------------------
+  //! Unlink journal files for fid without opening (also used by eviction)
+  //----------------------------------------------------------------------------
+  static int UnlinkFiles(const std::string& cache_fs_path, uint64_t fid);
 
   //----------------------------------------------------------------------------
   //! Read from journal into buf. Returns bytes served from cache (may be less
@@ -91,9 +98,14 @@ public:
   int Write(const void* buf, size_t count, off_t offset);
 
   //----------------------------------------------------------------------------
-  //! Total cached bytes
+  //! Total cached bytes (logical sum of cached ranges)
   //----------------------------------------------------------------------------
   uint64_t CachedBytes() const;
+
+  //----------------------------------------------------------------------------
+  //! Allocated disk usage of data + index files (st_blocks * 512)
+  //----------------------------------------------------------------------------
+  uint64_t AllocatedBytes() const;
 
   //----------------------------------------------------------------------------
   //! Logical file size recorded in the journal header
@@ -101,6 +113,8 @@ public:
   uint64_t FileSize() const;
 
   time_t MTime() const;
+
+  uint64_t Generation() const;
 
   uint64_t GetFid() const;
 
@@ -116,9 +130,10 @@ private:
     int64_t mtime{0};
     uint64_t cached_bytes{0};
     uint64_t nentries{0};
+    uint64_t generation{0};
   };
 
-  static constexpr uint64_t kMagic = 0x45534f534a524e32ULL; // EOSJRN2
+  static constexpr uint64_t kMagic = 0x45534f534a524e33ULL; // EOSJRN3
   //! Persist the index every this many newly admitted bytes
   static constexpr uint64_t kPersistThresholdBytes = 64 * 1024 * 1024;
 
@@ -128,10 +143,16 @@ private:
   void CloseLocked(bool persist);
   void ResetLocked();
   void InsertRangeLocked(off_t offset, size_t size);
+  uint64_t AllocatedBytesLocked() const;
 
   std::string IndexPathLocked() const
   {
     return mJournalPath + ".idx";
+  }
+
+  std::string IndexTmpPathLocked() const
+  {
+    return mJournalPath + ".idx.tmp";
   }
 
   mutable std::mutex mMutex;
@@ -140,6 +161,7 @@ private:
   uint64_t mFid{0};
   uint64_t mFileSize{0};
   time_t mMTime{0};
+  uint64_t mGeneration{0};
   uint64_t mCachedBytes{0};
   uint64_t mUnpersistedBytes{0};
   bool mDirty{false};

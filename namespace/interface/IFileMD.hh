@@ -175,6 +175,16 @@ public:
   virtual void setCacheLocation(location_t location) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get read-through cache generation (0 = never invalidated)
+  //----------------------------------------------------------------------------
+  virtual uint64_t getCacheGeneration() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set read-through cache generation
+  //----------------------------------------------------------------------------
+  virtual void setCacheGeneration(uint64_t generation) = 0;
+
+  //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
   virtual uint64_t getSize() const = 0;

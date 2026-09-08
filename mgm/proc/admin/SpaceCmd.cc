@@ -724,6 +724,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = 0;
       }
     } else if (key == eos::common::SPACE_CACHE_SPACE_NAME) {
+      // Mark handled even on validation failure so the generic path cannot
+      // persist an invalid cachespace value. ret_c still reports the error.
       applied = true;
 
       if (value == "remove" || value.empty()) {

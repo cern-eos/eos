@@ -59,6 +59,7 @@ private:
   uint64_t mFid{0};
   uint64_t mFileSize{0};
   time_t mMTime{0};
+  uint64_t mGeneration{0};
   std::string mCacheFsPath;
   eos::common::FileSystem::fsid_t mCacheFsId{0};
 };

@@ -114,13 +114,7 @@ ReadThroughCache::SelectCacheFs(const std::string& backend_space,
       continue;
     }
 
-    // SplitMix64-style mix of (fid, fsid) - deterministic, no seed needed
-    uint64_t score = fid;
-    score ^= (uint64_t) fsid + 0x9e3779b97f4a7c15ULL + (score << 6) +
-             (score >> 2);
-    score = (score ^ (score >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    score = (score ^ (score >> 27)) * 0x94d049bb133111ebULL;
-    score = score ^ (score >> 31);
+    const uint64_t score = PlacementScore(fid, fsid);
 
     if (!best_fsid || (score > best_score) ||
         ((score == best_score) && (fsid < best_fsid))) {
@@ -207,25 +201,38 @@ ReadThroughCache::TruncateOnMutation(const std::shared_ptr<eos::IFileMD>& fmd)
     return;
   }
 
-  const auto cache_fsid = fmd->getCacheLocation();
+  eos::common::FileSystem::fsid_t cache_fsid = fmd->getCacheLocation();
+  uint64_t gen = fmd->getCacheGeneration();
 
-  if (!cache_fsid) {
+  // Placement is rendezvous-hashed, so cache_location is not a steer bit.
+  // Bump the generation whenever this file has been cached so the next
+  // open resets a leftover journal even if the FST notify fails.
+  if (!cache_fsid && !gen) {
     return;
   }
 
-  if (!NotifyJournalTruncate(cache_fsid, fmd->getId())) {
-    eos_static_warning("msg=\"cache truncate notify failed, dropping cache "
-                       "replica\" fxid=%08llx cache_fsid=%u", fmd->getId(),
-                       cache_fsid);
+  {
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    cache_fsid = fmd->getCacheLocation();
+    gen = fmd->getCacheGeneration();
+
+    if (!cache_fsid && !gen) {
+      return;
+    }
+
+    fmd->setCacheGeneration(gen + 1);
 
     try {
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-      fmd->setCacheLocation(0);
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& e) {
-      eos_static_err("msg=\"failed to drop cache replica\" fxid=%08llx "
+      eos_static_err("msg=\"failed to bump cache generation\" fxid=%08llx "
                      "errno=%d", fmd->getId(), e.getErrno());
     }
+  }
+
+  if (cache_fsid && !NotifyJournalTruncate(cache_fsid, fmd->getId())) {
+    eos_static_warning("msg=\"cache truncate notify failed, generation bumped\" "
+                       "fxid=%08llx cache_fsid=%u", fmd->getId(), cache_fsid);
   }
 }
 
@@ -249,6 +256,7 @@ ReadThroughCache::DropCacheLocation(const std::shared_ptr<eos::IFileMD>& fmd)
     }
 
     fmd->setCacheLocation(0);
+    fmd->setCacheGeneration(fmd->getCacheGeneration() + 1);
     gOFS->eosView->updateFileStore(fmd.get());
   }
 

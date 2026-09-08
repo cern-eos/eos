@@ -59,6 +59,7 @@ set(MGM_UT_SRCS
   mgm/FusexCastBatchTests.cc
   mgm/CapsTests.cc
   mgm/CommitHelperTests.cc
+  mgm/ReadThroughCacheTests.cc
   mgm/QuarkDBConfigTests.cc
   mgm/groupbalancer/BalancerEngineTypeTests.cc
   mgm/groupbalancer/FreeSpaceBalancerTests.cc
