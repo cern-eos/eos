@@ -130,6 +130,35 @@ x509() {
 }
 
 
+### GET response framing (EOS-6643)
+range_get() (
+    local scratch
+    scratch=$(mktemp -d) || return 1
+    trap 'rm -rf -- "$scratch"' EXIT
+    # Cross the FST's 1 MiB read-buffer boundary with nonuniform binary data.
+    python3 - "$scratch/payload" <<'PYTHON'
+import sys
+from pathlib import Path
+Path(sys.argv[1]).write_bytes(bytes(range(256)) * 4096 + b'final-range-bytes!')
+PYTHON
+    [ $? -eq 0 ] || return 1
+    : > "$scratch/empty"
+    local base="https://${host}:${port}/${testdir}"
+    local name
+    for name in payload empty; do
+        curl --fail --silent --show-error --location --max-time 60 \
+            --capath "${capath}" --cacert "${cacert}" \
+            --cert "${cert}" --key "${key}" \
+            --upload-file "$scratch/$name" \
+            "$base/range-$name.dat" >/dev/null || return 1
+    done
+    eos-http-range-test "$base/range-payload.dat" "$scratch/payload" \
+        --empty-url "$base/range-empty.dat" \
+        --capath "${capath}" --cacert "${cacert}" \
+        --cert "${cert}" --key "${key}"
+)
+
+
 ### Macaroon
 # Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
 macaroon() {
@@ -369,11 +398,16 @@ macarooncode=0
 eostokencode=0
 tcpcode=0
 authzcode=0
+rangecode=0
 
 if [[ -z "$macaroons" && -z "$tpc" && -z "$authz" ]]; then
   x509
   x509code=$?
   echo "x509:"$x509code
+
+  range_get
+  rangecode=$?
+  echo "range-get:"$rangecode
 
   macaroon
   macarooncode=$?
@@ -430,4 +464,4 @@ eos ls -lrta ${testdir}
 # rm-proto-native.cc:mNeedsConfirmation
 eos rm -rF --no-confirmation ${testdir}
 
-exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode))
+exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode | rangecode))
