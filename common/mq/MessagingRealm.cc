@@ -75,6 +75,12 @@ MessagingRealm::sendMessage(const std::string& descr,
   qclient::redisReplyPtr reply = mQSom->getQClient()->exec("PUBLISH", receiver,
                                  payload).get();
 
+  if (reply == nullptr) {
+    // QDB backend unavailable
+    resp.status = 1;
+    return resp;
+  }
+
   if (reply->type == REDIS_REPLY_INTEGER) {
     resp.status = (reply->integer == 0 ? 1 : 0);
   } else {
