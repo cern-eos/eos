@@ -49,6 +49,9 @@
 
 .dock8s_system_test_template:
   extends: .dock8s_base
+  variables:
+    # eos-instance-test-ci runs eos-grpc-gateway-test against the REST API
+    EOS_MGM_ENABLE_REST_API: "1"
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
