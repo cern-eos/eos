@@ -28,12 +28,14 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include "common/Constants.hh"
 #include "common/Namespace.hh"
 #include "google/protobuf/message.h"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -332,12 +334,53 @@ public:
   //! @param cipher per file obfuscation key
   //!
   //! @return decimal string representation of the fingerprint
+  //!
+  //! @note The result is persisted per file (user.encrypted.fp) by the MGM and
+  //!       by eosxd. std::hash is implementation defined, so a standard library
+  //!       with a different string hash would report every encrypted file as
+  //!       having a wrong key. Do not change it, see the unit test pinning it.
   //----------------------------------------------------------------------------
   static std::string
   KeyPrint16(const std::string& key, const std::string& cipher)
   {
     std::hash<std::string> secrethash;
     return std::to_string(secrethash(key + cipher) % 65536);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Printable stand-in for an encryption key - its fingerprint, never the key
+  //----------------------------------------------------------------------------
+  static std::string
+  HiddenKey(const std::string& key)
+  {
+    return "<hidden:" + KeyPrint16(key, "") + ">";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if a configuration key is listed in SECRET_CONFIG_KEYS. Accepts the
+  //! bare name and any prefixed form e.g. 'space.<name>' or
+  //! 'global:space:default#<name>'.
+  //----------------------------------------------------------------------------
+  static bool
+  IsSecretConfigKey(std::string_view key)
+  {
+    const size_t pos = key.find_last_of("#.");
+
+    if (pos != std::string_view::npos) {
+      key.remove_prefix(pos + 1);
+    }
+
+    return std::find(SECRET_CONFIG_KEYS.begin(), SECRET_CONFIG_KEYS.end(), key) !=
+           SECRET_CONFIG_KEYS.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Value of a configuration key as it may be displayed or logged
+  //----------------------------------------------------------------------------
+  static std::string
+  MaskSecretConfigValue(std::string_view key, const std::string& value)
+  {
+    return IsSecretConfigKey(key) ? HiddenKey(value) : value;
   }
 
   //----------------------------------------------------------------------------

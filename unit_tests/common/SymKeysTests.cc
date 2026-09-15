@@ -280,3 +280,31 @@ TEST(SymKeys, KeyPrint16MatchesLegacyInlineVersion)
         << "fingerprint drifted for key='" << c.first << "'";
   }
 }
+
+//------------------------------------------------------------------------------
+// The printable form of a key carries its fingerprint but never the key
+//------------------------------------------------------------------------------
+TEST(SymKeys, HiddenKey)
+{
+  using eos::common::SymKey;
+  const std::string key = "858aa9f8-545f-4b10-a823-3b7d822291a3";
+  ASSERT_EQ("<hidden:" + SymKey::KeyPrint16(key, "") + ">", SymKey::HiddenKey(key));
+  ASSERT_EQ(std::string::npos, SymKey::HiddenKey(key).find(key));
+}
+
+//------------------------------------------------------------------------------
+// Secret configuration keys are recognised in every form they are used in and
+// only their values are masked
+//------------------------------------------------------------------------------
+TEST(SymKeys, SecretConfigKey)
+{
+  using eos::common::SymKey;
+  ASSERT_TRUE(SymKey::IsSecretConfigKey("encryptionkey"));
+  ASSERT_TRUE(SymKey::IsSecretConfigKey("space.encryptionkey"));
+  ASSERT_TRUE(SymKey::IsSecretConfigKey("global:space:default#encryptionkey"));
+  ASSERT_FALSE(SymKey::IsSecretConfigKey("global:space:default#nominalsize"));
+  ASSERT_FALSE(SymKey::IsSecretConfigKey("myencryptionkey"));
+  ASSERT_EQ("1234", SymKey::MaskSecretConfigValue("space.lru.interval", "1234"));
+  ASSERT_EQ(SymKey::HiddenKey("1234"),
+            SymKey::MaskSecretConfigValue("space:default#encryptionkey", "1234"));
+}

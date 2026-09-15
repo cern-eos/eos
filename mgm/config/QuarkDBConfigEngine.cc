@@ -22,15 +22,16 @@
  ************************************************************************/
 
 #include "mgm/config/QuarkDBConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "common/Timing.hh"
 #include "common/StringUtils.hh"
-#include <qclient/ResponseParsing.hh>
-#include <qclient/MultiBuilder.hh>
+#include "common/SymKeys.hh"
+#include "common/Timing.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "qclient/structures/QScanner.hh"
-#include <folly/executors/IOThreadPoolExecutor.h>
 #include <ctime>
+#include <folly/executors/IOThreadPoolExecutor.h>
 #include <functional>
+#include <qclient/MultiBuilder.hh>
+#include <qclient/ResponseParsing.hh>
 using std::placeholders::_1;
 
 namespace
@@ -61,7 +62,7 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
   oss << std::time(NULL) << ": " << action;
 
   if (key != "") {
-    oss << " " << key.c_str() << " => " << value.c_str();
+    oss << " " << key << " => " << eos::common::SymKey::MaskSecretConfigValue(key, value);
   }
 
   if (!comment.empty()) {
@@ -517,7 +518,8 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
     return;
   }
 
-  eos_static_info("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
+  eos_static_info("msg=\"store config\" key=\"%s\" val=\"%s\"", key,
+                  eos::common::SymKey::MaskSecretConfigValue(key, val).c_str());
   std::string config_key = FormFullKey(prefix, key);
   {
     std::lock_guard lock(mMutex);

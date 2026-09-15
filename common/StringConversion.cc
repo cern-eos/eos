@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #include "StringConversion.hh"
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
-#include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <pthread.h>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -992,6 +993,19 @@ StringConversion::MaskTag(XrdOucString& line, const char* tag)
 
     smask += "<...>";
     line.insert(smask.c_str(), spos);
+  }
+
+  return line.c_str();
+}
+
+//------------------------------------------------------------------------------
+// Mask every tag listed in SECRET_OPAQUE_TAGS in an opaque string
+//------------------------------------------------------------------------------
+const char*
+StringConversion::MaskSecretTags(XrdOucString& line)
+{
+  for (const auto& tag : SECRET_OPAQUE_TAGS) {
+    MaskTag(line, std::string(tag).c_str());
   }
 
   return line.c_str();

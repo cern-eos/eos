@@ -15,6 +15,7 @@
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -1954,12 +1955,10 @@ grpc::Status
 GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequest,
                                ServerWriter<ReplyProto>* writer)
 {
-  std::string json_req;
-  (void)google::protobuf::util::MessageToJsonString(*spaceRequest, &json_req);
-  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the SpaceProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_space()->CopyFrom(*spaceRequest);
+  eos_static_info("request=\"%s\"", ProcInterface::ToLogJson(req).c_str());
 
   if (req.space().subcmd_case() == eos::console::SpaceProto::kNodeSet) {
     // encoding the value to Base64

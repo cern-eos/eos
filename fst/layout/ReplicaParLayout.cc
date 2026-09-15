@@ -183,9 +183,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       XrdOucString maskUrl = (mReplicaUrl[count].c_str() ?
                               mReplicaUrl[count].c_str() : "");
       // Mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
       eos_err("msg=\"failed %s %s open\" path=\"%s\"",
               (is_local ? "local" : "remote"), (is_rw ? "write" : "read"),
               maskUrl.c_str());
@@ -214,9 +212,7 @@ ReplicaParLayout::Read(XrdSfsFileOffset offset, char* buffer,
     if (rc == SFS_ERROR) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
       eos_warning("Failed to read from replica off=%lld, length=%i, mask_url=%s",
                   offset, length, maskUrl.c_str());
       continue;
@@ -251,9 +247,7 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
     if (rc == SFS_ERROR) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // Mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
       eos_warning("msg=\"failed replica readv \" url=\"%s\"", maskUrl.c_str());
       continue;
     } else {
@@ -287,9 +281,7 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset, const char* buffer,
     if (rc != length) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
       errno = (i == 0) ? EIO : EREMOTEIO;
 
       // show only the first write error as an error to broadcast upstream
@@ -324,9 +316,7 @@ ReplicaParLayout::WriteAsync(XrdSfsFileOffset offset, const char* buffer,
     // Collect available responses
     if (!mResponses[i].CheckResponses(false)) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
 
       // Show only the first write error as an error to broadcast upstream
       if (mHasWriteErr) {
@@ -362,9 +352,7 @@ ReplicaParLayout::Truncate(XrdSfsFileOffset offset)
       errno = (i == 0) ? EIO : EREMOTEIO;
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos::common::StringConversion::MaskSecretTags(maskUrl);
       eos_err("Failed to truncate replica %i", i);
       return Emsg("ReplicaParTuncate", *mError, errno, "truncate failed",
                   maskUrl.c_str());
@@ -405,9 +393,7 @@ ReplicaParLayout::Sync()
   for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
     XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
     // mask some opaque parameters to shorten the logging
-    eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-    eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-    eos::common::StringConversion::MaskTag(maskUrl, "authz");
+    eos::common::StringConversion::MaskSecretTags(maskUrl);
     rc = mReplicaFile[i]->fileSync(mTimeout);
 
     if (rc != SFS_OK) {

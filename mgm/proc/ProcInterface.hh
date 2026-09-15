@@ -159,6 +159,14 @@ public:
   static bool VidIsAdmin(const eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* entity = nullptr);
 
+  //----------------------------------------------------------------------------
+  //! JSON representation of a request safe to log - the value of a secret
+  //! space configuration key is replaced by its fingerprint
+  //!
+  //! @param req request (copied, the caller's object is untouched)
+  //----------------------------------------------------------------------------
+  static std::string ToLogJson(eos::console::RequestProto req);
+
   ///! Pool of threads executing asynchronously long-running client commands
   static eos::common::ThreadPool sProcThreads;
 

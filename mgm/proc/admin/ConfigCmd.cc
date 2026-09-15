@@ -30,6 +30,7 @@
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+#include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -106,35 +107,30 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
 
 namespace {
 //----------------------------------------------------------------------------
-//! Replace every space encryption key in a configuration dump by a fingerprint
-//! of it. Dumping is a display operation - the stored configuration keeps the
-//! real value, otherwise a saved configuration could not be restored.
+//! Replace the value of every secret configuration key in a dump by its
+//! fingerprint. Dumping is a display operation - the stored configuration
+//! keeps the real value, otherwise a saved configuration could not be restored.
 //!
-//! @param dump configuration dump to sanitise in place
+//! @param dump configuration dump ("<key> => <value>" lines) to sanitise
 //----------------------------------------------------------------------------
 void
-MaskEncryptionKeys(std::string& dump)
+MaskSecrets(std::string& dump)
 {
-  const std::string tag =
-      std::string("#") + eos::common::SPACE_ENCRYPTION_KEY_NAME + " => ";
-  size_t pos = 0;
+  std::istringstream in(dump);
+  std::string out, line;
 
-  while ((pos = dump.find(tag, pos)) != std::string::npos) {
-    const size_t val_start = pos + tag.length();
-    size_t val_end = dump.find('\n', val_start);
+  while (std::getline(in, line)) {
+    const size_t pos = line.find(" => ");
 
-    if (val_end == std::string::npos) {
-      val_end = dump.length();
+    if (pos != std::string::npos) {
+      line = line.substr(0, pos + 4) + eos::common::SymKey::MaskSecretConfigValue(
+                                           line.substr(0, pos), line.substr(pos + 4));
     }
 
-    // same fingerprint as 'space status' so the two can be correlated
-    const std::string masked =
-        "<hidden:" +
-        eos::common::SymKey::KeyPrint16(dump.substr(val_start, val_end - val_start), "") +
-        ">";
-    dump.replace(val_start, val_end - val_start, masked);
-    pos = val_start + masked.length();
+    out += line + '\n';
   }
+
+  dump = out;
 }
 } // namespace
 
@@ -151,7 +147,7 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
     reply.set_retc(errno);
   } else {
     std::string out = sdump.c_str();
-    MaskEncryptionKeys(out);
+    MaskSecrets(out);
     reply.set_std_out(out);
   }
 }
