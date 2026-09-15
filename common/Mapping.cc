@@ -1595,6 +1595,7 @@ Mapping::UidToUserName(uid_t uid, int& errc)
   }
 
   if (auto user_ptr = gShardedNegativeUserNameCache.retrieve(uid)) {
+    errc = EINVAL;
     return *user_ptr;
   }
 
