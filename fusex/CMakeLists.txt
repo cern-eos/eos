@@ -43,7 +43,9 @@ set(EOSXD3_COMPILE_FLAGS
 #-------------------------------------------------------------------------------
 # Add tests directory
 #-------------------------------------------------------------------------------
-add_subdirectory(tests)
+if (FUSE_FOUND)
+  add_subdirectory(tests)
+endif()
 
 #-------------------------------------------------------------------------------
 # Add auth subsystem
@@ -73,6 +75,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   BZ2::BZ2
   LIBBFD::LIBBFD)
 
+if (FUSE_FOUND)
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
 # An object library prevents having to compile them twice.
@@ -114,6 +117,8 @@ target_link_libraries(eosxd-objects PUBLIC
   GOOGLE::SPARSEHASH
   ZMQ::ZMQ
   fmt::fmt-header-only)
+
+endif()
 
 if (FUSE3_FOUND AND NOT APPLE)
 #-------------------------------------------------------------------------------
@@ -168,6 +173,7 @@ if (FUSE3_FOUND AND NOT APPLE)
     PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
 endif()
 
+if (FUSE_FOUND)
 target_link_libraries(eosxd-objects PUBLIC FUSE::FUSE)
 
 set_target_properties(eosxd-objects
@@ -191,7 +197,10 @@ set_target_properties(eosxd
 
 install(TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+endif()
 
+# Not fuse2 specific: eosfusebind binds krb5/x509 credentials for whichever
+# fuse daemon is in use, so install it even in a fuse3-only build.
 install(FILES eosfusebind
   DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ

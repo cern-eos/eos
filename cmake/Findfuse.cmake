@@ -54,6 +54,9 @@ if (FUSE_FOUND AND NOT TARGET FUSE::FUSE)
   set_target_properties(FUSE::FUSE PROPERTIES
     IMPORTED_LOCATION "${FUSE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${FUSE_INCLUDE_DIR}")
+else()
+  message(WARNING "Notice: fuse2 not found, no fuse2 support")
+  add_library(FUSE::FUSE INTERFACE IMPORTED)
 endif()
 
 set(FUSE_INCLUDE_DIRS ${FUSE_INCLUDE_DIR})
