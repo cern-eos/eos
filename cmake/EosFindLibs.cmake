@@ -91,7 +91,7 @@ if(NOT PACKAGEONLY)
   if (Linux)
     find_package(help2man)
     find_package(glibc REQUIRED)
-    find_package(xfs REQUIRED)
+    find_package(xfs)
     find_package(procps)
     find_package(libproc2)
 
@@ -104,6 +104,7 @@ if(NOT PACKAGEONLY)
     add_library(GLIBC::DL    INTERFACE IMPORTED)
     add_library(GLIBC::RT    INTERFACE IMPORTED)
     add_library(GLIBC::M     INTERFACE IMPORTED)
+    add_library(XFS::XFS     INTERFACE IMPORTED)
   endif()
 
   # The server build also requires

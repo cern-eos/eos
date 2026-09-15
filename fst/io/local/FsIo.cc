@@ -25,7 +25,7 @@
 #include "fst/io/local/FsIo.hh"
 #include "common/XattrCompat.hh"
 
-#ifndef __APPLE__
+#ifdef EOS_HAVE_XFS
 #include <xfs/xfs.h>
 #endif
 #undef __USE_FILE_OFFSET64
@@ -209,6 +209,8 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
   return 0;
 #else
 
+#ifdef EOS_HAVE_XFS
+
   if (platform_test_xfs_fd(mFd) && !getenv("EOS_FST_DISABLE_XFS_FALLOCATE")) {
     // Select the fast XFS allocation function if available
     xfs_flock64_t fl;
@@ -216,7 +218,9 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
     fl.l_start = 0;
     fl.l_len = (off64_t) length;
     return xfsctl(NULL, mFd, XFS_IOC_RESVSP64, &fl);
-  } else {
+  } else
+#endif
+  {
     if (getenv("EOS_FST_POSIX_FALLOCATE")) {
       // only fallocate if defined
       return posix_fallocate(mFd, 0, length);
@@ -244,6 +248,8 @@ FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
 #else
 
   if (mFd > 0) {
+#ifdef EOS_HAVE_XFS
+
     if (platform_test_xfs_fd(mFd)) {
       // Select the fast XFS deallocation function if available
       xfs_flock64_t fl;
@@ -251,7 +257,9 @@ FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
       fl.l_start = fromOffset;
       fl.l_len = (off64_t) toOffset - fromOffset;
       return xfsctl(NULL, mFd, XFS_IOC_UNRESVSP64, &fl);
-    } else {
+    } else
+#endif
+    {
       return 0;
     }
   }

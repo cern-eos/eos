@@ -164,6 +164,7 @@ target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
   EosCommon
   DAVIX::DAVIX
+  XFS::XFS
   XROOTD::PRIVATE
   NFS::NFS)
 
