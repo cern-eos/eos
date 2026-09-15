@@ -35,12 +35,21 @@ ProcCommand::Member()
 
   if (smember.length()) {
     std::string egroup = smember.c_str();
+    int errc = 0;
+    // Role selection can leave uid_string referring to the authenticated user.
+    const std::string username = eos::common::Mapping::UidToUserName(vid.uid, errc);
 
-    if (update == "true") {
-      gOFS->EgroupRefresh->refresh(vid.uid_string, egroup);
+    if (errc) {
+      retc = errc;
+      stdErr = "error: cannot resolve the selected uid to a username";
+      return SFS_OK;
     }
 
-    std::string rs = gOFS->EgroupRefresh->DumpMember(vid.uid_string, egroup);
+    if (update == "true") {
+      gOFS->EgroupRefresh->refresh(username, egroup);
+    }
+
+    std::string rs = gOFS->EgroupRefresh->DumpMember(username, egroup);
     stdOut += rs.c_str();
   } else {
     std::string rs = gOFS->EgroupRefresh->DumpMembers();
