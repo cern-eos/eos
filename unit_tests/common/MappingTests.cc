@@ -94,6 +94,24 @@ TEST(Mapping, IdentityLookupsFitWorkerStack)
   EXPECT_TRUE(result.success);
 }
 
+TEST(Mapping, CachedGidLookupFailurePreservesError)
+{
+  using namespace eos::common;
+  Mapping::Reset();
+  const gid_t gid = 123456789;
+  const std::string fallback = std::to_string(gid);
+  Mapping::gShardedNegativeGroupNameCache.store(gid,
+                                                std::make_unique<std::string>(fallback));
+
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    int errc = 0;
+    EXPECT_EQ(fallback, Mapping::GidToGroupName(gid, errc));
+    EXPECT_EQ(EINVAL, errc);
+  }
+
+  Mapping::Reset();
+}
+
 void FreeXrdSecEntity(XrdSecEntity* client)
 {
   free(client->name);
