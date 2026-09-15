@@ -573,22 +573,23 @@ XrdMgmOfsFile::ApplySpaceEncryption(const char* path,
                   path);
     }
 
+    // The fingerprint is always written together with the space marker. It is
+    // a user.* attribute, so a missing one is treated as a mismatch - otherwise
+    // removing it would turn the ENOKEY into decoded garbage.
     auto fp = attrmapF.find(eos::kAttrEncryptedFp);
+    const std::string cipher = attrmapF.count(eos::kAttrObfuscateKey)
+                                   ? attrmapF[eos::kAttrObfuscateKey]
+                                   : std::string();
 
-    if (fp != attrmapF.end()) {
-      const std::string cipher = attrmapF.count(eos::kAttrObfuscateKey)
-                                     ? attrmapF[eos::kAttrObfuscateKey]
-                                     : std::string();
-
-      if (fp->second != eos::common::SymKey::KeyPrint16(space_key, cipher)) {
-        eos_err("msg=\"space encryption key has changed - contents are lost\" "
-                "path=\"%s\" space=\"%s\"",
-                path, enc_space.c_str());
-        return Emsg(epname, error, ENOKEY,
-                    "open file - the encryption key of "
-                    "the space holding this file has changed ",
-                    path);
-      }
+    if ((fp == attrmapF.end()) ||
+        (fp->second != eos::common::SymKey::KeyPrint16(space_key, cipher))) {
+      eos_err("msg=\"space encryption key does not match - contents are lost\" "
+              "path=\"%s\" space=\"%s\"",
+              path, enc_space.c_str());
+      return Emsg(epname, error, ENOKEY,
+                  "open file - the encryption key of "
+                  "the space holding this file does not match ",
+                  path);
     }
 
     mEosKey = space_key;
@@ -773,9 +774,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // io priority string
   std::string ioPriority;
   XrdOucString pinfo = (ininfo ? ininfo : "");
-  eos::common::StringConversion::MaskTag(pinfo, "cap.msg");
-  eos::common::StringConversion::MaskTag(pinfo, "cap.sym");
-  eos::common::StringConversion::MaskTag(pinfo, "authz");
+  eos::common::StringConversion::MaskSecretTags(pinfo);
 
   if (isRW) {
     eos_info("op=write trunc=%d path=%s info=%s",
@@ -1297,9 +1296,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           rcode = SFS_REDIRECT;
           gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1, vid.app);
           XrdOucString predirectionhost = redirectionhost.c_str();
-          eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
-          eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
-          eos::common::StringConversion::MaskTag(pinfo, "authz");
+          eos::common::StringConversion::MaskSecretTags(predirectionhost);
           eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(),
                    ecode);
           return rcode;
@@ -3656,8 +3653,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   rcode = SFS_REDIRECT;
   XrdOucString predirectionhost = redirectionhost.c_str();
-  eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
-  eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
+  eos::common::StringConversion::MaskSecretTags(predirectionhost);
 
   const char* op = isRW ? "write" : "read";
   eos_info("op=%s path=%s info=%s %s redirection=%s xrd_port=%d "

@@ -3257,6 +3257,9 @@ runtest "### Confirm   " unix SUCCESS "" eos space status "default | grep encryp
 # the key itself must never be printed, only a fingerprint of it
 runtest "### Hidden    " unix SUCCESS "" eos space status "default | grep encryptionkey | grep -c hidden | grep -w 1"
 runtest "### Hidden    " unix SUCCESS "" eos space status "default | grep -c $SPACEENC_KEY1 | grep -w 0"
+runtest "### Hidden    " unix SUCCESS "" eos config dump "| grep -c $SPACEENC_KEY1 | grep -w 0"
+runtest "### Hidden    " unix SUCCESS "" eos config changelog "| grep -c $SPACEENC_KEY1 | grep -w 0"
+runtest "### Hidden    " unix SUCCESS "" eos config changelog "| grep encryptionkey | grep -c hidden | grep -v -w 0"
 
 # new files are now encrypted with the key of the space they are created in
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/encrypted"
@@ -3266,6 +3269,15 @@ runtest "### Hidden    " unix SUCCESS "" eos attr ls "$SPACEENC_DIR/encrypted | 
 # and the contents come back unchanged without the client knowing any key
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.dec" "$SPACEENC_DIR/encrypted"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.dec"
+# the fingerprint is a user.* attribute - removing it must not bypass the key
+# check, the file is refused until the fingerprint is restored
+SPACEENC_FP=$(command eos -b root://$EOS_TEST_REDIRECTOR attr get user.encrypted.fp "$SPACEENC_DIR/encrypted" 2>/dev/null | cut -d'"' -f2)
+runtest "### Fp        " unix SUCCESS "" shell test "-n" "\"$SPACEENC_FP\""
+runtest "### Fp        " unix SUCCESS "" eos attr rm user.encrypted.fp "$SPACEENC_DIR/encrypted"
+runtest "### Download  " unix ERROR   "" download "$EOS_TEST_TESTSYS/spaceenc.nofp" "$SPACEENC_DIR/encrypted"
+runtest "### Fp        " unix SUCCESS "" eos attr set "user.encrypted.fp=$SPACEENC_FP" "$SPACEENC_DIR/encrypted"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.fp" "$SPACEENC_DIR/encrypted"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.fp"
 
 # rotating the key of the space destroys the contents cryptographically
 runtest "### Rotate    " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY2" --no-confirmation
@@ -3323,6 +3335,10 @@ runtest "### KeyRm     " unix SUCCESS "" eos space config default space.encrypti
 runtest "### KeyRm     " unix ERROR   "" eos space config default space.encryptionkey=remove --no-confirmation
 runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
 runtest "### Download  " unix ERROR   "" download "$EOS_TEST_TESTSYS/spaceenc.gone" "$SPACEENC_DIR/encrypted"
+# 'space config rm' removes it as well and warns the same way
+runtest "### KeyRm     " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY1" --no-confirmation
+runtest "### KeyRm     " unix SUCCESS "" eos space config rm default "space.encryptionkey --no-confirmation | grep -c 'warning:' | grep -w 1"
+runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
 # and new files fall back to plain obfuscation
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/plain"
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/plain | grep -c 'Crypt: obfuscated' | grep -w 1"

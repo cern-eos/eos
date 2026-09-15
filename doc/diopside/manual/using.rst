@@ -2372,10 +2372,23 @@ whose key was used is recorded per file and shown by `eos file info`:
 
                 Crypt: encrypted (space:default)
 
-The key itself is never displayed, `eos space status` shows only a fingerprint
-of it. Use `space config <space> encryptionkey=remove` to delete it. Since both
-setting and removing it can make existing files unreadable, the command asks for
-a typed confirmation code - append `--no-confirmation` to skip that in scripts.
+The key itself is not displayed by EOS: `eos space status`, `eos config dump`
+and `eos config changelog` show only a fingerprint of it (`<hidden:NNNNN>`)
+and the MGM logs are masked the same way. The key is still stored in clear in
+QuarkDB, and the shell history of the host where the command was typed is
+outside of EOS control. Use
+`space config <space> encryptionkey=remove` or
+`space config rm <space> encryptionkey` to delete it. Since both setting and
+removing it can make existing files unreadable, the command asks for a typed
+confirmation code - append `--no-confirmation` to skip that in scripts.
+
+.. NOTE:: Every space encrypted file stores a 16-bit fingerprint of the key in
+          `user.encrypted.fp`, next to its obfuscation key. Whoever can list the
+          attributes of such a file can use it to test guesses of the key
+          offline, so use a long random key (e.g. the output of `uuidgen`),
+          never a short or guessable one like `1234`. Removing
+          `user.encrypted.fp` from a file makes it unreadable (`ENOKEY`) until
+          the attribute is restored.
 
 .. WARNING:: While the encryption key of a space is changed or removed, every
              file encrypted with the previous key is unreadable. EOS does not

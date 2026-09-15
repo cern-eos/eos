@@ -217,13 +217,12 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
   for (auto& i : keylist) {
     char line[32678];
 
-    if (i == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
-      // never expose the instance encryption key, only a fingerprint of it
-      // which is enough to tell two keys apart or to spot a key change
-      const std::string fp = eos::common::SymKey::KeyPrint16(
-          FsView::gFsView.mSpaceView[status.mgmspace()]->GetConfigMember(i), "");
-      snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
-               ("<hidden:" + fp + ">").c_str());
+    if (eos::common::SymKey::IsSecretConfigKey(i)) {
+      // never expose a secret, only a fingerprint of it which is enough to
+      // tell two values apart or to spot a change
+      const std::string hidden = eos::common::SymKey::HiddenKey(
+          FsView::gFsView.mSpaceView[status.mgmspace()]->GetConfigMember(i));
+      snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(), hidden.c_str());
     } else if (((i == "nominalsize") || (i == "headroom")) && !monitoring) {
       XrdOucString sizestring;
       // size printout
@@ -649,7 +648,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = ENOENT;
         std_err.str("error: key has not been deleted");
       } else {
-        std_out.str("success: removed space config '" + key + "'\n");
+        std::string msg = "success: removed space config '" + key + "'\n";
+
+        if (key == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
+          msg += "warning: files encrypted with this key are not readable anymore!\n";
+        }
+
+        std_out.str(msg);
       }
 
       if (key.substr(0, 9) == std::string("attr.sys.")) {
