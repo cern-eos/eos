@@ -1647,6 +1647,7 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
   }
 
   if (auto group_ptr = gShardedNegativeGroupNameCache.retrieve(gid)) {
+    errc = EINVAL;
     return *group_ptr;
   }
 
