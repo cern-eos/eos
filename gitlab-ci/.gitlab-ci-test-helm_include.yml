@@ -25,6 +25,7 @@
       export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
       K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
       kubectl config set-context --current --namespace=$K8S_NAMESPACE
+      IMAGE_REPO="${CI_REGISTRY_IMAGE}/eos-ci"
       IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
       CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}" # may be different from the server image (eg ubuntu)
       TEST_REALM=EXAMPLE.COM; TEST_ADMINPRINC_NAME=admin1; TEST_ADMINPRINC_PASSWORD=admin1; TEST_USERPRINC_NAME=eos-user; TEST_USERPRINC_PASSWORD=eos-user
@@ -48,6 +49,7 @@
         -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set-string global.repository=$IMAGE_REPO \
         --set-string global.tag=$IMAGE_TAG \
         --set mgm.kerberos.adminPrinc.name=$TEST_ADMINPRINC_NAME \
         --set mgm.kerberos.adminPrinc.password=$TEST_ADMINPRINC_PASSWORD
@@ -56,6 +58,7 @@
       helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 eos/fusex \
         --version $HELM_EOS_FUSEX_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set-string image.repository=$IMAGE_REPO \
         --set-string image.tag=$CLI_IMAGE_TAG \
         --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local \
         --set fusex.config.auth.sss=1 \
@@ -76,6 +79,7 @@
       export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
       K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
       kubectl config set-context --current --namespace=$K8S_NAMESPACE
+      IMAGE_REPO="${CI_REGISTRY_IMAGE}/eos-ci"
       # Server image used for the EOS daemons
       IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
       # Client image may be different from the server image (eg. ubuntu)
@@ -93,6 +97,7 @@
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set-string global.repository=$IMAGE_REPO \
         --set-string global.tag=$IMAGE_TAG
     - |
       # Allow backward compatibility with our legacy k8s utilities functions

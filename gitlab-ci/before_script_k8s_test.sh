@@ -4,7 +4,7 @@ export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
 git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
 export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
 
-export IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
+export IMAGE_REPO="${CI_REGISTRY_IMAGE}/eos-ci"
 # either $CI_COMMIT_TAG either $CI_COMMIT_SHORT_SHA
 export IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
 export CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"

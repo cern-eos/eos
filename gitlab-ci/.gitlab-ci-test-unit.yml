@@ -47,7 +47,7 @@
 unit_test:tag:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_TAG}${OS_TAG}
+    name: ${CI_REGISTRY_IMAGE}/eos-ci:${CI_COMMIT_TAG}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
   rules: !reference [.rules-tags-only, rules]
 
@@ -55,7 +55,7 @@ unit_test:tag:
 unit_test:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}
+    name: ${CI_REGISTRY_IMAGE}/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
   rules:
     - if: '$CI_COMMIT_TAG'
@@ -66,7 +66,7 @@ unit_test:
 unit_test_asan:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}${EXTRA_TAG}
+    name: ${CI_REGISTRY_IMAGE}/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}${EXTRA_TAG}
     entrypoint: ["/bin/bash", "-c"]
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
