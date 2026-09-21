@@ -22,7 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOS %i
-After=network-online.target local-fs.target
+After=network-online.target nss-lookup.target local-fs.target
 Wants=network-online.target local-fs.target
 PartOf=eos.target
 

@@ -4,6 +4,9 @@ Description=%I EOS5 FST service instance
 PartOf=eos5.service
 # Start this unit after the app.service start
 After=eos5-mgm.service
+# Wait for the network and DNS, so that MGM/QDB hostnames resolve at startup
+Wants=network-online.target
+After=network.target network-online.target nss-lookup.target
 
 [Service]
 # Pretend that the component is running
