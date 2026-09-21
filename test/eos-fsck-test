@@ -290,7 +290,6 @@ function corrupt_orphan() {
   # object so that the replica left over on fsid=${FSID} has no namespace
   # entry pointing to it anymore i.e. it becomes an orphan
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
-  exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
   local IN_NS=$(exec_cmd eos-mgm1 "eos -r 0 0 fileinfo fxid:${FXID_ORPHAN} -m 2>/dev/null | grep -o 'fxid=[0-9a-f]*' || true")
 
   if [[ -n "${IN_NS}" ]]; then
