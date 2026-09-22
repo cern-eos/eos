@@ -4,6 +4,9 @@ Description=%I EOS5 QDB service instance
 PartOf=eos5.service
 # Start this unit after the app.service start
 After=eos5.service
+# Wait for network, DNS and mounted filesystems before start
+Wants=network-online.target local-fs.target remote-fs.target
+After=network.target network-online.target nss-lookup.target local-fs.target remote-fs.target
 
 [Service]
 # Pretend that the component is running
