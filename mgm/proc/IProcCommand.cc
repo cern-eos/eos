@@ -119,8 +119,7 @@ IProcCommand::open(const char* path, const char* info,
     if ((vid.uid <= 2) || (vid.sudoer)) {
       // Only instance users or sudoers can add to the logbook
       if (mComment.length() && gOFS->mCommentLog) {
-        std::string argsJson;
-        (void) google::protobuf::util::MessageToJsonString(mReqProto, &argsJson);
+        const std::string argsJson = ProcInterface::ToLogJson(mReqProto);
 
         if (!gOFS->mCommentLog->Add(mTimestamp, "", "", argsJson.c_str(),
                                     mComment.c_str(), reply.std_err().c_str(),

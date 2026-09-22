@@ -25,6 +25,7 @@
 #include "common/Mapping.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/SymKeys.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/fsck/Fsck.hh"
@@ -79,7 +80,8 @@ IConfigEngine::ApplyEachConfig(const char* key, const char* val,
   XrdOucEnv envdev(toenv.c_str());
   XrdOucString skey = key;
   std::string sval = val;
-  eos_static_debug("key=%s val=%s", skey.c_str(), sval.c_str());
+  eos_static_debug("key=%s val=%s", skey.c_str(),
+                   eos::common::SymKey::MaskSecretConfigValue(key, sval).c_str());
 
   if (skey.beginswith("fs:")) {
     // Set a filesystem definition
@@ -223,8 +225,8 @@ IConfigEngine::ApplyEachConfig(const char* key, const char* val,
 void IConfigEngine::PublishConfigChange(const std::string& key,
                                         const std::string& value)
 {
-  eos_info("msg=\"publish configuration change\" key=\"%s\" val=\"%s\"",
-           key.c_str(), value.c_str());
+  eos_info("msg=\"publish configuration change\" key=\"%s\" val=\"%s\"", key.c_str(),
+           eos::common::SymKey::MaskSecretConfigValue(key, value).c_str());
   XrdOucString repval = value.c_str();
 
   while (repval.replace("&", " ")) {}
@@ -495,7 +497,9 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 
     for (auto& sConfigDefinition : sConfigDefinitions) {
       eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
-                       sConfigDefinition.second.c_str());
+                       eos::common::SymKey::MaskSecretConfigValue(
+                           sConfigDefinition.first, sConfigDefinition.second)
+                           .c_str());
       out += (sConfigDefinition.first + " => " + sConfigDefinition.second +
               "\n").c_str();
     }

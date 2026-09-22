@@ -280,4 +280,12 @@ TEST(StringConversion, TokenizeQuoted)
   tokens.clear();
 }
 
+TEST(StringConversion, MaskSecretTags)
+{
+  XrdOucString line = "eos.app=cp&eos.key=secret&cap.msg=abc&mgm.encryption.key=k";
+  StringConversion::MaskSecretTags(line);
+  ASSERT_STREQ("eos.app=cp&eos.key=<...>&cap.msg=<...>&mgm.encryption.key=<...>",
+               line.c_str());
+}
+
 EOSCOMMONTESTING_END

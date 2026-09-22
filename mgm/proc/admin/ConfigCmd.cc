@@ -24,11 +24,13 @@
 #include "ConfigCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
 
-#include <XrdOuc/XrdOucEnv.hh>
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
+#include "common/Constants.hh"
+#include "common/SymKeys.hh"
 #include "mgm/config/IConfigEngine.hh"
-
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -103,6 +105,35 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
   }
 }
 
+namespace {
+//----------------------------------------------------------------------------
+//! Replace the value of every secret configuration key in a dump by its
+//! fingerprint. Dumping is a display operation - the stored configuration
+//! keeps the real value, otherwise a saved configuration could not be restored.
+//!
+//! @param dump configuration dump ("<key> => <value>" lines) to sanitise
+//----------------------------------------------------------------------------
+void
+MaskSecrets(std::string& dump)
+{
+  std::istringstream in(dump);
+  std::string out, line;
+
+  while (std::getline(in, line)) {
+    const size_t pos = line.find(" => ");
+
+    if (pos != std::string::npos) {
+      line = line.substr(0, pos + 4) + eos::common::SymKey::MaskSecretConfigValue(
+                                           line.substr(0, pos), line.substr(pos + 4));
+    }
+
+    out += line + '\n';
+  }
+
+  dump = out;
+}
+} // namespace
+
 //----------------------------------------------------------------------------
 // Execute dump subcommand
 //----------------------------------------------------------------------------
@@ -115,7 +146,9 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
     reply.set_std_err("error: failed to dump configuration");
     reply.set_retc(errno);
   } else {
-    reply.set_std_out(sdump.c_str());
+    std::string out = sdump.c_str();
+    MaskSecrets(out);
+    reply.set_std_out(out);
   }
 }
 

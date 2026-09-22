@@ -24,6 +24,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -249,5 +250,20 @@ StripInternalAppPrefix(std::string_view app)
 
   return std::string(app);
 }
+
+//! Space config: instance encryption key used to encrypt files created in
+//! this space whenever the client did not provide a key of its own
+static constexpr auto SPACE_ENCRYPTION_KEY_NAME = "encryptionkey";
+
+//! Configuration keys holding secrets - their values are replaced by a
+//! fingerprint in every display and log. Add new secret keys here.
+static constexpr std::array<std::string_view, 1> SECRET_CONFIG_KEYS{
+    SPACE_ENCRYPTION_KEY_NAME};
+
+//! Opaque (CGI) tags carrying secrets - masked as '<tag>=<...>' wherever an
+//! opaque string is logged. Add new secret tags here.
+static constexpr std::array<std::string_view, 7> SECRET_OPAQUE_TAGS{
+    "cap.msg", "cap.sym",      "authz", "mgm.obfuscate.key", "mgm.encryption.key",
+    "eos.key", "mgm.cmd.proto"};
 
 EOSCOMMONNAMESPACE_END

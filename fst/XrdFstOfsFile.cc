@@ -175,11 +175,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   gettimeofday(&openTime, &tz);
   bool hasCreationMode = (open_mode & (SFS_O_CREAT | SFS_O_TRUNC));
   bool isRepairRead = false;
-  // Mask some opaque parameters to shorten the logging
   XrdOucString maskOpaque = opaque ? opaque : "";
-  eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
-  eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
-  eos::common::StringConversion::MaskTag(maskOpaque, "authz");
+  eos::common::StringConversion::MaskSecretTags(maskOpaque);
   eos_info("path=%s info=%s open_mode=%x", mNsPath.c_str(),
            maskOpaque.c_str(), open_mode);
   // Process and filter open opaque information
@@ -2697,8 +2694,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
 
   int envlen {0};
   XrdOucString maskOpaque = mCapOpaque->Env(envlen);
-  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.obfuscate.key");
-  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.encryption.key");
+  eos::common::StringConversion::MaskSecretTags(maskOpaque);
   eos_info("capability=%s", maskOpaque.c_str());
   char* val = nullptr;
   const char* hexfid = 0;

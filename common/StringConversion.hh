@@ -586,6 +586,16 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Mask every tag listed in SECRET_OPAQUE_TAGS in an opaque string
+   *
+   * @param XrdOucString where to mask
+   * @return pointer to string where the masked string is stored
+   */
+  // ---------------------------------------------------------------------------
+  static const char* MaskSecretTags(XrdOucString& line);
+
+  // ---------------------------------------------------------------------------
+  /**
    * Parse a string as an URL (does not deal with opaque information)
    *
    * @param url string to parse

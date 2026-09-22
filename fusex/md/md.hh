@@ -383,8 +383,7 @@ public:
 
     std::string keyprint16(const std::string& key1, const std::string& key2)
     {
-      std::hash<std::string> secrethash;
-      return std::to_string(secrethash(key1 + key2) % 65536);
+      return eos::common::SymKey::KeyPrint16(key1, key2);
     }
 
     bool wrong_key(const std::string& keyprint)

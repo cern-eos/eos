@@ -23,6 +23,7 @@
 
 #include "ProcInterface.hh"
 #include "common/Constants.hh"
+#include "common/SymKeys.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -195,6 +196,21 @@ ProcInterface::HandleProtobufRequest(const char* opaque,
   return HandleProtobufRequest(req, vid);
 }
 
+//------------------------------------------------------------------------------
+// JSON representation of a request, empty if it carries a secret
+//------------------------------------------------------------------------------
+std::string
+ProcInterface::ToLogJson(const eos::console::RequestProto& req)
+{
+  if (req.space().has_config() &&
+      eos::common::SymKey::IsSecretConfigKey(req.space().config().mgmspace_key())) {
+    return {};
+  }
+
+  std::string json;
+  (void)google::protobuf::util::MessageToJsonString(req, &json);
+  return json;
+}
 
 std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
@@ -202,10 +218,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 {
   using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
-  // Log the type of command that we received
-  std::string json_out;
-  (void) google::protobuf::util::MessageToJsonString(req, &json_out);
-  eos_thread_info("cmd_proto=%s", json_out.c_str());
+  // Log the type of command that we received, unless it carries a secret
+  if (const std::string json = ToLogJson(req); !json.empty()) {
+    eos_thread_info("cmd_proto=%s", json.c_str());
+  }
 
   // --------------------------------------------------------------------------
   // Admin-plane gate: protobuf admin command classes must come from an admin
