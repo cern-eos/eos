@@ -160,12 +160,14 @@ public:
                          const XrdSecEntity* entity = nullptr);
 
   //----------------------------------------------------------------------------
-  //! JSON representation of a request safe to log - the value of a secret
-  //! space configuration key is replaced by its fingerprint
+  //! JSON representation of a request for logging
   //!
-  //! @param req request (copied, the caller's object is untouched)
+  //! @param req request
+  //!
+  //! @return JSON string, empty if the request carries a secret and must not
+  //!         be logged at all
   //----------------------------------------------------------------------------
-  static std::string ToLogJson(eos::console::RequestProto req);
+  static std::string ToLogJson(const eos::console::RequestProto& req);
 
   ///! Pool of threads executing asynchronously long-running client commands
   static eos::common::ThreadPool sProcThreads;

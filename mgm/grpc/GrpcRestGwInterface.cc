@@ -1958,7 +1958,11 @@ GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequ
   // wrap the SpaceProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_space()->CopyFrom(*spaceRequest);
-  eos_static_info("request=\"%s\"", ProcInterface::ToLogJson(req).c_str());
+  const std::string json = ProcInterface::ToLogJson(req);
+
+  if (!json.empty()) {
+    eos_static_info("request=\"%s\"", json.c_str());
+  }
 
   if (req.space().subcmd_case() == eos::console::SpaceProto::kNodeSet) {
     // encoding the value to Base64

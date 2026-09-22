@@ -197,15 +197,14 @@ ProcInterface::HandleProtobufRequest(const char* opaque,
 }
 
 //------------------------------------------------------------------------------
-// JSON representation of a request safe to log
+// JSON representation of a request, empty if it carries a secret
 //------------------------------------------------------------------------------
 std::string
-ProcInterface::ToLogJson(eos::console::RequestProto req)
+ProcInterface::ToLogJson(const eos::console::RequestProto& req)
 {
   if (req.space().has_config() &&
       eos::common::SymKey::IsSecretConfigKey(req.space().config().mgmspace_key())) {
-    auto* cfg = req.mutable_space()->mutable_config();
-    cfg->set_mgmspace_value(eos::common::SymKey::HiddenKey(cfg->mgmspace_value()));
+    return {};
   }
 
   std::string json;
@@ -219,8 +218,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 {
   using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
-  // Log the type of command that we received
-  eos_thread_info("cmd_proto=%s", ToLogJson(req).c_str());
+  // Log the type of command that we received, unless it carries a secret
+  if (const std::string json = ToLogJson(req); !json.empty()) {
+    eos_thread_info("cmd_proto=%s", json.c_str());
+  }
 
   // --------------------------------------------------------------------------
   // Admin-plane gate: protobuf admin command classes must come from an admin
