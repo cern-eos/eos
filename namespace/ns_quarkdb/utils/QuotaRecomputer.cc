@@ -45,9 +45,10 @@ class QuotaNodeFilter : public ExpansionDecider
 public:
   QuotaNodeFilter(uint64_t root) : rootContainer(root) {}
 
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs, 
-                                     const std::string& fullPath) override
+  virtual bool
+  shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
+                        const eos::IContainerMD::XAttrMap& attrs,
+                        const std::string& fullPath) override
   {
     if (proto.id() == rootContainer) {
       return true; // always expand root, no matter what
@@ -68,9 +69,10 @@ private:
 // Given a quotanode, re-calculate the quota values,
 // store into QuotaNodeCore.
 //------------------------------------------------------------------------------
-MDStatus QuotaRecomputer::recompute(const std::string& cont_uri,
-                                    const eos::IContainerMD::id_t cont_id,
-                                    QuotaNodeCore& qnc)
+MDStatus
+QuotaRecomputer::recompute(const std::string& cont_uri,
+                           const eos::IContainerMD::id_t cont_id, QuotaNodeCore& qnc,
+                           const std::function<void(uint64_t)>& progress)
 {
   // Reset qnc contents
   qnc = {};
@@ -84,8 +86,14 @@ MDStatus QuotaRecomputer::recompute(const std::string& cont_uri,
   options.expansionDecider.reset(new QuotaNodeFilter(cont_id));
   NamespaceExplorer explorer(cont_uri, options, *mQcl, mExecutor);
   NamespaceItem item;
+  uint64_t scanned = 0ull;
 
   while (explorer.fetch(item)) {
+    // Report progress, the scan of a big quota node takes a long time
+    if (progress && (++scanned % 10000 == 0)) {
+      progress(scanned);
+    }
+
     if (item.isFile) {
       // Calculate physical size
       uint64_t logicalSize = item.fileMd.size();

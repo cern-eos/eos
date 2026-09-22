@@ -57,10 +57,100 @@
 #include <memory>
 #include <mutex>
 #include <qclient/QClient.hh>
+#include <set>
 #include <sstream>
 #include <vector>
 
 namespace {
+//! Seconds between two progress lines in the log of a running recompute
+const time_t gRecomputeInterval =
+    getenv("EOS_MGM_RECOMPUTE_PROGRESS_INTERVAL")
+        ? strtol(getenv("EOS_MGM_RECOMPUTE_PROGRESS_INTERVAL"), 0, 10)
+        : 60;
+
+std::mutex gRecomputeInfoMutex;
+class RecomputeProgress;
+//! The running recomputes. Each entry is owned by the command thread running
+//! it, which registers and unregisters it.
+std::set<const RecomputeProgress*> gRecomputes;
+
+//------------------------------------------------------------------------------
+//! Progress of a long running recompute. The counters are updated by the
+//! recompute itself and read back by "eos ns", so that it reports where the
+//! recompute stands now. A line is written to the MGM log every
+//! gRecomputeInterval seconds.
+//------------------------------------------------------------------------------
+class RecomputeProgress {
+public:
+  RecomputeProgress(const std::string& op, const std::string& path,
+                    const std::string& unit)
+      : mPrefix(SSTR("op=" << op << " path=\"" << path << "\""))
+      , mUnit(unit)
+      , mStart(time(nullptr))
+      , mLastLog(0)
+  {
+    LogIfDue();
+    std::lock_guard<std::mutex> lock(gRecomputeInfoMutex);
+    gRecomputes.insert(this);
+  }
+
+  ~RecomputeProgress()
+  {
+    eos_static_info("msg=\"recompute finished\" %s runtime=%lds", mPrefix.c_str(),
+                    time(nullptr) - mStart);
+    std::lock_guard<std::mutex> lock(gRecomputeInfoMutex);
+    gRecomputes.erase(this);
+  }
+
+  //----------------------------------------------------------------------------
+  //! @return the progress as it stands now, counters included
+  //----------------------------------------------------------------------------
+  std::string
+  Info() const
+  {
+    std::ostringstream oss;
+    oss << mPrefix;
+
+    if (mPass) {
+      oss << " pass=" << mPass;
+    }
+
+    oss << " " << mUnit << "=" << mDone;
+
+    if (mTotal) {
+      oss << "/" << mTotal;
+    }
+
+    oss << " runtime=" << (time(nullptr) - mStart) << "s";
+    return oss.str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Write the progress to the MGM log, at most once every gRecomputeInterval
+  //! seconds. Called from the recompute loop.
+  //----------------------------------------------------------------------------
+  void
+  LogIfDue()
+  {
+    time_t now = time(nullptr);
+
+    if (now - mLastLog >= gRecomputeInterval) {
+      mLastLog = now;
+      eos_static_info("msg=\"recompute progress\" %s", Info().c_str());
+    }
+  }
+
+  std::atomic<uint64_t> mDone{0};  ///< entries processed so far
+  std::atomic<uint64_t> mTotal{0}; ///< entries to process, 0 if not known
+  std::atomic<int> mPass{0};       ///< recompute pass, 0 if the op has no passes
+
+private:
+  const std::string mPrefix;
+  const std::string mUnit;
+  const time_t mStart;
+  time_t mLastLog;
+};
+
 struct HaClusterStatus {
   std::string local;
   std::string role;
@@ -757,6 +847,21 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
+    {
+      std::lock_guard<std::mutex> lock(gRecomputeInfoMutex);
+
+      for (const auto& elem : gRecomputes) {
+        // Also log it, so that an "eos ns" leaves a trace between two log lines
+        std::string info = elem->Info();
+        eos_static_info("msg=\"recompute progress\" %s", info.c_str());
+        oss << "ALL      Recompute                        " << info << std::endl;
+      }
+
+      if (!gRecomputes.empty()) {
+        oss << line << std::endl;
+      }
+    }
+
     oss << "ALL      Replication                      " << master_status.c_str()
         << std::endl
         << "ALL      MGM Leadership                   "
@@ -1113,6 +1218,12 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return;
   }
 
+  std::string cont_uri;
+  {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    cont_uri = gOFS->eosView->getUri(cont.get());
+  }
+  RecomputeProgress progress("tree-size", cont_uri, "containers");
   using ContIdList = std::list<std::list<eos::IContainerMD::id_t>>;
   ContIdList work = BreadthFirstSearchContainers(cont.get(), tree.depth());
   auto* accounting = static_cast<eos::QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())
@@ -1129,10 +1240,22 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return ids;
   };
   // Recompute one pass bottom-up over a level-ordered work list
-  auto recompute_pass = [this](const ContIdList& levels) {
+  auto recompute_pass = [this, &progress](const ContIdList& levels, int pass) {
+    uint64_t total = 0ull;
+
+    for (const auto& level : levels) {
+      total += level.size();
+    }
+
+    progress.mDone = 0ull;
+    progress.mTotal = total;
+    progress.mPass = pass;
+
     for (auto it_level = levels.crbegin(); it_level != levels.crend(); ++it_level) {
       for (const auto& id : *it_level) {
         std::shared_ptr<eos::IContainerMD> tmp_cont;
+        ++progress.mDone;
+        progress.LogIfDue();
 
         try {
           tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
@@ -1172,7 +1295,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   constexpr int max_passes = 3;
 
   for (int pass = 1; pass <= max_passes; ++pass) {
-    recompute_pass(work);
+    recompute_pass(work, pass);
 
     // Validate: apply every delta enqueued so far and check whether any
     // landed on a container recomputed in this pass. A failed flush means the
@@ -1298,12 +1421,17 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       return;
     }
 
+    RecomputeProgress progress("quota", cont_uri, "entries");
     std::unique_ptr<qclient::QClient> qcl =
       std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
                                          gOFS->mQdbContactDetails.constructOptions());
     eos::QuotaRecomputer recomputer(qcl.get(),
                                     static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
-    eos::MDStatus status = recomputer.recompute(cont_uri, cont_id, qnc);
+    eos::MDStatus status =
+        recomputer.recompute(cont_uri, cont_id, qnc, [&progress](uint64_t scanned) {
+          progress.mDone = scanned;
+          progress.LogIfDue();
+        });
 
     if (!status.ok()) {
       reply.set_std_err(status.getError());

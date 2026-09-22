@@ -23,9 +23,10 @@
 
 #pragma once
 
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
+#include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include <functional>
 
 namespace qclient
 {
@@ -60,11 +61,14 @@ public:
   //! @param cont_uri quota node container uri
   //! @param cont_id quota node container id
   //! @param core quota node object info
+  //! @param progress called every few thousand entries with the number of
+  //!        entries scanned so far, so that the caller can report progress
   //!
   //! @return status
   //----------------------------------------------------------------------------
-  MDStatus recompute(const std::string& cont_uri,
-                     const eos::IContainerMD::id_t cont_id, QuotaNodeCore& core);
+  MDStatus recompute(const std::string& cont_uri, const eos::IContainerMD::id_t cont_id,
+                     QuotaNodeCore& core,
+                     const std::function<void(uint64_t)>& progress = {});
 
 private:
   qclient::QClient* mQcl;
