@@ -1595,6 +1595,7 @@ Mapping::UidToUserName(uid_t uid, int& errc)
   }
 
   if (auto user_ptr = gShardedNegativeUserNameCache.retrieve(uid)) {
+    errc = EINVAL;
     return *user_ptr;
   }
 
@@ -1646,6 +1647,7 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
   }
 
   if (auto group_ptr = gShardedNegativeGroupNameCache.retrieve(gid)) {
+    errc = EINVAL;
     return *group_ptr;
   }
 
