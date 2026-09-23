@@ -16,7 +16,9 @@
 #ifndef __APPLE__
 #include "console/commands/helpers/jwk_generator/jwk_generator.hpp"
 #include <fstream>
+#ifdef HAVE_SCITOKENS
 #include <scitokens/scitokens.h>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
@@ -68,6 +70,11 @@ public:
       return 0;
     }
     if (subcommand == "create") {
+#ifndef HAVE_SCITOKENS
+      std::cerr << "error: eos was built without scitokens support" << std::endl;
+      global_retc = ENOTSUP;
+      return 0;
+#else
       do {
         const char* o = subtokenizer.GetTokenUnquoted();
         const char* v = subtokenizer.GetTokenUnquoted();
@@ -199,6 +206,7 @@ public:
       }
       std::cout << out << std::endl;
       return 0;
+#endif
     }
     if (subcommand == "dump") {
       XrdOucString token = subtokenizer.GetTokenUnquoted();

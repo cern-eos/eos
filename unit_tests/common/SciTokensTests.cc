@@ -37,6 +37,9 @@ using namespace eos::common;
 
 TEST(SciToken, Factory)
 {
+#ifndef HAVE_SCITOKENS
+  GTEST_SKIP() << "EOS built without scitokens support";
+#endif
   std::unique_ptr<SciToken> issuer;
   // create keys
   std::ofstream("/tmp/.eosunit.sci.cred") << "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9lFITZoMpmdgPN2rRFT3EUEYXybj\nzRoTSdF6P5I9eyCj42n/OASfE+jMB2FtpV8FrwIk7D8xqWAJ9KbHTZPKag==\n-----END PUBLIC KEY-----\n";
@@ -65,6 +68,9 @@ TEST(SciToken, Factory)
 
 TEST(SciToken, CFactory)
 {
+#ifndef HAVE_SCITOKENS
+  GTEST_SKIP() << "EOS built without scitokens support";
+#endif
   std::unique_ptr<SciToken> issuer;
   // create keys
   std::ofstream("/tmp/.eosunit.sci.cred") << "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9lFITZoMpmdgPN2rRFT3EUEYXybj\nzRoTSdF6P5I9eyCj42n/OASfE+jMB2FtpV8FrwIk7D8xqWAJ9KbHTZPKag==\n-----END PUBLIC KEY-----\n";

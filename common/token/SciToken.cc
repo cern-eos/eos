@@ -27,7 +27,9 @@
 #include "jwt-cpp/base.h"
 #include <string>
 #include <string_view>
+#ifdef HAVE_SCITOKENS
 #include <scitokens/scitokens.h>
+#endif
 
 eos::common::SciToken* eos::common::SciToken::sSciToken = nullptr;
 
@@ -189,6 +191,11 @@ int
 eos::common::SciToken::CreateToken(std::string& scitoken, time_t expires,
                                    const std::set<std::string>& claims)
 {
+#ifndef HAVE_SCITOKENS
+  std::cerr << "error: EOS was built without scitokens support" << std::endl;
+  errno = ENOTSUP;
+  return -1;
+#else
   std::string profile = "wlcg";
   char* err_msg = 0;
   errno = 0;
@@ -286,6 +293,7 @@ eos::common::SciToken::CreateToken(std::string& scitoken, time_t expires,
 
   scitoken = value;
   return 0;
+#endif
 }
 
 EOSCOMMONNAMESPACE_END
