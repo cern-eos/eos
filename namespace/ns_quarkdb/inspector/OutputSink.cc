@@ -492,20 +492,27 @@ bool JsonLinedStreamSink::appendQuoted(const std::string& str)
   bool verbatim = true;
 
   for (unsigned char c : str) {
-    if (c == '\0') {
-      return false;
-    }
-
     if (c < 0x20 || c > 0x7e || c == '"' || c == '\\') {
       verbatim = false;
+      break;
     }
   }
 
   if (verbatim) {
+    // Every byte was printable ASCII, so there was no NUL either.
     mBuffer.push_back('"');
     mBuffer.append(str);
     mBuffer.push_back('"');
     return true;
+  }
+
+  // Only the escaping path can hold a NUL, and only there does it matter:
+  // valueToQuotedString takes a C string and would stop at it. Looking for
+  // it here rather than in the loop above keeps the scan of a printable
+  // string to a single test per byte, and costs a memchr on the strings
+  // that are about to be escaped one byte at a time anyway.
+  if (str.find('\0') != std::string::npos) {
+    return false;
   }
 
   mBuffer.append(Json::valueToQuotedString(str.c_str()));
