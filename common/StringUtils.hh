@@ -184,7 +184,7 @@ auto StringToNumeric(const StrT& key, NumT& value,
                      NumT default_val = {},
                      std::string* log_msg = nullptr) noexcept
 -> std::enable_if_t<detail::is_charconv_numeric_v<NumT>, bool> {
-  NumT result;
+  NumT result = {};
 
   static_assert(detail::has_data_t<StrT>::value,
   "StringToNumeric requires a string like container with data(),"
