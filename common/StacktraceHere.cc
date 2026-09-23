@@ -35,6 +35,9 @@
 #if !defined(bfd_get_section_vma)
 #define bfd_get_section_vma(ptr, section) bfd_section_vma(section)
 #endif /* !defined(bfd_get_section_size) */
+#ifndef bfd_boolean
+#define bfd_boolean bool
+#endif
 #include "common/backward-cpp/backward.hpp"
 #endif
 
