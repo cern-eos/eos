@@ -98,7 +98,11 @@ if (NOT PACKAGEONLY)
   include(EosCompileFlags)
 endif()
 
-set(CMAKE_INSTALL_SYSCONFDIR /etc)
+if (NOT EOS_INSTALL_SYSCONFDIR)
+  set(EOS_INSTALL_SYSCONFDIR /etc)
+endif()
+
+set(CMAKE_INSTALL_SYSCONFDIR ${EOS_INSTALL_SYSCONFDIR})
 include(EosFindLibs)
 
 include(CTest)
@@ -191,8 +195,12 @@ set(EOS_PACKAGE_RELEASE "${RELEASE}")
 set(EOS_SOURCE_PACKAGE_NAME "${EOS_PACKAGE_NAME}-${EOS_PACKAGE_VERSION}-${EOS_PACKAGE_RELEASE}")
 set(EOS_ARCHIVE "${EOS_SOURCE_PACKAGE_NAME}.tar.gz")
 set(EOS_ARCHIVE_PATH "${CMAKE_BINARY_DIR}/${EOS_ARCHIVE}")
-set(EOS_TUI_VERSION "0.2.14")
-include(EosTui)
+option(EOS_INSTALL_TUI "Download and install the prebuilt eos-tui binary" ON)
+
+if (EOS_INSTALL_TUI)
+  set(EOS_TUI_VERSION "0.2.14")
+  include(EosTui)
+endif()
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
