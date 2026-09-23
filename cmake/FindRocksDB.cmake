@@ -58,6 +58,8 @@ if (ROCKSDB_FOUND AND NOT TARGET ROCKSDB::ROCKSDB)
     INTERFACE_COMPILE_DEFINITIONS "HAVE_ROCKSDB=1")
 else ()
   message(WARNING "Notice: rocksdb not found, no rocksdb support")
+  add_library(ROCKSDB::ROCKSDB INTERFACE IMPORTED)
+  add_library(ZSTD::ZSTD INTERFACE IMPORTED)
 endif()
 
 unset(ROCKSDB_INCLUDE_DIR)
