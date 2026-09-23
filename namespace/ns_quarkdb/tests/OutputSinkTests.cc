@@ -214,6 +214,59 @@ TEST(JsonStreamSink, ProducesOneJsonArray)
   ASSERT_EQ(parsed.size(), 2u);
   ASSERT_EQ(parsed[0]["fid"].asString(), "10");
   ASSERT_EQ(parsed[1]["fid"].asString(), "11");
-  // spans multiple lines: not parseable line by line, unlike jsonlines
-  ASSERT_GT(splitLines(out.str()).size(), 2u);
+  // The elements are the compact objects of the jsonlines sink, one per
+  // line, wrapped in the array framing.
+  std::vector<std::string> lines = splitLines(out.str());
+  ASSERT_EQ(lines.size(), 4u);
+  ASSERT_EQ(lines[0], "[");
+  ASSERT_EQ(lines[1], "{\"fid\":\"10\"},");
+  ASSERT_EQ(lines[2], "{\"fid\":\"11\"}");
+  ASSERT_EQ(lines[3], "]");
+}
+
+TEST(JsonStreamSink, EmptyScanProducesAnEmptyArray)
+{
+  std::ostringstream out, err;
+  {
+    JsonStreamSink sink(out, err);
+  }
+  Json::Value parsed = parseJson(out.str());
+  ASSERT_TRUE(parsed.isArray());
+  ASSERT_EQ(parsed.size(), 0u);
+}
+
+TEST(JsonStreamSink, ArrayAndLinedSinksAgreeOnEveryRecord)
+{
+  // The two differ in framing only: strip it, and what is left must be what
+  // the jsonlines sink writes, record for record.
+  const std::vector<std::map<std::string, std::string>> records = {
+    {{"fid", "10"}, {"path", "/eos/user/g/gd/plain"}},
+    {{"fid", "11"}, {"path", "/eos/user/g/gd/quote\"inside"}},
+    {{"fid", "12"}, {"xattr.sys.fusex.state", std::string("\x01\x80\x00\x03", 4)}},
+    {{"fid", "13"}, {"path", "/eos/user/g/gd/accentué"}},
+  };
+  std::ostringstream arrayOut, linedOut, err;
+  {
+    JsonStreamSink arraySink(arrayOut, err);
+    JsonLinedStreamSink linedSink(linedOut, err);
+
+    for (const std::map<std::string, std::string>& record : records) {
+      arraySink.print(record);
+      linedSink.print(record);
+    }
+  }
+  std::vector<std::string> arrayLines = splitLines(arrayOut.str());
+  std::vector<std::string> linedLines = splitLines(linedOut.str());
+  ASSERT_EQ(arrayLines.size(), linedLines.size() + 2);
+
+  for (size_t i = 0; i < linedLines.size(); i++) {
+    std::string element = arrayLines[i + 1];
+
+    if (i + 1 != linedLines.size()) {
+      ASSERT_EQ(element.back(), ',');
+      element.pop_back();
+    }
+
+    ASSERT_EQ(element, linedLines[i]) << "record " << i;
+  }
 }

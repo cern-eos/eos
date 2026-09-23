@@ -420,9 +420,9 @@ void StreamSink::print(const std::map<std::string, std::string>& line)
 // Constructor
 //------------------------------------------------------------------------------
 JsonStreamSink::JsonStreamSink(std::ostream& out, std::ostream& err)
-  : OutputSink(out, err), mFirst(true)
+  : JsonSink(out, err), mFirst(true)
 {
-  mOut << "[" << std::endl;
+  mOut << '[';
 }
 
 //------------------------------------------------------------------------------
@@ -430,7 +430,26 @@ JsonStreamSink::JsonStreamSink(std::ostream& out, std::ostream& err)
 //------------------------------------------------------------------------------
 JsonStreamSink::~JsonStreamSink()
 {
-  mOut << "]" << std::endl;
+  // A scan that produced nothing closes an array that was never opened onto
+  // a new line: "[\n]" parses just as well as "[\n{...}\n]".
+  mOut << "\n]" << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Open the slot for the next element
+//------------------------------------------------------------------------------
+void JsonStreamSink::separate()
+{
+  if (!mFirst) {
+    mOut << ',';
+  }
+
+  mFirst = false;
+  // One element per line. Nothing in the format requires it -- the objects
+  // are compact and a single line would do -- but it keeps the output
+  // readable, and a consumer that does not want to hold the whole array in
+  // memory can strip the framing by line.
+  mOut << '\n';
 }
 
 //------------------------------------------------------------------------------
@@ -438,18 +457,17 @@ JsonStreamSink::~JsonStreamSink()
 //------------------------------------------------------------------------------
 void JsonStreamSink::print(const std::map<std::string, std::string>& line)
 {
-  if (!mFirst) {
-    mOut << ",\n";
-  }
+  separate();
+  writeRecord(line);
+}
 
-  mFirst = false;
-  Json::Value json;
-
-  for (auto it = line.begin(); it != line.end(); it++) {
-    json[it->first] = it->second;
-  }
-
-  mOut << json;
+//------------------------------------------------------------------------------
+// Print implementation, json object
+//------------------------------------------------------------------------------
+void JsonStreamSink::print(const Json::Value& jsonObj)
+{
+  separate();
+  mWriter->write(jsonObj, &mOut);
 }
 
 
@@ -460,12 +478,50 @@ void JsonStreamSink::print(const std::map<std::string, std::string>& line)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
+JsonSink::JsonSink(std::ostream& out, std::ostream& err)
   : OutputSink(out, err)
 {
-  mBuilder["indentation"] = "";  // or whatever you like
+  // No indentation: one compact object, whether it goes on a line of its
+  // own or into an array.
+  mBuilder["indentation"] = "";
   mWriter.reset(mBuilder.newStreamWriter());
   mBuffer.reserve(4096);
+}
+
+//------------------------------------------------------------------------------
+// Write one record, compact, with nothing around it
+//------------------------------------------------------------------------------
+void JsonSink::writeRecord(const std::map<std::string, std::string>& line)
+{
+  // Building a Json::Value and walking it with the writer costs more than the
+  // namespace lookup that produced the record: it copies every key and value
+  // into the Value tree before the writer walks it back out. Serialize
+  // straight into a buffer instead, keeping the Value path only for records
+  // with an embedded NUL.
+  if (fastSerialize(line)) {
+    mOut.write(mBuffer.data(), mBuffer.size());
+    return;
+  }
+
+  Json::Value json;
+
+  for (auto it = line.begin(); it != line.end(); it++) {
+    json[it->first] = it->second;
+  }
+
+  mWriter->write(json, &mOut);
+}
+
+//------------------------------------------------------------------------------
+// Class JsonLinedStreamSink
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
+  : JsonSink(out, err)
+{
 }
 
 //------------------------------------------------------------------------------
@@ -487,7 +543,7 @@ JsonLinedStreamSink::~JsonLinedStreamSink()
 // Returns false if str contains a NUL, which valueToQuotedString cannot see
 // past; the caller then falls back to building a Json::Value.
 //------------------------------------------------------------------------------
-bool JsonLinedStreamSink::appendQuoted(const std::string& str)
+bool JsonSink::appendQuoted(const std::string& str)
 {
   bool verbatim = true;
 
@@ -522,7 +578,7 @@ bool JsonLinedStreamSink::appendQuoted(const std::string& str)
 //------------------------------------------------------------------------------
 // Serialize a line into mBuffer, compact
 //------------------------------------------------------------------------------
-bool JsonLinedStreamSink::fastSerialize(const std::map<std::string, std::string>&
+bool JsonSink::fastSerialize(const std::map<std::string, std::string>&
                                         line)
 {
   // An empty Json::Value is null, not an empty object, so the writer emits
@@ -552,7 +608,9 @@ bool JsonLinedStreamSink::fastSerialize(const std::map<std::string, std::string>
     }
   }
 
-  mBuffer.append("}\n");
+  // Just the object: what separates one record from the next is the
+  // caller's business, a newline for jsonlines and a comma for the array.
+  mBuffer.push_back('}');
   return true;
 }
 
@@ -561,23 +619,10 @@ bool JsonLinedStreamSink::fastSerialize(const std::map<std::string, std::string>
 //------------------------------------------------------------------------------
 void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
 {
-  // Building a Json::Value and walking it with the writer costs more than the
-  // namespace lookup that produced the record: it copies every key and value
-  // into the Value tree before the writer walks it back out. Serialize
-  // straight into a buffer instead, keeping the Value path only for records
-  // with an embedded NUL.
-  if (fastSerialize(line)) {
-    mOut.write(mBuffer.data(), mBuffer.size());
-    return;
-  }
-
-  Json::Value json;
-
-  for (auto it = line.begin(); it != line.end(); it++) {
-    json[it->first] = it->second;
-  }
-
-  print(json);
+  writeRecord(line);
+  // '\n' rather than std::endl: flushing per record turns a streaming scan
+  // into one write() syscall per namespace entry.
+  mOut << '\n';
 }
 
 //------------------------------------------------------------------------------
