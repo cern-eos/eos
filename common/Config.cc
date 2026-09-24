@@ -221,4 +221,28 @@ Config::GetValueByKey(const char* chapter, const char* key)
   return "";
 }
 
+//----------------------------------------------------------------------------
+//! Set or add a key=value entry in a chapter
+//----------------------------------------------------------------------------
+bool
+Config::SetValueByKey(const char* chapter, const std::string& key,
+                      const std::string& value)
+{
+  if (!chapter || key.empty() || !Has(chapter)) {
+    return false;
+  }
+
+  const std::string prefix = key + "=";
+
+  for (auto& entry : conf[chapter]) {
+    if (entry.compare(0, prefix.size(), prefix) == 0) {
+      entry = prefix + value;
+      return true;
+    }
+  }
+
+  conf[chapter].push_back(prefix + value);
+  return true;
+}
+
 EOSCOMMONNAMESPACE_END

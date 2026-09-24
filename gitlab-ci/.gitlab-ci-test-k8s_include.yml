@@ -119,10 +119,9 @@ k8s_stress:
   image: alpine/k8s:1.18.2
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
-    - exec_cmd eos-mgm1 "echo -e \"[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el9/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n\" > /etc/yum.repos.d/grid-hammer.repo"
-    - exec_cmd eos-mgm1 "wget --directory-prefix=/etc/yum.repos.d/ https://cern.ch/xrootd/xrootd.repo"
-    - exec_cmd eos-mgm1 "yum install -y strace grid-hammer"
-    - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
+    - exec_cmd eos-mgm1 'yum install -y git gcc-c++ boost-devel python3 which strace "xrootd-client-devel-$(rpm -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}" xrootd-client-libs)"'
+    - kubectl exec -i --namespace=${K8S_NAMESPACE} $(get_podname eos-mgm1) -- bash -s -- /tmp/grid-hammer < ./gitlab-ci/build-grid-hammer.sh
+    - exec_cmd eos-mgm1 "python3 /tmp/grid-hammer/hammer-runner.py --binary-dir /tmp/grid-hammer --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   needs:
     - job: el9_docker_image
       artifacts: false
