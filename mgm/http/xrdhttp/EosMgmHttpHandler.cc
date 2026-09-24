@@ -229,11 +229,8 @@ EosMgmHttpHandler::generateResponseHeaders(
     if (mRedirectToHttps) {
       if (key == "Location") {
         if (normalized_headers["xrd-http-prot"] == "https") {
-          if (!normalized_headers.count("xrd-http-redirect-http") ||
-              (normalized_headers["xrd-http-redirect-http"] == "0")) {
-            // Re-write http: as https:
-            val.insert(4, "s");
-          }
+          // Re-write http: as https:
+          val.insert(4, "s");
         }
       }
     }
