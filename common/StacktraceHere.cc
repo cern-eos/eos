@@ -35,6 +35,15 @@
 #if !defined(bfd_get_section_vma)
 #define bfd_get_section_vma(ptr, section) bfd_section_vma(section)
 #endif /* !defined(bfd_get_section_size) */
+
+#ifndef PACKAGE
+#define PACKAGE "eos"
+#endif
+
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "1.0"
+#endif
+
 #include <bfd.h>
 // binutils < 2.39 typedefs bfd_boolean as int, newer versions drop it in favour
 // of bool. backward.hpp needs it to match the return type of bfd_close(), so
@@ -42,6 +51,7 @@
 #ifndef bfd_boolean
 #define bfd_boolean decltype(bfd_close(nullptr))
 #endif
+
 #include "common/backward-cpp/backward.hpp"
 #endif
 
