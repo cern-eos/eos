@@ -52,8 +52,10 @@ set(MGM_UT_SRCS
   mgm/MemberTests.cc
   mgm/FileSystemRegistryTests.cc
   mgm/FsViewTests.cc
+  mgm/EosExporterCollectorTests.cc
   mgm/FstStatusCollectorTests.cc
   mgm/MgmStatusCollectorTests.cc
+  mgm/TrafficShapingCollectorTests.cc
   mgm/HttpTests.cc
   mgm/IostatTests.cc
   mgm/LockTrackerTests.cc
@@ -108,7 +110,6 @@ set(MGM_UT_SRCS
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
   mgm/TrafficShapingTests.cc
-  mgm/TrafficShapingCollectorTests.cc
   mgm/placement/ClusterBuilderTests.cc
   mgm/placement/ClusterMgrTests.cc
   mgm/placement/RRSeedTests.cc
@@ -116,6 +117,10 @@ set(MGM_UT_SRCS
   mgm/placement/FsSchedulerTests.cc
   mgm/placement/SelectionStrategyTests.cc
   mgm/scheduler/SchedulerBridgeTests.cc)
+
+if(HAVE_XROOTD_METRICS)
+  list(APPEND MGM_UT_SRCS mgm/XrdMetricsCollectorTests.cc)
+endif()
 
 set(COMMON_UT_SRCS
   common/AppTagsTests.cc
@@ -216,10 +221,11 @@ target_link_libraries(eos-unit-tests PRIVATE
   GTest::Main
   GTest::gmock
   qclient
+  XrdEosMgm-Static
   XROOTD::POSIX
   XROOTD::SERVER
-  RestAnnot-Objects
-  XrdEosMgm-Static)
+  XROOTD::UTILS
+  RestAnnot-Objects)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-fst executable
@@ -264,6 +270,7 @@ target_link_libraries(eos-unit-tests-with-qdb
   qclient
   RestAnnot-Objects
   XrdEosMgm-Static
+  XROOTD::UTILS
   READLINE::READLINE
   JSONCPP::JSONCPP)
 

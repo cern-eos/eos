@@ -1,7 +1,6 @@
 #include "mgm/monitoring/MgmStatusCollector.hh"
 
-#include "prometheus/client_metric.h"
-#include "prometheus/metric_type.h"
+#include "mgm/monitoring/PrometheusFormatter.hh"
 
 #include <algorithm>
 #include <map>
@@ -12,20 +11,6 @@ namespace eos::mgm::monitoring {
 namespace {
 
 constexpr const char* kUnknownMgm = "unknown";
-
-void
-AddGauge(prometheus::MetricFamily& family,
-         const std::map<std::string, std::string>& labels, const double value)
-{
-  prometheus::ClientMetric metric;
-  metric.gauge.value = value;
-
-  for (const auto& [name, label_value] : labels) {
-    metric.label.push_back({name, label_value});
-  }
-
-  family.metric.push_back(std::move(metric));
-}
 
 } // namespace
 
@@ -63,26 +48,26 @@ BuildMgmStatusSnapshots(const std::string& local_id, const bool local_is_master,
   return snapshots;
 }
 
-std::vector<prometheus::MetricFamily>
-BuildMgmStatusMetricFamilies(const std::vector<MgmStatusSnapshot>& snapshots,
-                             const std::string& cluster)
+void
+EmitMgmStatusMetrics(const std::vector<MgmStatusSnapshot>& snapshots,
+                     const std::string& cluster, std::string& out)
 {
-  prometheus::MetricFamily role;
-  role.name = "eos_mgm_master";
-  role.help = "Configured MGM candidates and role (1 master, 0 follower); master_id is "
-              "the lease holder observed by the exporting process.";
-  role.type = prometheus::MetricType::Gauge;
+  if (snapshots.empty()) {
+    return;
+  }
+
+  FormatHeader(out, "eos_mgm_master", "gauge",
+               "Configured MGM candidates and role (1 master, 0 follower); master_id is "
+               "the lease holder observed by the exporting process.");
 
   for (const auto& snapshot : snapshots) {
-    AddGauge(
-        role,
+    FormatGaugeMetric(
+        out, "eos_mgm_master",
         {{"cluster", cluster},
          {"master_id", snapshot.master_id.empty() ? kUnknownMgm : snapshot.master_id},
          {"mgm_id", snapshot.mgm_id.empty() ? kUnknownMgm : snapshot.mgm_id}},
         snapshot.is_master ? 1.0 : 0.0);
   }
-
-  return {std::move(role)};
 }
 
 MgmStatusCollector::MgmStatusCollector(
@@ -92,11 +77,12 @@ MgmStatusCollector::MgmStatusCollector(
 {
 }
 
-std::vector<prometheus::MetricFamily>
-MgmStatusCollector::Collect() const
+void
+MgmStatusCollector::Collect(std::string& out) const
 {
-  return BuildMgmStatusMetricFamilies(
-      mStatusSnapshot ? mStatusSnapshot() : std::vector<MgmStatusSnapshot>{}, mCluster);
+  EmitMgmStatusMetrics(mStatusSnapshot ? mStatusSnapshot()
+                                       : std::vector<MgmStatusSnapshot>{},
+                       mCluster, out);
 }
 
 } // namespace eos::mgm::monitoring

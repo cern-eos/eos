@@ -132,6 +132,39 @@ TEST(Audit, BasicWriteRotateAndSymlink)
   ASSERT_NE(firstTarget, secondTarget);
 }
 
+TEST(Audit, MaintainsExporterMetrics)
+{
+  using namespace eos::common;
+  Audit audit(makeTempDir(), /*rotationSeconds*/ 3600, /*compressionLevel*/ 1);
+
+  eos::audit::AuditRecord create;
+  create.set_timestamp(100);
+  create.set_operation(eos::audit::CREATE);
+  create.set_uuid("test-uuid");
+  create.set_account("alice");
+  create.mutable_auth()->set_mechanism("krb5");
+  audit.audit(create);
+
+  eos::audit::AuditRecord write = create;
+  write.set_timestamp(110);
+  write.set_operation(eos::audit::WRITE);
+  write.set_client_ip("127.0.0.1");
+  write.mutable_after()->set_size(4096);
+  audit.audit(write);
+
+  eos::audit::AuditRecord remove = create;
+  remove.set_timestamp(125);
+  remove.set_operation(eos::audit::DELETE);
+  audit.audit(remove);
+
+  const auto metrics = audit.getMetricsSnapshot();
+  EXPECT_EQ(metrics.operations.at({"CREATE", "krb5", "alice"}), 1u);
+  EXPECT_EQ(metrics.operations.at({"WRITE", "krb5", "alice"}), 1u);
+  EXPECT_EQ(metrics.operations.at({"DELETE", "krb5", "alice"}), 1u);
+  EXPECT_EQ(metrics.writeBytes.at({"krb5", "127.0.0.1"}), 4096u);
+  EXPECT_EQ(metrics.lifecycleSeconds.at({"krb5", "alice"}), 25u);
+}
+
 TEST(Audit, BenchmarkWrite10000)
 {
   using namespace eos::common;
@@ -200,5 +233,3 @@ TEST(Audit, BenchmarkWrite100kConcurrent)
 }
 
 EOSCOMMONTESTING_END
-
-

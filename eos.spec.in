@@ -34,9 +34,21 @@
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
 
+# Native metrics require the monitoring-enabled XRootD packages at runtime too.
+%bcond_with xrootd_metrics
+
 # Define required dependencies
+%if %{with xrootd_metrics}
+# Stock 6.2.0 lacks this API; require the known monitoring-enabled build exactly.
+%{!?xrootd_metrics_version_release:%global xrootd_metrics_version_release 6.2~rc1-1%{?dist}}
+%define eos_xrootd_version_min 0:%{xrootd_metrics_version_release}
+%define xrootd_version_min 1:6.2~rc1
+%define xrootd_version_requirement = 1:%{xrootd_metrics_version_release}
+%else
 %define eos_xrootd_version_min 0:6.1.1
 %define xrootd_version_min 1:6.1.1
+%define xrootd_version_requirement >= %{xrootd_version_min}
+%endif
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
 %define eos_grpc_gateway_version 0.3.1
@@ -99,17 +111,17 @@ BuildRequires: eos-xrootd = %{eos_xrootd_version_min}
 %define xrootd_requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*$|^libXrdUtils.*$|^libXrdXml.*$|^libXrdCrypto.*$
 %else
 # Add default xrootd dependencies
-BuildRequires: xrootd >= %{xrootd_version_min}
-BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
-BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
-BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
+BuildRequires: xrootd %{xrootd_version_requirement}
+BuildRequires: xrootd-client-devel %{xrootd_version_requirement}
+BuildRequires: xrootd-server-devel %{xrootd_version_requirement}
+BuildRequires: xrootd-private-devel %{xrootd_version_requirement}
 %endif
 %else
 # Add default xrootd dependencies
-BuildRequires: xrootd >= %{xrootd_version_min}
-BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
-BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
-BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
+BuildRequires: xrootd %{xrootd_version_requirement}
+BuildRequires: xrootd-client-devel %{xrootd_version_requirement}
+BuildRequires: xrootd-server-devel %{xrootd_version_requirement}
+BuildRequires: xrootd-private-devel %{xrootd_version_requirement}
 %endif
 
 # Add eos-grpc dependencies
@@ -169,7 +181,6 @@ Requires: libnfs
 
 %if %{with server}
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
-BuildRequires: libprometheus-cpp-devel
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 %endif
@@ -225,6 +236,11 @@ The EOS software package.
 %setup -q -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 %global build_type RelWithDebInfo
 %global build_flags -DBUILD_MANPAGES=1
+%if %{with xrootd_metrics}
+%global build_flags %{build_flags} -DEOS_XROOTD_METRICS=ON
+%else
+%global build_flags %{build_flags} -DEOS_XROOTD_METRICS=OFF
+%endif
 %if %{without server}
 %global build_flags %{build_flags} -DCLIENT=1
 %endif
@@ -286,14 +302,14 @@ ExclusiveArch: x86_64 aarch64
 %if 0%{?rhel} >= 8 && 0%{?rhel} <= 10
 Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
-Requires: xrootd >= %{xrootd_version_min}
-Requires: xrootd-client >= %{xrootd_version_min}
-Requires: xrootd-voms >= %{xrootd_version_min}
+Requires: xrootd %{xrootd_version_requirement}
+Requires: xrootd-client %{xrootd_version_requirement}
+Requires: xrootd-voms %{xrootd_version_requirement}
 %endif
 %else
-Requires: xrootd >= %{xrootd_version_min}
-Requires: xrootd-client >= %{xrootd_version_min}
-Requires: xrootd-voms >= %{xrootd_version_min}
+Requires: xrootd %{xrootd_version_requirement}
+Requires: xrootd-client %{xrootd_version_requirement}
+Requires: xrootd-voms %{xrootd_version_requirement}
 %endif
 
 %if %{with eos_grpc_gateway}

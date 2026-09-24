@@ -1,8 +1,5 @@
 #pragma once
 
-#include "prometheus/collectable.h"
-#include "prometheus/metric_family.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -40,15 +37,14 @@ struct FstStatusSnapshot {
   double collection_duration_seconds = 0.0;
 };
 
-std::vector<prometheus::MetricFamily>
-BuildFstStatusMetricFamilies(const FstStatusSnapshot& snapshot,
-                             const std::string& cluster);
+void EmitFstStatusMetrics(const FstStatusSnapshot& snapshot, const std::string& cluster,
+                          std::string& out);
 
-class FstStatusCollector : public prometheus::Collectable {
+class FstStatusCollector {
 public:
   explicit FstStatusCollector(std::string cluster);
 
-  std::vector<prometheus::MetricFamily> Collect() const override;
+  void Collect(std::string& out) const;
 
 private:
   std::string mCluster;

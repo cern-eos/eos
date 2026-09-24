@@ -141,6 +141,16 @@ cmake3 ..
 make -j 4
 ```
 
+Native XRootD monitoring is detected at configure time (`EOS_XROOTD_METRICS=AUTO`).
+Stock XRootD 6.1.1 and 6.2.0 do not provide this API. With these releases, EOS
+builds without the native metrics collector and does not export EOS metrics
+through XRootD. Traffic shaping and the other MGM services remain available.
+Monitoring requires a build containing the API from
+[`amadio/xrootd:monitoring-wip`](https://github.com/amadio/xrootd/tree/monitoring-wip)
+in both the build and runtime XRootD installations.
+Use `-DEOS_XROOTD_METRICS=ON` to require this API (and fail configuration if it is
+missing), or `-DEOS_XROOTD_METRICS=OFF` to disable the collector explicitly.
+
 ## Install/Uninstall
 
 The default behaviour is to install **EOS** at system level using `CMAKE_INSTALL_PREFIX=/usr`.
@@ -173,11 +183,27 @@ make srpm
 make rpm
 ```
 
+Direct `rpmbuild` builds disable native monitoring by default and require
+XRootD 6.1.1 or newer. Pass `--with xrootd_metrics` to require the monitoring API
+and pin the build and server runtime dependencies to the known monitoring-enabled
+`6.2~rc1-1` packages for the target distribution. A newer version number alone
+does not establish API compatibility. The CMake `srpm`/`rpm` targets forward this
+option when monitoring is enabled (or explicitly requested with
+`-DEOS_XROOTD_METRICS=ON` in package-only mode).
+
+For another compatible monitoring build, override the RPM macro
+`xrootd_metrics_version_release` with its exact version-release, including the
+distribution suffix and excluding the epoch, using
+`--define 'xrootd_metrics_version_release VERSION-RELEASE'`. It defaults to
+`6.2~rc1-1%{?dist}`. The specification supplies epoch `1` for `xrootd` packages
+and epoch `0` for `eos-xrootd`; the configure-time compile and link probe still
+requires the API to be present.
+
 ## Bug Reporting
 
-You can send **EOS** bug reports to <project-eos@cern.ch>. 
-The preferable way, if you have access, is use the online bug tracking 
-system [Jira][2] to submit new problem reports or search for existing ones: 
+You can send **EOS** bug reports to <project-eos@cern.ch>.
+The preferable way, if you have access, is use the online bug tracking
+system [Jira][2] to submit new problem reports or search for existing ones:
 https://its.cern.ch/jira/browse/EOS
 
 ## EOS Community
@@ -187,7 +213,7 @@ users, developers & collaborators at https://eos-community.web.cern.ch/
 
 ## Licence
 
-**EOS - The CERN Disk Storage System**  
+**EOS - The CERN Disk Storage System**
 **Copyright (C) 2025 CERN/Switzerland**
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
