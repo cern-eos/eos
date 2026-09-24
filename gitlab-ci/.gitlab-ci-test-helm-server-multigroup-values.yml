@@ -26,3 +26,5 @@ mgm:
   env:
     - name: LD_PRELOAD
       value: "/usr/lib64/libjemalloc.so"
+    - name: EOS_MGM_ENABLE_REST_API
+      value: "1"

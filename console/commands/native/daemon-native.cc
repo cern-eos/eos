@@ -12,6 +12,7 @@
 #include "common/SymKeys.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <cstring>
 #include <fcntl.h>
 #include <sched.h>
 #include <sys/mount.h>
@@ -19,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 // Ptrace macros compatibility
 #ifdef __APPLE__
@@ -30,6 +32,32 @@
 #define EOS_PTRACE_ATTACH PTRACE_ATTACH
 #define EOS_PTRACE_DETACH PTRACE_DETACH
 #endif //__APPLE__
+
+#ifndef __APPLE__
+namespace {
+
+struct XRootdLayout {
+  const char* root;
+  const char* binary;
+};
+
+const XRootdLayout*
+FindXRootdLayout()
+{
+  static constexpr XRootdLayout layouts[] = {
+      {"/opt/eos/xrootd", "/opt/eos/xrootd/bin/xrootd"}, {"/usr", "/usr/bin/xrootd"}};
+
+  for (const auto& layout : layouts) {
+    if (::access(layout.binary, X_OK) == 0) {
+      return &layout;
+    }
+  }
+
+  return nullptr;
+}
+
+} // namespace
+#endif // __APPLE__
 
 // Native port of legacy com_daemon
 static int
@@ -53,6 +81,7 @@ native_com_daemon(char* arg)
   std::string pidfile;
   std::string envfile;
   std::string cfile;
+  const XRootdLayout* xrootd_layout = nullptr;
   bool ok = false;
   subtokenizer.GetLine();
 
@@ -206,6 +235,15 @@ native_com_daemon(char* arg)
   ok |= cfg.ok();
   // this might fail if there are no modules
   cfg.Load(service.c_str(), modules.c_str(), false);
+
+  // TODO(upstream): Keep this dual-layout override when porting vanilla
+  // XRootD support to EOS master. It also resolves EOS_XRDCP substitutions.
+  xrootd_layout = FindXRootdLayout();
+
+  if (xrootd_layout) {
+    cfg.SetValueByKey("sysconfig", "EOS_XROOTD", xrootd_layout->root);
+  }
+
   {
     // load all the modules:
     eos::common::StringConversion::Tokenize(cfg.Dump("modules", true), mods,
@@ -654,6 +692,13 @@ native_com_daemon(char* arg)
     }
 
     if (ok) {
+      if (!xrootd_layout) {
+        fprintf(stderr, "error: unable to find an executable xrootd under "
+                        "'/opt/eos/xrootd/bin' or '/usr/bin'\n");
+        global_retc = ENOENT;
+        return (0);
+      }
+
       fprintf(stderr, "# ---------------------------------------\n");
       fprintf(stderr, "# ------------- x r o o t d  ------------\n");
       fprintf(stderr, "# ---------------------------------------\n");
@@ -661,6 +706,7 @@ native_com_daemon(char* arg)
       fprintf(stderr, "# ---------------------------------------\n");
       fprintf(stderr, "%s\n", cfg.Dump(chapter.c_str(), true).c_str());
       fprintf(stderr, "#########################################\n");
+      fprintf(stderr, "# using xrootd binary: %s\n", xrootd_layout->binary);
       eos::common::Path cPath(cfile.c_str());
 
       if (!cPath.MakeParentPath(0x1ed)) {
@@ -703,26 +749,29 @@ native_com_daemon(char* arg)
                 zstd_log.c_str());
 
         if (service == "qdb") {
-          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-                 name.c_str(), "-c", cfile.c_str(), "-R", "daemon", "-k",
-                 "fifo", "-s", pidfile.c_str(), NULL, envv);
+          execle(xrootd_layout->binary, executable.c_str(), "-n", name.c_str(), "-c",
+                 cfile.c_str(), "-R", "daemon", "-k", "fifo", "-s", pidfile.c_str(), NULL,
+                 envv);
         } else {
-          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-                 name.c_str(), "-c", cfile.c_str(), "-R", "daemon", "-s",
-                 pidfile.c_str(), NULL, envv);
+          execle(xrootd_layout->binary, executable.c_str(), "-n", name.c_str(), "-c",
+                 cfile.c_str(), "-R", "daemon", "-s", pidfile.c_str(), NULL, envv);
         }
       } else {
         if (service == "qdb") {
-          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-                 name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
-                 "daemon", "-k", "fifo", "-s", pidfile.c_str(), NULL, envv);
+          execle(xrootd_layout->binary, executable.c_str(), "-n", name.c_str(), "-c",
+                 cfile.c_str(), "-l", logfile.c_str(), "-R", "daemon", "-k", "fifo", "-s",
+                 pidfile.c_str(), NULL, envv);
         } else {
-          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-                 name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
-                 "daemon", "-s", pidfile.c_str(), NULL, envv);
+          execle(xrootd_layout->binary, executable.c_str(), "-n", name.c_str(), "-c",
+                 cfile.c_str(), "-l", logfile.c_str(), "-R", "daemon", "-s",
+                 pidfile.c_str(), NULL, envv);
         }
       }
 
+      const int exec_errno = errno;
+      fprintf(stderr, "error: unable to execute '%s': %s\n", xrootd_layout->binary,
+              strerror(exec_errno));
+      global_retc = exec_errno;
       return (0);
     } else {
       fprintf(stderr, "error: rc=%d msg=%s\n", cfg.getErrc(),

@@ -26,6 +26,36 @@ clone_docker:
   script:
     - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    # TODO(upstream eos-docker): Resolve xrdcp from the installed XRootD layout
+    # when rendering xrd.cf.fst, then remove this temporary CI rewrite.
+    - sed -i 's|/opt/eos/xrootd/bin/xrdcp|/usr/bin/xrdcp|' eos-docker/image/etc/xrd/xrd.cf.fst
+    # Keep the temporary XRootD repositories separate from eos.repo: the
+    # Dockerfile removes eos.repo after the runtime stage, while the test stage
+    # still needs python3-xrootd to install eos-archive.
+    - sed -i '/^COPY eos-docker\/docker\/repos\/eos.repo.in/a COPY eos-docker/docker/repos/xrootd-ci.repo /etc/yum.repos.d/xrootd-ci.repo' eos-docker/docker/Dockerfile
+    - |
+      cat << 'REPO_EOF' > eos-docker/docker/repos/xrootd-ci.repo
+
+      [xrootd-stable]
+      name=XRootD Stable Releases for Enterprise Linux $releasever
+      baseurl=https://xrootd.web.cern.ch/repo/stable/el$releasever/$basearch
+      gpgkey=https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
+      metadata_expire=7d
+      repo_gpgcheck=1
+      priority=10
+      gpgcheck=1
+      enabled=1
+
+      [xrootd-testing]
+      name=XRootD Development Branch RPMs for Enterprise Linux $releasever
+      baseurl=https://xrootd.web.cern.ch/repo/testing/el$releasever/$basearch
+      gpgkey=https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
+      metadata_expire=1d
+      repo_gpgcheck=1
+      priority=5
+      gpgcheck=1
+      enabled=1
+      REPO_EOF
   artifacts:
     expire_in: 1 day
     paths:
