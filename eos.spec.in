@@ -26,10 +26,10 @@
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_with coverage
 
-# By default we build against the eos-xrootd package. To build against the
-# vanilla XRootD packages instead, pass the "--without eos_xrootd_rh" flag
+# By default we build against the vanilla XRootD packages. To build against the
+# eos-xrootd package instead, pass the "--with eos_xrootd_rh" flag
 # to the rpmbuild command
-%bcond_without eos_xrootd_rh
+%bcond_with eos_xrootd_rh
 
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
@@ -256,7 +256,7 @@ cd build
   %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{?xrootd_root_flag} %{build_flags}
 %else
   source /opt/rh/gcc-toolset-14/enable
-  CC=clang CXX=clang++ %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
+  CC=clang CXX=clang++ %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{?xrootd_root_flag} %{build_flags}
 %endif
 
 %{__make} %{_smp_mflags}
@@ -288,10 +288,12 @@ Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
+Requires: xrootd-voms >= %{xrootd_version_min}
 %endif
 %else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
+Requires: xrootd-voms >= %{xrootd_version_min}
 %endif
 
 %if %{with eos_grpc_gateway}

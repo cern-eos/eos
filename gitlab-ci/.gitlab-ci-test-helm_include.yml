@@ -93,9 +93,17 @@
       ######## EOS-CHARTS/SERVER ########
       HELM_EOS_SERVER_VERSION=0.9.2
       HELM_EOS_SERVER_REGISTRY=oci://registry.cern.ch/eos/charts/server
-      helm install eos $HELM_EOS_SERVER_REGISTRY --wait --timeout 30m0s \
+      HELM_EOS_SERVER_DIR=eos-server-chart
+      helm pull $HELM_EOS_SERVER_REGISTRY --version $HELM_EOS_SERVER_VERSION \
+        --untar --untardir $HELM_EOS_SERVER_DIR
+      # TODO(upstream eos-charts): Resolve XRootD tools from the image PATH.
+      # This temporary rewrite lets the vanilla XRootD CI image use /usr/bin.
+      find $HELM_EOS_SERVER_DIR/server/charts/fst/templates \
+        $HELM_EOS_SERVER_DIR/server/charts/mgm/templates \
+        $HELM_EOS_SERVER_DIR/server/charts/qdb/templates \
+        -type f -exec sed -i 's|/opt/eos/xrootd/bin/|/usr/bin/|g' {} \;
+      helm install eos $HELM_EOS_SERVER_DIR/server --wait --timeout 30m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml \
-        --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
         --set-string global.repository=$IMAGE_REPO \
         --set-string global.tag=$IMAGE_TAG
@@ -104,6 +112,15 @@
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
       kubectl label pod eos-qdb-0 app=eos-qdb
+    - |
+      REST_RESPONSE=$(kubectl exec eos-mgm-0 -- curl --fail --silent --show-error \
+        --retry 30 --retry-connrefused --retry-delay 1 \
+        --connect-timeout 2 --max-time 10 \
+        --header 'Content-Type: application/json' \
+        --data '{"whoami":true}' \
+        http://127.0.0.1:8000/v1/eos/rest/gateway/whoami_cmd)
+      echo "$REST_RESPONSE"
+      echo "$REST_RESPONSE" | grep -q '"stdOut"'
 
 
 .helm_after_script_template: &helm_after_script_template
@@ -284,20 +301,10 @@ helm_stress:
   <<: [*helm_before_script_template, *helm_after_script_template]
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
-    - |
-      kubectl exec -i eos-mgm-0 -- bash -c 'cat > /etc/yum.repos.d/grid-hammer.repo' <<'EOF'
-      [grid-hammer]
-      name=grid-hammer continuous builds for master
-      baseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el9/x86_64/
-      gpgcheck=0
-      enabled=1
-      protect=1
-      priority=20
-      EOF
-    - kubectl exec eos-mgm-0 -- wget --directory-prefix=/etc/yum.repos.d/ https://cern.ch/xrootd/xrootd.repo
-    - kubectl exec eos-mgm-0 -- yum install -y strace grid-hammer
+    - kubectl exec eos-mgm-0 -- bash -lc 'yum install -y git gcc-c++ boost-devel python3 which strace "xrootd-client-devel-$(rpm -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}" xrootd-client-libs)"'
+    - kubectl exec -i eos-mgm-0 -- bash -s -- /tmp/grid-hammer < ./gitlab-ci/build-grid-hammer.sh
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
-    - kubectl exec eos-mgm-0 -- hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
+    - kubectl exec eos-mgm-0 -- python3 /tmp/grid-hammer/hammer-runner.py --binary-dir /tmp/grid-hammer --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
   artifacts:
     when: on_failure
     expire_in: 3 days

@@ -23,6 +23,5 @@ fst:
     groupmod: 2
 
 mgm:
-  env:
-    - name: LD_PRELOAD
-      value: "/usr/lib64/libjemalloc.so"
+  extraEnv:
+    EOS_MGM_ENABLE_REST_API: "1"
