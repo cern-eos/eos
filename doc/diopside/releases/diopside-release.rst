@@ -16,6 +16,26 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.2 Diopside``
+===================
+
+2026-09-24
+
+Bug
+----
+
+* [EOS-6639] - MGM: eos chown -r may fail with invalid argument error despite being successful
+* [EOS-6647] - FST crash when DNS resolution fails
+* [EOS-6649] - MGM: eos member can query the authenticated user instead of the UID selected with -r
+* [EOS-6654] - Add network-online.target and nss-lookup.target dependencies to EOS systemd units to prevent startup failures on slow networks
+
+New Feature
+-------------
+
+* [EOS-5957] - Support setting an instance encryption token by space
+* [EOS-6640] - Support jsonline output in eos-ns-inspect
+* [EOS-6638] - FSCK GRPC streaming
+
 
 ``v5.5.1 Diopside``
 ===================
