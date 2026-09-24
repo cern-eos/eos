@@ -141,6 +141,15 @@ cmake3 ..
 make -j 4
 ```
 
+Native XRootD monitoring is detected at configure time (`EOS_XROOTD_METRICS=AUTO`).
+With XRootD 6.1.1, EOS builds without the native metrics collector and does not
+export EOS metrics through XRootD. Traffic shaping and the other MGM services
+remain available. Monitoring requires the API from
+[`amadio/xrootd:monitoring-wip`](https://github.com/amadio/xrootd/tree/monitoring-wip)
+in both the build and runtime XRootD installations.
+Use `-DEOS_XROOTD_METRICS=ON` to require this API (and fail configuration if it is
+missing), or `-DEOS_XROOTD_METRICS=OFF` to disable the collector explicitly.
+
 ## Install/Uninstall
 
 The default behaviour is to install **EOS** at system level using `CMAKE_INSTALL_PREFIX=/usr`.
@@ -173,11 +182,17 @@ make srpm
 make rpm
 ```
 
+Direct `rpmbuild` builds default to XRootD 6.1.1 without native monitoring.
+Pass `--with xrootd_metrics` to require the monitoring API and the newer XRootD
+packages at both build and runtime. The CMake `srpm`/`rpm` targets forward this
+option when monitoring is enabled (or explicitly requested with
+`-DEOS_XROOTD_METRICS=ON` in package-only mode).
+
 ## Bug Reporting
 
-You can send **EOS** bug reports to <project-eos@cern.ch>. 
-The preferable way, if you have access, is use the online bug tracking 
-system [Jira][2] to submit new problem reports or search for existing ones: 
+You can send **EOS** bug reports to <project-eos@cern.ch>.
+The preferable way, if you have access, is use the online bug tracking
+system [Jira][2] to submit new problem reports or search for existing ones:
 https://its.cern.ch/jira/browse/EOS
 
 ## EOS Community
@@ -187,7 +202,7 @@ users, developers & collaborators at https://eos-community.web.cern.ch/
 
 ## Licence
 
-**EOS - The CERN Disk Storage System**  
+**EOS - The CERN Disk Storage System**
 **Copyright (C) 2025 CERN/Switzerland**
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

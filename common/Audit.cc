@@ -191,6 +191,7 @@ Audit::audit(const eos::audit::AuditRecord& record)
 
   ZSTD_inBuffer in = { json.data(), json.size(), 0 };
   std::vector<char> outBuf(131072);
+  bool write_ok = true;
 
   while (in.pos < in.size) {
     ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
@@ -199,13 +200,15 @@ Audit::audit(const eos::audit::AuditRecord& record)
     if (ZSTD_isError(ret)) {
       eos_static_err("msg=\"zstd compress error\" code=%s",
                      ZSTD_getErrorName(ret));
+      write_ok = false;
       break;
     }
     if (out.pos) {
       ssize_t w = write(mFd, outBuf.data(), out.pos);
-      if (w < 0) {
+      if (w < 0 || static_cast<size_t>(w) != out.pos) {
         eos_static_err("msg=\"write error\" errno=%d err=\"%s\"",
                        errno, strerror(errno));
+        write_ok = false;
         break;
       }
     }
@@ -215,6 +218,7 @@ Audit::audit(const eos::audit::AuditRecord& record)
   {
     ZSTD_inBuffer fin = { nullptr, 0, 0 };
     size_t fret = 0;
+    bool flush_ok = true;
     do {
       ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
       fret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(mZstdCctx),
@@ -222,12 +226,58 @@ Audit::audit(const eos::audit::AuditRecord& record)
       if (ZSTD_isError(fret)) {
         eos_static_warning("msg=\"zstd flush error\" code=%s",
                            ZSTD_getErrorName(fret));
+        flush_ok = false;
         break;
       }
       if (out.pos) {
-        (void) ::write(mFd, outBuf.data(), out.pos);
+        const ssize_t w = ::write(mFd, outBuf.data(), out.pos);
+        if (w < 0 || static_cast<size_t>(w) != out.pos) {
+          eos_static_err("msg=\"write error\" errno=%d err=\"%s\"", errno,
+                         strerror(errno));
+          flush_ok = false;
+          break;
+        }
       }
     } while (fret != 0);
+    if (write_ok && flush_ok) {
+      updateMetrics(record);
+    }
+  }
+}
+
+Audit::MetricsSnapshot
+Audit::getMetricsSnapshot() const
+{
+  std::lock_guard<std::mutex> g(mMetricsMutex);
+  return mMetrics;
+}
+
+void
+Audit::updateMetrics(const eos::audit::AuditRecord& record)
+{
+  const std::string operation = eos::audit::Operation_Name(record.operation());
+  const std::string auth = record.auth().mechanism();
+  std::lock_guard<std::mutex> g(mMetricsMutex);
+  ++mMetrics.operations[{operation, auth, record.account()}];
+
+  if (record.operation() == eos::audit::WRITE && record.has_after()) {
+    mMetrics.writeBytes[{auth, record.client_ip()}] += record.after().size();
+  }
+
+  if (record.uuid().empty()) {
+    return;
+  }
+  if (record.operation() == eos::audit::CREATE) {
+    mOpenFiles[record.uuid()] = record.timestamp();
+  } else if (record.operation() == eos::audit::DELETE) {
+    const auto it = mOpenFiles.find(record.uuid());
+    if (it != mOpenFiles.end()) {
+      if (record.timestamp() >= it->second) {
+        mMetrics.lifecycleSeconds[{auth, record.account()}] +=
+            static_cast<uint64_t>(record.timestamp() - it->second);
+      }
+      mOpenFiles.erase(it);
+    }
   }
 }
 
@@ -427,5 +477,3 @@ Audit::ensureDirectoryExistsLocked()
 }
 
 EOSCOMMONNAMESPACE_END
-
-

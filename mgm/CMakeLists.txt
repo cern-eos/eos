@@ -134,7 +134,6 @@ add_library(
   proc/admin/FsckCmd.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
-  proc/admin/Monit.cc
   proc/admin/NsCmd.cc
   proc/admin/Rtlog.cc
   proc/admin/EvictCmd.cc proc/admin/EvictCmd.hh
@@ -148,7 +147,6 @@ add_library(
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
   proc/admin/IoShapingCmd.cc proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh
-  proc/admin/MonitCmd.cc proc/admin/MonitCmd.hh
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/SchedCmd.cc
   proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
@@ -274,17 +272,17 @@ add_library(
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   grpc/GrpcRestGwServer.cc grpc/GrpcRestGwServer.hh
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
-  monitoring/CachedCollectable.cc
-  monitoring/CachedCollectable.hh
   monitoring/FstStatusCollector.cc
   monitoring/FstStatusCollector.hh
+  monitoring/EosExporterCollector.cc
+  monitoring/EosExporterCollector.hh
   monitoring/MgmStatusCollector.cc
   monitoring/MgmStatusCollector.hh
   monitoring/Monitoring.cc
   monitoring/Monitoring.hh
-  monitoring/MonitoringConfig.hh
-  monitoring/PrometheusExporter.cc
-  monitoring/PrometheusExporter.hh
+  monitoring/PrometheusFormatter.hh
+  monitoring/TrafficShapingCollector.cc
+  monitoring/TrafficShapingCollector.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/webdav/WebDAVHandler.cc
@@ -369,6 +367,13 @@ add_library(
   shaping/TrafficShaping.cc
   ${FUSEX_SRCS})
 
+if(HAVE_XROOTD_METRICS)
+  target_sources(XrdEosMgm-Objects PRIVATE
+    monitoring/XrdMetricsCollector.cc
+    monitoring/XrdMetricsCollector.hh)
+  target_include_directories(XrdEosMgm-Objects PUBLIC ${EOS_XROOTD_METRICS_INCLUDE_DIR})
+endif()
+
 target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC
@@ -384,9 +389,9 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosGrpcGateway::EosGrpcGateway
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
-  prometheus-cpp::pull
   XROOTD::PRIVATE
   XROOTD::POSIX
+  XROOTD::UTILS
   LDAP::LDAP
   ZMQ::ZMQ
   XXHASH::XXHASH)
@@ -415,12 +420,12 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   RestGrpc-Objects
   RestAnnot-Objects
   EosGrpcGateway::EosGrpcGateway
-  prometheus-cpp::pull
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
   XROOTD::PRIVATE
   XROOTD::POSIX
+  XROOTD::UTILS
   EosCommon
   EosNsCommon)
 
@@ -483,8 +488,8 @@ if(Linux)
     XROOTD::SSI
     XROOTD::PRIVATE
     XROOTD::POSIX
+    XROOTD::UTILS
     EosGrpcGateway::EosGrpcGateway
-    prometheus-cpp::pull
     EosNsCommon-Static
     EosCommon-Static)
 

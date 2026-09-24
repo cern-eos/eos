@@ -104,6 +104,7 @@ endif()
 
 set(CMAKE_INSTALL_SYSCONFDIR ${EOS_INSTALL_SYSCONFDIR})
 include(EosFindLibs)
+include(EosXRootDMetrics)
 
 include(CTest)
 
@@ -244,6 +245,10 @@ endif()
 
 if (ASAN)
   LIST(APPEND RPM_OPTIONS --with asan)
+endif()
+
+if (HAVE_XROOTD_METRICS OR EOS_XROOTD_METRICS STREQUAL "ON")
+  LIST(APPEND RPM_OPTIONS --with xrootd_metrics)
 endif()
 
 if (TSAN)

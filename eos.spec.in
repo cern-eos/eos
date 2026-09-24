@@ -34,9 +34,17 @@
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
 
+# Native metrics require the monitoring-enabled XRootD packages at runtime too.
+%bcond_with xrootd_metrics
+
 # Define required dependencies
+%if %{with xrootd_metrics}
+%define eos_xrootd_version_min 0:6.2~rc1
+%define xrootd_version_min 1:6.2~rc1
+%else
 %define eos_xrootd_version_min 0:6.1.1
 %define xrootd_version_min 1:6.1.1
+%endif
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
 %define eos_grpc_gateway_version 0.3.1
@@ -169,7 +177,6 @@ Requires: libnfs
 
 %if %{with server}
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
-BuildRequires: libprometheus-cpp-devel
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 %endif
@@ -225,6 +232,11 @@ The EOS software package.
 %setup -q -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 %global build_type RelWithDebInfo
 %global build_flags -DBUILD_MANPAGES=1
+%if %{with xrootd_metrics}
+%global build_flags %{build_flags} -DEOS_XROOTD_METRICS=ON
+%else
+%global build_flags %{build_flags} -DEOS_XROOTD_METRICS=OFF
+%endif
 %if %{without server}
 %global build_flags %{build_flags} -DCLIENT=1
 %endif
