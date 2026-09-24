@@ -34,8 +34,12 @@
 #include "common/Namespace.hh"
 #include "common/VirtualIdentity.hh"
 #include "proto/Audit.pb.h"
-#include <string>
+#include <cstdint>
+#include <map>
 #include <mutex>
+#include <string>
+#include <tuple>
+#include <unordered_map>
 
 // Forward declaration for the generated protobuf
 namespace eos { namespace audit { class AuditRecord; } }
@@ -50,6 +54,12 @@ EOSCOMMONNAMESPACE_BEGIN
 class Audit
 {
 public:
+  struct MetricsSnapshot {
+    std::map<std::tuple<std::string, std::string, std::string>, uint64_t> operations;
+    std::map<std::tuple<std::string, std::string>, uint64_t> writeBytes;
+    std::map<std::tuple<std::string, std::string>, uint64_t> lifecycleSeconds;
+  };
+
   /**
    * @brief Construct an audit logger
    * @param baseDirectory directory where audit files are created
@@ -134,7 +144,10 @@ public:
              int src_line = 0,
              const char* version = nullptr);
 
+  MetricsSnapshot getMetricsSnapshot() const;
+
 private:
+  void updateMetrics(const eos::audit::AuditRecord& record);
   void rotateIfNeededLocked(time_t now);
   bool openWriterLocked(time_t segmentStart);
   void closeWriterLocked();
@@ -152,6 +165,10 @@ private:
   bool mAuditList = false;
   bool mReadAuditAll = false;
   std::vector<std::string> mReadAuditSuffixes; // lowercase suffixes without dot
+
+  mutable std::mutex mMetricsMutex;
+  MetricsSnapshot mMetrics;
+  std::unordered_map<std::string, int64_t> mOpenFiles;
 };
 
 EOSCOMMONNAMESPACE_END
@@ -162,5 +179,3 @@ EOSCOMMONNAMESPACE_END
 #endif
 
 #endif
-
-
