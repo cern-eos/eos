@@ -3,6 +3,7 @@
 #include "common/AssistedThread.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "common/shaping/SlidingWindowStats.hh"
+#include "mgm/shaping/IoCounters.hh"
 #include "proto/TrafficShaping.pb.h"
 
 #include <atomic>
@@ -273,6 +274,8 @@ public:
              std::unordered_map<uint32_t, double>>    // gid write
   GetCurrentReadAndWriteRates() const;
 
+  Json::Value GetIoCounters() const;
+
   void Clear();
 
 private:
@@ -283,6 +286,7 @@ private:
     NodeStateMap streams;
   };
 
+  IoCounters mIoCounters;
   std::unordered_map<std::string, NodeData> mNodeStates;
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;

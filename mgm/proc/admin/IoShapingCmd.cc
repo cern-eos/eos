@@ -256,23 +256,17 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       type_str = "node";
     }
 
-    oss << "[\n";
-    bool first = true;
+    Json::Value json(Json::arrayValue);
     for (const auto& [name, stat] : agg_stats) {
-      if (!first) {
-        oss << ",\n";
-      }
-      first = false;
-      oss << "  {\n"
-          << "    \"id\": \"" << name << "\",\n"
-          << "    \"type\": \"" << type_str << "\",\n"
-          << "    \"window_sec\": " << window_sec << ",\n"
-          << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
-          << stat.read_rate << ",\n"
-          << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
-          << "    \"read_iops\": " << stat.read_iops << ",\n"
-          << "    \"write_iops\": " << stat.write_iops << "\n"
-          << "  }";
+      Json::Value entry;
+      entry["id"] = name;
+      entry["type"] = type_str;
+      entry["window_sec"] = window_sec;
+      entry["read_rate_bps"] = stat.read_rate;
+      entry["write_rate_bps"] = stat.write_rate;
+      entry["read_iops"] = stat.read_iops;
+      entry["write_iops"] = stat.write_iops;
+      json.append(std::move(entry));
     }
 
     if (list_req.system_stats()) {
@@ -280,31 +274,24 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           manager->GetEstimatorsUpdateLoopMicroSecStats();
       const auto [fst_limits_median, fst_limits_min, fst_limits_max] =
           manager->GetFstLimitsUpdateLoopMicroSecStats();
-      const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
-      const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
-
-      if (!first) {
-        oss << ",\n";
-      }
-      oss << "  {\n"
-          << "    \"id\": \"engine_meta\",\n"
-          << "    \"type\": \"system\",\n"
-          << "    \"estimators_loop_median_us\": " << std::fixed << std::setprecision(2)
-          << estimator_median << ",\n"
-          << "    \"estimators_loop_min_us\": " << estimator_min << ",\n"
-          << "    \"estimators_loop_max_us\": " << estimator_max << ",\n"
-          << "    \"fst_limits_loop_median_us\": " << std::fixed << std::setprecision(2)
-          << fst_limits_median << ",\n"
-          << "    \"fst_limits_loop_min_us\": " << fst_limits_min << ",\n"
-          << "    \"fst_limits_loop_max_us\": " << fst_limits_max << ",\n"
-          << "    \"reports_processed_per_sec_mean\": " << std::fixed
-          << std::setprecision(2) << reports_processed_mean << ",\n"
-          << "    \"system_stats_window_seconds\": " << system_stats_window_seconds
-          << "\n"
-          << "  }";
+      Json::Value entry;
+      entry["id"] = "engine_meta";
+      entry["type"] = "system";
+      entry["estimators_loop_median_us"] = estimator_median;
+      entry["estimators_loop_min_us"] = estimator_min;
+      entry["estimators_loop_max_us"] = estimator_max;
+      entry["fst_limits_loop_median_us"] = fst_limits_median;
+      entry["fst_limits_loop_min_us"] = fst_limits_min;
+      entry["fst_limits_loop_max_us"] = fst_limits_max;
+      entry["reports_processed_per_sec_mean"] =
+          manager->GetFstReportsProcessedPerSecondMean();
+      entry["system_stats_window_seconds"] = manager->GetSystemStatsWindowSeconds();
+      entry["counters"] = manager->GetIoCounters();
+      json.append(std::move(entry));
     }
-
-    oss << "\n]\n";
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "";
+    oss << Json::writeString(writer, json) << '\n';
   } else {
     std::string header_name = "ID";
     if (list_req.show_apps()) {
@@ -530,6 +517,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
   case eos::console::IoProto_ShapingProto_ConfigAction::kList: {
     std::ostringstream oss;
     oss << "--- Traffic Shaping Thread Configuration ---\n"
+        << std::left << std::setw(45)
+        << "Traffic Shaping Enabled:" << (engine.IsEnabled() ? "true" : "false") << "\n"
         << std::left << std::setw(45) << "Estimators Update Period:"
         << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << " ms\n"
         << std::setw(45) << "FST IO Policy Update Period:"

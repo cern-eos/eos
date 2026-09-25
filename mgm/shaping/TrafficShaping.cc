@@ -163,6 +163,16 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
   std::unique_lock lock(mMutex);
 
+  const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
+  for (const auto& entry : report.entries()) {
+    mIoCounters.Observe({node_id, entry.app_name(), entry.uid(), entry.gid()},
+                        entry.generation_id(), report.timestamp_ms(), now_ms,
+                        {entry.total_bytes_read(), entry.total_bytes_written(),
+                         entry.total_read_ops(), entry.total_write_ops()});
+  }
+
   NodeData& node_data = mNodeStates[node_id];
   NodeStateMap& node_map = node_data.streams;
 
@@ -839,10 +849,22 @@ TrafficShapingManager::GetFstReportsProcessedPerSecondMean() const
   return 0.0;
 }
 
+Json::Value
+TrafficShapingManager::GetIoCounters() const
+{
+  IoCounters counters;
+  {
+    std::shared_lock lock(mMutex);
+    counters = mIoCounters;
+  }
+  return counters.ToJson();
+}
+
 void
 TrafficShapingManager::Clear()
 {
   std::unique_lock lock(mMutex);
+  mIoCounters = IoCounters{};
   mNodeStates.clear();
   mGlobalStats.clear();
   mNodeStats.clear();
