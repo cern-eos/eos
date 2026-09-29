@@ -195,9 +195,10 @@ set(EOS_PACKAGE_RELEASE "${RELEASE}")
 set(EOS_SOURCE_PACKAGE_NAME "${EOS_PACKAGE_NAME}-${EOS_PACKAGE_VERSION}-${EOS_PACKAGE_RELEASE}")
 set(EOS_ARCHIVE "${EOS_SOURCE_PACKAGE_NAME}.tar.gz")
 set(EOS_ARCHIVE_PATH "${CMAKE_BINARY_DIR}/${EOS_ARCHIVE}")
-option(EOS_INSTALL_TUI "Download and install the prebuilt eos-tui binary" ON)
+option(EOS_INSTALL_TUI "Download and install the prebuilt eos-tui binary for server builds" ON)
 
-if (EOS_INSTALL_TUI)
+# Client packages must build without downloading external release artifacts.
+if (EOS_INSTALL_TUI AND NOT CLIENT)
   set(EOS_TUI_VERSION "0.2.14")
   include(EosTui)
 endif()

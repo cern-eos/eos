@@ -322,6 +322,9 @@ The EOS server installation
 
 %files -n eos-server
 %defattr(-, root, root, -)
+%{_bindir}/eos-tui
+%license %{_datadir}/licenses/eos-tui/
+%doc %{_datadir}/doc/eos-tui/
 %{_bindir}/eos-ns-convert-to-locality-hashes
 %{_bindir}/zstdtail
 %{_sbindir}/eos-tty-broadcast
@@ -477,7 +480,6 @@ The EOS shell client.
 %files -n eos-client
 %defattr(-, root, root, -)
 %{_bindir}/eos
-%{_bindir}/eos-tui
 %{_bindir}/eoscp
 %{_libdir}/libEosCommon.so.%{version}
 %{_libdir}/libEosCommon.so.%{major_version}

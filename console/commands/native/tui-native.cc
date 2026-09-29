@@ -62,8 +62,8 @@ public:
       const int execErrno = errno;
 
       if (execErrno == ENOENT) {
-        fprintf(stderr, "error: 'eos-tui' is not installed. Install the EOS client "
-                        "package with TUI support.\n");
+        fprintf(stderr, "error: 'eos-tui' is not installed. Install eos-tui "
+                        "separately or use the EOS server package.\n");
       } else {
         fprintf(stderr, "error: failed to launch eos-tui: %s\n", strerror(execErrno));
       }
