@@ -653,6 +653,7 @@ XrdMgmOfsFile::ApplySpaceEncryption(const char* path,
 /*----------------------------------------------------------------------------*/
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 /*
  * @brief open a given file with the indicated mode
  *
@@ -749,6 +750,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isAtomicUpload = false;
   // flag indicating an atomic file name
   bool isAtomicName = false;
+  // flag indicating that the path is a hard link switched to its target file
+  bool isHardLink = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
   // flag indicating to drop the current disk replica in the policy space
@@ -1184,6 +1187,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                          fmd->getName().c_str(), fmd->getId(),
                          gmd->getName().c_str(), gmd->getId());
                 fmd = gmd;
+                isHardLink = true;
               } else {
                 //Conversion from string to inode number failed, log the error and return an error to the client
                 return Emsg(epname, error, ENOENT,
@@ -3600,11 +3604,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   COMMONTIMING("redirect::built", &tm);
 
   if (vid.prot == "https") {
-    struct stat buf;
     std::string etag;
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-    // get the current ETAG
-    gOFS->_stat(path, &buf, error, rootvid, "", &etag);
+
+    if (isAtomicUpload || ocUploadUuid.length()) {
+      // The etag refers to the final path and not to the upload entry
+      struct stat buf;
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      gOFS->_stat(path, &buf, error, rootvid, "", &etag);
+    } else if (isHardLink || fmd->hasAttribute(SYS_HARD_LINK)) {
+      etag = "hardlink";
+    } else {
+      // The file metadata is protected by its own lock, no namespace lookup
+      // or namespace lock is needed
+      eos::calculateEtag(fmd.get(), etag);
+    }
+
     redirectionhost += "&mgm.etag=";
 
     if (!etag.length()) {
