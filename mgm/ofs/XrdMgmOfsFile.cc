@@ -3725,22 +3725,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   rcode = SFS_REDIRECT;
-  XrdOucString predirectionhost = redirectionhost.c_str();
-  eos::common::StringConversion::MaskSecretTags(predirectionhost);
-
-  const char* op = isRW ? "write" : "read";
-  eos_info("op=%s path=%s info=%s %s redirection=%s xrd_port=%d "
-            "http_port=%d", op, path, pinfo.c_str(), infolog.c_str(),
-            predirectionhost.c_str(), targetport, targethttpport);
-
   EXEC_TIMING_END("Open");
   COMMONTIMING("end", &tm);
+  const char* io_bw = bandwidth.length() ? bandwidth.c_str() : "inf";
+  const char* io_type = iotype.length() ? iotype.c_str() : "buffered";
+  const char* io_prio = ioprio.length() ? ioprio.c_str() : "default";
+  // Client info forwarded to the FST, the format must not change
   char clientinfo[1024];
   snprintf(clientinfo, sizeof(clientinfo),
            "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
-           __exec_time__, bandwidth.length() ? bandwidth.c_str() : "inf", schedule,
-           iotype.length() ? iotype.c_str() : "buffered",
-           ioprio.length() ? ioprio.c_str() : "default", targethost.c_str(), ecode);
+           __exec_time__, io_bw, schedule, io_type, io_prio, targethost.c_str(),
+           ecode);
   std::string sclientinfo(clientinfo);
   std::string zclientinfo;
   eos::common::SymKey::ZBase64(sclientinfo, zclientinfo);
@@ -3752,9 +3747,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s sched:engine=%s sched:rt=%.02fms duration=%0.03fms timing=%s",
-           path, clientinfo, Scheduler::SchedEngineName(sched_engine), sched_ms,
-           tm.RealTime(), tm.Dump().c_str());
+  // Replica/stripe targets as "target[i]=(host,fsid)" separated by spaces
+  std::string targets = infolog.c_str();
+
+  if (!targets.empty() && (targets.back() == ' ')) {
+    targets.pop_back();
+  }
+
+  eos_info("op=%s path=%s sched:engine=%s sched:rt=%.02fms %s io:bw=%s "
+           "io:sched=%d io:type=%s io:prio=%s %s%sredirect=%s xrd_port=%d "
+           "http_port=%d", isRW ? "write" : "read", path,
+           Scheduler::SchedEngineName(sched_engine), sched_ms, tm.Dump().c_str(),
+           io_bw, schedule, io_type, io_prio, targets.c_str(),
+           targets.empty() ? "" : " ", targethost.c_str(), targetport,
+           targethttpport);
 
   // Audit READ for successful open if read-only using global or per-dir override
   if (!isRW && gOFS->AllowAuditRead(path)) {

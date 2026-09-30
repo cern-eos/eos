@@ -855,7 +855,7 @@ into the placement rows would skew the client-facing comparison.
 The same information is logged per open in the MGM log, alongside the existing
 timing summary::
 
-   path=/eos/dev/f1 open:rt=1.42 ... sched:engine=flat sched:rt=0.08 duration=1.421ms timing=...
+   op=write path=/eos/dev/f1 sched:engine=flat sched:rt=0.08ms IdMap=0.207ms ... Open=1.421ms ...
 
 where ``sched:engine`` is one of ``flat``, ``geotree``, ``geotree-fb`` (the flat
 scheduler ran, failed, and geotree answered) or ``none`` (the open took no
