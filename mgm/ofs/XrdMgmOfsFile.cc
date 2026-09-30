@@ -1858,6 +1858,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             cmd->setMTimeNow();
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
             eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
+
+            // Account the new file in quota while holding the lock, this
+            // avoids taking the namespace write lock a second time later on.
+            // The file is empty so the accounting does not depend on the
+            // layout which is only set afterwards.
+            if (!isInjection) {
+              eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+
+              if (ns_quota) {
+                ns_quota->addFile(fmd.get());
+              }
+            }
+
             gOFS->mReplicationTracker->Create(fmd);
             ns_wr_lock.Release();
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -2323,30 +2336,41 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       try {
-        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
-        std::shared_ptr<eos::IContainerMD> cmd =
-          gOFS->eosDirectoryService->getContainerMD(cid);
-        eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
-        eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
-        cmd->setMTimeNow();
 
-        if (isCreation || (!fmd->getNumLocation())) {
-          eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+        if (isCreation) {
+          // The container mtime update, the quota accounting and the
+          // container refresh were already done while holding the namespace
+          // write lock taken for the creation, only persist the file metadata.
+          COMMONTIMING("filemd::update", &tm);
+          gOFS->eosView->updateFileStore(fmd.get());
+          gOFS->FuseXCastRefresh(fmd_id, dmd->getIdentifier());
+          COMMONTIMING("fusex::bc", &tm);
+        } else {
+          eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+          std::shared_ptr<eos::IContainerMD> cmd =
+            gOFS->eosDirectoryService->getContainerMD(cid);
+          eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+          eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+          cmd->setMTimeNow();
 
-          if (ns_quota) {
-            ns_quota->addFile(fmd.get());
+          if (!fmd->getNumLocation()) {
+            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+
+            if (ns_quota) {
+              ns_quota->addFile(fmd.get());
+            }
           }
-        }
 
-        ns_wr_lock.Release();
-        COMMONTIMING("filemd::update", &tm);
-        gOFS->eosView->updateFileStore(fmd.get());
-        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-        gOFS->eosView->updateContainerStore(cmd.get());
-        gOFS->FuseXCastRefresh(fmd_id, cmd_id);
-        gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
-        COMMONTIMING("fusex::bc", &tm);
+          ns_wr_lock.Release();
+          COMMONTIMING("filemd::update", &tm);
+          gOFS->eosView->updateFileStore(fmd.get());
+          cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+          gOFS->eosView->updateContainerStore(cmd.get());
+          gOFS->FuseXCastRefresh(fmd_id, cmd_id);
+          gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
+          COMMONTIMING("fusex::bc", &tm);
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         std::string errmsg = e.getMessage().str();
