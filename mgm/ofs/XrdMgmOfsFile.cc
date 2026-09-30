@@ -1709,11 +1709,32 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return SFS_ERROR;
         }
 
+        // Generate the obfuscation key and its fingerprint before taking the
+        // namespace write lock, they only depend on the space key
+        const bool obfuscate = (mEosObfuscate > 0) ||
+                               (attrmap.count(eos::kAttrFileObfuscate) &&
+                                (attrmap[eos::kAttrFileObfuscate] == "1"));
+        std::string obfuscate_key;
+        std::string obfuscate_fprint;
+
+        if (obfuscate) {
+          obfuscate_key = eos::common::SymKey::RandomCipher(mEosKey);
+
+          if (mEosKey.length() && !mEncryptionSpace.empty()) {
+            obfuscate_fprint = eos::common::SymKey::KeyPrint16(mEosKey,
+                               obfuscate_key);
+          }
+        }
+
         // creation of a new file or isOcUpload
         COMMONTIMING("write::begin", &tm);
         {
           // -------------------------------------------------------------------
           std::shared_ptr<eos::IFileMD> ref_fmd;
+          // Audit record contents are captured under the lock but the record
+          // is only written out once the lock is released
+          bool emit_audit = false;
+          eos::audit::Stat audit_after_stat;
           eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
           try {
@@ -1767,31 +1788,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd = file;
             }
 
-            // Emit CREATE or TRUNCATE audit after creation
+            // Capture the state for the CREATE or TRUNCATE audit after creation
             if (gOFS->mAudit) {
-              eos::audit::Stat afterStat;
               eos::mgm::auditutil::buildStatFromFileMD(fmd,
-                  afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
-
-              if (auditTruncate) {
-                gOFS->mAudit->audit(eos::audit::TRUNCATE,
-                                    truncPath.empty() ? path : truncPath,
-                                    vid, logId, cident, "mgm",
-                                    std::string(), &truncBefore, &afterStat);
-              } else {
-                gOFS->mAudit->audit(eos::audit::CREATE,
-                                    creation_path.c_str(),
-                                    vid, logId, cident, "mgm",
-                                    std::string(), nullptr, &afterStat);
-              }
+                  audit_after_stat, /*includeSize=*/false, /*includeChecksum=*/false,
+                  /*includeNs=*/true);
+              emit_audit = true;
             }
 
-            if ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
-                                        (attrmap[eos::kAttrFileObfuscate] == "1"))) {
-              std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
+            if (obfuscate) {
               // attach an obfucation key
-              fmd->setAttribute(eos::kAttrObfuscateKey, skey);
-              attrmapF[eos::kAttrObfuscateKey] = skey;
+              fmd->setAttribute(eos::kAttrObfuscateKey, obfuscate_key);
+              attrmapF[eos::kAttrObfuscateKey] = obfuscate_key;
 
               if (mEosKey.length()) {
                 fmd->setAttribute(eos::kAttrEncrypted, "1");
@@ -1805,11 +1813,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 // resolution fingerprint of it. This keeps reads working when
                 // the file moves to another space and turns a changed or a
                 // removed space key into a clean error instead of garbage.
-                const std::string fprint = eos::common::SymKey::KeyPrint16(mEosKey, skey);
                 fmd->setAttribute(eos::kAttrEncryptSpace, mEncryptionSpace);
-                fmd->setAttribute(eos::kAttrEncryptedFp, fprint);
+                fmd->setAttribute(eos::kAttrEncryptedFp, obfuscate_fprint);
                 attrmapF[eos::kAttrEncryptSpace] = mEncryptionSpace;
-                attrmapF[eos::kAttrEncryptedFp] = fprint;
+                attrmapF[eos::kAttrEncryptedFp] = obfuscate_fprint;
               } else {
                 // Drop any stale marker inherited from a previous incarnation
                 // of this path, they would otherwise be copied onto a version
@@ -1873,6 +1880,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             gOFS->mReplicationTracker->Create(fmd);
             ns_wr_lock.Release();
+
+            if (emit_audit) {
+              if (auditTruncate) {
+                gOFS->mAudit->audit(eos::audit::TRUNCATE,
+                                    truncPath.empty() ? path : truncPath,
+                                    vid, logId, cident, "mgm",
+                                    std::string(), &truncBefore, &audit_after_stat);
+              } else {
+                gOFS->mAudit->audit(eos::audit::CREATE,
+                                    creation_path.c_str(),
+                                    vid, logId, cident, "mgm",
+                                    std::string(), nullptr, &audit_after_stat);
+              }
+            }
+
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             gOFS->eosView->updateFileStore(fmd.get());
