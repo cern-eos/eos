@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #include "mgm/placement/RRSeed.hh"
 #include "gtest/gtest.h"
+#include <limits>
+#include <set>
 #include <thread>
 
-using RRSeed = eos::mgm::placement::RRSeed<uint64_t>;
+using eos::mgm::placement::RRSeed;
 
 TEST(RRSeed, Construction)
 {
@@ -44,36 +45,25 @@ TEST(RRSeed, out_of_bounds)
 TEST(RRSeed, single_thread)
 {
   RRSeed seed(10);
-  EXPECT_EQ(seed.GetNumSeeds(), 10);
+  // Trivial no op case, reads the random starting point without moving it
+  const uint64_t start = seed.Get(0, 0);
+  EXPECT_EQ(seed.Get(0, 0), start);
 
-  // Trivial No op case - base condition, we don't change anything here
-  EXPECT_EQ(seed.Get(0, 0), 0);
+  // Reserving one item hands out the current value and moves past it
+  EXPECT_EQ(seed.Get(0, 1), start);
+  EXPECT_EQ(seed.Get(0, 0), start + 1);
+  EXPECT_EQ(seed.Get(0, 1), start + 1);
 
-  // We ask for the next seed, we'd get the starting seed ie. 0 and internally
-  // the counter is 1
-  EXPECT_EQ(seed.Get(0, 1), 0);
-
-  // No op - check internal counter
-  EXPECT_EQ(seed.Get(0, 0), 1);
-  // Repeat No op!
-  EXPECT_EQ(seed.Get(0, 0), 1);
-
-  // Now we ask for the next seed, we'd still get 1, internal counter = 2
-  EXPECT_EQ(seed.Get(0, 1), 1);
-
-  // No op - check internal counter
-  EXPECT_EQ(seed.Get(0, 0), 2);
-
-  // ask for 10 seeds
-  EXPECT_EQ(seed.Get(0, 10), 2);
-
-  // No op - check internal counter
-  EXPECT_EQ(seed.Get(0, 0), 12);
+  // Reserving a window moves by the window size
+  EXPECT_EQ(seed.Get(0, 10), start + 2);
+  EXPECT_EQ(seed.Get(0, 0), start + 12);
 }
 
 TEST(RRSeed, multithread)
 {
   RRSeed seed(10);
+  const uint64_t start0 = seed.Get(0, 0);
+  const uint64_t start1 = seed.Get(1, 0);
 
   auto f = [&seed]() {
     for (int i = 0; i < 1000; i++) {
@@ -90,28 +80,39 @@ TEST(RRSeed, multithread)
     threads[i].join();
   }
 
-  EXPECT_EQ(seed.Get(0, 0), 16000);
-  // Get at a different index, we only modified index 0 seed,
-  // rest should all be 0
-  EXPECT_EQ(seed.Get(1, 0), 0);
+  EXPECT_EQ(seed.Get(0, 0), start0 + 16000);
+  // Only index 0 was advanced
+  EXPECT_EQ(seed.Get(1, 0), start1);
 }
 
-TEST(RRSeed, wrap_around)
+TEST(RRSeed, CountersStartAtRandomValues)
 {
-  eos::mgm::placement::RRSeed<uint8_t> seed(10);
-  // no op - check initial state
-  EXPECT_EQ(seed.Get(0, 0), 0);
-  for (int i = 0; i < 255; i++) {
-    EXPECT_EQ(seed.Get(0, 1), i);
+  // Zero-started counters would line all the buckets up on the same items
+  RRSeed seed(RRSeed::kChunkSize);
+  std::set<uint64_t> starts;
+
+  for (size_t i = 0; i < RRSeed::kChunkSize; ++i) {
+    const uint64_t start = seed.Get(i, 0);
+    EXPECT_LE(start, std::numeric_limits<uint32_t>::max());
+    starts.insert(start);
   }
-  // no op - final value at 255
-  EXPECT_EQ(seed.Get(0, 0), 255);
 
-  // now increment!
-  EXPECT_EQ(seed.Get(0, 1), 255);
+  // Draws from 2^32 values: a collision among 1024 of them is already rare
+  EXPECT_GT(starts.size(), RRSeed::kChunkSize - 8);
+}
 
-  // wrap aroound! check reusability
-  EXPECT_EQ(seed.Get(0, 1), 0);
-  EXPECT_EQ(seed.Get(0, 1), 1);
-  EXPECT_EQ(seed.Get(0, 1), 2);
+TEST(RRSeed, GrowthKeepsExistingCounters)
+{
+  RRSeed seed(10);
+  const uint64_t start = seed.Get(3, 5);
+  const size_t grown = 3 * RRSeed::kChunkSize + 7;
+  seed.EnsureCapacity(grown);
+  EXPECT_EQ(seed.GetNumSeeds(), grown);
+  EXPECT_EQ(seed.Get(3, 0), start + 5);
+  EXPECT_NO_THROW(seed.Get(grown - 1, 1));
+  EXPECT_THROW(seed.Get(grown, 0), std::out_of_range);
+
+  // Never shrinks
+  seed.EnsureCapacity(5);
+  EXPECT_EQ(seed.GetNumSeeds(), grown);
 }

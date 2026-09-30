@@ -38,7 +38,6 @@ MakeSelectionStrategy(PlacementStrategyT type, size_t max_buckets)
 {
   switch (type) {
   case PlacementStrategyT::kRoundRobin: [[fallthrough]];
-  case PlacementStrategyT::kThreadLocalRoundRobin: [[fallthrough]];
   case PlacementStrategyT::kRandom: [[fallthrough]];
   case PlacementStrategyT::kFidRandom:
     return std::make_unique<RoundRobinStrategy>(type, max_buckets);

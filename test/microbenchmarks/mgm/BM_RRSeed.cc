@@ -23,31 +23,54 @@
 
 #include "benchmark/benchmark.h"
 #include "mgm/placement/RRSeed.hh"
-#include "mgm/placement/ThreadLocalRRSeed.hh"
+#include <random>
 
 using benchmark::Counter;
+using eos::mgm::placement::RRSeed;
 
+//------------------------------------------------------------------------------
+// Every thread on the same counter: true sharing, the worst case
+//------------------------------------------------------------------------------
 static void BM_RRSeed(benchmark::State& state) {
-  eos::mgm::placement::RRSeed seed(10);
+  static RRSeed seed(1024);
   for (auto _ : state) {
-    for (int i=0;i<10; ++i)
-      benchmark::DoNotOptimize(seed.Get(1, 0));
+    benchmark::DoNotOptimize(seed.Get(1, 1));
   }
-  state.counters["frequency"] = Counter(state.iterations()*10,
-                                        benchmark::Counter::kIsRate);
+  state.counters["frequency"] = Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 
-static void BM_ThreadLocalRRSeed(benchmark::State& state) {
-  using namespace eos::mgm::placement;
-  ThreadLocalRRSeed::Init(10);
+//------------------------------------------------------------------------------
+// Every thread on a counter of its own: only false sharing between
+// neighbouring counters could slow this down
+//------------------------------------------------------------------------------
+static void
+BM_RRSeedDistinctIndex(benchmark::State& state)
+{
+  static RRSeed seed(1024);
+  const size_t index = 1 + state.thread_index();
   for (auto _ : state) {
-    for (int i=0;i<10; ++i)
-      benchmark::DoNotOptimize(ThreadLocalRRSeed::Get(1, 0));
+    benchmark::DoNotOptimize(seed.Get(index, 1));
   }
-  state.counters["frequency"] = Counter(state.iterations()*10,
-                                        benchmark::Counter::kIsRate);
+  state.counters["frequency"] = Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+
+//------------------------------------------------------------------------------
+// What a placement does: advance the root counter, then the counter of one of
+// 96 groups
+//------------------------------------------------------------------------------
+static void
+BM_RRSeedPlacementMix(benchmark::State& state)
+{
+  static RRSeed seed(1024);
+  std::minstd_rand rng(state.thread_index() + 1);
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(seed.Get(0, 1));
+    benchmark::DoNotOptimize(seed.Get(1 + rng() % 96, 2));
+  }
+  state.counters["frequency"] = Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 
 BENCHMARK(BM_RRSeed)->ThreadRange(1,64)->UseRealTime();
-BENCHMARK(BM_ThreadLocalRRSeed)->ThreadRange(1,64)->UseRealTime();
+BENCHMARK(BM_RRSeedDistinctIndex)->ThreadRange(1, 64)->UseRealTime();
+BENCHMARK(BM_RRSeedPlacementMix)->ThreadRange(1, 64)->UseRealTime();
 BENCHMARK_MAIN();

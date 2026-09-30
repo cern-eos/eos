@@ -46,8 +46,7 @@ add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
 add_executable(eos-random-microbenchmark common/BM_Random.cc)
 add_executable(eos-nslocking-microbenchmark namespace/ns_quarkdb/BM_NSLocking.cc
         ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/tests/NsTests.cc)
-add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc)
 add_executable(eos-threadid-microbenchmark common/BM_ThreadId.cc)
 
 target_link_libraries(eos-microbenchmarks PRIVATE
@@ -81,8 +80,7 @@ if (NOT CLIENT AND Linux)
     ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinStrategy.cc
     ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRandomStrategy.cc
-    ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc
-    ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+    ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc)
 
   target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
     benchmark::benchmark

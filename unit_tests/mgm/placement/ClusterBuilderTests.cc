@@ -24,6 +24,7 @@
 #include "mgm/placement/ClusterBuilder.hh"
 #include "mgm/placement/FlatScheduler.hh"
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <set>
 
 using namespace eos::mgm::placement;
@@ -552,6 +553,48 @@ TEST(GeoHierarchyPlacement, UntaggedClusterBehavesLikeAFlatOne)
     ASSERT_TRUE(result) << result.ErrorString();
     ASSERT_TRUE(result.IsValidPlacement(3)) << result.ResultString();
   }
+}
+
+TEST(GeoHierarchyPlacement, RoundRobinGroupsDoNotLineUpOnTheSameHosts)
+{
+  // Each group holds one disk per host, and the fsids are handed out host by
+  // host, so every group lists its disks in the same host order. One file per
+  // group used to land on the first two hosts of every group, as the group
+  // cursors all started at 0.
+  constexpr unsigned int n_hosts = 13;
+  constexpr unsigned int n_groups = 96;
+  ClusterMgr mgr;
+  std::vector<FsDescription> fs_list;
+
+  for (unsigned int h = 0; h < n_hosts; ++h) {
+    for (unsigned int g = 0; g < n_groups; ++g) {
+      fs_list.push_back(
+          MakeFs(h * n_groups + g + 1, g, "site::node" + std::to_string(h)));
+    }
+  }
+
+  BuildClusterData(mgr, fs_list);
+  auto cluster_data = mgr.GetClusterData();
+  FlatScheduler scheduler(PlacementStrategyT::kRoundRobin, 1024);
+  std::vector<unsigned int> per_host(n_hosts, 0);
+
+  for (unsigned int i = 0; i < n_groups; ++i) {
+    PlacementArgs args(2, kClientCreate, PlacementStrategyT::kRoundRobin);
+    args.fid = i;
+    auto result = scheduler.Schedule(cluster_data(), args);
+    ASSERT_TRUE(result) << result.ErrorString();
+    ASSERT_TRUE(result.IsValidPlacement(2)) << result.ResultString();
+
+    for (int j = 0; j < result.n_filled; ++j) {
+      ++per_host[(result.ids[j] - 1) / n_groups];
+    }
+  }
+
+  // 192 replicas over 13 hosts is about 15 each. Aligned cursors put 96 on
+  // each of two hosts; with independent ones even the busiest host sits
+  // around 22, and 45 lies many standard deviations beyond that.
+  const auto busiest = *std::max_element(per_host.begin(), per_host.end());
+  EXPECT_LT(busiest, 45u);
 }
 
 //------------------------------------------------------------------------------
@@ -1825,9 +1868,9 @@ TEST(EngineCapacity, TopologyLargerThanTheEngineStillPlaces)
   // Every strategy that keeps per bucket cursors used to refuse a topology
   // wider than the number it was built with
   for (const auto strategy :
-       {PlacementStrategyT::kRoundRobin, PlacementStrategyT::kThreadLocalRoundRobin,
-        PlacementStrategyT::kRandom, PlacementStrategyT::kFidRandom,
-        PlacementStrategyT::kWeightedRoundRobin, PlacementStrategyT::kWeightedRandom}) {
+       {PlacementStrategyT::kRoundRobin, PlacementStrategyT::kRandom,
+        PlacementStrategyT::kFidRandom, PlacementStrategyT::kWeightedRoundRobin,
+        PlacementStrategyT::kWeightedRandom}) {
     FlatScheduler scheduler(strategy, 8);
 
     for (int i = 0; i < 8; ++i) {

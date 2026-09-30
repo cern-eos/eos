@@ -26,7 +26,6 @@
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "mgm/placement/RRSeed.hh"
 #include "mgm/placement/SelectionStrategy.hh"
-#include "mgm/placement/ThreadLocalRRSeed.hh"
 #include "utils/RandUtils.hh"
 
 namespace eos::mgm::placement {
@@ -71,16 +70,18 @@ struct RRSeeder {
 };
 
 //------------------------------------------------------------------------------
-//! Struct GlobalRRSeeder - shared atomic counters giving strong global
-//! fairness at the cost of contention between threads
+//! Struct RoundRobinSeeder - shared atomic counters, one per bucket, see RRSeed
 //------------------------------------------------------------------------------
-struct GlobalRRSeeder : public RRSeeder {
+struct RoundRobinSeeder : public RRSeeder {
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param max_buckets number of seeds to hold
   //----------------------------------------------------------------------------
-  explicit GlobalRRSeeder(size_t max_buckets) : mSeed(max_buckets) {}
+  explicit RoundRobinSeeder(size_t max_buckets)
+      : mSeed(max_buckets)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Get the seed of the given bucket
@@ -119,59 +120,7 @@ struct GlobalRRSeeder : public RRSeeder {
   }
 
 private:
-  RRSeed<size_t> mSeed; ///< Shared atomic round-robin counters
-};
-
-//------------------------------------------------------------------------------
-//! Struct ThreadLocalRRSeeder - per thread counters, lock and atomic free and
-//! therefore faster, at the cost of only per-thread fairness
-//------------------------------------------------------------------------------
-struct ThreadLocalRRSeeder : public RRSeeder {
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param max_buckets number of seeds to hold
-  //----------------------------------------------------------------------------
-  explicit ThreadLocalRRSeeder(size_t max_buckets)
-  {
-    ThreadLocalRRSeed::Init(max_buckets);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the seed of the given bucket
-  //!
-  //! @param index bucket index
-  //! @param num_items number of items about to be picked
-  //!
-  //! @return seed value
-  //----------------------------------------------------------------------------
-  size_t
-  Get(size_t index, size_t num_items, size_t) override
-  {
-    return ThreadLocalRRSeed::Get(index, num_items);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the number of seeds held
-  //!
-  //! @return number of seeds
-  //----------------------------------------------------------------------------
-  size_t
-  GetNumSeeds() override
-  {
-    return ThreadLocalRRSeed::GetNumSeeds();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Grow the per thread counters to serve a topology of the given size
-  //!
-  //! @param max_items number of seeds the topology needs
-  //----------------------------------------------------------------------------
-  void
-  EnsureCapacity(size_t max_items) override
-  {
-    ThreadLocalRRSeed::EnsureCapacity(max_items);
-  }
+  RRSeed mSeed; ///< Shared atomic round-robin counters
 };
 
 //------------------------------------------------------------------------------
@@ -322,9 +271,8 @@ private:
 std::unique_ptr<RRSeeder> MakeRRSeeder(PlacementStrategyT strategy, size_t max_buckets);
 
 //------------------------------------------------------------------------------
-//! Class RoundRobinStrategy - backs the round-robin, thread local round-robin,
-//! random and fid-random strategies, which differ only by the RRSeeder they
-//! are built with
+//! Class RoundRobinStrategy - backs the round-robin, random and fid-random
+//! strategies, which differ only by the RRSeeder they are built with
 //------------------------------------------------------------------------------
 class RoundRobinStrategy : public SelectionStrategy {
 public:

@@ -361,13 +361,9 @@ bucket; the enum has more values than there are classes because one class can
 back several seeding behaviours.
 
 - **`RoundRobinStrategy`** (`RoundRobinStrategy.hh/.cc`) — one class
-  backing **four** enum values (`kRoundRobin`, `kThreadLocalRoundRobin`,
-  `kRandom`, `kFidRandom`), differentiated by a pluggable **`RRSeeder`**.
-  `MakeRRSeeder` selects:
-  - `GlobalRRSeeder` → shared atomic `RRSeed` (strong global fairness,
-    contended);
-  - `ThreadLocalRRSeeder` → per-thread randomized cursors (fast, per-thread
-    fair);
+  backing **three** enum values (`kRoundRobin`, `kRandom`, `kFidRandom`),
+  differentiated by a pluggable **`RRSeeder`**. `MakeRRSeeder` selects:
+  - `RoundRobinSeeder` → shared atomic `RRSeed`;
   - `RandomSeeder` → uniform random;
   - `FidSeeder` → `seed = index ^ replicas ^ fid` (deterministic per file).
 
@@ -391,16 +387,21 @@ back several seeding behaviours.
 
 **Round-robin cursors.** RR needs a persistent per-bucket cursor so successive
 files spread across disks:
-- **`RRSeed<T>`** (`RRSeed.hh`) — atomic counters, one per bucket;
-  `Get(index, n) = fetch_add(n)` atomically reserves a contiguous RR window.
-  Backs `GlobalRRSeeder`. The counters sit in fixed-size chunks allocated on
-  demand rather than in one contiguous array, so the table can **grow with a
-  topology that gained buckets without ever moving a counter a concurrent
-  placement is reading** — growth takes a mutex, reads stay lock-free.
-- **`ThreadLocalRRSeed`** — a `thread_local` vector of plain counters
-  **initialized to random values** so threads don't all start at bucket 0
-  (avoids thundering-herd). No atomics/locks → faster, at the cost of only
-  per-thread fairness.
+- **`RRSeed`** (`RRSeed.hh`) — atomic counters, one per bucket, shared by all
+  threads; `Get(index, n) = fetch_add(n)` atomically reserves a contiguous RR
+  window. Backs `RoundRobinSeeder` and `WeightedRoundRobinStrategy`.
+  - Every counter **starts at a random value**. Zero-started counters line the
+    buckets up: groups listing their disks in the same host order (the fsid
+    order the builder inserts them in) all hand their first replicas to the
+    same hosts, and since the root spreads files evenly every group advances
+    at the same pace, so the hot pair of hosts persists and only rotates.
+  - Every counter is **padded to its own cache line**, so placements in
+    unrelated buckets do not false-share. Only the root counter, which every
+    placement advances, remains truly shared.
+  - The counters sit in fixed-size chunks allocated on demand, so the table
+    can **grow with a topology that gained buckets without ever moving a
+    counter a concurrent placement is reading** — growth takes a mutex, reads
+    stay lock-free.
 
 ---
 
@@ -924,8 +925,7 @@ branches onto the rebuilt snapshot).
   disabled branches, incremental topology, writable capacity.
 - `FsSchedulerTests.cc` — strategy resolution, fill limits, disabled branches,
   state summary, insert/remove, placement capacity.
-- `ClusterMgrTests.cc`, `SelectionStrategyTests.cc`, `RRSeedTests.cc`,
-  `ThreadLocalRRSeedTests.cc`.
+- `ClusterMgrTests.cc`, `SelectionStrategyTests.cc`, `RRSeedTests.cc`.
 
 The `Scheduler.cc` bridge is covered by
 `unit_tests/mgm/scheduler/SchedulerBridgeTests.cc`: both bridge functions have an

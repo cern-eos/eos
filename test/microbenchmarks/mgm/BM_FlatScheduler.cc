@@ -60,39 +60,6 @@ static void BM_Scheduler(benchmark::State& state) {
                                                    benchmark::Counter::kIsRate);
 }
 
-static void BM_ThreadLocalRRScheduler(benchmark::State& state) {
-  using namespace eos::mgm::placement;
-  auto n_groups = state.range(0);
-  auto n_elements = 1024;
-  const int n_disks_per_group = 16;
-  ClusterMgr mgr;
-  {
-
-    auto sh = mgr.GetSnapshotBuilder(n_elements);
-    sh.AddBucket(GetBucketType(BucketType::ROOT), 0);
-    // sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0);
-
-    for (int i=0; i< n_groups; ++i) {
-      sh.AddBucket(GetBucketType(BucketType::GROUP), -100 - i, 0);
-    }
-
-    for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.AddDisk(Disk(i + 1, kMaskAll, ActiveStatus::kOnline, 1),
-                 -100 - i / n_disks_per_group);
-    }
-
-  }
-  FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin, n_elements);
-
-
-  for (auto _: state) {
-    auto cluster_data_ptr = mgr.GetClusterData();
-    benchmark::DoNotOptimize(flat_scheduler.Schedule(cluster_data_ptr(), state.range(1)));
-  }
-  state.counters["frequency"] = benchmark::Counter(state.iterations(),
-                                                   benchmark::Counter::kIsRate);
-}
-
 static void BM_RandomScheduler(benchmark::State& state) {
   using namespace eos::mgm::placement;
   auto n_groups = state.range(0);
@@ -275,7 +242,7 @@ BM_NoGeoTagScheduler(benchmark::State& state)
       }
     }
   }
-  FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin, n_elements);
+  FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin, n_elements);
 
   for (auto _ : state) {
     auto cluster_data_ptr = mgr.GetClusterData();
@@ -370,10 +337,6 @@ BM_GeoScheduler(benchmark::State& state)
 }
 
 BENCHMARK(BM_Scheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
-    ->ArgsProduct({{32, 64, 128, 256, 512},
-                   {2,3,6}})->UseRealTime();
-
-BENCHMARK(BM_ThreadLocalRRScheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
     ->ArgsProduct({{32, 64, 128, 256, 512},
                    {2,3,6}})->UseRealTime();
 

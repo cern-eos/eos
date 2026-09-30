@@ -22,91 +22,68 @@
  ************************************************************************/
 
 #pragma once
+#include "common/utils/RandUtils.hh"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
-#include <type_traits>
 
 namespace eos::mgm::placement {
 
 //------------------------------------------------------------------------------
-//! Class RRSeed - a simple round-robin seed generator stored as a list of
-//! atomic counters. The list serves the case of a 2-D round-robin where one
-//! needs to round-robin over the second dimension. Under the hood each entry is
-//! nothing but a 1-D counter incremented by a given size.
+//! Class RRSeed - one shared round-robin counter per bucket.
 //!
-//! The counters are held in fixed size chunks allocated on demand rather than
-//! in one contiguous array, so that the table can grow with a topology that
-//! gained buckets without ever moving a counter a concurrent placement is
-//! reading. Growth takes a mutex, reads are lock free.
+//! Every counter starts at a random value. Starting them all at 0 lines the
+//! buckets up: groups listing their disks in the same host order would all hand
+//! their first replicas to the same hosts, and since every group advances at
+//! the same pace they would keep doing so.
+//!
+//! Each counter sits on a cache line of its own, so that placements in
+//! unrelated buckets do not contend. The counters are allocated in chunks that
+//! never move once published, which lets the table grow with the topology
+//! while concurrent placements keep reading it lock free.
 //------------------------------------------------------------------------------
-template <typename T = uint64_t>
 class RRSeed {
 public:
-  // The counter wraps around to 0 once it reaches the maximum value of type T,
-  // as is defined for unsigned integers. If you ever need negative values then
-  // rewrite this carefully considering overflows!
-  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
-                "We expect only unsigned integer types, "
-                "otherwise overflow would be Undefined Behaviour");
-
-  //! Counters per chunk, and the largest number of chunks that can be held.
-  //! The product bounds the table at a size no EOS topology approaches, and
-  //! only the chunks actually reached are allocated.
+  //! Counters per chunk, and the largest number of chunks that can be held
   static constexpr size_t kChunkSize = 1024;
   static constexpr size_t kMaxChunks = 1024;
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param max_items number of seeds to hold, grown later as needed by
-  //!        EnsureCapacity
+  //! @param max_items number of seeds to hold, grown later by EnsureCapacity
   //----------------------------------------------------------------------------
   explicit RRSeed(size_t max_items) { EnsureCapacity(max_items); }
 
   //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~RRSeed()
-  {
-    for (auto& chunk : mChunks) {
-      delete[] chunk.load(std::memory_order_relaxed);
-    }
-  }
-
-  RRSeed(const RRSeed&) = delete;
-  RRSeed& operator=(const RRSeed&) = delete;
-  RRSeed(RRSeed&&) = delete;
-  RRSeed& operator=(RRSeed&&) = delete;
-
-  //----------------------------------------------------------------------------
-  //! Get the seed at the given index and reserve n_items, so that the next
-  //! seed handed out is n_items away
+  //! Get the seed at the given index and advance it by n_items
   //!
-  //! @param index seed index, must be within range
+  //! @param index seed index
   //! @param n_items number of items to reserve
   //!
-  //! @return seed value before the reservation
+  //! @return seed value before the advance
   //!
-  //! @throw std::out_of_range if the index is past the held seeds. Callers on
-  //!        the placement path grow the table to the topology first, so this
+  //! @throw std::out_of_range if the index is past the held seeds. The
+  //!        placement path grows the table to the topology first, so this
   //!        marks a programming error rather than an oversized cluster.
   //----------------------------------------------------------------------------
-  T
+  uint64_t
   Get(size_t index, size_t n_items)
   {
-    // Acquire pairs with the release store closing EnsureCapacity, so an index
-    // below the published count is guaranteed to see its chunk pointer too
+    // Acquire pairs with the release closing EnsureCapacity: an accepted index
+    // has its chunk in place
     if (index >= mNumSeeds.load(std::memory_order_acquire)) {
       throw std::out_of_range("RRSeed index out of range");
     }
 
-    std::atomic<T>* chunk = mChunks[index / kChunkSize].load(std::memory_order_acquire);
-    return chunk[index % kChunkSize].fetch_add(n_items, std::memory_order_relaxed);
+    return mChunks[index / kChunkSize][index % kChunkSize].value.fetch_add(
+        n_items, std::memory_order_relaxed);
   }
 
   //----------------------------------------------------------------------------
@@ -121,18 +98,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Grow the table so that it holds at least the given number of seeds. Never
-  //! shrinks, so concurrent callers racing on a growing topology settle on the
-  //! largest request. Saturates at kChunkSize * kMaxChunks; a caller asking for
-  //! more finds GetNumSeeds() short of what it wanted and reports the topology
-  //! as out of range rather than getting an exception on the placement path.
+  //! Grow the table to hold at least the given number of seeds. Never shrinks,
+  //! so concurrent callers settle on the largest request. Saturates at
+  //! kChunkSize * kMaxChunks; a caller asking for more finds GetNumSeeds()
+  //! short and reports the topology as out of range.
   //!
   //! @param max_items number of seeds the caller needs
   //----------------------------------------------------------------------------
   void
   EnsureCapacity(size_t max_items)
   {
-    if (max_items <= mNumSeeds.load(std::memory_order_acquire)) {
+    if (max_items <= GetNumSeeds()) {
       return;
     }
 
@@ -143,23 +119,32 @@ public:
       return;
     }
 
-    const size_t n_chunks = (max_items + kChunkSize - 1) / kChunkSize;
+    // Readers only dereference chunks below the published count, so the slots
+    // filled in here need no atomics: the release store below publishes them
+    for (size_t i = 0; i < (max_items + kChunkSize - 1) / kChunkSize; ++i) {
+      if (mChunks[i] == nullptr) {
+        mChunks[i] = std::make_unique<Counter[]>(kChunkSize);
 
-    for (size_t i = 0; i < n_chunks; ++i) {
-      if (mChunks[i].load(std::memory_order_relaxed) == nullptr) {
-        // Value initialized, ie. every fresh counter starts at 0
-        mChunks[i].store(new std::atomic<T>[kChunkSize](), std::memory_order_release);
+        for (size_t j = 0; j < kChunkSize; ++j) {
+          // Far below the wrap-around of the counter, where the modulo over
+          // the bucket items would skip a beat
+          mChunks[i][j].value.store(
+              eos::common::getRandom<uint64_t>(0, std::numeric_limits<uint32_t>::max()),
+              std::memory_order_relaxed);
+        }
       }
     }
 
-    // Published last: a reader that accepts an index has its chunk in place
     mNumSeeds.store(max_items, std::memory_order_release);
   }
 
 private:
-  //! Round-robin counters, allocated one chunk at a time. A chunk never moves
-  //! once published, which is what lets the table grow under concurrent reads.
-  std::array<std::atomic<std::atomic<T>*>, kMaxChunks> mChunks{};
+  //! Counter padded to a cache line of its own
+  struct alignas(64) Counter {
+    std::atomic<uint64_t> value{0};
+  };
+
+  std::array<std::unique_ptr<Counter[]>, kMaxChunks> mChunks; ///< Counter chunks
   std::atomic<size_t> mNumSeeds{0}; ///< Seeds published so far
   std::mutex mGrowMutex;            ///< Serializes the growth, never taken to read
 };

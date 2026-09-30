@@ -2828,13 +2828,10 @@ no longer be confused for one another:
 |                                    |           | topology and spreads replicas across branches, picking   |
 |                                    |           | capacity-weighted at each level.                         |
 +------------------------------------+-----------+----------------------------------------------------------+
-| ``flat:roundrobin``                | flat      | Round-robin over the disks of a group, coordinated       |
-|                                    |           | globally across all MGM threads. Useful for homogeneous  |
-|                                    |           | groups.                                                  |
-+------------------------------------+-----------+----------------------------------------------------------+
-| ``flat:threadlocalroundrobin``     | flat      | A more performant round-robin where each MGM thread      |
-| (``flat:tlrr``)                    |           | keeps its own cursor. Less coordinated than the global   |
-|                                    |           | one, but evens out over large enough placements.         |
+| ``flat:roundrobin``                | flat      | Round-robin over the disks of a group, shared by all MGM |
+|                                    |           | threads. Every group starts at a random position, so     |
+|                                    |           | groups do not all pick the same hosts. Useful for        |
+|                                    |           | homogeneous groups.                                      |
 +------------------------------------+-----------+----------------------------------------------------------+
 | ``flat:random``                    | flat      | Picks disks uniformly at random within a group. Useful   |
 |                                    |           | for homogeneous groups.                                  |
@@ -2852,7 +2849,7 @@ no longer be confused for one another:
 
 .. note::
    The spellings that predate the ``flat:`` prefix - ``geo``, ``geoscheduler``,
-   ``roundrobin``, ``rr``, ``tlrr``, ``fid``, ``weightedrr``, ``legacy`` and the
+   ``roundrobin``, ``rr``, ``fid``, ``weightedrr``, ``legacy`` and the
    rest - are still accepted and still mean exactly what they meant before. They
    are deprecated: ``space config`` reports when you use one and stores the
    canonical form instead, so a configuration rewrites itself the first time the
@@ -2878,8 +2875,8 @@ An unrecognised value is now refused rather than silently resolving to
    # a typo is an error, not a silent downgrade
    eos space config default space.scheduler.type=roundrobbin
    error: <roundrobbin> is not a scheduler type - accepted values are geotree,
-   flat:geo, flat:roundrobin, flat:threadlocalroundrobin, flat:random,
-   flat:fidrandom, flat:weightedrandom, flat:weightedroundrobin
+   flat:geo, flat:roundrobin, flat:random, flat:fidrandom,
+   flat:weightedrandom, flat:weightedroundrobin
 
    # check what a space actually resolved to
    eos sched show type default

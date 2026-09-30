@@ -158,7 +158,7 @@ void com_sched_help()
   std::ostringstream oss;
   oss << " Usage:\n"
       << " sched configure type <schedtype>\n"
-      << "\t <schedtype> is one of roundrobin,weightedrr,tlrr,random,weightedrandom,geo\n"
+      << "\t <schedtype> is one of roundrobin,weightedrr,random,weightedrandom,geo\n"
       << "\t if configured via space; space takes precedence\n"
       << " sched configure weight <space> <fsid> <weight>\n"
       << "\t configure weight for a given fsid in the given space\n"

@@ -123,8 +123,6 @@ TEST(ParseSchedConfig, EnginePrefixedNames)
   EXPECT_EQ(ParseSchedConfig("geotree"), kGeoTreeSchedConfig);
   EXPECT_EQ(ParseSchedConfig("flat:geo"), Flat(PlacementStrategyT::kGeoScheduler));
   EXPECT_EQ(ParseSchedConfig("flat:roundrobin"), Flat(PlacementStrategyT::kRoundRobin));
-  EXPECT_EQ(ParseSchedConfig("flat:threadlocalroundrobin"),
-            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
   EXPECT_EQ(ParseSchedConfig("flat:random"), Flat(PlacementStrategyT::kRandom));
   EXPECT_EQ(ParseSchedConfig("flat:fidrandom"), Flat(PlacementStrategyT::kFidRandom));
   EXPECT_EQ(ParseSchedConfig("flat:weightedrandom"),
@@ -132,8 +130,6 @@ TEST(ParseSchedConfig, EnginePrefixedNames)
   EXPECT_EQ(ParseSchedConfig("flat:weightedroundrobin"),
             Flat(PlacementStrategyT::kWeightedRoundRobin));
   // Aliases carry the prefix too
-  EXPECT_EQ(ParseSchedConfig("flat:tlrr"),
-            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
   EXPECT_EQ(ParseSchedConfig("flat:weightedrr"),
             Flat(PlacementStrategyT::kWeightedRoundRobin));
   EXPECT_EQ(ParseSchedConfig("flat:fid"), Flat(PlacementStrategyT::kFidRandom));
@@ -153,9 +149,6 @@ TEST(ParseSchedConfig, PrePrefixSpellingsStillParse)
   EXPECT_EQ(ParseSchedConfig("legacy"), kGeoTreeSchedConfig);
   EXPECT_EQ(ParseSchedConfig("roundrobin"), Flat(PlacementStrategyT::kRoundRobin));
   EXPECT_EQ(ParseSchedConfig("rr"), Flat(PlacementStrategyT::kRoundRobin));
-  EXPECT_EQ(ParseSchedConfig("tlrr"), Flat(PlacementStrategyT::kThreadLocalRoundRobin));
-  EXPECT_EQ(ParseSchedConfig("threadlocalrr"),
-            Flat(PlacementStrategyT::kThreadLocalRoundRobin));
   EXPECT_EQ(ParseSchedConfig("fid"), Flat(PlacementStrategyT::kFidRandom));
   EXPECT_EQ(ParseSchedConfig("weightedrr"),
             Flat(PlacementStrategyT::kWeightedRoundRobin));
@@ -181,8 +174,6 @@ TEST(SchedConfigToStr, RendersTheCanonicalPrefixedName)
   EXPECT_EQ(SchedConfigToStr(kGeoTreeSchedConfig), "geotree");
   EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kGeoScheduler)), "flat:geo");
   EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kRoundRobin)), "flat:roundrobin");
-  EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kThreadLocalRoundRobin)),
-            "flat:threadlocalroundrobin");
   EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kRandom)), "flat:random");
   EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kFidRandom)), "flat:fidrandom");
   EXPECT_EQ(SchedConfigToStr(Flat(PlacementStrategyT::kWeightedRandom)),

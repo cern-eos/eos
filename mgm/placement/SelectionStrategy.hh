@@ -204,7 +204,6 @@ enum class SchedEngineT : uint8_t {
 //------------------------------------------------------------------------------
 enum class PlacementStrategyT : uint8_t {
   kRoundRobin = 0,
-  kThreadLocalRoundRobin,
   kRandom,
   kFidRandom,
   kWeightedRandom,
@@ -307,21 +306,17 @@ inline constexpr std::string_view kGeoTreeEngineName = "geotree";
 //! prefix. The first entry of a strategy is its canonical name, which is what
 //! StrategyToStr renders and what gets persisted; the rest are aliases.
 //------------------------------------------------------------------------------
-inline constexpr std::array<std::pair<std::string_view, PlacementStrategyT>, 13>
-    kFlatStrategyNames{
-        {{"geo", PlacementStrategyT::kGeoScheduler},
-         {"geoscheduler", PlacementStrategyT::kGeoScheduler},
-         {"roundrobin", PlacementStrategyT::kRoundRobin},
-         {"rr", PlacementStrategyT::kRoundRobin},
-         {"threadlocalroundrobin", PlacementStrategyT::kThreadLocalRoundRobin},
-         {"threadlocalrr", PlacementStrategyT::kThreadLocalRoundRobin},
-         {"tlrr", PlacementStrategyT::kThreadLocalRoundRobin},
-         {"random", PlacementStrategyT::kRandom},
-         {"fidrandom", PlacementStrategyT::kFidRandom},
-         {"fid", PlacementStrategyT::kFidRandom},
-         {"weightedrandom", PlacementStrategyT::kWeightedRandom},
-         {"weightedroundrobin", PlacementStrategyT::kWeightedRoundRobin},
-         {"weightedrr", PlacementStrategyT::kWeightedRoundRobin}}};
+inline constexpr std::array<std::pair<std::string_view, PlacementStrategyT>, 10>
+    kFlatStrategyNames{{{"geo", PlacementStrategyT::kGeoScheduler},
+                        {"geoscheduler", PlacementStrategyT::kGeoScheduler},
+                        {"roundrobin", PlacementStrategyT::kRoundRobin},
+                        {"rr", PlacementStrategyT::kRoundRobin},
+                        {"random", PlacementStrategyT::kRandom},
+                        {"fidrandom", PlacementStrategyT::kFidRandom},
+                        {"fid", PlacementStrategyT::kFidRandom},
+                        {"weightedrandom", PlacementStrategyT::kWeightedRandom},
+                        {"weightedroundrobin", PlacementStrategyT::kWeightedRoundRobin},
+                        {"weightedrr", PlacementStrategyT::kWeightedRoundRobin}}};
 
 //------------------------------------------------------------------------------
 //! Names of the legacy engine. "geotree" is canonical, "legacy" is the older

@@ -45,7 +45,8 @@ TEST_F(SimpleClusterF, RoundRobinBasic)
   auto res = rr_placement.Placement(cluster_data_ptr(), {0, 1});
   ASSERT_TRUE(res);
   EXPECT_EQ(res.n_replicas, 1);
-  EXPECT_EQ(res.ids[0], -1);
+  // Every cursor starts at a random position, so which site comes first is
+  // not fixed; only the looping behaviour is
 
   // Choose 1 group from SITE
   auto site_id = res.ids[0];
@@ -81,36 +82,6 @@ TEST_F(SimpleClusterF, RandomBasic)
   ASSERT_TRUE(disks_res);
   std::cout << disks_res << "\n";
   EXPECT_EQ(disks_res.n_replicas, 2);
-}
-
-TEST_F(SimpleClusterF, TLRoundRobinBasic)
-{
-  eos::mgm::placement::RoundRobinStrategy rr_placement(
-      eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin, 256);
-
-  auto cluster_data_ptr = mgr.GetClusterData();
-
-  // TODO: write a higher level function to do recursive descent
-  // Choose 1 site - from ROOT
-  auto res = rr_placement.Placement(cluster_data_ptr(), {0, 1});
-  ASSERT_TRUE(res);
-  EXPECT_EQ(res.n_replicas, 1);
-  // We cannot assert on the id here because the thread local round robin would
-  // have a random starting point, only the looping behaviour is easier to reason
-
-
-  // Choose 1 group from SITE
-  auto site_id = res.ids[0];
-  auto group_res = rr_placement.Placement(cluster_data_ptr(), {site_id, 1});
-  ASSERT_TRUE(group_res);
-  EXPECT_EQ(group_res.n_replicas, 1);
-
-
-  // choose 2 disks from group!
-  auto disks_res = rr_placement.Placement(cluster_data_ptr(), {group_res.ids[0], 2});
-  ASSERT_TRUE(disks_res);
-  EXPECT_EQ(disks_res.n_replicas, 2);
-
 }
 
 TEST_F(SimpleClusterF, RoundRobinBasicLoop)
@@ -169,14 +140,10 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
   // 30 items chosen in site2 among 10 disks
   ASSERT_EQ(group_id_ctr[-102], 15);
 
-  // This is a bit more involved to reason, actually just a consequence of an
-  // empty starting cluster, where we'd expect roundrobin to start from the initial
-  // elements, hence, group1 is chosen first, and thus gets a request extra
-  // if you do the LCM you'd be able to reach a point where you'd schedule equally
-  // group1 & group2; group3 would still have 2X requests if you RR over the sites first
-
-  EXPECT_EQ(group_id_ctr[-100], 8);
-  EXPECT_EQ(group_id_ctr[-101], 7);
+  // SITE1 splits its 15 requests between its two groups, the one the random
+  // starting cursor lands on first taking the extra one
+  EXPECT_EQ(group_id_ctr[-100] + group_id_ctr[-101], 15);
+  EXPECT_LE(std::max(group_id_ctr[-100], group_id_ctr[-101]), 8);
   // All the disks are chosen at least once, due to the non uniform nature here,
   // site 2 would have its disks chosen twice as often as site 1
   ASSERT_EQ(disk_ids_vec.size(), 60);
@@ -195,78 +162,6 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
     ASSERT_GE(disk_id_ctr[i],2);
   }
 }
-
-TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
-{
-  eos::mgm::placement::RoundRobinStrategy rr_placement(
-      eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin, 256);
-
-  auto cluster_data_ptr = mgr.GetClusterData();
-
-  std::map<int32_t,uint32_t> site_id_ctr;
-  std::map<int32_t,uint32_t> group_id_ctr;
-  std::map<int32_t,uint32_t> disk_id_ctr;
-  std::vector<int32_t> disk_ids_vec;
-  // TODO: write a higher level function to do recursive descent
-  // Choose 1 site - from ROOT
-  // Loop over 30 times, which is the total size of the disks to ensure that all
-  // elements are chosen
-  for (int i = 0; i < 30; i++)
-  {
-    auto res = rr_placement.Placement(cluster_data_ptr(), {0, 1});
-
-    ASSERT_TRUE(res);
-    ASSERT_EQ(res.n_replicas, 1);
-
-    site_id_ctr[res.ids[0]]++;
-
-    // Choose 1 group from SITE
-    auto site_id = res.ids[0];
-    auto group_res = rr_placement.Placement(cluster_data_ptr(), {site_id, 1});
-
-    ASSERT_TRUE(group_res);
-    ASSERT_EQ(group_res.n_replicas, 1);
-    group_id_ctr[group_res.ids[0]]++;
-
-
-    // choose 2 disks from group!
-    auto disks_res = rr_placement.Placement(cluster_data_ptr(), {group_res.ids[0], 2});
-
-    ASSERT_TRUE(disks_res);
-    ASSERT_EQ(disks_res.n_replicas, 2);
-    disk_id_ctr[disks_res.ids[0]]++;
-    disk_id_ctr[disks_res.ids[1]]++;
-
-
-    disk_ids_vec.push_back(disks_res.ids[0]);
-    disk_ids_vec.push_back(disks_res.ids[1]);
-
-  }
-
-  // SITE1 gets 15 requests, SITE2 gets 15 requests;
-  ASSERT_EQ(site_id_ctr[-1], 15);
-  ASSERT_EQ(site_id_ctr[-2], 15);
-
-
-  // 30 items chosen in site1 among 20 disks
-  // 30 items chosen in site2 among 10 disks
-  ASSERT_EQ(group_id_ctr[-102], 15);
-  // All the disks are chosen at least once, due to the non uniform nature here,
-  // site 2 would have its disks chosen twice as often as site 1
-  ASSERT_EQ(disk_ids_vec.size(), 60);
-  ASSERT_EQ(disk_id_ctr.size(), 30);
-
-  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
-  for (int i=1; i <=20; i++) {
-    ASSERT_GE(disk_id_ctr[i], 1);
-  }
-
-  // Check SITE2 ctr, all disks would've been scheduled twice, initial disks twice often as the others
-  for (int i=21; i <=30; i++) {
-    ASSERT_GE(disk_id_ctr[i],2);
-  }
-}
-
 
 TEST_F(SimpleClusterF, FlatSchedulerBasic)
 {
@@ -279,16 +174,12 @@ TEST_F(SimpleClusterF, FlatSchedulerBasic)
   auto cluster_data_ptr = mgr.GetClusterData();
 
   auto result = flat_scheduler.Schedule(cluster_data_ptr(), {2});
-  eos::mgm::placement::PlacementResult expected_result;
-  expected_result.ids = {1,2};
-  expected_result.ret_code = 0;
   ASSERT_TRUE(result);
-
   ASSERT_TRUE(result.IsValidPlacement(2));
-  EXPECT_EQ(result, expected_result);
 
   auto result2 = flat_scheduler.Schedule(cluster_data_ptr(), {2});
-  ASSERT_TRUE(result.IsValidPlacement(2));
+  ASSERT_TRUE(result2);
+  ASSERT_TRUE(result2.IsValidPlacement(2));
 }
 
 
@@ -334,48 +225,6 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
 
 }
 
-TEST_F(SimpleClusterF, TLFlatSchedulerBasicLoop)
-{
-  using eos::mgm::placement::PlacementStrategyT;
-
-  eos::mgm::placement::FlatScheduler flat_scheduler(
-      eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin,
-                                                    256);
-
-  auto cluster_data_ptr = mgr.GetClusterData();
-
-  std::map<int32_t,uint32_t> disk_id_ctr;
-  std::vector<int32_t> disk_ids_vec;
-
-  for (int i=0; i <30; ++i) {
-    auto result = flat_scheduler.Schedule(cluster_data_ptr(), {2});
-    ASSERT_TRUE(result);
-    ASSERT_TRUE(result.IsValidPlacement(2));
-    disk_id_ctr[result.ids[0]]++;
-    disk_id_ctr[result.ids[1]]++;
-    disk_ids_vec.push_back(result.ids[0]);
-    disk_ids_vec.push_back(result.ids[1]);
-  }
-  // All the disks are chosen at least once, due to the non uniform nature here,
-  // site 2 would have its disks chosen twice as often as site 1
-  ASSERT_EQ(disk_ids_vec.size(), 60);
-  ASSERT_EQ(disk_id_ctr.size(), 30);
-
-  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
-  for (int i=1; i <=20; i++) {
-    ASSERT_GE(disk_id_ctr[i], 1);
-  }
-
-  // Check SITE2 ctr, all disks would've been scheduled twice,
-  // initial disks twice often as the others
-
-  for (int i=21; i <=30; i++) {
-    ASSERT_GE(disk_id_ctr[i],2);
-  }
-
-}
-
-
 TEST(FlatScheduler, SingleSite)
 {
   using namespace eos::mgm::placement;
@@ -413,44 +262,7 @@ TEST(FlatScheduler, SingleSite)
   ASSERT_TRUE(result.IsValidPlacement(2));
 }
 
-TEST(FlatScheduler, TLSingleSite)
-{
-  using namespace eos::mgm::placement;
-  ClusterMgr mgr;
-  using eos::mgm::placement::PlacementStrategyT;
-
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
-                                                    2048);
-
-  {
-    auto sh = mgr.GetSnapshotBuilder(1024);
-    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
-    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::SITE), -1, 0));
-    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, -1));
-
-    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(4, kMaskAll, ActiveStatus::kOnline, 1), -100));
-    ASSERT_TRUE(sh.AddDisk(Disk(5, kMaskAll, ActiveStatus::kOnline, 1), -100));
-  }
-
-  auto data = mgr.GetClusterData();
-  std::vector<int32_t> disk_ids_vec {-1};
-  std::vector<int32_t> site_ids_vec {-100};
-  std::vector<int32_t> group_ids_vec {1,2,3,4,5};
-  ASSERT_EQ(data->buckets[0].items, disk_ids_vec);
-  ASSERT_EQ(data->buckets[1].items, site_ids_vec);
-  ASSERT_EQ(data->buckets[100].items, group_ids_vec);
-
-  auto cluster_data_ptr = mgr.GetClusterData();
-  auto result = flat_scheduler.Schedule(cluster_data_ptr(), {2});
-  std::cout << result.err_msg.value_or("") << std::endl;
-  ASSERT_TRUE(result);
-  ASSERT_TRUE(result.IsValidPlacement(2));
-}
-
-TEST(FlatScheduler, TLSingleSiteWeighted)
+TEST(FlatScheduler, SingleSiteWeighted)
 {
   using namespace eos::mgm::placement;
   ClusterMgr mgr;
@@ -550,14 +362,14 @@ TEST(RoundRobinStrategy, PlacesBeyondAttemptWindowInLargeBucket)
   EXPECT_TRUE(result.Contains(129));
 }
 
-TEST(FlatScheduler, TLNoSite)
+TEST(FlatScheduler, NoSite)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
   int n_elements = 1024;
   int n_disks_per_group = 16;
   int n_groups = 32;
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
                                                     2048);
 
   {
@@ -590,7 +402,7 @@ TEST(FlatScheduler, TLNoSite)
   }
 }
 
-TEST(FlatScheduler, TLNoSiteExcludeFsids)
+TEST(FlatScheduler, NoSiteExcludeFsids)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
@@ -624,7 +436,6 @@ TEST(FlatScheduler, TLNoSiteExcludeFsids)
   uint8_t n_replicas = 12;
   for (auto t: {PlacementStrategyT::kWeightedRoundRobin,
                 PlacementStrategyT::kRoundRobin,
-                PlacementStrategyT::kThreadLocalRoundRobin,
                 PlacementStrategyT::kWeightedRandom,
                 }) {
 
@@ -688,7 +499,6 @@ TEST(FlatScheduler, ForcedGroup)
   auto cluster_data = mgr.GetClusterData();
   for (int i=0; i<n_groups;i++) {
     for (auto strategy :{PlacementStrategyT::kRoundRobin,
-                          PlacementStrategyT::kThreadLocalRoundRobin,
                           PlacementStrategyT::kRandom,
                           PlacementStrategyT::kWeightedRandom,
                           PlacementStrategyT::kWeightedRoundRobin}) {
@@ -740,7 +550,6 @@ TEST(FlatScheduler, ForcedGroupOutofRange)
   }
   auto cluster_data = mgr.GetClusterData();
   for (auto strategy :{PlacementStrategyT::kRoundRobin,
-                       PlacementStrategyT::kThreadLocalRoundRobin,
                        PlacementStrategyT::kRandom,
                        PlacementStrategyT::kWeightedRandom,
                        PlacementStrategyT::kWeightedRoundRobin}) {
@@ -753,7 +562,7 @@ TEST(FlatScheduler, ForcedGroupOutofRange)
   }
 }
 
-TEST(FlatScheduler, TLNoSiteUniformWeighted)
+TEST(FlatScheduler, NoSiteUniformWeighted)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
@@ -793,7 +602,7 @@ TEST(FlatScheduler, TLNoSiteUniformWeighted)
   }
 }
 
-TEST(FlatScheduler, TLNoSiteUniformWeightedRR)
+TEST(FlatScheduler, NoSiteUniformWeightedRR)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
@@ -833,8 +642,7 @@ TEST(FlatScheduler, TLNoSiteUniformWeightedRR)
   }
 }
 
-
-TEST(FlatScheduler, TLNoSiteWeighted)
+TEST(FlatScheduler, NoSiteWeighted)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
@@ -893,8 +701,7 @@ TEST(FlatScheduler, TLNoSiteWeighted)
   }
 }
 
-
-TEST(FlatScheduler, TLNoSiteWeightedRR)
+TEST(FlatScheduler, NoSiteWeightedRR)
 {
   using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;

@@ -365,7 +365,6 @@ add_library(
   placement/RoundRobinStrategy.cc
   placement/WeightedRoundRobinStrategy.cc
   placement/WeightedRandomStrategy.cc
-  placement/ThreadLocalRRSeed.cc
   shaping/TrafficShaping.cc
   ${FUSEX_SRCS})
 

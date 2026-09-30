@@ -32,14 +32,12 @@ namespace eos::mgm::placement {
 std::unique_ptr<RRSeeder>
 MakeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
 {
-  if (strategy == PlacementStrategyT::kThreadLocalRoundRobin) {
-    return std::make_unique<ThreadLocalRRSeeder>(max_buckets);
-  } else if (strategy == PlacementStrategyT::kRandom) {
+  if (strategy == PlacementStrategyT::kRandom) {
     return std::make_unique<RandomSeeder>(max_buckets);
   } else if (strategy == PlacementStrategyT::kFidRandom) {
     return std::make_unique<FidSeeder>(max_buckets);
   }
-  return std::make_unique<GlobalRRSeeder>(max_buckets);
+  return std::make_unique<RoundRobinSeeder>(max_buckets);
 }
 
 //------------------------------------------------------------------------------
