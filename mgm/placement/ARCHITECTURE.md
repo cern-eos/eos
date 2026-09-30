@@ -288,7 +288,7 @@ XrdMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-sp
       │
       └── FlatScheduler                           ── engine: strategy array + descent + access
               └── SelectionStrategy[]             ── placement interface + shared helpers
-                    ├── RoundRobinStrategy         ── RR / TL-RR / random / fid
+                    ├── RoundRobinStrategy         ── RR / random / fid
                     ├── WeightedRandomStrategy      ── weighted rendezvous placement (also kGeoScheduler)
                     └── WeightedRoundRobinStrategy  ── cumulative weight table + stride
 ```
@@ -359,6 +359,45 @@ XrdMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-sp
 Placement strategy is per-space. All strategies pick items within a single
 bucket; the enum has more values than there are classes because one class can
 back several seeding behaviours.
+
+### Choosing a strategy
+
+Every strategy picks exactly one scheduling group per file and places all of its
+replicas or stripes there; a group that cannot take the whole file is abandoned
+and another tried (§5). What differs is how the group and the disks are picked.
+Reads do not depend on the strategy: the access path serves the closest
+reachable replica by geotag, uniformly at random among equally close ones (§6).
+
+| `scheduler.type` | How it picks | Fill limits | Use it for |
+|---|---|---|---|
+| `flat:geo` | Follows the client's geotag down the geo levels, keeping the placement policy's share of replicas near the client (§5) and spreading the rest over other branches; capacity-weighted pick at every level | yes | Multi-site / multi-room spaces with geotagged clients where replica locality matters — the flat counterpart of geotree |
+| `flat:roundrobin` (`rr`) | One shared cursor per bucket, each file takes the next disks in turn; cursors start at random values | no, free space only | Homogeneous, evenly filled groups where the most even spread of files and IO matters (benchmarks, test spaces) |
+| `flat:random` | Uniform random pick of group and disks | no, free space only | Homogeneous groups where an even spread on average is enough; no shared state |
+| `flat:fidrandom` (`fid`) | Derived from the file id (`index ^ replicas ^ fid`), the same file always maps to the same disks | no, free space only | Tests and debugging that need reproducible placement; not recommended otherwise |
+| `flat:weightedrandom` | Weighted rendezvous hashing over `(fid, disk, salt)`, weight = capacity decayed by fill level | yes | Mixed disk sizes or uneven fill levels; the best general-purpose default |
+| `flat:weightedroundrobin` (`weightedrr`) | Round-robin over the capacity-weighted slots, bigger disks get proportionally more turns; shares the randomized RR cursors | yes | Mixed disk sizes where a spread that is proportional *and* regular in the short term is wanted |
+
+Points behind the table:
+
+- **Fill limits act only through weights.** `fillratiowarn` / `fillratiolimit`
+  (§9) are applied by `GetEffectiveWeight`, which only `geo`, `weightedrandom`
+  and `weightedroundrobin` consult. `roundrobin`, `random` and `fidrandom` skip a
+  disk only when it lacks room for the booking (`HasRoomFor`, §7), so on a space
+  with uneven fill levels they keep filling the fullest disks up to the
+  free-space headroom.
+- **Only `flat:geo` looks at the client geotag.** Every other strategy places as
+  if the client were untagged and is served from the group's flat leaf view
+  (§5). Disabled branches are honoured by all of them.
+- **`fidrandom` retries repeat themselves.** `FidSeeder` ignores the salt that
+  the retry loop varies, so when the group a file hashes to cannot take it,
+  every retry picks that group again. `weightedrandom` does fold the salt in.
+- **Weighted strategies cost more per placement.** They score every candidate at
+  each level, so their cost grows with the number of groups: in
+  `BM_FlatScheduler` `weightedroundrobin` is ~0.7 µs per placement with 64
+  groups and ~6 µs with 512, against ~0.2 µs for `roundrobin` — small next to an
+  open, but not flat.
+
+### Strategy classes
 
 - **`RoundRobinStrategy`** (`RoundRobinStrategy.hh/.cc`) — one class
   backing **three** enum values (`kRoundRobin`, `kRandom`, `kFidRandom`),
