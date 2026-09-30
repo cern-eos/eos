@@ -3080,6 +3080,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     fs_id = filesystem->GetId();
   } // fs_rd_lock scope
 
+  COMMONTIMING("redirect::fs", &tm);
   targethost = fs_host.c_str();
   targetport = atoi(fs_port.c_str());
   targethttpport = atoi(fs_http_port.c_str());
@@ -3418,6 +3419,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       pio_addfs.erase(pio_addfs.length() - 1, 1);
       redirectionhost += pio_addfs.c_str();
     }
+
+    COMMONTIMING("redirect::replicas", &tm);
   }
 
   if (!altChecksums.empty()) {
@@ -3521,6 +3524,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  COMMONTIMING("capability::built", &tm);
   // ---------------------------------------------------------------------------
   // Encrypt capability
   // ---------------------------------------------------------------------------
@@ -3536,6 +3540,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return Emsg(epname, error, caprc, "sign capability", path);
   }
 
+  COMMONTIMING("capability::signed", &tm);
   std::unique_ptr<XrdOucEnv> capabilityenv(capabilityenvRaw);
   int caplen = 0;
 
@@ -3592,6 +3597,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     redirectionhost += (int) fsIndex;
   }
 
+  COMMONTIMING("redirect::built", &tm);
+
   if (vid.prot == "https") {
     struct stat buf;
     std::string etag;
@@ -3605,6 +3612,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       redirectionhost += etag.c_str();
     }
+
+    COMMONTIMING("etag::stat", &tm);
   }
 
   // add the MGM hex id for this file
@@ -3667,6 +3676,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     redirectionhost += workflow.getCGICloseR(currentWorkflow).c_str();
   }
 
+  COMMONTIMING("workflow", &tm);
+
   // Notify tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
     try {
@@ -3689,6 +3700,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Ignore any garbage collection exceptions
     }
   }
+
+  COMMONTIMING("tapegc", &tm);
 
   // Always redirect
   if ((vid.prot == "https") || (vid.prot == "http")) {
