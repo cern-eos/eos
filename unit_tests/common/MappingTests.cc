@@ -234,6 +234,20 @@ TEST(VirtualIdentity, IsLocalhost)
 TEST(VirtualIdentity, HandleKEYS)
 {
   using namespace eos::common;
+  struct ScopedMappings {
+    decltype(Mapping::gVirtualUidMap) uids;
+    decltype(Mapping::gVirtualGidMap) gids;
+    ScopedMappings()
+    {
+      uids.swap(Mapping::gVirtualUidMap);
+      gids.swap(Mapping::gVirtualGidMap);
+    }
+    ~ScopedMappings()
+    {
+      uids.swap(Mapping::gVirtualUidMap);
+      gids.swap(Mapping::gVirtualGidMap);
+    }
+  } scoped_mappings;
   const std::string secret_key = "xyz_my_secret_key_xyz";
   VirtualIdentity vid;
   auto EntityDeleter = [](XrdSecEntity * client) {
@@ -264,24 +278,25 @@ TEST(VirtualIdentity, HandleKEYS)
   // Add VOMS mapping
   const std::string_view uid_voms = "voms:\"/cms:production\":uid";
   const std::string_view gid_voms = "voms:\"/cms:production\":gid";
-  uid_t mapped_uid = 81;
-  gid_t mapped_gid = 81;
-  Mapping::gVirtualUidMap.emplace(uid_voms, mapped_uid);
-  Mapping::gVirtualGidMap.emplace(gid_voms, mapped_gid);
+  // VOMS resolves the mapped UID through the host's password database.
+  const uid_t voms_uid = getuid();
+  const gid_t voms_gid = getgid();
+  Mapping::gVirtualUidMap.emplace(uid_voms, voms_uid);
+  Mapping::gVirtualGidMap.emplace(gid_voms, voms_gid);
   // Add specific EOS KEY mapping
   std::string uid_key = "https:\"key:abbabeefdeadabba\":uid";
   std::string gid_key = "https:\"key:abbabeefdeadabba\":gid";
-  mapped_uid = 32;
-  mapped_gid = 32;
+  const uid_t mapped_uid = voms_uid == 32 ? 33 : 32;
+  const gid_t mapped_gid = voms_gid == 32 ? 33 : 32;
   Mapping::gVirtualUidMap.emplace(uid_key, mapped_uid);
   Mapping::gVirtualGidMap.emplace(gid_key, mapped_gid);
   Mapping::HandleVOMS(client.get(), vid);
-  ASSERT_EQ(81, vid.uid);
-  ASSERT_EQ(81, vid.gid);
+  ASSERT_EQ(voms_uid, vid.uid);
+  ASSERT_EQ(voms_gid, vid.gid);
   // The key should not match so there should be no change
   Mapping::HandleKEYS(client.get(), vid);
-  ASSERT_EQ(81, vid.uid);
-  ASSERT_EQ(81, vid.gid);
+  ASSERT_EQ(voms_uid, vid.uid);
+  ASSERT_EQ(voms_gid, vid.gid);
   // Add a new key mapping to match the given endorsements
   uid_key = "https:\"key:";
   uid_key += secret_key;
@@ -293,8 +308,8 @@ TEST(VirtualIdentity, HandleKEYS)
   Mapping::gVirtualGidMap.emplace(gid_key, mapped_gid);
   // The key matches so the mapped identity should also match
   Mapping::HandleKEYS(client.get(), vid);
-  ASSERT_EQ(32, vid.uid);
-  ASSERT_EQ(32, vid.gid);
+  ASSERT_EQ(mapped_uid, vid.uid);
+  ASSERT_EQ(mapped_gid, vid.gid);
 }
 
 
