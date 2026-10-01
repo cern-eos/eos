@@ -183,7 +183,30 @@ public:
 
     XrdOucString in = "mgm.cmd=fusex";
     if (subcmd == "ls") {
+      CLI::App listing;
+      listing.set_help_flag("");
+      for (const auto* flag : {"-l", "-f", "-k", "-m"}) {
+        listing.add_flag(flag);
+      }
+      std::reverse(remaining.begin(), remaining.end());
+      try {
+        listing.parse(remaining);
+      } catch (const CLI::ParseError&) {
+        printHelp();
+        global_retc = EINVAL;
+        return 0;
+      }
+      std::string options;
+      for (const auto* flag : {"-l", "-f", "-k", "-m"}) {
+        if (listing.count(flag)) {
+          options += flag[1];
+        }
+      }
       in += "&mgm.subcmd=ls";
+      if (!options.empty()) {
+        in += "&mgm.option=";
+        in += options.c_str();
+      }
     } else if (subcmd == "evict") {
       if (remaining.size() < 1) {
         printHelp();
