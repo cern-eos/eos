@@ -896,6 +896,9 @@ TEST(TrafficShapingManager,
   manager.UpdateEstimators(1.0);
   ASSERT_EQ(1u, manager.GetGlobalStats().size());
   EXPECT_EQ(1000u, manager.GetTotalCumulativeStats().bytes_written_total);
+  ASSERT_EQ(1u, manager.GetNodeEntityCumulativeStats().size());
+  EXPECT_EQ(1000u,
+            manager.GetNodeEntityCumulativeStats().begin()->second.bytes_written_total);
 
   eos::mgm::traffic_shaping::NodeReservationControllerRuntime runtime;
   runtime.app_limits["config-change-app"].write_bps = 1000;
@@ -908,6 +911,9 @@ TEST(TrafficShapingManager,
   EXPECT_DOUBLE_EQ(
       0.0, manager.GetTotalStats().ema[eos::mgm::traffic_shaping::Ema1s].write_rate_bps);
   EXPECT_EQ(1000u, manager.GetTotalCumulativeStats().bytes_written_total);
+  ASSERT_EQ(1u, manager.GetNodeEntityCumulativeStats().size());
+  EXPECT_EQ(1000u,
+            manager.GetNodeEntityCumulativeStats().begin()->second.bytes_written_total);
   const auto runtimes = manager.GetNodeReservationControllerRuntimes();
   ASSERT_NE(runtimes.end(), runtimes.find("config-change-node"));
   EXPECT_EQ(
@@ -1486,7 +1492,89 @@ TEST(TrafficShapingManager, GlobalStatsAggregateAcrossFilesystems)
   const auto cardinality = manager.GetMapCardinalityStats();
   EXPECT_EQ(2u, cardinality.node_state_streams);
   EXPECT_EQ(1u, cardinality.global_stats);
-  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.projection_app_cumulative_stats);
+}
+
+TEST(TrafficShapingManager, NodeEntityCountersPreserveIdentityAndSurviveStreamResets)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  const std::string node = "/eos/fst.example:1095/fst";
+  auto make_report = [&](const int64_t timestamp_ms, const uint64_t generation,
+                         const uint64_t bytes) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node);
+    report.set_timestamp_ms(timestamp_ms);
+    for (const auto& [app, uid, gid] :
+         std::vector<std::tuple<std::string, uint32_t, uint32_t>>{
+             {"app-a", 1, 2}, {"app-a", 3, 2}, {"app-a", 1, 4}, {"app-b", 1, 2}}) {
+      auto* entry = report.add_entries();
+      entry->set_app_name(app);
+      entry->set_uid(uid);
+      entry->set_gid(gid);
+      entry->set_fsid(3);
+      entry->set_generation_id(generation);
+      entry->set_total_bytes_written(bytes);
+    }
+    return report;
+  };
+  manager.ProcessReport(make_report(1000, 1, 0));
+  manager.ProcessReport(make_report(2000, 1, 4096));
+  manager.ProcessReport(make_report(3000, 2, 0));
+  manager.ProcessReport(make_report(4000, 2, 512));
+  for (int tick = 0; tick < 5; ++tick) {
+    manager.UpdateEstimators(1.0);
+  }
+  const auto counters = manager.GetNodeEntityCumulativeStats();
+  ASSERT_EQ(4u, counters.size());
+  for (const auto& [key, snapshot] : counters) {
+    EXPECT_EQ(node, key.node_id);
+    EXPECT_EQ(0u, key.stream.fsid);
+    EXPECT_EQ(4608u, snapshot.bytes_written_total);
+  }
+  EXPECT_EQ(4u, manager.GetMapCardinalityStats().node_entity_stats);
+  EXPECT_TRUE(manager.GetDetailedCumulativeStats().empty());
+  manager.ClearDetailedRuntimeStats();
+  EXPECT_EQ(4u, manager.GetNodeEntityCumulativeStats().size());
+  manager.ClearRuntimeStats();
+  EXPECT_TRUE(manager.GetNodeEntityCumulativeStats().empty());
+  manager.ProcessReport(make_report(5000, 2, 0));
+  manager.ProcessReport(make_report(6000, 2, 512));
+  ASSERT_EQ(4u, manager.GetNodeEntityCumulativeStats().size());
+  manager.Clear();
+  EXPECT_TRUE(manager.GetNodeEntityCumulativeStats().empty());
+}
+
+TEST(TrafficShapingManager, NodeEntityGcPreservesIndependentClientTotals)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  const std::string stale_node = "/eos/fst-a.example:1095/fst";
+  const std::string active_node = "/eos/fst-b.example:1095/fst";
+  for (const auto& node : {stale_node, active_node}) {
+    for (const auto bytes : {0u, 4096u}) {
+      eos::traffic_shaping::FstIoReport report;
+      report.set_node_id(node);
+      report.set_timestamp_ms(bytes == 0 ? 1000 : 2000);
+      auto* entry = report.add_entries();
+      entry->set_app_name("shared-app");
+      entry->set_uid(1);
+      entry->set_gid(2);
+      entry->set_generation_id(1);
+      entry->set_total_bytes_written(bytes);
+      manager.ProcessReport(report);
+    }
+  }
+  manager.SetNodeEntityLastActivityForTest(stale_node, {"shared-app", 1, 2, 0},
+                                           time(nullptr) - 20);
+  manager.GarbageCollect(5);
+  const auto counters = manager.GetNodeEntityCumulativeStats();
+  ASSERT_EQ(1u, counters.size());
+  EXPECT_EQ(active_node, counters.begin()->first.node_id);
+  EXPECT_EQ(4096u, counters.begin()->second.bytes_written_total);
+  const auto totals = manager.GetProjectionCumulativeStats();
+  EXPECT_EQ(8192u, totals.app.at("shared-app").bytes_written_total);
+  EXPECT_EQ(8192u, totals.uid.at(1).bytes_written_total);
+  EXPECT_EQ(8192u, totals.gid.at(2).bytes_written_total);
+  EXPECT_EQ(8192u, manager.GetTotalCumulativeStats().bytes_written_total);
 }
 
 TEST(TrafficShapingManager, GlobalStatsKeepFilesystemWhenDetailEnabled)
@@ -1516,7 +1604,7 @@ TEST(TrafficShapingManager, GlobalStatsKeepFilesystemWhenDetailEnabled)
 
   const auto cardinality = manager.GetMapCardinalityStats();
   EXPECT_EQ(2u, cardinality.global_stats);
-  EXPECT_EQ(2u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(2u, cardinality.detailed_cumulative_stats);
   EXPECT_EQ(2u, cardinality.disk_stats);
   EXPECT_EQ(2u, cardinality.detailed_stats);
 }
@@ -1614,10 +1702,11 @@ TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
   manager.UpdateEstimators(1.0);
 
   auto cardinality = manager.GetMapCardinalityStats();
-  ASSERT_EQ(1u, cardinality.global_cumulative_stats);
-  ASSERT_EQ(1u, cardinality.node_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.projection_app_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.projection_node_cumulative_stats);
   ASSERT_EQ(1u, cardinality.disk_cumulative_stats);
   ASSERT_EQ(1u, cardinality.detailed_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.node_entity_stats);
   auto projection_stats = manager.GetProjectionCumulativeStats();
   ASSERT_EQ(1u, projection_stats.app.size());
   ASSERT_EQ(1024u * 1024u, projection_stats.app["gc-app"].bytes_written_total);
@@ -1628,18 +1717,20 @@ TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
   manager.GarbageCollect(3600);
 
   cardinality = manager.GetMapCardinalityStats();
-  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
-  EXPECT_EQ(1u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.projection_app_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.projection_node_cumulative_stats);
   EXPECT_EQ(1u, cardinality.disk_cumulative_stats);
   EXPECT_EQ(1u, cardinality.detailed_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.node_entity_stats);
 
   manager.GarbageCollect(-1);
 
   cardinality = manager.GetMapCardinalityStats();
-  EXPECT_EQ(0u, cardinality.global_cumulative_stats);
-  EXPECT_EQ(0u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.projection_app_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.projection_node_cumulative_stats);
   EXPECT_EQ(0u, cardinality.disk_cumulative_stats);
   EXPECT_EQ(0u, cardinality.detailed_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.node_entity_stats);
 
   projection_stats = manager.GetProjectionCumulativeStats();
   EXPECT_TRUE(projection_stats.app.empty());

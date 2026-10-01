@@ -2743,6 +2743,23 @@ flag) and by the built-in Prometheus exporter, allowing aggregation of
 application, user, group, and cluster-total throughput in monitoring dashboards
 such as Grafana.
 
+The ``eos_io_shaping_all_bytes_total`` and
+``eos_io_shaping_all_operations_total`` counters retain node, application, user,
+and group attribution even at ``aggregate`` detail. Their ``fsid="0"`` label
+means filesystem attribution is unavailable; it is not a real filesystem.
+At ``fs`` detail the same families report individual filesystems instead.
+The all-tags cardinality limit applies to the selected set of counters in
+either mode. Node and client projection totals remain independently available
+when that limit suppresses all-tags metrics.
+
+Node/client counters share the existing node-entity rate map; cumulative
+snapshots store counters without rate windows. The redundant global and node
+cumulative maps have been removed. Consequently, the ``global_cumulative_stats``
+and ``node_cumulative_stats`` labels of the map-cardinality metric and the
+corresponding JSON/text CLI fields are no longer emitted. The retained node
+projection map is reported as ``projection_node_cumulative_stats`` (and as
+``projection_node_cumulative_stats_cardinality`` in JSON).
+
 ``eos io shaping pressure ls --json`` also emits ``node_controller_limit`` and
 ``node_controller_feedback`` records. A third
 ``node_controller_cohort_app`` record identifies every active or failed protected

@@ -18,6 +18,10 @@ class Registry;
 
 namespace eos::mgm::monitoring {
 
+std::shared_ptr<prometheus::Collectable>
+CreateTrafficShapingCollector(traffic_shaping::TrafficShapingEngine& engine,
+                              std::string cluster);
+
 class PrometheusExporter {
 public:
   PrometheusExporter(std::string bind_address,

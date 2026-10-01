@@ -971,10 +971,9 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           static_cast<Json::Value::UInt64>(map_cardinality.disk_stats);
       entry["detailed_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.detailed_stats);
-      entry["global_cumulative_stats_cardinality"] =
-          static_cast<Json::Value::UInt64>(map_cardinality.global_cumulative_stats);
-      entry["node_cumulative_stats_cardinality"] =
-          static_cast<Json::Value::UInt64>(map_cardinality.node_cumulative_stats);
+      entry["projection_node_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(
+              map_cardinality.projection_node_cumulative_stats);
       entry["disk_cumulative_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.disk_cumulative_stats);
       entry["detailed_cumulative_stats_cardinality"] =
@@ -1170,8 +1169,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           << " node_entity_stats=" << map_cardinality.node_entity_stats
           << " disk_stats=" << map_cardinality.disk_stats
           << " detailed_stats=" << map_cardinality.detailed_stats
-          << " global_cumulative_stats=" << map_cardinality.global_cumulative_stats
-          << " node_cumulative_stats=" << map_cardinality.node_cumulative_stats
+          << " projection_node_cumulative_stats="
+          << map_cardinality.projection_node_cumulative_stats
           << " disk_cumulative_stats=" << map_cardinality.disk_cumulative_stats
           << " detailed_cumulative_stats=" << map_cardinality.detailed_cumulative_stats
           << " app_policies=" << map_cardinality.app_policies

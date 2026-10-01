@@ -32,9 +32,9 @@ using eos::common::traffic_shaping::GidLabel;
 using eos::common::traffic_shaping::NodeLabel;
 using eos::common::traffic_shaping::UidLabel;
 using eos::mgm::traffic_shaping::AppIoPressureSnapshot;
+using eos::mgm::traffic_shaping::CounterSnapshot;
 using eos::mgm::traffic_shaping::DurationHistogramSnapshot;
 using eos::mgm::traffic_shaping::LoopTimingSnapshot;
-using eos::mgm::traffic_shaping::RateSnapshot;
 using eos::mgm::traffic_shaping::TrafficShapingEngine;
 using eos::mgm::traffic_shaping::TrafficShapingManager;
 using eos::mgm::traffic_shaping::TrafficShapingPolicy;
@@ -74,7 +74,7 @@ struct EntityTotals {
   uint64_t write_ops = 0;
 
   void
-  Add(const RateSnapshot& snapshot)
+  Add(const CounterSnapshot& snapshot)
   {
     read_bytes += snapshot.bytes_read_total;
     write_bytes += snapshot.bytes_written_total;
@@ -743,7 +743,7 @@ private:
       return static_cast<std::size_t>(cardinality.detailed_cumulative_stats);
     }
 
-    return static_cast<std::size_t>(cardinality.global_cumulative_stats);
+    return static_cast<std::size_t>(cardinality.node_entity_stats);
   }
 
   std::map<AllKey, EntityTotals>
@@ -760,9 +760,9 @@ private:
         all_totals[key].Add(snapshot);
       }
     } else {
-      for (const auto& [key, snapshot] : manager.GetGlobalCumulativeStats()) {
-        AllKey all_key{eos::common::traffic_shaping::kUnknownId, 0,
-                       LabelOrUnknown(key.app), key.uid, key.gid};
+      for (const auto& [key, snapshot] : manager.GetNodeEntityCumulativeStats()) {
+        AllKey all_key{NodeLabel(LabelOrUnknown(key.node_id)), 0,
+                       LabelOrUnknown(key.stream.app), key.stream.uid, key.stream.gid};
         all_totals[all_key].Add(snapshot);
       }
     }
@@ -868,10 +868,6 @@ private:
              static_cast<double>(cardinality.disk_stats));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "detailed_stats"}},
              static_cast<double>(cardinality.detailed_stats));
-    AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "global_cumulative_stats"}},
-             static_cast<double>(cardinality.global_cumulative_stats));
-    AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_cumulative_stats"}},
-             static_cast<double>(cardinality.node_cumulative_stats));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "disk_cumulative_stats"}},
              static_cast<double>(cardinality.disk_cumulative_stats));
     AddGauge(map_cardinality,
@@ -1246,6 +1242,12 @@ private:
 
 } // namespace
 
+std::shared_ptr<prometheus::Collectable>
+CreateTrafficShapingCollector(TrafficShapingEngine& engine, std::string cluster)
+{
+  return std::make_shared<TrafficShapingCollector>(engine, std::move(cluster));
+}
+
 PrometheusExporter::PrometheusExporter(
     std::string bind_address, TrafficShapingEngine& engine, std::string cluster,
     const std::chrono::milliseconds cache_ttl, std::function<bool()> should_collect,
@@ -1266,8 +1268,7 @@ PrometheusExporter::PrometheusExporter(
       should_collect);
   auto traffic_shaping_collector = std::make_shared<MasterOnlyCollectable>(
       std::make_shared<CachedCollectable>(
-          std::make_shared<TrafficShapingCollector>(engine, std::move(cluster)),
-          cache_ttl),
+          CreateTrafficShapingCollector(engine, std::move(cluster)), cache_ttl),
       std::move(should_collect));
 
   // Role is deliberately not master-only: every scraped MGM must identify

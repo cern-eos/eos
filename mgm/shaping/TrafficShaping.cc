@@ -821,7 +821,7 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() { Clear(); }
 
 void
-AddCumulativeStats(RateSnapshot& snapshot, const uint64_t bytes_read,
+AddCumulativeStats(CounterSnapshot& snapshot, const uint64_t bytes_read,
                    const uint64_t bytes_written, const uint64_t read_ops,
                    const uint64_t write_ops, const time_t now_unix)
 {
@@ -1495,9 +1495,6 @@ try {
 
       AddDeltas(global, rate_delta_bytes_read, rate_delta_bytes_written,
                 rate_delta_read_iops, rate_delta_write_iops, now_unix);
-      AddCumulativeStats(mGlobalCumulativeStats[stats_key], delta_bytes_read,
-                         delta_bytes_written, delta_read_iops, delta_write_iops,
-                         now_unix);
       AddCumulativeStats(mProjectionCumulativeStats.app[stream_key.app], delta_bytes_read,
                          delta_bytes_written, delta_read_iops, delta_write_iops,
                          now_unix);
@@ -1516,6 +1513,8 @@ try {
 
       AddDeltas(node_entity, rate_delta_bytes_read, rate_delta_bytes_written,
                 rate_delta_read_iops, rate_delta_write_iops, now_unix);
+      AddCumulativeStats(node_entity, delta_bytes_read, delta_bytes_written,
+                         delta_read_iops, delta_write_iops, now_unix);
 
       if (mFilesystemDetailEnabled.load(std::memory_order_relaxed) && entry.fsid() != 0) {
         DetailedKey detailed_key{node_id, stream_key};
@@ -1552,9 +1551,6 @@ try {
     AddDeltas(node_stat, total_node_rate_delta_bytes_read,
               total_node_rate_delta_bytes_written, total_node_rate_delta_read_iops,
               total_node_rate_delta_write_iops, now_unix);
-    AddCumulativeStats(mNodeCumulativeStats[node_id], total_node_raw_delta_bytes_read,
-                       total_node_raw_delta_bytes_written, total_node_raw_delta_read_iops,
-                       total_node_raw_delta_write_iops, now_unix);
     AddCumulativeStats(mProjectionCumulativeStats.node[node_id],
                        total_node_raw_delta_bytes_read,
                        total_node_raw_delta_bytes_written, total_node_raw_delta_read_iops,
@@ -4138,8 +4134,6 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
     }
   };
 
-  prune_cumulative_stats(mGlobalCumulativeStats);
-  prune_cumulative_stats(mNodeCumulativeStats);
   prune_cumulative_stats(mDiskCumulativeStats);
   prune_cumulative_stats(mDetailedCumulativeStats);
   prune_cumulative_stats(mProjectionCumulativeStats.app);
@@ -4361,8 +4355,6 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.node_stats = static_cast<uint64_t>(mNodeStats.size());
   stats.disk_stats = static_cast<uint64_t>(mDiskStats.size());
   stats.detailed_stats = static_cast<uint64_t>(mDetailedStats.size());
-  stats.global_cumulative_stats = static_cast<uint64_t>(mGlobalCumulativeStats.size());
-  stats.node_cumulative_stats = static_cast<uint64_t>(mNodeCumulativeStats.size());
   stats.disk_cumulative_stats = static_cast<uint64_t>(mDiskCumulativeStats.size());
   stats.detailed_cumulative_stats =
       static_cast<uint64_t>(mDetailedCumulativeStats.size());
@@ -4502,12 +4494,10 @@ TrafficShapingManager::Clear()
   mPublishedFstIoDelayConfigs.clear();
   mPendingFstIoConfigNodes.clear();
   mNodeReservationControllers.clear();
-  mGlobalCumulativeStats.clear();
-  mNodeCumulativeStats.clear();
   mDiskCumulativeStats.clear();
   mDetailedCumulativeStats.clear();
   mProjectionCumulativeStats = ProjectionCumulativeStats{};
-  mCumulativeTotalStats = RateSnapshot{};
+  mCumulativeTotalStats = CounterSnapshot{};
   ++mControllerInputRevision;
 
   estimators_update_loop_micro_sec.reset();
@@ -4545,12 +4535,10 @@ TrafficShapingManager::ClearRuntimeStats()
   mNodeFstIoDelayConfigs.clear();
   mPublishedFstIoDelayConfigs.clear();
   mPendingFstIoConfigNodes.clear();
-  mGlobalCumulativeStats.clear();
-  mNodeCumulativeStats.clear();
   mDiskCumulativeStats.clear();
   mDetailedCumulativeStats.clear();
   mProjectionCumulativeStats = ProjectionCumulativeStats{};
-  mCumulativeTotalStats = RateSnapshot{};
+  mCumulativeTotalStats = CounterSnapshot{};
   ++mControllerInputRevision;
 }
 
@@ -4575,32 +4563,30 @@ TrafficShapingManager::GetTotalStats() const
   return snap;
 }
 
-std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
-TrafficShapingManager::GetGlobalCumulativeStats() const
-{
-  std::shared_lock lock(mMutex);
-  return mGlobalCumulativeStats;
-}
-
-std::unordered_map<std::string, RateSnapshot>
-TrafficShapingManager::GetNodeCumulativeStats() const
-{
-  std::shared_lock lock(mMutex);
-  return mNodeCumulativeStats;
-}
-
-std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash>
+std::unordered_map<DiskKey, CounterSnapshot, DiskKeyHash>
 TrafficShapingManager::GetDiskCumulativeStats() const
 {
   std::shared_lock lock(mMutex);
   return mDiskCumulativeStats;
 }
 
-std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash>
 TrafficShapingManager::GetDetailedCumulativeStats() const
 {
   std::shared_lock lock(mMutex);
   return mDetailedCumulativeStats;
+}
+
+std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash>
+TrafficShapingManager::GetNodeEntityCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash> snapshots;
+  snapshots.reserve(mNodeEntityStats.size());
+  for (const auto& [key, stats] : mNodeEntityStats) {
+    snapshots.emplace(key, static_cast<const CounterSnapshot&>(stats));
+  }
+  return snapshots;
 }
 
 ProjectionCumulativeStats
@@ -4610,7 +4596,7 @@ TrafficShapingManager::GetProjectionCumulativeStats() const
   return mProjectionCumulativeStats;
 }
 
-RateSnapshot
+CounterSnapshot
 TrafficShapingManager::GetTotalCumulativeStats() const
 {
   std::shared_lock lock(mMutex);
@@ -4807,7 +4793,6 @@ TrafficShapingEngine::LogDetailLevelSwitch(
         "detail_level=\"%s\" auto_enabled=%s auto_low_cardinality=%llu "
         "auto_high_cardinality=%llu node_states=%llu node_state_streams=%llu "
         "global_stats=%llu node_stats=%llu disk_stats=%llu detailed_stats=%llu "
-        "global_cumulative_stats=%llu node_cumulative_stats=%llu "
         "disk_cumulative_stats=%llu detailed_cumulative_stats=%llu "
         "node_entity_stats=%llu app_policies=%llu uid_policies=%llu gid_policies=%llu "
         "node_fst_io_delay_configs=%llu published_fst_io_delay_configs=%llu",
@@ -4823,8 +4808,6 @@ TrafficShapingEngine::LogDetailLevelSwitch(
         static_cast<unsigned long long>(cardinality.node_stats),
         static_cast<unsigned long long>(cardinality.disk_stats),
         static_cast<unsigned long long>(cardinality.detailed_stats),
-        static_cast<unsigned long long>(cardinality.global_cumulative_stats),
-        static_cast<unsigned long long>(cardinality.node_cumulative_stats),
         static_cast<unsigned long long>(cardinality.disk_cumulative_stats),
         static_cast<unsigned long long>(cardinality.detailed_cumulative_stats),
         static_cast<unsigned long long>(cardinality.node_entity_stats),

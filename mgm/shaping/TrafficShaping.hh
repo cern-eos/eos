@@ -311,8 +311,6 @@ struct MapCardinalityStats {
   uint64_t node_stats = 0;
   uint64_t disk_stats = 0;
   uint64_t detailed_stats = 0;
-  uint64_t global_cumulative_stats = 0;
-  uint64_t node_cumulative_stats = 0;
   uint64_t disk_cumulative_stats = 0;
   uint64_t detailed_cumulative_stats = 0;
   uint64_t projection_app_cumulative_stats = 0;
@@ -454,17 +452,25 @@ struct MultiWindowRate {
   }
 };
 
+// Cumulative metrics do not carry EMA/SMA arrays or rate histories.
+struct CounterSnapshot {
+  uint64_t bytes_read_total = 0;
+  uint64_t bytes_written_total = 0;
+  uint64_t read_ops_total = 0;
+  uint64_t write_ops_total = 0;
+  time_t last_activity_time = 0;
+};
+
 // The controller needs fast and stable EMAs for per-node entities. Locally
 // bursty workloads can make an active competitor look idle to a one-second EMA
 // while the global five-second demand signal remains active. Avoid the much
 // larger SMA history carried by MultiWindowRate.
-struct EmaRate {
+struct EmaRate : CounterSnapshot {
   double bytes_read_accumulator = 0.0;
   double bytes_written_accumulator = 0.0;
   double read_iops_accumulator = 0.0;
   double write_iops_accumulator = 0.0;
   std::array<RateMetrics, EmaWindowSec.size()> ema{};
-  time_t last_activity_time = 0;
 };
 
 struct RateSnapshot {
@@ -480,10 +486,10 @@ struct RateSnapshot {
 };
 
 struct ProjectionCumulativeStats {
-  std::unordered_map<std::string, RateSnapshot> app;
-  std::unordered_map<uint32_t, RateSnapshot> uid;
-  std::unordered_map<uint32_t, RateSnapshot> gid;
-  std::unordered_map<std::string, RateSnapshot> node;
+  std::unordered_map<std::string, CounterSnapshot> app;
+  std::unordered_map<uint32_t, CounterSnapshot> uid;
+  std::unordered_map<uint32_t, CounterSnapshot> gid;
+  std::unordered_map<std::string, CounterSnapshot> node;
 };
 
 using StreamKey = eos::common::traffic_shaping::IoStatsKey;
@@ -632,19 +638,18 @@ public:
 
   RateSnapshot GetTotalStats() const;
 
-  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
-  GetGlobalCumulativeStats() const;
+  std::unordered_map<DiskKey, CounterSnapshot, DiskKeyHash>
+  GetDiskCumulativeStats() const;
 
-  std::unordered_map<std::string, RateSnapshot> GetNodeCumulativeStats() const;
-
-  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> GetDiskCumulativeStats() const;
-
-  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+  std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash>
   GetDetailedCumulativeStats() const;
+
+  std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash>
+  GetNodeEntityCumulativeStats() const;
 
   ProjectionCumulativeStats GetProjectionCumulativeStats() const;
 
-  RateSnapshot GetTotalCumulativeStats() const;
+  CounterSnapshot GetTotalCumulativeStats() const;
 
   struct GarbageCollectionStats {
     size_t removed_nodes;
@@ -807,16 +812,16 @@ private:
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;
   std::unordered_map<DiskKey, MultiWindowRate, DiskKeyHash> mDiskStats;
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mDetailedStats;
+  // Rates and cumulative counters share node/client identity and lifetime.
   std::unordered_map<DetailedKey, EmaRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
 
-  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> mGlobalCumulativeStats;
-  std::unordered_map<std::string, RateSnapshot> mNodeCumulativeStats;
-  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> mDiskCumulativeStats;
-  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> mDetailedCumulativeStats;
+  std::unordered_map<DiskKey, CounterSnapshot, DiskKeyHash> mDiskCumulativeStats;
+  std::unordered_map<DetailedKey, CounterSnapshot, DetailedKeyHash>
+      mDetailedCumulativeStats;
   ProjectionCumulativeStats mProjectionCumulativeStats;
-  RateSnapshot mCumulativeTotalStats;
+  CounterSnapshot mCumulativeTotalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
