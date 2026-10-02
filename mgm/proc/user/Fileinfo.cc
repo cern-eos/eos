@@ -564,7 +564,10 @@ ProcCommand::FileInfo(const char* path)
 
               if (!Monitoring) {
                 std::string format =
-                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=local.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
+                    "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format="
+                    "s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|"
+                    "compute=sched:width=20:format=s|key=local.drain:width=12:format=s|"
+                    "key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
 
                 filesystem->Print(table_mq_header, table_mq_data, format);
 
