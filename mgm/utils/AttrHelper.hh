@@ -24,9 +24,10 @@
 #pragma once
 #include <type_traits>
 
-#include "namespace/interface/IContainerMD.hh"
-#include "common/VirtualIdentity.hh"
 #include "common/StringUtils.hh"
+#include "common/VirtualIdentity.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 
 namespace eos::mgm::attr
 {
@@ -79,6 +80,20 @@ int getVersioning(const eos::IContainerMD::XAttrMap& attrmap,
  */
 bool getValue(const eos::IContainerMD::XAttrMap& attrmap,
               const std::string& key, std::string& out);
+
+/*!
+ * Get the xattrs carried over from an overwritten file onto the file
+ * replacing it. Only keys stored on the old file are returned, attributes
+ * describing the previous file instance are dropped and the encryption keys
+ * are taken from enc_xattrs.
+ * @param old_xattrs xattrs stored on the overwritten file - not merged with
+ *        space or linked attributes, which would then be persisted
+ * @param enc_xattrs map holding the encryption keys the new file is written
+ *        with, a key missing there is dropped
+ * @return xattrs to set on the new file
+ */
+eos::IFileMD::XAttrMap getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs,
+                                          const eos::IFileMD::XAttrMap& enc_xattrs);
 
 /*!
  * Get numeric value from xattr map

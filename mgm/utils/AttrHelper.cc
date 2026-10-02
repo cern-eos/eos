@@ -1,7 +1,10 @@
 #include "mgm/utils/AttrHelper.hh"
-#include "mgm/misc/Constants.hh"
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
+#include "mgm/misc/Constants.hh"
+#include "namespace/utils/Attributes.hh"
+#include <set>
 
 namespace eos::mgm::attr
 {
@@ -114,5 +117,34 @@ bool getValue(const eos::IContainerMD::XAttrMap &attrmap,
   return false;
 }
 
+eos::IFileMD::XAttrMap
+getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs,
+                   const eos::IFileMD::XAttrMap& enc_xattrs)
+{
+  // Attributes describing the previous instance of the file
+  static const std::set<std::string> skip_keys{
+      eos::common::EOS_BTIME, eos::common::EOS_FS_TRACKING_ATTR,
+      eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR,
+      eos::common::EOS_TMP_ATOMIC_ATTR};
+  // The new file has to carry the keys its contents are encrypted with
+  static const std::set<std::string> enc_keys{eos::kAttrObfuscateKey, eos::kAttrEncrypted,
+                                              eos::kAttrEncryptSpace,
+                                              eos::kAttrEncryptedFp};
+  eos::IFileMD::XAttrMap out;
+
+  for (const auto& [key, val] : old_xattrs) {
+    if (!skip_keys.count(key) && !enc_keys.count(key)) {
+      out.emplace(key, val);
+    }
+  }
+
+  for (const auto& key : enc_keys) {
+    if (auto kv = enc_xattrs.find(key); kv != enc_xattrs.end()) {
+      out[key] = kv->second;
+    }
+  }
+
+  return out;
+}
 
 } // namespace eos::mgm::attr
