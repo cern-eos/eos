@@ -739,6 +739,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   static const char* epname = "open";
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
+  // xattrs stored on a file replaced by a truncating open, unlike attrmapF
+  // they are not merged with the space attributes
+  eos::IFileMD::XAttrMap attrmapOverwritten;
   errno = 0;
   eos::common::Timing tm("Open");
   COMMONTIMING("begin", &tm);
@@ -1705,6 +1708,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         auditTruncate = true;
       }
 
+      // Copied onto the new file when it is created
+      if (versioning) {
+        attrmapOverwritten = fmd->getAttributes();
+      }
+
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1927,24 +1935,25 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             }
 
-            // For versions copy xattrs over from the original file
+            // For versions copy the xattrs stored on the original file over,
+            // never the space attributes merged into attrmapF as they would
+            // stick to the file once the space configuration changes
             if (versioning) {
-              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
+              const auto& enc_xattrs = obfuscate ? attrmapF : attrmapOverwritten;
 
-              for (const auto& xattr : attrmapF) {
-                if (skip_tag.find(xattr.first) == skip_tag.end()) {
-                  fmd->setAttribute(xattr.first, xattr.second);
-                }
+              for (const auto& [key, val] :
+                   attr::getCarryOverXattrs(attrmapOverwritten, enc_xattrs)) {
+                fmd->setAttribute(key, val);
               }
             }
 
-            fmd->setAttribute("sys.utrace", logId);
-            fmd->setAttribute("sys.vtrace", vid.getTrace());
+            fmd->setAttribute(eos::common::EOS_UTRACE_ATTR, logId);
+            fmd->setAttribute(eos::common::EOS_VTRACE_ATTR, vid.getTrace());
 
             if (ref_fmd) {
               // If we have a target file we tag the latest atomic upload name
               // on a temporary attribute
-              ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+              ref_fmd->setAttribute(eos::common::EOS_TMP_ATOMIC_ATTR, fmd->getName());
 
               if (acl.EvalUserAttrFile()) {
                 // we inherit existing ACLs during (atomic) versioning
