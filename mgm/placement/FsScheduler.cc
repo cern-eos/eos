@@ -937,7 +937,7 @@ FsScheduler::GetState(const std::string& spacename, std::string_view type_sv)
     return {};
   }
 
-  return cluster_mgr->GetState(type_sv);
+  return cluster_mgr->GetState(type_sv, spacename);
 }
 
 //------------------------------------------------------------------------------

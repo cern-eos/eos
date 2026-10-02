@@ -24,6 +24,8 @@
 #include "mgm/placement/ClusterDataFormatter.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "mgm/placement/ClusterDataTypes.hh"
+#include <algorithm>
+#include <optional>
 #include <sstream>
 
 namespace eos::mgm::placement {
@@ -65,6 +67,370 @@ FormatItemList(const std::vector<ItemIdT>& items)
 
   return out;
 }
+
+//------------------------------------------------------------------------------
+//! Color of the scheduling state of a disk: green when clients can still
+//! write, yellow when they can only read, red once no client traffic is served
+//------------------------------------------------------------------------------
+TableFormatterColor
+SchedColor(FsOpMask ops)
+{
+  if (common::AllowsOp(ops, kClientCreate) ||
+      common::AllowsOp(ops, SchedOp{SchedActivity::kClient, SchedDirection::kUpdate})) {
+    return BGREEN;
+  } else if (common::AllowsOp(ops, kClientRead)) {
+    return BYELLOW;
+  }
+
+  return BRED;
+}
+
+//------------------------------------------------------------------------------
+//! Color of the active status of a disk
+//------------------------------------------------------------------------------
+TableFormatterColor
+ActiveColor(ActiveStatus as)
+{
+  if (as == ActiveStatus::kOnline) {
+    return BGREEN;
+  } else if (as == ActiveStatus::kOffline) {
+    return BRED;
+  }
+
+  return NONE;
+}
+
+//------------------------------------------------------------------------------
+//! Color of the fill level of a disk: warn at >=80%, alert at >=95%
+//------------------------------------------------------------------------------
+TableFormatterColor
+FillColor(uint8_t pct)
+{
+  if (pct >= 95) {
+    return BRED;
+  } else if (pct >= 80) {
+    return BYELLOW;
+  }
+
+  return NONE;
+}
+
+//------------------------------------------------------------------------------
+//! Glyphs of the tree cells, as TableFormatterBase draws a cell of format "t"
+//------------------------------------------------------------------------------
+enum TreeGlyph : unsigned {
+  kGlyphBlank = 0,     ///< nothing
+  kGlyphPipe = 1,      ///< "│"
+  kGlyphLastArrow = 2, ///< "└─▶"
+  kGlyphMidArrow = 3,  ///< "├─▶"
+  kGlyphLastLine = 4,  ///< "└──", continued by the next cell
+  kGlyphMidLine = 5,   ///< "├──", continued by the next cell
+  kGlyphDash = 6,      ///< "───", continued by the next cell
+  kGlyphDashArrow = 7  ///< "──▶"
+};
+
+//------------------------------------------------------------------------------
+//! What the subtree below a bucket holds
+//------------------------------------------------------------------------------
+struct SubtreeStats {
+  uint64_t n_disks = 0;
+  uint64_t n_online = 0;
+  uint64_t free_gib = 0;
+  uint64_t booked_gib = 0;
+};
+
+//------------------------------------------------------------------------------
+//! Render the hierarchy of a snapshot the way "geosched show tree" does: one
+//! column per tree level, the group in the first, each geotag atom one column
+//! further right, and the disks pointed at from the last one. A node at level
+//! L draws its connector in column L - 1 and its name in column L; the columns
+//! before carry a pipe for every ancestor that still has siblings to come.
+//------------------------------------------------------------------------------
+class TreeRenderer {
+public:
+  TreeRenderer(const ClusterData& data, std::string_view space_name)
+      : mData(data)
+      , mSpaceName(space_name)
+      , mStats(data.buckets.size())
+  {
+  }
+
+  std::string
+  Render()
+  {
+    const Bucket* root = mData.GetBucket(0);
+
+    if (!root) {
+      return {};
+    }
+
+    std::vector<const Bucket*> groups;
+
+    for (const auto id : root->items) {
+      if (const Bucket* group = mData.GetBucket(id)) {
+        groups.push_back(group);
+        mDepth = std::max(mDepth, GeoDepth(*group, 0));
+      }
+    }
+
+    std::sort(groups.begin(), groups.end(), [](const Bucket* a, const Bucket* b) {
+      return (a->group_index != b->group_index) ? (a->group_index < b->group_index)
+                                                : (a->id > b->id);
+    });
+
+    TableHeader header;
+    header.push_back(std::make_tuple("group", 6, "-s"));
+
+    if (mDepth > 0) {
+      header.push_back(std::make_tuple("geotag", 6, "-s"));
+    }
+
+    for (size_t i = 1; i < mDepth; ++i) {
+      header.push_back(std::make_tuple("lev" + std::to_string(i), 4, "-s"));
+    }
+
+    header.push_back(std::make_tuple("fsid", 6, "l"));
+    header.push_back(std::make_tuple("sched", 12, "s"));
+    header.push_back(std::make_tuple("active", 8, "s"));
+    header.push_back(std::make_tuple("weight", 6, "l"));
+    header.push_back(std::make_tuple("used%", 5, "l"));
+    header.push_back(std::make_tuple("free(GiB)", 9, "l"));
+    header.push_back(std::make_tuple("booked(GiB)", 11, "l"));
+    header.push_back(std::make_tuple("online", 6, "s"));
+    header.push_back(std::make_tuple("disabled", 8, "s"));
+    mTable.SetHeader(header);
+
+    for (const Bucket* group : groups) {
+      mTable.AddSeparator();
+      mMore.assign(1, false);
+      AddBucketRow(*group, 0, true);
+      AddChildren(*group, 1);
+    }
+
+    return mTable.GenerateTable(HEADER);
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  //! Get the number of geotag levels below a bucket, bounded by kMaxGeoDepth
+  //----------------------------------------------------------------------------
+  size_t
+  GeoDepth(const Bucket& bucket, size_t level) const
+  {
+    size_t depth = 0;
+
+    if ((level > kMaxGeoDepth) ||
+        (bucket.child_type != GetChildType(ChildType::kGeoBuckets))) {
+      return depth;
+    }
+
+    for (const auto id : bucket.items) {
+      if (const Bucket* child = mData.GetBucket(id)) {
+        depth = std::max(depth, 1 + GeoDepth(*child, level + 1));
+      }
+    }
+
+    return depth;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get what the subtree below a bucket holds, computed once per bucket
+  //----------------------------------------------------------------------------
+  const SubtreeStats&
+  Stats(const Bucket& bucket, size_t level = 0)
+  {
+    const size_t index = static_cast<size_t>(-bucket.id);
+    auto& stats = mStats[index];
+
+    if (stats) {
+      return *stats;
+    }
+
+    stats.emplace();
+
+    for (const auto id : bucket.items) {
+      if (id > 0) {
+        if (const Disk* disk = mData.GetDisk(id)) {
+          ++stats->n_disks;
+          stats->n_online += (disk->active_status.load(std::memory_order_relaxed) ==
+                              ActiveStatus::kOnline);
+          stats->free_gib += disk->free_gib.load(std::memory_order_relaxed);
+          stats->booked_gib += disk->booked_gib.load(std::memory_order_relaxed);
+        }
+      } else if (const Bucket* child = mData.GetBucket(id);
+                 child && (level <= kMaxGeoDepth)) {
+        const SubtreeStats& sub = Stats(*child, level + 1);
+        stats->n_disks += sub.n_disks;
+        stats->n_online += sub.n_online;
+        stats->free_gib += sub.free_gib;
+        stats->booked_gib += sub.booked_gib;
+      }
+    }
+
+    return *stats;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add the rows of the children of a bucket, buckets by geotag atom and
+  //! disks by fsid
+  //----------------------------------------------------------------------------
+  void
+  AddChildren(const Bucket& bucket, size_t level)
+  {
+    if (level > mDepth + 1) {
+      return; // malformed hierarchy, deeper than the columns
+    }
+
+    if (bucket.child_type == GetChildType(ChildType::kDisks)) {
+      std::vector<const Disk*> disks;
+
+      for (const auto id : bucket.items) {
+        if (const Disk* disk = mData.GetDisk(id)) {
+          disks.push_back(disk);
+        }
+      }
+
+      std::sort(disks.begin(), disks.end(),
+                [](const Disk* a, const Disk* b) { return a->id < b->id; });
+
+      for (size_t i = 0; i < disks.size(); ++i) {
+        AddDiskRow(*disks[i], level, i + 1 == disks.size());
+      }
+
+      return;
+    }
+
+    std::vector<const Bucket*> children;
+
+    for (const auto id : bucket.items) {
+      if (const Bucket* child = mData.GetBucket(id)) {
+        children.push_back(child);
+      }
+    }
+
+    std::sort(children.begin(), children.end(),
+              [](const Bucket* a, const Bucket* b) { return a->geo_atom < b->geo_atom; });
+
+    for (size_t i = 0; i < children.size(); ++i) {
+      const bool last = (i + 1 == children.size());
+      mMore.resize(level + 1);
+      mMore[level] = !last;
+      AddBucketRow(*children[i], level, last);
+      AddChildren(*children[i], level + 1);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add the connector cells of a node at the given level, up to and including
+  //! the one in column level - 1
+  //----------------------------------------------------------------------------
+  void
+  AddConnectors(TableRow& row, size_t level, unsigned glyph) const
+  {
+    for (size_t col = 0; col + 1 < level; ++col) {
+      const bool pipe = (col + 1 < mMore.size()) && mMore[col + 1];
+      row.emplace_back(static_cast<unsigned>(pipe ? kGlyphPipe : kGlyphBlank), "t");
+    }
+
+    if (level > 0) {
+      row.emplace_back(glyph, "t");
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add the row of a group, at level 0, or of a geotag bucket
+  //----------------------------------------------------------------------------
+  void
+  AddBucketRow(const Bucket& bucket, size_t level, bool last)
+  {
+    TableRow row;
+    AddConnectors(row, level, last ? kGlyphLastArrow : kGlyphMidArrow);
+    const FsOpMask denied = bucket.DeniedOps() & kMaskAll;
+    std::string name;
+
+    if (bucket.bucket_type == GetBucketType(BucketType::GROUP)) {
+      if (bucket.group_index == kNoGroupIndex) {
+        name = std::to_string(bucket.id);
+      } else if (mSpaceName.empty()) {
+        name = std::to_string(bucket.group_index);
+      } else {
+        name = std::string(mSpaceName) + "." + std::to_string(bucket.group_index);
+      }
+    } else {
+      name = bucket.geo_atom.empty() ? std::to_string(bucket.id) : bucket.geo_atom;
+    }
+
+    row.emplace_back(name, "s", "", false, denied ? BRED : BWHITE);
+
+    for (size_t col = level + 1; col <= mDepth; ++col) {
+      row.emplace_back(std::string(), "s");
+    }
+
+    const SubtreeStats& stats = Stats(bucket);
+    row.emplace_back(std::string(), "s"); // fsid
+    row.emplace_back(std::string(), "s"); // sched
+    row.emplace_back(std::string(), "s"); // active
+    row.emplace_back(static_cast<long long int>(bucket.total_weight), "l");
+    row.emplace_back(std::string(), "s"); // used%
+    row.emplace_back(static_cast<long long int>(stats.free_gib), "l");
+    row.emplace_back(static_cast<long long int>(stats.booked_gib), "l");
+    row.emplace_back(std::to_string(stats.n_online) + "/" + std::to_string(stats.n_disks),
+                     "s", "", false, (stats.n_online < stats.n_disks) ? BYELLOW : NONE);
+    row.emplace_back(denied ? DeniedOpsToStr(denied) : std::string("-"), "s", "", false,
+                     denied ? BRED : NONE);
+    mTable.AddRows({row});
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add the row of a disk, its connector stretched up to the fsid column
+  //----------------------------------------------------------------------------
+  void
+  AddDiskRow(const Disk& disk, size_t level, bool last)
+  {
+    TableRow row;
+
+    if (level <= mDepth) {
+      AddConnectors(row, level, last ? kGlyphLastLine : kGlyphMidLine);
+
+      for (size_t col = level; col < mDepth; ++col) {
+        row.emplace_back(static_cast<unsigned>(kGlyphDash), "t");
+      }
+
+      row.emplace_back(static_cast<unsigned>(kGlyphDashArrow), "t");
+    } else {
+      AddConnectors(row, level, last ? kGlyphLastArrow : kGlyphMidArrow);
+    }
+
+    const auto ops = disk.ops.load(std::memory_order_relaxed);
+    const auto as = disk.active_status.load(std::memory_order_relaxed);
+    const uint8_t pct = disk.percent_used.load(std::memory_order_relaxed);
+    row.emplace_back(static_cast<long long int>(disk.id), "l");
+    row.emplace_back(common::FormatSchedMask(ops), "s", "", false, SchedColor(ops));
+    row.emplace_back(common::FileSystem::GetActiveStatusAsString(as), "s", "", false,
+                     ActiveColor(as));
+    row.emplace_back(
+        static_cast<long long int>(disk.weight.load(std::memory_order_relaxed)), "l");
+    row.emplace_back(static_cast<long long int>(pct), "l", "%", false, FillColor(pct));
+    row.emplace_back(
+        static_cast<long long int>(disk.free_gib.load(std::memory_order_relaxed)), "l");
+    row.emplace_back(
+        static_cast<long long int>(disk.booked_gib.load(std::memory_order_relaxed)), "l");
+    row.emplace_back(std::string(), "s"); // online
+    row.emplace_back(std::string(), "s"); // disabled
+    mTable.AddRows({row});
+  }
+
+  const ClusterData& mData;
+  std::string_view mSpaceName;
+  TableFormatterBase mTable;
+  //! Number of geotag levels, i.e. of tree columns after the group one
+  size_t mDepth = 0;
+  //! Whether the ancestor at each level still has siblings to come, which is
+  //! what draws the pipes in front of a row
+  std::vector<bool> mMore;
+  //! Subtree contents per bucket, indexed like ClusterData::buckets
+  std::vector<std::optional<SubtreeStats>> mStats;
+};
 } // anonymous namespace
 
 //------------------------------------------------------------------------------
@@ -153,33 +519,9 @@ GetDisksAsString(const ClusterData& data)
     std::string configStr = common::FormatSchedMask(ops);
     std::string activeStr = common::FileSystem::GetActiveStatusAsString(as);
 
-    // Green when clients can still write, yellow when they can only read, red
-    // once no client traffic is served at all
-    TableFormatterColor configColor = NONE;
-
-    if (common::AllowsOp(ops, kClientCreate) ||
-        common::AllowsOp(ops, SchedOp{SchedActivity::kClient, SchedDirection::kUpdate})) {
-      configColor = BGREEN;
-    } else if (common::AllowsOp(ops, kClientRead)) {
-      configColor = BYELLOW;
-    } else {
-      configColor = BRED;
-    }
-
-    TableFormatterColor activeColor = NONE;
-    if (as == ActiveStatus::kOnline) {
-      activeColor = BGREEN;
-    } else if (as == ActiveStatus::kOffline) {
-      activeColor = BRED;
-    }
-
-    // warn at >=80%, alert at >=95%
-    TableFormatterColor pctColor = NONE;
-    if (pct >= 95) {
-      pctColor = BRED;
-    } else if (pct >= 80) {
-      pctColor = BYELLOW;
-    }
+    const TableFormatterColor configColor = SchedColor(ops);
+    const TableFormatterColor activeColor = ActiveColor(as);
+    const TableFormatterColor pctColor = FillColor(pct);
 
     std::string geotag;
     if (auto it = parents.find(d.id); it != parents.end()) {
@@ -264,6 +606,15 @@ GetBucketsAsString(const ClusterData& data)
   }
 
   return table.GenerateTable(HEADER);
+}
+
+//------------------------------------------------------------------------------
+// Get the hierarchy of a snapshot as a tree
+//------------------------------------------------------------------------------
+std::string
+GetTreeAsString(const ClusterData& data, std::string_view space_name)
+{
+  return TreeRenderer(data, space_name).Render();
 }
 
 } // namespace eos::mgm::placement

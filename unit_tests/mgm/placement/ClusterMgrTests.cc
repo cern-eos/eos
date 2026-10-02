@@ -24,6 +24,7 @@
 #include "mgm/placement/ClusterMgr.hh"
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <sstream>
 
 TEST(ClusterMgr, default)
 {
@@ -529,4 +530,58 @@ TEST(ClusterMgr, GeoBucketsAreSharedAndAddressable)
   EXPECT_EQ(rack.level, 3);
   EXPECT_TRUE(rack.HoldsDisks());
   EXPECT_FALSE(cluster_data->buckets[-site_id].HoldsDisks());
+}
+
+TEST(ClusterMgr, TreeStateShowsTheHierarchy)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  {
+    auto sh = mgr.GetSnapshotBuilder();
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::ROOT), 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -100, 0));
+    ASSERT_TRUE(sh.AddBucket(GetBucketType(BucketType::GROUP), -101, 0));
+    auto site = sh.GetOrAddGeoBucket(-100, "site1", GetBucketType(BucketType::SITE));
+    auto rack1 = sh.GetOrAddGeoBucket(site, "rack1", GetBucketType(BucketType::RACK));
+    auto rack2 = sh.GetOrAddGeoBucket(site, "rack2", GetBucketType(BucketType::RACK));
+    auto other = sh.GetOrAddGeoBucket(-101, "site2", GetBucketType(BucketType::SITE));
+    ASSERT_TRUE(sh.AddDisk(Disk(1, kMaskAll, ActiveStatus::kOnline, 1, 0, 100), rack1));
+    ASSERT_TRUE(sh.AddDisk(Disk(2, kMaskAll, ActiveStatus::kOffline, 1, 0, 50), rack1));
+    ASSERT_TRUE(sh.AddDisk(Disk(3, kMaskAll, ActiveStatus::kOnline, 1, 0, 25), rack2));
+    // fsid 10 leaves a hole in the fsid range, which must not show
+    ASSERT_TRUE(sh.AddDisk(Disk(10, kMaskAll, ActiveStatus::kOnline, 1, 0, 10), other));
+  }
+
+  const std::string tree = mgr.GetState("tree", "default");
+  ASSERT_FALSE(tree.empty());
+
+  for (const auto* atom : {"site1", "rack1", "rack2", "site2"}) {
+    EXPECT_NE(tree.find(atom), std::string::npos) << atom << "\n" << tree;
+  }
+
+  // One row per real disk, none for the holes between fsid 3 and 10. The disk
+  // rows are the ones naming an active status, the buckets count their disks.
+  size_t n_disk_rows = 0;
+  std::istringstream lines(tree);
+
+  for (std::string line; std::getline(lines, line);) {
+    // Drop the color escapes the status cells are wrapped in
+    for (size_t pos; (pos = line.find('\x1b')) != std::string::npos;) {
+      line.erase(pos, line.find('m', pos) - pos + 1);
+    }
+
+    if ((line.find("online ") != std::string::npos ||
+         line.find("offline ") != std::string::npos) &&
+        (line.find("fsid") == std::string::npos)) {
+      ++n_disk_rows;
+    }
+  }
+
+  EXPECT_EQ(n_disk_rows, 4u) << tree;
+  // Buckets show how many of the disks below them are online
+  EXPECT_NE(tree.find("1/2"), std::string::npos) << tree; // rack1
+  EXPECT_NE(tree.find("2/3"), std::string::npos) << tree; // site1 and its group
+  // The tree is a view of its own, the tables are not part of it
+  EXPECT_EQ(tree.find("item_count"), std::string::npos);
+  EXPECT_EQ(tree.find("fill limits"), std::string::npos);
 }

@@ -547,11 +547,13 @@ public:
   //----------------------------------------------------------------------------
   //! Get a human readable dump of the current snapshot
   //!
-  //! @param type what to dump, one of "bucket", "disk" or "all"
+  //! @param type what to dump, one of "bucket", "disk", "tree" or "all"
+  //! @param space_name name of the space, used to name the scheduling groups
+  //!        in the tree view
   //!
   //! @return string representation of the topology
   //----------------------------------------------------------------------------
-  std::string GetState(std::string_view type);
+  std::string GetState(std::string_view type, std::string_view space_name = {});
 
   //----------------------------------------------------------------------------
   //! Get the aggregate health picture of the current snapshot, epoch included

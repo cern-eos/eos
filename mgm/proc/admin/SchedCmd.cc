@@ -184,6 +184,9 @@ SchedCmd::LsSubcmd(const eos::console::SchedProto_LsProto& ls)
   case eos::console::SchedProto_LsProto::DISK:
     type = "disk";
     break;
+  case eos::console::SchedProto_LsProto::TREE:
+    type = "tree";
+    break;
   default:
     type = "all";
   }

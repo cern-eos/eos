@@ -53,7 +53,8 @@ std::string MakeSchedHelp()
          "    branch's rule in place; same <spec> grammar\n"
          "  disable ls [space]\n"
          "    list the disabled branches (all spaces if no space is given)\n"
-         "  ls <spacename> <bucket|disk|all>\n";
+         "  ls <spacename> <bucket|disk|tree|all>\n"
+         "    tree - the group and geotag hierarchy with the disks it holds\n";
 }
 
 void ConfigureSchedApp(CLI::App& app)
@@ -183,12 +184,15 @@ struct SchedHelper : public ICmdHelper {
       ls->set_spacename(token);
       if (!tokenizer.NextToken(token))
         return false;
-      if (token == "bucket")
+      if (token == "bucket") {
         ls->set_option(eos::console::SchedProto_LsProto::BUCKET);
-      else if (token == "disk")
+      } else if (token == "disk") {
         ls->set_option(eos::console::SchedProto_LsProto::DISK);
-      else
+      } else if (token == "tree") {
+        ls->set_option(eos::console::SchedProto_LsProto::TREE);
+      } else {
         ls->set_option(eos::console::SchedProto_LsProto::ALL);
+      }
     } else {
       return false;
     }

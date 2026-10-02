@@ -23,6 +23,7 @@
 
 #pragma once
 #include <string>
+#include <string_view>
 
 //------------------------------------------------------------------------------
 //! Human readable rendering of a topology snapshot, kept apart from the core
@@ -74,5 +75,17 @@ std::string GetDisksAsString(const ClusterData& data);
 //! @return string representation of the table
 //------------------------------------------------------------------------------
 std::string GetBucketsAsString(const ClusterData& data);
+
+//------------------------------------------------------------------------------
+//! Get the hierarchy of a snapshot as a tree, in the style of "geosched show
+//! tree": each scheduling group with its geotag levels and, at the leaves, the
+//! disks with their scheduling state. Buckets show what their subtree holds.
+//!
+//! @param data topology snapshot to render
+//! @param space_name name of the space, groups are shown as <space>.<index>
+//!
+//! @return string representation of the tree
+//------------------------------------------------------------------------------
+std::string GetTreeAsString(const ClusterData& data, std::string_view space_name);
 
 } // namespace eos::mgm::placement

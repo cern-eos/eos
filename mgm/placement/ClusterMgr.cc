@@ -295,7 +295,7 @@ ClusterMgr::GetSnapshotBuilderWithData()
 // Get a human readable dump of the current snapshot
 //------------------------------------------------------------------------------
 std::string
-ClusterMgr::GetState(std::string_view type)
+ClusterMgr::GetState(std::string_view type, std::string_view space_name)
 {
   using namespace std::string_view_literals;
   std::stringstream ss;
@@ -315,6 +315,9 @@ ClusterMgr::GetState(std::string_view type)
        << "% cap=" << static_cast<uint16_t>(limits.cap.load(std::memory_order_relaxed))
        << "%\n";
     ss << GetDisksAsString(*mClusterData);
+  }
+  if (type == "tree"sv) {
+    ss << GetTreeAsString(*mClusterData, space_name);
   }
 
   return ss.str();
