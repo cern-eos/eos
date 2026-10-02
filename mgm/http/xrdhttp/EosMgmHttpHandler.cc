@@ -303,9 +303,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               response->GetBody().length());
     }
     if (mTokenHttpHandler) {
+      // Canonicalize only the scope path, preserving XRootD's opaque headers
+      // and the original request resource.
+      XrdHttpExtReq macaroon_req(req);
+      macaroon_req.resource = path;
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
-      return ProcessMacaroonPOST(req);
+      return ProcessMacaroonPOST(macaroon_req);
     } else {
       std::string errmsg = "POST request not supported";
       return req.SendSimpleResp(404, errmsg.c_str(), nullptr, errmsg.c_str(),

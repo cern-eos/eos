@@ -103,6 +103,44 @@ CountOccurrences(const std::string& haystack, const std::string& needle)
   return count;
 }
 
+TEST(HttpServer, DirectoryPathPreservesOpaque)
+{
+  using eos::mgm::HttpServer;
+  const std::string opaque =
+      "eos.app=delete-test&label=a%20b&target=a%2Fb&authz=Bearer%20token";
+  const std::string fullpath = "/eos/directory/?" + opaque;
+  std::string path, extracted_opaque;
+  HttpServer::extractPathAndOpaque(fullpath, path, extracted_opaque);
+  EXPECT_EQ("/eos/directory", path);
+  EXPECT_EQ(opaque, extracted_opaque);
+
+  for (const bool decoded_query : {false, true}) {
+    std::map<std::string, std::string> headers{{"xrd-http-fullresource", fullpath}};
+
+    if (decoded_query) {
+      headers["xrd-http-query"] =
+          "&eos.app=delete-test&label=a b&target=a/b&authz=Bearer token";
+    }
+
+    const auto original_headers = headers;
+    std::unique_ptr<XrdOucEnv> env;
+    ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+    EXPECT_EQ("/eos/directory", path);
+    EXPECT_EQ(original_headers, headers);
+    ASSERT_NE(nullptr, env);
+    EXPECT_STREQ("http/delete-test", env->Get("eos.app"));
+    EXPECT_STREQ(decoded_query ? "a b" : "a%20b", env->Get("label"));
+    EXPECT_STREQ(decoded_query ? "a/b" : "a%2Fb", env->Get("target"));
+    EXPECT_STREQ("Bearer%20token", env->Get("authz"));
+    int envlen = 0;
+    const std::string env_string = env->Env(envlen);
+
+    for (const auto* key : {"eos.app=", "label=", "target=", "authz="}) {
+      EXPECT_EQ(1, CountOccurrences(env_string, key));
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Test the parsing of requests as they are really handed over by XrdHttp i.e
 // with both the "xrd-http-fullresource" (url-encoded) and the
@@ -191,12 +229,20 @@ TEST(HttpServer, NormalizeBearerAuthz)
   }
 }
 
-static std::map<std::string,std::pair<std::string,std::string>> fullPathToPathAndOpaque = {
-    {"",{"",""}},
-    {"/eos/file.dat",{"/eos/file.dat",""}},
-    {"/eos/file.dat?",{"/eos/file.dat",""}},
-    {"/eos/file.dat?testopaque=1",{"/eos/file.dat","testopaque=1"}},
-    {"/eos/file.dat?testopaque=1&authz=qwerty&test=2",{"/eos/file.dat","testopaque=1&authz=qwerty&test=2"}},
+static std::map<std::string, std::pair<std::string, std::string>>
+    fullPathToPathAndOpaque = {
+        {"", {"", ""}},
+        {"/", {"/", ""}},
+        {"///", {"/", ""}},
+        {"/eos/directory/", {"/eos/directory", ""}},
+        {"/eos/directory///", {"/eos/directory", ""}},
+        {"/eos/./directory/", {"/eos/directory", ""}},
+        {"/eos/directory/?testopaque=1", {"/eos/directory", "testopaque=1"}},
+        {"/eos/file.dat", {"/eos/file.dat", ""}},
+        {"/eos/file.dat?", {"/eos/file.dat", ""}},
+        {"/eos/file.dat?testopaque=1", {"/eos/file.dat", "testopaque=1"}},
+        {"/eos/file.dat?testopaque=1&authz=qwerty&test=2",
+         {"/eos/file.dat", "testopaque=1&authz=qwerty&test=2"}},
 };
 
 TEST(HttpServer, ExtractPathAndOpaque) {

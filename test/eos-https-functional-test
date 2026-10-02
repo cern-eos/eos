@@ -159,6 +159,74 @@ PYTHON
 )
 
 
+### HTTP DELETE
+delete_expect() {
+    local expected="$1" method="$2" url="$3" status
+    shift 3
+    local method_args=(--request "$method")
+    [[ "$method" != HEAD ]] || method_args=(--head)
+    status=$(curl --silent --show-error --location --max-time 60 \
+        --capath "${capath}" --cacert "${cacert}" \
+        --output /dev/null --write-out '%{http_code}' \
+        "${method_args[@]}" "$@" "$url") || return 1
+    echo "    delete test $method $url -> $status (expected $expected)"
+    [[ " $expected " == *" $status "* ]]
+}
+
+http_delete() {
+    local path="${testdir#/}"
+    local base="https://${host}:${port}/${path%/}/delete-$$"
+    local owner=(--cert "${cert}" --key "${key}")
+    local spelling suffix empty tree response macaroon query
+    for spelling in plain slash; do
+        suffix=""
+        [[ "$spelling" != slash ]] || suffix="/"
+        for query in "" '?eos.app=delete-test&label=a%20b'; do
+            empty="$base-empty-$spelling"
+            delete_expect 201 MKCOL "$empty/" "${owner[@]}" || return 1
+            response=$(curl --fail --silent --show-error --max-time 60 \
+                --capath "${capath}" --cacert "${cacert}" "${owner[@]}" \
+                -H 'Content-Type: application/macaroon-request' \
+                --data '{"caveats":["activity:DELETE"],"validity":"PT1M"}' \
+                "$empty/$query") || return 1
+            macaroon=$(jq -er '.macaroon | select(type == "string" and length > 0)' \
+                <<< "$response") || return 1
+            delete_expect 201 MKCOL "$empty-sibling/" "${owner[@]}" || return 1
+            delete_expect '403 404' DELETE "$empty-sibling/" \
+                -H "Authorization: Bearer $macaroon" || return 1
+            delete_expect 200 HEAD "$empty-sibling/" "${owner[@]}" || return 1
+            delete_expect 204 DELETE "$empty-sibling/" "${owner[@]}" || return 1
+            delete_expect 404 HEAD "$empty-sibling/" "${owner[@]}" || return 1
+            delete_expect 204 DELETE "$empty$suffix" \
+                -H "Authorization: Bearer $macaroon" || return 1
+            delete_expect 404 HEAD "$empty/" "${owner[@]}" || return 1
+        done
+
+        tree="$base-tree-$spelling"
+        delete_expect 201 MKCOL "$tree/" "${owner[@]}" || return 1
+        delete_expect 201 MKCOL "$tree/child/" "${owner[@]}" || return 1
+        delete_expect 201 PUT "$tree/child/file.txt" "${owner[@]}" \
+            --data-binary 'HTTP DELETE regression' || return 1
+        delete_expect 204 DELETE "$tree$suffix" "${owner[@]}" || return 1
+        delete_expect 404 HEAD "$tree/" "${owner[@]}" || return 1
+        delete_expect 404 HEAD "$tree/child/" "${owner[@]}" || return 1
+        delete_expect 404 HEAD "$tree/child/file.txt" "${owner[@]}" || return 1
+    done
+
+    delete_expect 201 PUT "$base-file.txt" "${owner[@]}" \
+        --data-binary 'HTTP DELETE regression' || return 1
+    delete_expect 204 DELETE "$base-file.txt" "${owner[@]}" || return 1
+    delete_expect 404 HEAD "$base-file.txt" "${owner[@]}" || return 1
+
+    [[ "$EOS_RO_TOKEN" == "zteos64:"* ]] || return 1
+    delete_expect 201 MKCOL "$base-readonly/" "${owner[@]}" || return 1
+    delete_expect 403 DELETE "$base-readonly/" \
+        -H "Authorization: Bearer ${EOS_RO_TOKEN}" || return 1
+    delete_expect 200 HEAD "$base-readonly/" "${owner[@]}" || return 1
+    delete_expect 204 DELETE "$base-readonly/" "${owner[@]}" || return 1
+    delete_expect 404 HEAD "$base-readonly/" "${owner[@]}"
+}
+
 ### Macaroon
 # Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
 macaroon() {
@@ -399,6 +467,7 @@ eostokencode=0
 tcpcode=0
 authzcode=0
 rangecode=0
+deletecode=0
 
 if [[ -z "$macaroons" && -z "$tpc" && -z "$authz" ]]; then
   x509
@@ -416,6 +485,10 @@ if [[ -z "$macaroons" && -z "$tpc" && -z "$authz" ]]; then
   eostoken
   eostokencode=$?
   echo "eostoken:"$eostokencode
+
+  http_delete
+  deletecode=$?
+  echo "http-delete:"$deletecode
 
   tcp
   tcpcode=$?
@@ -464,4 +537,4 @@ eos ls -lrta ${testdir}
 # rm-proto-native.cc:mNeedsConfirmation
 eos rm -rF --no-confirmation ${testdir}
 
-exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode | rangecode))
+exit $((x509code | macarooncode | eostokencode | tcpcode | authzcode | rangecode | deletecode))
