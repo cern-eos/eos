@@ -141,6 +141,11 @@ GetDisksAsString(const ClusterData& data)
   });
 
   for (const auto& d : data.disks) {
+    // Skip the holes in the fsid range, which carry id 0
+    if (d.id == 0) {
+      continue;
+    }
+
     auto ops = d.ops.load(std::memory_order_relaxed);
     auto as = d.active_status.load(std::memory_order_relaxed);
     uint8_t pct = d.percent_used.load(std::memory_order_relaxed);
