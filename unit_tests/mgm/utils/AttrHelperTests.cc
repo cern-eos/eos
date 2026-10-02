@@ -17,8 +17,10 @@
   ************************************************************************
 */
 
-#include "mgm/utils/AttrHelper.hh"
+#include "common/Constants.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/utils/AttrHelper.hh"
+#include "namespace/utils/Attributes.hh"
 #include "gtest/gtest.h"
 
 using namespace eos::mgm;
@@ -158,4 +160,46 @@ TEST(getVersioning, user)
   ASSERT_TRUE(attr::getVersioning(xattrs));
   xattrs[USER_VERSIONING] = "10";
   ASSERT_EQ(attr::getVersioning(xattrs), 10);
+}
+
+TEST(getCarryOverXattrs, KeepsStoredXattrs)
+{
+  eos::IFileMD::XAttrMap old_xattrs{{"user.foo", "1"},
+                                    {"sys.acl", "u:99:rx"},
+                                    {eos::common::EOS_APP_LOCK_ATTR, "expires:0"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, {}), old_xattrs);
+}
+
+TEST(getCarryOverXattrs, DropsPreviousInstanceXattrs)
+{
+  eos::IFileMD::XAttrMap old_xattrs{{"user.foo", "1"},
+                                    {eos::common::EOS_BTIME, "1.2"},
+                                    {eos::common::EOS_FS_TRACKING_ATTR, "+1"},
+                                    {eos::common::EOS_DTRACE_ATTR, "dtrace"},
+                                    {eos::common::EOS_VTRACE_ATTR, "vtrace"},
+                                    {eos::common::EOS_TMP_ATOMIC_ATTR, ".sys.a#.file"}};
+  eos::IFileMD::XAttrMap expected{{"user.foo", "1"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, {}), expected);
+}
+
+TEST(getCarryOverXattrs, IgnoresKeysOnlyInEncMap)
+{
+  // e.g. space attributes merged into the attribute map of the open
+  eos::IFileMD::XAttrMap enc_xattrs{{"sys.acl", "u:99:rwx"}, {"user.foo", "2"}};
+  eos::IFileMD::XAttrMap old_xattrs{{"user.foo", "1"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, enc_xattrs), old_xattrs);
+  ASSERT_TRUE(attr::getCarryOverXattrs({}, enc_xattrs).empty());
+}
+
+TEST(getCarryOverXattrs, EncryptionKeysFromEncMap)
+{
+  eos::IFileMD::XAttrMap old_xattrs{{eos::kAttrObfuscateKey, "old"},
+                                    {eos::kAttrEncrypted, "1"},
+                                    {eos::kAttrEncryptSpace, "default"},
+                                    {eos::kAttrEncryptedFp, "oldfp"}};
+  eos::IFileMD::XAttrMap enc_xattrs{{eos::kAttrObfuscateKey, "new"}};
+  eos::IFileMD::XAttrMap expected{{eos::kAttrObfuscateKey, "new"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, enc_xattrs), expected);
+  // A file which is not re-encrypted keeps its own keys
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, old_xattrs), old_xattrs);
 }

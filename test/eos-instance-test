@@ -2797,6 +2797,15 @@ runtest "### Find Purge" unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'"
 runtest "### Ls        " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 1"
 runtest "### Find Purge" unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix ERROR "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+# Space attributes are only merged into listings, a new version must not store
+# them as they would stick to the file after the space configuration changes
+runtest "### SpaceAttr " unix SUCCESS "" eos space config default space.attr.sys.versiontest=space
+runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "--atomic /etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic"
+runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "--atomic /etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic"
+runtest "### SpaceAttr " unix SUCCESS "" eos space config rm default space.attr.sys.versiontest
+runtest "### Attr Get  " unix ERROR "" eos attr get sys.versiontest "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd | grep space"
+runtest "### Attr Get  " unix ERROR "" eos attr get sys.versiontest "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic | grep space"
 # Versioning test when acls control the permission for the user on the folder and
 # implicitly also for the creation of the versions directory.
 runtest "### Mkdir     " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"

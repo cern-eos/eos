@@ -686,6 +686,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   static const char* epname = "open";
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
+  // xattrs stored on a file replaced by a truncating open, unlike attrmapF
+  // they are not merged with the space attributes
+  eos::IFileMD::XAttrMap attrmapOverwritten;
   errno = 0;
   eos::common::Timing tm("Open");
   COMMONTIMING("begin", &tm);
@@ -1328,6 +1331,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (fmd) {
       gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+
+      if (isRW && (open_flags & O_TRUNC)) {
+        attrmapOverwritten = fmd->getAttributes();
+      }
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
@@ -1835,14 +1842,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             }
 
-            // For versions copy xattrs over from the original file
+            // For versions copy the xattrs stored on the original file over,
+            // never the space attributes merged into attrmapF as they would
+            // stick to the file once the space configuration changes
             if (versioning) {
-              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
+              const auto& enc_xattrs = obfuscate ? attrmapF : attrmapOverwritten;
 
-              for (const auto& xattr : attrmapF) {
-                if (skip_tag.find(xattr.first) == skip_tag.end()) {
-                  fmd->setAttribute(xattr.first, xattr.second);
-                }
+              for (const auto& [key, val] :
+                   attr::getCarryOverXattrs(attrmapOverwritten, enc_xattrs)) {
+                fmd->setAttribute(key, val);
               }
             }
 
