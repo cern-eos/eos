@@ -106,13 +106,38 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
     oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
   }
 
-  if (oldgeotag != newgeotag) {
+  // The flat scheduler keeps a tree of its own, checked on its own: the FST
+  // publishes the geotag only after the file system got registered, so the
+  // disk sits under the <nogeotag> placeholder until it is moved here
+  const std::string space = fs->getCoreParams().getSpace();
+  const bool sched_stale =
+      (mFsScheduler != nullptr) && mFsScheduler->HasStaleGeoTag(space, fsid, newgeotag);
+  const bool geotree_stale = (oldgeotag != newgeotag);
+
+  if (!sched_stale && !geotree_stale) {
+    return;
+  }
+
+  // Release read lock and take write lock, which is also what serializes the
+  // structural edits of a flat scheduler snapshot
+  fs_rd_lock.Release();
+  eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
+  fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+  if (fs == nullptr) {
+    return;
+  }
+
+  if (sched_stale) {
+    mFsScheduler->UpdateFsGeoTag(
+        space, eos::mgm::placement::DescribeFs(
+                   *fs, fs->getCoreParams().getGroupLocator().getIndex()));
+  }
+
+  if (geotree_stale) {
     eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
                 "new_geotag=\"%s\"", (unsigned long)fsid,
                 oldgeotag.c_str(), newgeotag.c_str());
-    // Release read lock and take write lock
-    fs_rd_lock.Release();
-    eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
     eos::common::FileSystem::fs_snapshot_t snapshot;
     fs->SnapShotFileSystem(snapshot);
 

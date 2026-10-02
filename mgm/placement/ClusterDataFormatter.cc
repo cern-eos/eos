@@ -303,7 +303,9 @@ private:
     std::vector<const Bucket*> children;
 
     for (const auto id : bucket.items) {
-      if (const Bucket* child = mData.GetBucket(id)) {
+      // A disk leaving a branch, by removal or a geotag change, leaves its
+      // bucket behind until the next full rebuild; there is nothing to show
+      if (const Bucket* child = mData.GetBucket(id); child && Stats(*child).n_disks) {
         children.push_back(child);
       }
     }

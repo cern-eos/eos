@@ -544,6 +544,34 @@ TEST(FsScheduler, RemoveFsUpdatesTheLiveSpace)
   }
 }
 
+TEST(FsScheduler, GeoTagPublishedAfterRegistrationMovesTheDisk)
+{
+  using namespace eos::mgm::placement;
+  FsScheduler fs_scheduler(1024, std::make_unique<GeoTestClusterMgrHandler>());
+  fs_scheduler.UpdateClusterData();
+  // The FST publishes its geotag only after the file system is registered
+  ASSERT_TRUE(fs_scheduler.InsertFs("default", MakeFsDesc(33, 0, "")));
+  EXPECT_FALSE(fs_scheduler.HasStaleGeoTag("default", 33, ""));
+  EXPECT_FALSE(fs_scheduler.UpdateFsGeoTag("default", MakeFsDesc(33, 0, "")));
+  EXPECT_NE(fs_scheduler.GetState("default", "tree").find(kNoGeoTagBucket),
+            std::string::npos);
+  // Unknown disks and spaces are left to the registration hook
+  EXPECT_FALSE(fs_scheduler.HasStaleGeoTag("default", 99, "site2::rack1"));
+  EXPECT_FALSE(fs_scheduler.HasStaleGeoTag("nospace", 33, "site2::rack1"));
+  EXPECT_TRUE(fs_scheduler.HasStaleGeoTag("default", 33, "site2::rack1"));
+  ASSERT_TRUE(fs_scheduler.UpdateFsGeoTag("default", MakeFsDesc(33, 0, "site2::rack1")));
+  EXPECT_FALSE(fs_scheduler.HasStaleGeoTag("default", 33, "site2::rack1"));
+  // The same tag spelled with degenerate separators is no change
+  EXPECT_FALSE(fs_scheduler.HasStaleGeoTag("default", 33, "site2::rack1::"));
+  EXPECT_NE(fs_scheduler.GetSpaceState("default").find("4 groups, 33 disks"),
+            std::string::npos);
+  // The emptied placeholder bucket is not part of the tree
+  const std::string tree = fs_scheduler.GetState("default", "tree");
+  EXPECT_NE(tree.find("site2"), std::string::npos) << tree;
+  EXPECT_NE(tree.find("rack1"), std::string::npos) << tree;
+  EXPECT_EQ(tree.find(kNoGeoTagBucket), std::string::npos) << tree;
+}
+
 TEST(FsScheduler, InsertFsCreatesANewSpace)
 {
   using namespace eos::mgm::placement;

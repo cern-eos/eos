@@ -247,6 +247,34 @@ public:
   bool RemoveFs(const std::string& spacename, fsid_t fsid);
 
   //----------------------------------------------------------------------------
+  //! Move a file system to the geo branch its current geotag names. The FST
+  //! publishes stat.geotag only after the file system is registered, so a disk
+  //! first lands under the <nogeotag> placeholder and is moved once its
+  //! geotag shows up. No-op if the disk already sits where its geotag says.
+  //! The caller must hold the FsView write lock, like the registration hooks,
+  //! which is what serializes the structural edits of a snapshot.
+  //!
+  //! @param spacename name of the space
+  //! @param desc description of the file system, carrying the new geotag
+  //!
+  //! @return true if the disk was moved, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateFsGeoTag(const std::string& spacename, const FsDescription& desc);
+
+  //----------------------------------------------------------------------------
+  //! Check if a file system sits under a different geo branch than the one
+  //! its geotag names, without changing anything
+  //!
+  //! @param spacename name of the space
+  //! @param fsid file system identifier
+  //! @param geotag current geotag of the file system
+  //!
+  //! @return true if the disk is in the snapshot and UpdateFsGeoTag would
+  //!         move it, otherwise false
+  //----------------------------------------------------------------------------
+  bool HasStaleGeoTag(const std::string& spacename, fsid_t fsid, std::string_view geotag);
+
+  //----------------------------------------------------------------------------
   //! Update the operations a disk accepts, in place
   //!
   //! @param spaceName name of the space holding the disk

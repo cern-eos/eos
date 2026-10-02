@@ -481,6 +481,82 @@ FsScheduler::RemoveFs(const std::string& spacename, fsid_t fsid)
 }
 
 //------------------------------------------------------------------------------
+// Check if a file system sits under a different geo branch than its geotag
+//------------------------------------------------------------------------------
+bool
+FsScheduler::HasStaleGeoTag(const std::string& spacename, fsid_t fsid,
+                            std::string_view geotag)
+{
+  if (spacename.empty() || (fsid == 0) || !IsRunning()) {
+    return false;
+  }
+
+  std::string current;
+  {
+    eos::common::RCUReadLock rlock(mClusterRcuMutex);
+
+    if (!mClusterMgrMap) {
+      return false;
+    }
+
+    auto kv = mClusterMgrMap->find(spacename);
+
+    if (kv == mClusterMgrMap->end()) {
+      return false;
+    }
+
+    auto cluster_data = kv->second->GetClusterData();
+
+    if (!cluster_data || (fsid > cluster_data->disks.size()) ||
+        (cluster_data->disks[fsid - 1].id == 0)) {
+      // Not in the snapshot yet, the registration hook inserts it
+      return false;
+    }
+
+    current = cluster_data->GetGeoTag(cluster_data->disk_parents[fsid - 1]);
+  }
+
+  // Where AddFsToCluster files the disk: the canonical atoms, at most
+  // kMaxGeoDepth of them, or the placeholder bucket for a disk without any
+  auto atoms = SplitGeoTag(geotag);
+
+  if (atoms.empty()) {
+    atoms.push_back(kNoGeoTagBucket);
+  } else if (atoms.size() > kMaxGeoDepth) {
+    atoms.resize(kMaxGeoDepth);
+  }
+
+  std::string wanted;
+
+  for (const auto atom : atoms) {
+    if (!wanted.empty()) {
+      wanted += "::";
+    }
+
+    wanted += atom;
+  }
+
+  return (current != wanted);
+}
+
+//------------------------------------------------------------------------------
+// Move a file system to the geo branch its current geotag names
+//------------------------------------------------------------------------------
+bool
+FsScheduler::UpdateFsGeoTag(const std::string& spacename, const FsDescription& desc)
+{
+  if (!HasStaleGeoTag(spacename, desc.fsid, desc.geotag)) {
+    return false;
+  }
+
+  eos_static_info("msg=\"Moving file system to its new geotag\" space=%s "
+                  "fsid=%u geotag=\"%s\"",
+                  spacename.c_str(), desc.fsid, desc.geotag.c_str());
+  // A re-insert takes the disk out of its old branch before adding it again
+  return InsertFs(spacename, desc);
+}
+
+//------------------------------------------------------------------------------
 // Select the disks holding the replicas of a new file
 //------------------------------------------------------------------------------
 PlacementResult
