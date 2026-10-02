@@ -52,6 +52,8 @@ static constexpr auto ARCHIVE_STORAGE_CLASS_ATTR_NAME =
   "sys.archive.storage_class";
 //! EOS file btime
 static constexpr auto EOS_BTIME = "sys.eos.btime";
+//! History of the replica locations added (+fsid) and dropped (-fsid)
+static constexpr auto EOS_FS_TRACKING_ATTR = "sys.fs.tracking";
 //! Name of the latest atomic upload targeting a file
 static constexpr auto EOS_TMP_ATOMIC_ATTR = "sys.tmp.atomic";
 //! CTA internal objectsore id for archive requests
