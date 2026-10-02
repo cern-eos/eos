@@ -7,13 +7,16 @@
 
 int usage(const char* prog)
 {
-  fprintf(stderr, "usage: %s [--key <ssl-key-file> "
+  fprintf(stderr,
+          "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
           "[--endpoint <host:port>] [--token <auth-token>] "
           "[--prefix prefix] "
           "[--treefile <treefile>] "
-          "[--force-ssl] \n", prog);
+          "[--checksums <type>:<hex>[,<type>:<hex>...]] "
+          "[--force-ssl] \n",
+          prog);
   fprintf(stderr,
           "treefile format providing inodes: \n"
           "----------------------------------\n"
@@ -40,6 +43,7 @@ int main(int argc, const char* argv[])
   std::string prefix = "/grpc";
   std::string treefile = "namespace.txt";
   bool force_ssl = false;
+  std::vector<std::pair<std::string, std::string>> checksums;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -114,6 +118,42 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--checksums") {
+      if (argc <= i + 1) {
+        return usage(argv[0]);
+      }
+
+      std::vector<std::string> entries;
+      eos::common::StringConversion::Tokenize(argv[++i], entries, ",");
+
+      for (const auto& entry : entries) {
+        const auto pos = entry.find(':');
+
+        if (pos == std::string::npos) {
+          return usage(argv[0]);
+        }
+
+        std::string type = entry.substr(0, pos);
+        std::string value = entry.substr(pos + 1);
+
+        // The MGM stores the layout checksum (adler32 here) as raw bytes but
+        // alternative checksums as hex text, as the FST commit does
+        if (type == "adler32") {
+          const auto bin = eos::common::StringConversion::Hex2BinData(value);
+
+          if (!bin) {
+            return usage(argv[0]);
+          }
+
+          value.assign(bin->begin(), bin->end());
+        }
+
+        checksums.emplace_back(type, value);
+      }
+
+      continue;
+    }
+
     if (option == "--force-ssl") {
       force_ssl = true;
       continue;
@@ -168,7 +208,7 @@ int main(int argc, const char* argv[])
         paths.push_back(line);
       } else {
         // SEND OFF DIRS
-        int retc = eosgrpc->FileInsert(paths);
+        int retc = eosgrpc->FileInsert(paths, checksums);
         std::cout << "::send::files" << " retc=" << retc << std::endl;
         paths.clear();
         paths.push_back(line);
@@ -196,11 +236,18 @@ int main(int argc, const char* argv[])
         paths.clear();
       } else {
         // SEND OF FILES
-        int retc = eosgrpc->FileInsert(paths);
+        int retc = eosgrpc->FileInsert(paths, checksums);
         std::cout << "::send::files" << " retc=" << retc << std::endl;
         paths.clear();
       }
     }
+  }
+
+  if (!paths.empty()) {
+    int retc =
+        dirmode ? eosgrpc->ContainerInsert(paths) : eosgrpc->FileInsert(paths, checksums);
+    std::cout << (dirmode ? "::send::dirs" : "::send::files") << " retc=" << retc
+              << std::endl;
   }
 
   std::chrono::microseconds elapsed_global =

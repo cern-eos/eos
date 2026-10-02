@@ -379,7 +379,8 @@ GrpcClient::Find(const std::string& path,
 }
 
 int
-GrpcClient::FileInsert(const std::vector<std::string>& paths)
+GrpcClient::FileInsert(const std::vector<std::string>& paths,
+                       const std::vector<std::pair<std::string, std::string>>& checksums)
 {
   FileInsertRequest request;
   size_t cnt = 0;
@@ -407,7 +408,17 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
     file->set_gid(2);
     file->set_size(cnt);
     file->set_layout_id(0x00100002);
-    file->mutable_checksum()->set_value("\0\0\0\1", 4);
+
+    if (checksums.empty()) {
+      file->mutable_checksum()->set_value("\0\0\0\1", 4);
+    }
+
+    for (const auto& [type, value] : checksums) {
+      auto xs = file->add_checksums();
+      xs->set_type(type);
+      xs->set_value(value);
+    }
+
     file->set_flags(0);
     file->mutable_ctime()->set_sec(tsnow.tv_sec);
     file->mutable_ctime()->set_n_sec(tsnow.tv_nsec);

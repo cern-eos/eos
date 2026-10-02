@@ -215,6 +215,27 @@ eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \
             --token $authkey -p $vfdir create-version-folder | grep "\"code\": \"21\"" || exit -23
 eos rm -r $vfdir/ || exit -23
 
+#file insert checksums
+xsdir=$prefix/t_grpc/xsinsert
+xstree=$(mktemp)
+eos mkdir -p $xsdir || exit -24
+xsinsert() {
+  echo "/$1" > $xstree
+  eos-grpc-insert --endpoint ${grpc_endpoint} --force-ssl --token $authkey \
+                  --prefix $xsdir --treefile $xstree "${@:2}"
+}
+# deprecated checksum field
+xsinsert old || exit -24
+eos file info $xsdir/old -m | grep "xs=00000001" || exit -24
+# checksums field: layout checksum plus an alternative one (type in any case)
+xsinsert new --checksums adler32:0a0b0c0d,MD5:00112233445566778899aabbccddeeff || exit -24
+eos file info $xsdir/new -m | grep "xs=0a0b0c0d" | grep "altxsn=md5 altxsv=00112233445566778899aabbccddeeff" || exit -24
+# unknown checksum type - the file must not be created
+xsinsert bad --checksums bogus:01 || exit -24
+eos stat $xsdir/bad && exit -24
+rm -f $xstree
+eos rm -r $xsdir/ || exit -24
+
 #acls
 eos attr set sys.eval.useracl=1 $prefix/t_grpc/
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl \

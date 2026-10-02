@@ -1162,6 +1162,27 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
       continue;
     }
 
+    const eos::rpc::Checksum* bad_xs = nullptr;
+
+    for (const auto& xs : it.checksums()) {
+      // Type names are case-insensitive, e.g. CTA uses ADLER32
+      if (eos::common::LayoutId::GetChecksumFromString(
+              eos::common::StringConversion::ToLower(xs.type())) < 0) {
+        bad_xs = &xs;
+        break;
+      }
+    }
+
+    if (bad_xs) {
+      std::ostringstream ss;
+      ss << "Attempted to create file with id=" << it.id()
+         << " with unknown checksum type=" << bad_xs->type();
+      eos_static_err("%s", ss.str().c_str());
+      reply->add_message(ss.str());
+      reply->add_retc(EINVAL);
+      continue;
+    }
+
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
 
     try {
@@ -1187,8 +1208,25 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
       newfile->setCGid(it.gid());
       newfile->setLayoutId(it.layout_id());
       newfile->setSize(it.size());
-      newfile->setChecksum(it.checksum().value().c_str(),
-                           it.checksum().value().size());
+
+      if (it.checksums().empty()) {
+        // Fall back to the deprecated single checksum field
+        newfile->setChecksum(it.checksum().value().c_str(), it.checksum().value().size());
+      } else {
+        const int layout_xs = eos::common::LayoutId::GetChecksum(it.layout_id());
+
+        for (const auto& xs : it.checksums()) {
+          const int type = eos::common::LayoutId::GetChecksumFromString(
+              eos::common::StringConversion::ToLower(xs.type()));
+
+          if (type == layout_xs) {
+            newfile->setChecksum(xs.value().c_str(), xs.value().size());
+          } else {
+            newfile->addAltXs(static_cast<eos::common::LayoutId::eChecksum>(type),
+                              xs.value().c_str(), xs.value().size());
+          }
+        }
+      }
 
       for (auto attrit : it.xattrs()) {
         newfile->setAttribute(attrit.first, attrit.second);

@@ -75,7 +75,8 @@ public:
   std::string ExportFs(const eos::rpc::MDResponse& response,
                        const std::string& exportfs);
 
-  int FileInsert(const std::vector<std::string>& paths);
+  int FileInsert(const std::vector<std::string>& paths,
+                 const std::vector<std::pair<std::string, std::string>>& checksums = {});
   int ContainerInsert(const std::vector<std::string>& paths);
 
   void set_token(const std::string& _token)
