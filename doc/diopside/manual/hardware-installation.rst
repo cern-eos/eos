@@ -22,7 +22,7 @@ MGM run heavily multithreaded code. It can be run on a single CPU core, we recom
 +-------------+----------+--------+----------------------+
 | Type        |  CPU     | MEMORY |  DISK                |
 +=============+==========+========+======================+
-| Minimum     | 1 core   | 8 GB   | 8 GB HDD             |  
+| Minimum     | 1 core   | 8 GB   | 8 GB HDD             |
 +-------------+----------+--------+----------------------+
 | Recommended | 6-8 core | 32 GB  | 128 GB HDD           |
 +-------------+----------+--------+----------------------+
@@ -31,7 +31,7 @@ MGM run heavily multithreaded code. It can be run on a single CPU core, we recom
 
 Example configurations from large CERN deployments:
 
-.. code-block:: 
+.. code-block::
 
    Intel(R) Xeon(R) Silver 4216 CPU @ 2.10GHz (32 core), 386 GB RAM (2933 MHz DDR4), 1 TB /var partition
 
@@ -42,7 +42,7 @@ QDB Node
 --------
 
 QDB nodes run RocksDB as a KV store. A QDB node requires IOPS for a cold start, so it should be deployed using SSDs/NVMEs. A rule of thumb is to calculate 0.1-0.2 GB of space per 1M namespace entries e.g. a namespace with up to 1 Billion entries should have 100-200GB of disk space.
-To run backups there is not much extra space needed. The memory footprint of the QDB daemon is tiny. RAM on a QDB node is useful to cache RocksDB files (RAFT journals) in the buffer cache. Ideally you have as much memory as the maximum expected volume of QDB. 
+To run backups there is not much extra space needed. The memory footprint of the QDB daemon is tiny. RAM on a QDB node is useful to cache RocksDB files (RAFT journals) in the buffer cache. Ideally you have as much memory as the maximum expected volume of QDB.
 
 +-------------+----------+--------+----------------------+
 |             | CPU      | MEMORY | DISK                 |
@@ -56,7 +56,7 @@ To save resources you can run MGM and QDB nodes co-located (both daemons on one 
 
 Example configurations from large CERN deployments:
 
-.. code-block:: 
+.. code-block::
 
    Intel(R) Xeon(R) Silver 4216 CPU @ 2.10GHz (32 core), 386 GB RAM (2933 MHz DDR4), 2x 1.8 TB /var partition (INTEL SSDSC2KB01)
 
@@ -66,6 +66,9 @@ Example configurations from large CERN deployments:
 
 FST Node
 --------
+
+An **FST** is the **File STorage** service. It stores file data and serves
+client reads and writes. An FST node is a host running this service.
 
 Diskspace in EOS is provided via mounted filesystems on FST nodes. The requirements to the mounted filesystem is to have **extended attribute support**! **atime** can be disabled.
 
@@ -79,9 +82,9 @@ Examples of filesystems suitable as storage volumes:
 
 **ZFS** is possible, but **not recommended** due to worse random IO performance.
 
-For installations with very few physical nodes, we recommend to use a conventional **RAID6** configuration. 
+For installations with very few physical nodes, we recommend to use a conventional **RAID6** configuration.
 
-If there is a sufficient number of nodes available (8), we recommend to use **EOS erasure coding** to provide high-availability and durability of data. 
+If there is a sufficient number of nodes available (8), we recommend to use **EOS erasure coding** to provide high-availability and durability of data.
 
 If you run EOS in an **OpenStack** environment, you might use virtual drives or a distributed filesystem underneath. Be aware, that virtualized setups might show unexpected intrinsic IO bottlenecks (IOPS,Bandwidth).
 
@@ -94,13 +97,13 @@ The CPU usage on FST nodes is low, if replication is used. For erasure coding a 
 
 Example configuration of a **small FST** with replication and JBODs:
 
-.. code-block:: 
+.. code-block::
 
    Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz, 128 GB RAM (2400 MHz, DDR4), 48x TOSHIBA MG04ACA6(6TB)
 
 Example configuration of a **large FST** for erasure-coding and JBODs:
 
-.. code-block:: 
+.. code-block::
 
    2x AMD EPYC 7302 16-Core Processor, 128 GB RAM (3200 MHz, DDR4), 96x TOSHIBA MG07ACA1 (14TB)
 
@@ -195,4 +198,3 @@ Server RPM Installation
 .. code-block:: bash
 
    yum install eos-server
-

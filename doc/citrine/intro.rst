@@ -8,7 +8,7 @@ Introduction
 
 History
 -------
-The `EOS <http:://eos.cern.ch>`_ project was started in April 2010 in the CERN IT data storage group. 
+The `EOS <http:://eos.cern.ch>`_ project was started in April 2010 in the CERN IT data storage group.
 
 
 Goal
@@ -29,7 +29,7 @@ The stable production version called **Citrine** is currently v4.2.X
 
 License
 -------
-Since release version 0.1.1 EOS is available under GPL v3 license. 
+Since release version 0.1.1 EOS is available under GPL v3 license.
 
 
 Architecture
@@ -38,7 +38,8 @@ Architecture
 EOS is made by three components:
 
 * **MGM** - metadata server
-* **FST** - storage server
+* **FST** (**File STorage** service) - storage server that stores file data
+  on disk and serves client reads and writes
 * **MQ** - message broker for asynchronous messaging
 
 .. image:: eos-base-arch.jpg
@@ -49,7 +50,7 @@ The initial architecture is using an in-memory namespace implementation with a m
 
 Since the CITRINE release, the architecture has been modified to provide an optimal in-memory namespace cache and a KV store for persistency. This was necessary to overcome the scalability limitation of the meta-data service given by the maximum available RAM of **MGM** nodes.
 
-EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.  
+EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.
 
 .. image:: eos-architecture.jpg
    :width: 530px
@@ -61,14 +62,14 @@ EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.
 Storage Concepts
 ----------------
 
-EOS uses a storage index concept to identify where and how files are stored. These information is stored inside the meta data of each file. 
+EOS uses a storage index concept to identify where and how files are stored. These information is stored inside the meta data of each file.
 
 Files are stored with a a so called **layout**. The following layouts are supported
 
 * **plain** - a file is stored as a plain file in one filesystem
 * **replica** - a file is stored with a variable number of replicas in `n` filesystems
-* **rain** - reed-solomon encoded files with data and parity blocks 
-  
+* **rain** - reed-solomon encoded files with data and parity blocks
+
   * raid6 - a file is chunked into blocks and stored in `n-2` filesystems for data and `2` filesystems for parity blocks
   * archive - a file is chunked into blocks and stored in `n-3` filesystems for data and `3` filesystems for parity blocks
 
@@ -89,7 +90,7 @@ The native protocol is the **xrootd** protocol, which provides additional functi
 EOS can be used like a filesystem using FUSE clients. There are two implementations available:
 
 * **eosd** - available for BERYL and CITRINE - limited POSIX conformity
-* **eosxd** - available for CITRINE - improved POSIX conformity, cross-client consistency aso. 
+* **eosxd** - available for CITRINE - improved POSIX conformity, cross-client consistency aso.
 
 EOS has been extended to work similar to `Owncloud <owncloud.org>`_ as a sync and share platform. The front-end service is called `CERNBox <https://cernbox.web.cern.ch>`_.
 
@@ -108,9 +109,3 @@ The target architecture for the next major release version is shown in the follo
    :align: center
 
 The goal is to reach full scalability and high-availability of all service components and to embed better external storage resources like shared filesystems and cloud storage.
-
-
-
-
-
-

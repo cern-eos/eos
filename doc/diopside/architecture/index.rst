@@ -16,7 +16,7 @@ The core file access protocol in EOS is the **XRootD** protocol: it provides add
 * **third-party copy mechanism** **TPC** including a file integrity check based on file checksums on both ends
 * a wait instruction to let a client replay a request after a given time period and a waitresp instruction to let a client wait for an asynchronous callback response from the server
 
-The current production version of EOS is named like a gemstone: Diopside.  The Version for the production 
+The current production version of EOS is named like a gemstone: Diopside.  The Version for the production
 release is 5.X (EOS5).
 
 Schema
@@ -29,12 +29,14 @@ Schema
 Service Components
 ------------------
 
-EOS is composed of four core services 
+EOS is composed of four core services
 
 * **MGM** - providing a hierarchical namespace and meta-ata access
 * **MQ** - providing asynchronous messaging between MGM and FST services
-* **FST** - providing file storage service
-* **QDB** - providing a high-available KV store to persiste meta-data of the MGM 
+* **FST** (**File STorage** service) - stores file data on disk and serves
+  client reads and writes; the MGM manages the namespace and selects the FSTs
+  that hold a file
+* **QDB** - providing a high-available KV store to persiste meta-data of the MGM
 
 EOS provides additional native access protocols using a protocol plugin for **HTTP(S)** (XrdHttp) or via gateways for **S3** (MiniO), **CIFS** (Samba) and **SFTP** (sshfs) using a FUSE client implementation (eosxd). FUSE allows to mount EOS as a filesystem preserving the aforementioned feature set of **XRootD**. In particular, all strong authentication protocols and token authorization are supported also by the FUSE implementation. For user and administrator interaction EOS provides a command-line interface invoked using the EOS shell
 `eos`
@@ -50,14 +52,14 @@ Namespace
 The namespace(meta-data service) of EOS5 runs on a single node and is not horizontal scalable. The architecture foresees to have standby nodes, which take over the MGM service if the active node becomes unavailable.
 
 The namespace is implemented as an LRU driven in-memory cache with a write-back queue and QuarkDB as external KV store for persistency.  QuarkDB is a high-available transactional KV store using the RAFT consensus algorithm implementing a subset of the REDIS protocol. A default QuarkDB setup consists of three nodes, which elect a leader to serve/store data.
-KV data is stored in RocksDB databases on each node. 
+KV data is stored in RocksDB databases on each node.
 
 .. image:: qdb.png
    :align: center
    :width: 400px
 
 
-Replication from leader to follower(s) is using RAFT journals. The supported data structures are **hashes, sets, strings, leases, multi** and **pubsub**. 
+Replication from leader to follower(s) is using RAFT journals. The supported data structures are **hashes, sets, strings, leases, multi** and **pubsub**.
 
 Views
 -----
@@ -100,10 +102,10 @@ EOS allows to define storage policies e.g. how files are stored or which checksu
 A simple example of a directory policy to define to store files erasure coded on 12 HDDs is shown here:
 
 .. code-block:: bash
-    
+
    eos attr ls /eos/attrdir
-   sys.forced.layout="raid6" 
-   sys.forced.nstripes="12" 
+   sys.forced.layout="raid6"
+   sys.forced.nstripes="12"
    sys.forced.space="erasure"
 
 
@@ -115,7 +117,7 @@ EOS allows to assign GEO tags to clients based on IPs and to each node hosting f
 Microservices
 --------------
 
-Each EOS system contains a set of configurable microservices. 
+Each EOS system contains a set of configurable microservices.
 
 * **Balancers** - three services to balance the volume usage on filesystems under various aspects
    * Balancer       - Balancing usage between filesystems inside each group
@@ -127,4 +129,3 @@ Each EOS system contains a set of configurable microservices.
 * **Inspector** - an accounting service reporting statistics how files are stored in an EOS instance e.g. to see how much data in an instance is stored with replication or erasure coding
 * **Storage Consistency Check and Repair** - a distributed service to identify inconsistencies in data and meta-data and to run automatic repair actions to achieve consistency
 * **Workflow Engine** - a queue system processing storage events e.g. to inform an external service like the CERN Tape Archive service that a new file has been uploaded and should be migrated to tape storage
-
