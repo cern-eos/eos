@@ -100,21 +100,25 @@ CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  // A commit records a replica that has just been written, so the file system
-  // has to accept a write of some class. Which class is not knowable here -
-  // the FST reports the commit, not the request that produced it - so any
-  // update or create bit is enough.
-  if ((!fs) || !eos::common::AllowsAnyWrite(fs->GetSchedOps())) {
-    eos_thread_err(
-        "msg=\"commit suppressed\" schedops=%s subcmd=commit "
-        "path=%s size=%s fxid=%s fsid=%s dropfsid=%s checksum=%s"
-        " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
-        "oc-uuid=%s",
-        (fs ? eos::common::FormatSchedMask(fs->GetSchedOps()).c_str() : "deleted"),
-        cgi["path"].c_str(), cgi["size"].c_str(), cgi["fid"].c_str(), cgi["fsid"].c_str(),
-        cgi["dropfsid"].c_str(), cgi["checksum"].c_str(), cgi["mtime"].c_str(),
-        cgi["mtimensec"].c_str(), option["occhunk"], params["oc_n"], params["oc_max"],
-        cgi["oc_uuid"].c_str());
+  // A commit only records the outcome of data that already reached the disk,
+  // so the file system just has to be in service: one that still serves reads
+  // - ro or drain - accepts it the way the legacy status gate did. Refusing it
+  // leaves the namespace without the size and checksum the FST measured. Only
+  // a file system that takes nothing, off or empty, refuses it.
+  const eos::common::FsOpMask ops = (fs ? fs->GetSchedOps() : eos::common::kMaskNone);
+  const bool accepted =
+      eos::common::AllowsAnyRead(ops) || eos::common::AllowsAnyWrite(ops);
+
+  if ((!fs) || !accepted) {
+    eos_thread_err("msg=\"commit suppressed\" schedops=%s subcmd=commit "
+                   "path=%s size=%s fxid=%s fsid=%s dropfsid=%s checksum=%s"
+                   " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
+                   "oc-uuid=%s",
+                   (fs ? eos::common::FormatSchedMask(ops).c_str() : "deleted"),
+                   cgi["path"].c_str(), cgi["size"].c_str(), cgi["fid"].c_str(),
+                   cgi["fsid"].c_str(), cgi["dropfsid"].c_str(), cgi["checksum"].c_str(),
+                   cgi["mtime"].c_str(), cgi["mtimensec"].c_str(), option["occhunk"],
+                   params["oc_n"], params["oc_max"], cgi["oc_uuid"].c_str());
     emsg = "commit file metadata - "
            "filesystem is in non-operational state [EIO]";
     return EIO;

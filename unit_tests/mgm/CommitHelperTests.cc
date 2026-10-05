@@ -46,5 +46,3 @@ TEST(CommitHelperTest, IncTsVerFn)
   fn = "1724758420.aabbccdd";
   ASSERT_STREQ("1724758421.aabbccdd", CommitHelper::IncrementTsForVersionFn(fn).c_str());
 }
-
-
