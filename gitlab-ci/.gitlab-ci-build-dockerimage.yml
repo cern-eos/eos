@@ -118,6 +118,20 @@ el9_asan_docker_image:
   allow_failure: true
 
 
+el9_ubsan_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    # UBSan can use the regular, uninstrumented dependencies.
+    DIST: el-9
+    ARTIFACT_DIR: el-9-ubsan-artifacts/RPMS
+    EXTRA_TAG: "_ubsan"
+  needs:
+    - job: clone_docker
+    - job: build_el9_ubsan
+  rules: !reference [.rules-manual, rules]
+  allow_failure: true
+
+
 .el9_coverage_docker_image:
   extends: .build_dockerimage-template
   variables:

@@ -17,7 +17,7 @@
 # ************************************************************************
 
 # RHEL-family RPM builds: AlmaLinux server RPMs, RHEL client SRPMs, Fedora,
-# and "exotic" variants (asan / tsan / clang / coverage / CC7+xrootd).
+# and "exotic" variants (asan / tsan / ubsan / clang / coverage / CC7+xrootd).
 
 #-------------------------------------------------------------------------------
 # Build RPMs
@@ -273,6 +273,18 @@ build_client_el9_tsan:
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
     - dnf install -y epel-release libtsan cmake gcc gcc-c++ which rpmdevtools
+  extends: .build_exotic-template
+  rules: !reference [.rules-manual, rules]
+
+
+build_el9_ubsan:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-ubsan
+    CMAKE_OPTIONS: "-DUBSAN=1"
+    RPMBUILD_OPTIONS: "--with server --with ubsan"
+  before_script:
+    - dnf install -y epel-release libubsan cmake gcc gcc-c++ rpmdevtools
   extends: .build_exotic-template
   rules: !reference [.rules-manual, rules]
 

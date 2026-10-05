@@ -251,6 +251,10 @@ if (TSAN)
   LIST(APPEND RPM_OPTIONS --with tsan)
 endif()
 
+if (UBSAN)
+  LIST(APPEND RPM_OPTIONS --with ubsan)
+endif()
+
 option(NO_SSE "Build without sse instruction set" OFF)
 
 if (NO_SSE)

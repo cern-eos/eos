@@ -398,6 +398,35 @@ Compile
     unit_tests/eos-unit-tests
 
 
+Sanitizer builds
+""""""""""""""""
+
+Use :code:`-DUBSAN=1` to instrument EOS with UndefinedBehaviorSanitizer,
+for example to detect invalid array indexing, signed integer overflow and
+incorrect pointer types. Compile and link support is checked during CMake
+configuration. UBSan can also be combined with :code:`-DASAN=1`.
+
+.. code-block:: bash
+
+    cmake -S . -B build-ubsan -DUBSAN=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    cmake --build build-ubsan --target eos-unit-tests eos-unit-tests-fst -j4
+    UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 build-ubsan/unit_tests/eos-unit-tests
+    UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 build-ubsan/unit_tests/eos-unit-tests-fst
+
+The runtime options make a detected error fail the test process and request
+a stack trace. Without :code:`halt_on_error=1`, UBSan normally reports errors
+and continues execution. GCC builds need the :code:`libubsan` runtime.
+UBSan does not require instrumenting all external dependencies.
+
+For RPM builds, pass :code:`--with ubsan` to :code:`rpmbuild`. This adds the
+runtime dependency and an :code:`.ubsan` release suffix. The CMake
+:code:`rpm` and :code:`srpm` targets forward :code:`-DUBSAN=1` to RPM.
+
+The manual CI jobs :code:`build_el9_ubsan`,
+:code:`el9_ubsan_docker_image` and :code:`unit_test_ubsan` build server RPMs
+and run the existing test suite with UBSan, using the regular EL9 dependencies.
+
+
 Troubleshooting
 """""""""""""""
 

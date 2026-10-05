@@ -77,3 +77,25 @@ unit_test_asan:
       artifacts: false
   rules: !reference [.rules-manual, rules]
   allow_failure: true
+
+
+unit_test_ubsan:
+  extends: .unit_test_template
+  image:
+    name: ${CI_REGISTRY_IMAGE}/eos-ci:${IMAGE_TAG}${OS_TAG}${EXTRA_TAG}
+    entrypoint: ["/bin/bash", "-c"]
+  variables:
+    UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+    EXTRA_TAG: "_ubsan"
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+  needs:
+    - job: el9_ubsan_docker_image
+      artifacts: false
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      variables:
+        IMAGE_TAG: "$CI_COMMIT_TAG"
+      when: manual
+      allow_failure: true
+    - when: manual
+      allow_failure: true

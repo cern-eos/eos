@@ -106,7 +106,7 @@ include(CheckCXXCompilerFlag)
 
 function(eos_enable_sanitizer sanitizer var)
   set(FLAG -fsanitize=${sanitizer})
-  list(APPEND CMAKE_REQUIRED_FLAGS "${FLAG}")
+  string(APPEND CMAKE_REQUIRED_FLAGS " ${FLAG}")
   list(APPEND CMAKE_REQUIRED_LINK_OPTIONS "${FLAG}")
   check_cxx_compiler_flag("${FLAG}" "${var}")
   if (${${var}})
@@ -128,4 +128,8 @@ endif()
 
 if(TSAN)
   eos_enable_sanitizer(thread TSAN_SUPPORTED)
+endif()
+
+if(UBSAN)
+  eos_enable_sanitizer(undefined UBSAN_SUPPORTED)
 endif()

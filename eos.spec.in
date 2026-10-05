@@ -22,6 +22,10 @@
 # pass the "--with tsan" flag to the rpmbuild command
 %bcond_with tsan
 
+# By default we build without UndefinedBehaviorSanitizer. To enable it,
+# pass the "--with ubsan" flag to the rpmbuild command
+%bcond_with ubsan
+
 # By default we build without code coverage. To enable it,
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_with coverage
@@ -62,7 +66,7 @@
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
-Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}%{?_with_tsan:.tsan}%{?_without_eos_xrootd_rh:.xrootd}
+Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}%{?_with_tsan:.tsan}%{?_with_ubsan:.ubsan}%{?_without_eos_xrootd_rh:.xrootd}
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -83,6 +87,11 @@ Requires: libasan
 %if %{with tsan}
 BuildRequires: libtsan
 Requires: libtsan
+%endif
+
+%if %{with ubsan}
+BuildRequires: libubsan
+Requires: libubsan
 %endif
 
 # Initialize to empty, might be overwritten later
@@ -233,6 +242,9 @@ The EOS software package.
 %endif
 %if %{with tsan}
 %global build_flags %{build_flags} -DTSAN=1
+%endif
+%if %{with ubsan}
+%global build_flags %{build_flags} -DUBSAN=1
 %endif
 %if %{with coverage}
 %global build_type Debug
