@@ -148,6 +148,7 @@ set(COMMON_UT_SRCS
   common/EosTokenTests.cc
   common/UriCapCipherTests.cc
   common/ConfigTests.cc
+  common/Crc32cTests.cc
   common/BufferManagerTests.cc
   common/ConcurrentQueueTests.cc
   common/ContainerUtilsTests.cc

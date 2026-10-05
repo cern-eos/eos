@@ -3,13 +3,11 @@
 // BSD-style license that can be found in the LICENSE file.
 
 #include <cassert>
-#include <cstdio>
-#include <cstring>
-#include <stdlib.h>
+#if defined(__x86_64__)
+#include <cpuid.h>
+#endif
 #include "crc32c.h"
 #include "crc32ctables.h"
-
-#undef __PIC__
 
 namespace checksum
 {
@@ -25,66 +23,20 @@ static uint32_t crc32c_CPUDetection(uint32_t crc, const void* data,
 
 CRC32CFunctionPtr crc32c = crc32c_CPUDetection;
 
-static uint32_t cpuid(uint32_t functionInput)
-{
-  uint32_t ecx;
-#if __SIZEOF_POINTER__ == 8
-  uint32_t eax;
-  uint32_t ebx;
-  uint32_t edx;
-#endif
-#if __SIZEOF_POINTER__ == 8
-#ifdef __PIC__
-  // PIC: Need to save and restore ebx See:
-  // http://sam.zoy.org/blog/2007-04-13-shlib-with-non-pic-code-have-inline-assembly-and-pic-mix-well
-  asm("pushl %%ebx\n\t" /* save %ebx */
-      "cpuid\n\t"
-      "movl %%ebx, %[ebx]\n\t" /* save what cpuid just put in %ebx */
-      "popl %%ebx" : "=a"(eax), [ebx] "=r"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput)
-      : "cc");
-#else
-#if !defined(__aarch64__)
-  asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput));
-#endif // APPLE detection end
-#endif
-#else
-  fprintf(stderr, "error: crc32c is not supported on 32bit platforms\n");
-  ecx = 0;
-#endif
-  return ecx;
-}
-
 CRC32CFunctionPtr detectBestCRC32C()
 {
-  static const int SSE42_BIT = 20;
-  uint32_t ecx = cpuid(1);
-  bool hasSSE42 = ecx & (1 << SSE42_BIT);
-  // test if living in a virtual machine
-  int rc = system("dmidecode | egrep -i 'manufacturer|product' | grep 'Virtual Machine'");
+#if defined(__x86_64__)
+  uint32_t eax = 0;
+  uint32_t ebx = 0;
+  uint32_t ecx = 0;
+  uint32_t edx = 0;
 
-  if (!WEXITSTATUS(rc)) {
-    // fprintf(stderr,
-    //"------ --:--:-- ----- CRC32C configured for virtual machines running without SSE42\n");
-    hasSSE42 = 0;
-  } else {
-    if (hasSSE42) {
-      //fprintf(stderr,
-      //        "------ --:--:-- ----- CRC32C configured for machine with SSE42 extension\n");
-    } else {
-      //fprintf(stderr,
-      //        "------ --:--:-- ----- CRC32C configured for machine without SSE42 extension\n");
-    }
-  }
-
-  if (hasSSE42) {
-#ifdef __LP64__
+  // CPUID describes the instructions available to the guest as well as the host.
+  if (__get_cpuid(1, &eax, &ebx, &ecx, &edx) && (ecx & bit_SSE4_2)) {
     return crc32cHardware64;
-#else
-    return crc32cHardware32;
-#endif
-  } else {
-    return crc32cSlicingBy8;
   }
+#endif
+  return crc32cSlicingBy8;
 }
 
 // Implementations adapted from Intel's Slicing By 8 Sourceforge Project
