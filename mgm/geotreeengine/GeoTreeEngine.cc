@@ -83,6 +83,8 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
     make_pair("stat.boot", sfgBoot),
     make_pair("stat.active", sfgActive),
     make_pair("configstatus", sfgConfigstatus),
+    make_pair(eos::common::FS_SCHED_OPS_NAME, sfgConfigstatus),
+    make_pair(eos::common::FS_LIFECYCLE_NAME, sfgConfigstatus),
     make_pair("local.drain", sfgDrain),
     make_pair(eos::common::FS_DRAIN_REQUESTED_NAME, sfgDrain),
     make_pair("local.drainer", sfgDrainer),
@@ -2425,7 +2427,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   }
 
   if (keys & sfgConfigstatus) {
-    common::ConfigStatus status = fs->mConfigStatus;
+    // The mask is what the commit and every other gate check, so take the
+    // states from it rather than from the published configstatus. The two
+    // can disagree, and a replica placed on a file system whose mask takes
+    // no writes would have its commit refused.
+    const common::ConfigStatus status = common::DeriveLegacyConfigStatus(
+        fs->mSchedOps, fs->mLifecycle == common::FsLifecycle::kEmpty);
 
     if (status == common::ConfigStatus::kRW) {
       if (ftIdx) {
