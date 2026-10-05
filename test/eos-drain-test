@@ -34,10 +34,89 @@ cleanup() {
   eos rmdir "${EOS_DRAIN_DIR}/replica/"
   eos rmdir "${EOS_DRAIN_DIR}/raiddp/"
   eos rmdir "${EOS_DRAIN_DIR}/rain/"
+  eos rm -rF "${EOS_DRAIN_DIR}/recycle/*"
+  eos recycle config --remove-bin "${EOS_DRAIN_DIR}/recycle/"
+  eos rmdir "${EOS_DRAIN_DIR}/recycle/"
   eos rmdir "${EOS_DRAIN_DIR}/"
   rm -rf ${TEST_FN0} ${TEST_FN1} ${TEST_FN2}
 }
 
+# Wait for the drain of the given file system to end
+wait_drain_end() {
+  sleep 2
+
+  while eos fs ls | grep " $1 " | grep -q "prepare\|waiting\|draining\|stalling"; do
+    sleep 2
+  done
+}
+
+# Start the drain of the given file system. A drain that just ended is only
+# cleaned up by the drainer every 5 seconds, so retry until it is accepted.
+start_drain() {
+  for i in {1..15}; do
+    eos fs config $1 configstatus=drain && return 0
+    sleep 2
+  done
+
+  return 1
+}
+
+# Drain a file system holding a recycle-bin file while no other file system
+# accepts writes, so the drain job of the file fails. The entry must be kept
+# with space.drainer.purge.recycle=off and purged with it on.
+test_drain_purge_recycle() {
+  local dir="${EOS_DRAIN_DIR}/recycle/"
+  local rc=0
+  eos mkdir -p ${dir}
+  eos chmod 2777 ${dir}
+  eos attr set default=replica ${dir}
+  eos attr set sys.forced.nstripes=1 ${dir}
+  eos recycle config --add-bin ${dir}
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${dir}/purge.dat
+  local fmd=$(eos fileinfo ${dir}/purge.dat -m | tr ' ' '\n')
+  local fxid=$(echo "${fmd}" | grep "^fxid=" | cut -d= -f2)
+  local fsid=$(echo "${fmd}" | grep "^fsid=" | cut -d= -f2)
+
+  if [[ -z "${fsid}" ]]; then
+    echo "error: failed to upload the recycle-bin test file"
+    return 1
+  fi
+
+  eos rm ${dir}/purge.dat
+  local all_fsids=$(eos fs ls -m | tr ' ' '\n' | grep "^id=" | cut -d= -f2)
+
+  for i in ${all_fsids}; do
+    [[ ${i} -ne ${fsid} ]] && eos fs config ${i} configstatus=ro
+  done
+
+  eos space config default space.drainer.purge.recycle=off
+  start_drain ${fsid}
+  wait_drain_end ${fsid}
+
+  if ! eos fs dumpmd ${fsid} --fxid | grep -q "^fxid=${fxid}$"; then
+    echo "error: recycle-bin entry fxid=${fxid} purged with the option off"
+    rc=1
+  fi
+
+  eos fs config ${fsid} configstatus=rw
+  eos space config default space.drainer.purge.recycle=on
+  start_drain ${fsid}
+  wait_drain_end ${fsid}
+
+  if eos fs dumpmd ${fsid} --fxid | grep -q "^fxid=${fxid}$" ||
+     eos recycle ls --all -m | grep -q "restore-key=fxid:0*${fxid} "; then
+    echo "error: recycle-bin entry fxid=${fxid} not purged with the option on"
+    rc=1
+  fi
+
+  eos space config default space.drainer.purge.recycle=off
+
+  for i in ${all_fsids}; do
+    eos fs config ${i} configstatus=rw
+  done
+
+  return ${rc}
+}
 
 if [[ $# -eq 0 || $# -gt 2 ]]; then
   echo "Usage: $0 <eos_mgm_hostname>"
@@ -157,6 +236,11 @@ fi
 
 # Wait for the slow writer to finish before clean-up
 wait ${xrdcpslowwriter_pid}
+
+if ! test_drain_purge_recycle; then
+  cleanup
+  exit 1
+fi
 
 cleanup
 exit 0
