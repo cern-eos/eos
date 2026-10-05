@@ -244,6 +244,8 @@ private:
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
   std::atomic<std::uint64_t> mMinTxRate; ///< Min transfer rate per job
+  //! Purge recycle-bin files which fail to drain
+  std::atomic<bool> mPurgeRecycle{false};
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
   std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
   //! Collection of failed drain jobs
