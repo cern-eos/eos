@@ -32,6 +32,31 @@
 namespace eos::mgm::traffic_shaping {
 
 namespace {
+
+uint64_t
+NextCounterGeneration()
+{
+  static std::atomic<uint64_t> generation{0};
+  return ++generation;
+}
+
+uint64_t
+NextCounterEpoch()
+{
+  // Microseconds fit exactly in a Prometheus double and distinguish processes.
+  // The logical increment also handles several resets in the same clock tick.
+  static std::atomic<uint64_t> previous{0};
+  const auto now =
+      static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                std::chrono::system_clock::now().time_since_epoch())
+                                .count());
+  auto last = previous.load();
+  uint64_t next;
+  do {
+    next = std::max(now, last + 1);
+  } while (!previous.compare_exchange_weak(last, next));
+  return next;
+}
 constexpr double kMinReservationDeficitFraction = 0.05;
 constexpr double kMinReservationDeficitBps = 16.0 * 1024.0 * 1024.0;
 constexpr auto kControllerLimitTtl = std::chrono::minutes(5);
@@ -816,7 +841,10 @@ TrafficShapingPolicy::ToString() const
   return oss.str();
 }
 
-TrafficShapingManager::TrafficShapingManager() = default;
+TrafficShapingManager::TrafficShapingManager()
+    : mCounterEpoch(NextCounterEpoch())
+{
+}
 
 TrafficShapingManager::~TrafficShapingManager() { Clear(); }
 
@@ -825,6 +853,9 @@ AddCumulativeStats(CounterSnapshot& snapshot, const uint64_t bytes_read,
                    const uint64_t bytes_written, const uint64_t read_ops,
                    const uint64_t write_ops, const time_t now_unix)
 {
+  if (snapshot.generation == 0) {
+    snapshot.generation = NextCounterGeneration();
+  }
   snapshot.bytes_read_total += bytes_read;
   snapshot.bytes_written_total += bytes_written;
   snapshot.read_ops_total += read_ops;
@@ -4046,6 +4077,13 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
   std::lock_guard publish_lock(mFstConfigPublishMutex);
   std::unique_lock lock(mMutex);
 
+  // A reader may infer zero traffic before idle expiry only against an
+  // unchanged retention policy. Keep intervening policy changes observable.
+  if (mCounterGcIdleSeconds != max_idle_seconds) {
+    mCounterGcIdleSeconds = max_idle_seconds;
+    mCounterEpoch = NextCounterEpoch();
+  }
+
   const auto now_steady = std::chrono::steady_clock::now();
   const time_t now_unix = time(nullptr);
 
@@ -4480,6 +4518,7 @@ TrafficShapingManager::Clear()
 {
   std::lock_guard publish_lock(mFstConfigPublishMutex);
   std::unique_lock lock(mMutex);
+  mCounterEpoch = NextCounterEpoch();
   mNodeStates.clear();
   mFstStreamStateCount = 0;
   mFstStreamStateEstimatedBytes = 0;
@@ -4521,6 +4560,7 @@ TrafficShapingManager::ClearRuntimeStats()
 {
   std::lock_guard publish_lock(mFstConfigPublishMutex);
   std::unique_lock lock(mMutex);
+  mCounterEpoch = NextCounterEpoch();
   mNodeStates.clear();
   mFstStreamStateCount = 0;
   mFstStreamStateEstimatedBytes = 0;
@@ -4546,6 +4586,7 @@ void
 TrafficShapingManager::ClearDetailedRuntimeStats()
 {
   std::unique_lock lock(mMutex);
+  mCounterEpoch = NextCounterEpoch();
   mDiskStats.clear();
   mDetailedStats.clear();
   mDiskCumulativeStats.clear();
@@ -4601,6 +4642,13 @@ TrafficShapingManager::GetTotalCumulativeStats() const
 {
   std::shared_lock lock(mMutex);
   return mCumulativeTotalStats;
+}
+
+uint64_t
+TrafficShapingManager::GetCounterEpoch() const
+{
+  std::shared_lock lock(mMutex);
+  return mCounterEpoch;
 }
 
 TrafficShapingEngine::TrafficShapingEngine()

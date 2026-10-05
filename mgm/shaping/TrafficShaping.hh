@@ -459,6 +459,8 @@ struct CounterSnapshot {
   uint64_t read_ops_total = 0;
   uint64_t write_ops_total = 0;
   time_t last_activity_time = 0;
+  // Lifetime identity changes on recreation, not on an FST stream reset.
+  uint64_t generation = 0;
 };
 
 // The controller needs fast and stable EMAs for per-node entities. Locally
@@ -651,6 +653,8 @@ public:
 
   CounterSnapshot GetTotalCumulativeStats() const;
 
+  uint64_t GetCounterEpoch() const;
+
   struct GarbageCollectionStats {
     size_t removed_nodes;
     size_t removed_node_streams;
@@ -822,6 +826,8 @@ private:
       mDetailedCumulativeStats;
   ProjectionCumulativeStats mProjectionCumulativeStats;
   CounterSnapshot mCumulativeTotalStats;
+  uint64_t mCounterEpoch = 0;
+  int mCounterGcIdleSeconds = kDefaultGarbageCollectionIdleSec;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;

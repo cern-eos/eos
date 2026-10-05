@@ -256,6 +256,7 @@ TEST(TrafficShapingCollector, AggregateTrafficPreservesNodeAndClientAttribution)
   collector.Collect(out);
   ASSERT_EQ(4u, Samples(out, "eos_io_shaping_all_bytes_total").size());
   ASSERT_EQ(4u, Samples(out, "eos_io_shaping_all_operations_total").size());
+  ASSERT_EQ(2u, Samples(out, "eos_io_shaping_all_counter_generation").size());
   for (const auto& [node, written] : std::map<std::string, uint64_t>{
            {"fst-a.example:1095", 16384}, {"fst-b.example:1095", 8192}}) {
     auto labels = AllLabels(node, "0");
@@ -292,6 +293,78 @@ TEST(TrafficShapingCollector, AggregateTrafficPreservesNodeAndClientAttribution)
   EXPECT_EQ(2u, manager->GetMapCardinalityStats().node_entity_stats);
 }
 
+TEST(TrafficShapingCollector, CounterLifetimeDistinguishesIdleExpiryFromReset)
+{
+  traffic_shaping::TrafficShapingEngine engine;
+  auto manager = engine.GetManager();
+  const std::string node = "/eos/fst-a.example:1095/fst";
+  const MetricLabels cluster = {{"cluster", "test-cluster"}};
+  TrafficShapingCollector collector(engine, "test-cluster");
+  auto collect = [&]() {
+    std::string out;
+    collector.Collect(out);
+    ExpectSample(out, "eos_io_shaping_counter_snapshot_consistent", cluster, 1);
+    ExpectSample(out, "eos_io_shaping_counter_epoch", cluster,
+                 static_cast<double>(manager->GetCounterEpoch()));
+    return out;
+  };
+  auto generation = [&](const std::string& out) {
+    const auto samples = Samples(out, "eos_io_shaping_all_counter_generation");
+    EXPECT_EQ(1u, samples.size());
+    if (samples.empty()) {
+      return 0.0;
+    }
+    EXPECT_EQ(AllLabels("fst-a.example:1095", "0"), samples[0].labels);
+    EXPECT_GT(samples[0].value, 0);
+    return samples[0].value;
+  };
+  manager->ProcessReport(MakeReport(node, 1000, 0, false));
+  manager->ProcessReport(MakeReport(node, 2000, 4096, false));
+  const auto first_epoch = manager->GetCounterEpoch();
+  const auto first_generation = generation(collect());
+  manager->ProcessReport(MakeReport(node, 3000, 8192, false));
+  EXPECT_EQ(first_generation, generation(collect()));
+
+  // Resetting an FST stream adds its next deltas to the same MGM lifetime.
+  auto report = MakeReport(node, 4000, 0, false);
+  report.mutable_entries(0)->set_generation_id(2);
+  manager->ProcessReport(report);
+  report.set_timestamp_ms(5000);
+  report.mutable_entries(0)->set_total_bytes_written(512);
+  manager->ProcessReport(report);
+  EXPECT_EQ(first_generation, generation(collect()));
+  EXPECT_EQ(first_epoch, manager->GetCounterEpoch());
+
+  manager->SetNodeEntityLastActivityForTest(node, {"aggregate-app", 1, 2, 0},
+                                            time(nullptr) - 301);
+  manager->GarbageCollect(300);
+  EXPECT_TRUE(Samples(collect(), "eos_io_shaping_all_counter_generation").empty());
+  EXPECT_EQ(first_epoch, manager->GetCounterEpoch());
+  report.set_timestamp_ms(6000);
+  report.mutable_entries(0)->set_total_bytes_written(1024);
+  manager->ProcessReport(report);
+  const auto recreated = collect();
+  EXPECT_NE(first_generation, generation(recreated));
+  auto labels = AllLabels("fst-a.example:1095", "0");
+  labels["operation"] = "write";
+  ExpectSample(recreated, "eos_io_shaping_all_bytes_total", labels, 512);
+  EXPECT_EQ(first_epoch, manager->GetCounterEpoch());
+
+  manager->GarbageCollect(600);
+  EXPECT_NE(first_epoch, manager->GetCounterEpoch());
+  auto epoch = manager->GetCounterEpoch();
+  manager->ClearDetailedRuntimeStats();
+  EXPECT_NE(epoch, manager->GetCounterEpoch());
+  epoch = manager->GetCounterEpoch();
+  manager->ClearRuntimeStats();
+  EXPECT_NE(epoch, manager->GetCounterEpoch());
+  epoch = manager->GetCounterEpoch();
+  manager->Clear();
+  EXPECT_NE(epoch, manager->GetCounterEpoch());
+  traffic_shaping::TrafficShapingEngine other;
+  EXPECT_NE(manager->GetCounterEpoch(), other.GetManager()->GetCounterEpoch());
+}
+
 TEST(TrafficShapingCollector, FilesystemDetailDoesNotDoubleCountNodeTotals)
 {
   traffic_shaping::TrafficShapingEngine engine;
@@ -306,6 +379,7 @@ TEST(TrafficShapingCollector, FilesystemDetailDoesNotDoubleCountNodeTotals)
   collector.Collect(out);
   ASSERT_EQ(4u, Samples(out, "eos_io_shaping_all_bytes_total").size());
   ASSERT_EQ(4u, Samples(out, "eos_io_shaping_all_operations_total").size());
+  ASSERT_EQ(2u, Samples(out, "eos_io_shaping_all_counter_generation").size());
   for (const auto& fsid : {"3", "4"}) {
     auto labels = AllLabels("fst-a.example:1095", fsid);
     labels["operation"] = "write";
@@ -457,6 +531,7 @@ TEST(TrafficShapingCollector, LimitsAllTagsWithoutSuppressingProjections)
                1);
   EXPECT_TRUE(Samples(out, "eos_io_shaping_all_bytes_total").empty());
   EXPECT_TRUE(Samples(out, "eos_io_shaping_all_operations_total").empty());
+  EXPECT_TRUE(Samples(out, "eos_io_shaping_all_counter_generation").empty());
   ExpectSample(out, "eos_io_shaping_bytes_total",
                {{"cluster", "test-cluster"},
                 {"id", "aggregate-app"},

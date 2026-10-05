@@ -36,10 +36,18 @@ struct EntityTotals {
   uint64_t write_bytes = 0;
   uint64_t read_ops = 0;
   uint64_t write_ops = 0;
+  uint64_t generation = 0;
+  bool has_snapshot = false;
 
   void
   Add(const CounterSnapshot& snapshot)
   {
+    // Normalisation can merge distinct source identities. Such a composite
+    // has no single lifetime, so do not advertise a safe recreation baseline.
+    generation = !has_snapshot                       ? snapshot.generation
+                 : generation == snapshot.generation ? generation
+                                                     : 0;
+    has_snapshot = true;
     read_bytes += snapshot.bytes_read_total;
     write_bytes += snapshot.bytes_written_total;
     read_ops += snapshot.read_ops_total;
@@ -212,6 +220,11 @@ AddCounterFamilies(std::string& out, TrafficShapingEngine& engine,
                "Total IO shaping all-tags bytes observed");
   FormatHeader(out, "eos_io_shaping_all_operations_total", "counter",
                "Total IO shaping all-tags operations observed");
+  FormatHeader(out, "eos_io_shaping_all_counter_generation", "gauge",
+               "Lifetime identity of an all-tags cumulative counter entry. "
+               "Changes when the entry is recreated. Within one counter epoch, "
+               "a changed generation proves idle expiry; an interval shorter "
+               "than the GC idle policy has zero old-lifetime increments.");
 
   if (export_all_tags) {
     const auto all_totals = CollectAllTotals(engine, manager);
@@ -221,20 +234,24 @@ AddCounterFamilies(std::string& out, TrafficShapingEngine& engine,
     for (const auto& [key, totals] : all_totals) {
       const std::string uid_label = UidLabel(key.uid);
       const std::string gid_label = GidLabel(key.gid);
+      const std::map<std::string, std::string> labels = {
+          {"cluster", cluster},
+          {"node_id", key.node_id},
+          {"fsid", std::to_string(key.fsid)},
+          {"app", key.app},
+          {"uid", uid_label},
+          {"uid_id", std::to_string(key.uid)},
+          {"uid_name", uid_label},
+          {"gid", gid_label},
+          {"gid_id", std::to_string(key.gid)},
+          {"gid_name", gid_label},
+          {"groups", gid_label}};
       AddReadWriteCounters(out, "eos_io_shaping_all_bytes_total",
-                           "eos_io_shaping_all_operations_total",
-                           {{"cluster", cluster},
-                            {"node_id", key.node_id},
-                            {"fsid", std::to_string(key.fsid)},
-                            {"app", key.app},
-                            {"uid", uid_label},
-                            {"uid_id", std::to_string(key.uid)},
-                            {"uid_name", uid_label},
-                            {"gid", gid_label},
-                            {"gid_id", std::to_string(key.gid)},
-                            {"gid_name", gid_label},
-                            {"groups", gid_label}},
-                           totals);
+                           "eos_io_shaping_all_operations_total", labels, totals);
+      if (totals.generation != 0) {
+        FormatGaugeMetric(out, "eos_io_shaping_all_counter_generation", labels,
+                          static_cast<double>(totals.generation));
+      }
     }
   } else {
     FormatGaugeMetric(out, "eos_io_shaping_all_entries_exported", {{"cluster", cluster}},
@@ -922,7 +939,25 @@ TrafficShapingCollector::Collect(std::string& out) const
     return;
   }
 
+  const auto counter_begin = out.size();
+  const auto counter_epoch = manager->GetCounterEpoch();
   AddCounterFamilies(out, mEngine, *manager, mCluster);
+  const auto counter_epoch_after = manager->GetCounterEpoch();
+  const bool counters_consistent = counter_epoch == counter_epoch_after;
+  if (!counters_consistent) {
+    // An explicit reset can interleave the independent snapshot getters. Do
+    // not publish a mixture of counter epochs as one measured interval.
+    out.resize(counter_begin);
+  }
+  FormatHeader(out, "eos_io_shaping_counter_epoch", "gauge",
+               "Counter reset epoch. Changes on MGM restart, explicit counter "
+               "clear, or idle-retention policy change, not ordinary idle expiry.");
+  FormatGaugeMetric(out, "eos_io_shaping_counter_epoch", {{"cluster", mCluster}},
+                    static_cast<double>(counter_epoch_after));
+  FormatHeader(out, "eos_io_shaping_counter_snapshot_consistent", "gauge",
+               "Whether cumulative counters were collected in one reset epoch.");
+  FormatGaugeMetric(out, "eos_io_shaping_counter_snapshot_consistent",
+                    {{"cluster", mCluster}}, counters_consistent ? 1.0 : 0.0);
   AddSystemFamilies(out, *manager, mCluster);
   AddPolicyFamilies(out, *manager, mCluster);
   AddPressureFamilies(out, *manager, mCluster);
