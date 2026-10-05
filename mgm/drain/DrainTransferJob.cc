@@ -156,24 +156,34 @@ DrainTransferJob::DoIt() noexcept
   }
 
   DoTransfer(fdrain);
+  PurgeFailedRecycleEntry(fdrain);
+}
 
-  if ((mStatus == Status::Failed) && mPurgeRecycle && !mProgressHandler.ShouldCancel(0) &&
-      Recycle::InRecycleBin(fdrain.mFullPath)) {
-    XrdOucErrInfo lerror;
-    auto root_vid = eos::common::VirtualIdentity::Root();
+//------------------------------------------------------------------------------
+// Purge the recycle-bin entry of a file which failed to drain
+//------------------------------------------------------------------------------
+void
+DrainTransferJob::PurgeFailedRecycleEntry(const FileDrainInfo& fdrain)
+{
+  if ((mStatus != Status::Failed) || !mPurgeRecycle || mProgressHandler.ShouldCancel(0) ||
+      !Recycle::InRecycleBin(fdrain.mFullPath)) {
+    return;
+  }
 
-    if (gOFS->_rem(fdrain.mFullPath.c_str(), lerror, root_vid, nullptr)) {
-      eos_err("msg=\"failed to purge recycle-bin entry\" fxid=%s fsid=%u "
-              "path=\"%s\" err=\"%s\"",
-              eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
-              fdrain.mFullPath.c_str(), lerror.getErrText());
-    } else {
-      eos_notice("msg=\"purged recycle-bin entry which failed to drain\" "
-                 "fxid=%s fsid=%u path=\"%s\"",
-                 eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
-                 fdrain.mFullPath.c_str());
-      mStatus = Status::OK;
-    }
+  XrdOucErrInfo lerror;
+  auto root_vid = eos::common::VirtualIdentity::Root();
+
+  if (gOFS->_rem(fdrain.mFullPath.c_str(), lerror, root_vid, nullptr)) {
+    eos_err("msg=\"failed to purge recycle-bin entry\" fxid=%s fsid=%u "
+            "path=\"%s\" err=\"%s\"",
+            eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
+            fdrain.mFullPath.c_str(), lerror.getErrText());
+  } else {
+    eos_notice("msg=\"purged recycle-bin entry which failed to drain\" "
+               "fxid=%s fsid=%u path=\"%s\"",
+               eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
+               fdrain.mFullPath.c_str());
+    mStatus = Status::OK;
   }
 }
 

@@ -328,6 +328,14 @@ private:
   //----------------------------------------------------------------------------
   void DoTransfer(const FileDrainInfo& fdrain);
 
+  //----------------------------------------------------------------------------
+  //! Purge the recycle-bin entry of a file which failed to drain, if enabled
+  //! and the job was not cancelled. On success the job status becomes OK.
+  //!
+  //! @param fdrain file to drain metadata info
+  //----------------------------------------------------------------------------
+  void PurgeFailedRecycleEntry(const FileDrainInfo& fdrain);
+
   std::string mAppTag; ///< Application tag for the transfer
   std::atomic<eos::IFileMD::id_t> mFileId; ///< File id to transfer
   //! Source and destination file system
