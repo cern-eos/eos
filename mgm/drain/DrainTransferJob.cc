@@ -28,6 +28,7 @@
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/proc_fs.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/scheduler/Scheduler.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/Prefetcher.hh"
@@ -83,7 +84,6 @@ void DrainTransferJob::ReportError(const std::string& error)
 void
 DrainTransferJob::DoIt() noexcept
 {
-  using eos::common::LayoutId;
   eos_static_info("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
                   mFsIdSource.load(), mFsIdTarget.load(), mFileId.load());
 
@@ -154,6 +154,46 @@ DrainTransferJob::DoIt() noexcept
     mStatus = Status::OK;
     return;
   }
+
+  DoTransfer(fdrain);
+  PurgeFailedRecycleEntry(fdrain);
+}
+
+//------------------------------------------------------------------------------
+// Purge the recycle-bin entry of a file which failed to drain
+//------------------------------------------------------------------------------
+void
+DrainTransferJob::PurgeFailedRecycleEntry(const FileDrainInfo& fdrain)
+{
+  if ((mStatus != Status::Failed) || !mPurgeRecycle || mProgressHandler.ShouldCancel(0) ||
+      !Recycle::InRecycleBin(fdrain.mFullPath)) {
+    return;
+  }
+
+  XrdOucErrInfo lerror;
+  auto root_vid = eos::common::VirtualIdentity::Root();
+
+  if (gOFS->_rem(fdrain.mFullPath.c_str(), lerror, root_vid, nullptr)) {
+    eos_err("msg=\"failed to purge recycle-bin entry\" fxid=%s fsid=%u "
+            "path=\"%s\" err=\"%s\"",
+            eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
+            fdrain.mFullPath.c_str(), lerror.getErrText());
+  } else {
+    eos_notice("msg=\"purged recycle-bin entry which failed to drain\" "
+               "fxid=%s fsid=%u path=\"%s\"",
+               eos::common::FileId::Fid2Hex(mFileId).c_str(), mFsIdSource.load(),
+               fdrain.mFullPath.c_str());
+    mStatus = Status::OK;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Run the transfer loop over the available sources
+//------------------------------------------------------------------------------
+void
+DrainTransferJob::DoTransfer(const FileDrainInfo& fdrain)
+{
+  using eos::common::LayoutId;
 
   while (true) {
     if ((mFsIdTarget == 0ul) && !SelectDstFs(fdrain)) {

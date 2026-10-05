@@ -82,6 +82,8 @@ std::string MakeSpaceHelp()
          "computing transfer timeout [ default=25 (MB/s) ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : "
          "configure the number of parallel draining transfers per fs [ default=5 ]\n"
+      << "space config <space-name> space.drainer.purge.recycle=on|off          : "
+         "purge recycle-bin files that fail to drain [ default=off ]\n"
       << "space config <space-name> space.groupbalancer=on|off                  : "
          "enable/disable the group balancer [ default=off ]\n"
       << "space config <space-name> space.groupbalancer.ntx=<ntx>               : "

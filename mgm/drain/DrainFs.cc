@@ -102,6 +102,8 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
                              "space=\"%s\"", space_name.c_str());
         }
       }
+
+      mPurgeRecycle = (space->GetConfigMember("drainer.purge.recycle") == "on");
     } else {
       eos_static_warning("msg=\"space %s not yet initialized\"",
                          space_name.c_str());
@@ -186,6 +188,7 @@ DrainFs::DoIt()
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)};
         job->SetMinTransferRate(mMinTxRate);
+        job->SetPurgeRecycle(mPurgeRecycle);
 
         if (!gOFS->mFidTracker.AddEntry(it_fid->getElement(), TrackerType::Drain)) {
           job->ReportError(SSTR("msg=\"skip currently scheduled drain\" "

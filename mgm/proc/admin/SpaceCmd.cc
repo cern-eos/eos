@@ -934,7 +934,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "balancer.node.ntx") || (key == "balancer.max-queue-jobs") ||
           (key == "balancer.max-thread-pool-size") ||
           (key == "balancer.update.interval") || (key == "drainer.tx.minrate") ||
-          (key == "drainer.retries") || (key == "drainer.fs.ntx") || (key == "tracker") ||
+          (key == "drainer.retries") || (key == "drainer.fs.ntx") ||
+          (key == "drainer.purge.recycle") || (key == "tracker") ||
           (key == "inspector") || (key == "inspector.interval") ||
           (key == "inspector.price.disk.tbyear") ||
           (key == "inspector.price.tape.tbyear") || (key == "inspector.price.currency") ||
@@ -966,16 +967,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF) ||
           (key == eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF) ||
           (key == "groupsize") || (key == "groupmod") || (key == "quota")) {
-        if ((key == "balancer") ||
-            (key == "tracker") ||
-            (key == "inspector") ||
-            (key == "lru") ||
-            (key == "groupbalancer") ||
-            (key == "geobalancer") ||
+        if ((key == "balancer") || (key == "tracker") || (key == "inspector") ||
+            (key == "lru") || (key == "groupbalancer") || (key == "geobalancer") ||
             (key == "geo.access.policy.read.exact") ||
-            (key == "geo.access.policy.write.exact") ||
-            (key == "filearchivedgc") ||
-            (key == "groupdrainer") ||
+            (key == "geo.access.policy.write.exact") || (key == "filearchivedgc") ||
+            (key == "groupdrainer") || (key == "drainer.purge.recycle") ||
             (key == "altxs")) {
           applied = true;
 
@@ -1106,6 +1102,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else {
                   std_out << "success: 'file archived' garbage collector is disabled";
                 }
+              }
+
+              if (key == "drainer.purge.recycle") {
+                std_out << ((value == "on")
+                                ? "success: drain purges failed recycle-bin files"
+                                : "success: drain keeps failed recycle-bin files");
               }
 
               if (key == "lru") {
