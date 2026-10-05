@@ -350,10 +350,10 @@ public:
         return volume;
       }
     }
-    // no quota, let's manifest this in the log file, but don't lock the
-    // quota node
-    eos_static_warning("no-quota: i=%08lx\n%s,cap = {%s}\n", (*cap)()->id(),
-                       q->dump().c_str(), cap->dump().c_str());
+    // Keep quota details at debug level so repeated caller errors can be
+    // rate-limited without an intervening warning resetting the limiter.
+    eos_static_debug("no-quota: i=%08lx\n%s,cap = {%s}\n", (*cap)()->id(),
+                     q->dump().c_str(), cap->dump().c_str());
     return 0;
   }
 
