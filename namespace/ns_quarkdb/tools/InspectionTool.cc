@@ -173,8 +173,9 @@ int main(int argc, char* argv[])
                            "Don't print directories, only files");
   scanSubcommand->add_flag("--no-files", noFiles,
                            "Don't print files, only directories");
-  scanSubcommand->add_option("--maxdepth", maxDepth,
-                             "Descend only <maxdepth> levels.");
+  scanSubcommand->add_option(
+      "--maxdepth", maxDepth,
+      "Descend at most <maxdepth> levels below --path (0 scans only --path).");
   scanSubcommand->add_flag("--json", json, "Use json output");
   scanSubcommand->add_flag("--jsonlines", jsonlines,
                            "Use json output, one object per line (jsonlines)");

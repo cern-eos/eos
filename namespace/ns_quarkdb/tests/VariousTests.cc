@@ -25,38 +25,40 @@
 #include <gtest/gtest.h>
 #include <cstring>
 
-#include "namespace/interface/ContainerIterators.hh"
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
-#include "namespace/ns_quarkdb/inspector/Printing.hh"
-#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
-#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
-#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
-#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/utils/Etag.hh"
-#include "namespace/utils/Attributes.hh"
+#include "TestUtils.hh"
+#include "google/protobuf/util/message_differencer.h"
 #include "namespace/PermissionHandler.hh"
 #include "namespace/Resolver.hh"
-#include "TestUtils.hh"
-#include <folly/futures/Future.h>
-#include "google/protobuf/util/message_differencer.h"
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
+#include "namespace/ns_quarkdb/inspector/Inspector.hh"
+#include "namespace/ns_quarkdb/inspector/OutputSink.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
+#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
-
+#include <folly/futures/Future.h>
 
 using namespace eos;
 
 class VariousTests : public eos::ns::testing::NsTestsFixture {};
 class NamespaceExplorerF : public eos::ns::testing::NsTestsFixture {};
+class InspectorF : public eos::ns::testing::NsTestsFixture {};
 class FileMDFetching : public eos::ns::testing::NsTestsFixture {};
 
 bool validateReply(qclient::redisReplyPtr reply)
@@ -980,6 +982,86 @@ TEST_F(NamespaceExplorerF, BasicSanity)
   ASSERT_FALSE(explorer2.fetch(item));
   ASSERT_FALSE(explorer2.fetch(item));
   ASSERT_FALSE(explorer2.fetch(item));
+}
+
+TEST_F(InspectorF, ScanRelativeMaxDepth)
+{
+  const std::string base = "/eos/project/base/";
+  view()->createContainer(base + "child/grandchild/", true);
+  view()->createFile(base + "file", true);
+  view()->createFile(base + "child/file", true);
+  view()->createFile(base + "child/grandchild/file", true);
+  mdFlusher()->synchronize();
+
+  const std::vector<std::string> expected = {base,
+                                             base + "file",
+                                             base + "child/",
+                                             base + "child/file",
+                                             base + "child/grandchild/",
+                                             base + "child/grandchild/file"};
+
+  for (const auto& path : {"/eos/project/base", "/eos/project/base/"}) {
+    for (uint32_t depth : {0u, 1u, 2u, 3u, UINT32_MAX - 1, UINT32_MAX}) {
+      SCOPED_TRACE(SSTR("path=" << path << " depth=" << depth));
+      std::ostringstream out, err;
+      StreamSink sink(out, err);
+      Inspector inspector(qcl(), sink);
+      ASSERT_EQ(inspector.scan(path, false, true, false, false, depth), 0);
+      ASSERT_TRUE(err.str().empty());
+      const size_t count = depth == 0 ? 1 : depth == 1 ? 3 : depth == 2 ? 5 : 6;
+      std::ostringstream expectedOut;
+
+      for (size_t i = 0; i < count; ++i) {
+        expectedOut << expected[i] << '\n';
+      }
+
+      ASSERT_EQ(out.str(), expectedOut.str());
+    }
+  }
+
+  // A deeper starting path has the same relative limit.
+  std::ostringstream out, err;
+  StreamSink sink(out, err);
+  Inspector inspector(qcl(), sink);
+  ASSERT_EQ(inspector.scan(base + "child", false, true, false, false, 1), 0);
+  ASSERT_EQ(out.str(),
+            base + "child/\n" + base + "child/file\n" + base + "child/grandchild/\n");
+  ASSERT_TRUE(err.str().empty());
+}
+
+TEST_F(InspectorF, ScanRootMaxDepth)
+{
+  view()->createContainer("/scan/child/", true);
+  view()->createFile("/file", true);
+  view()->createFile("/scan/file", true);
+  view()->createFile("/scan/child/file", true);
+  mdFlusher()->synchronize();
+  const std::vector<std::string> expected = {
+      "/\n", "/\n/file\n/scan/\n", "/\n/file\n/scan/\n/scan/file\n/scan/child/\n"};
+
+  for (uint32_t depth = 0; depth < expected.size(); ++depth) {
+    SCOPED_TRACE(depth);
+    std::ostringstream out, err;
+    StreamSink sink(out, err);
+    Inspector inspector(qcl(), sink);
+    ASSERT_EQ(inspector.scan("/", false, true, false, false, depth), 0);
+    ASSERT_EQ(out.str(), expected[depth]);
+    ASSERT_TRUE(err.str().empty());
+  }
+}
+
+TEST_F(InspectorF, ScanSingleFileAtDepthZero)
+{
+  const std::string path = "/eos/project/base/file";
+  view()->createContainer("/eos/project/base/", true);
+  view()->createFile(path, true);
+  mdFlusher()->synchronize();
+  std::ostringstream out, err;
+  StreamSink sink(out, err);
+  Inspector inspector(qcl(), sink);
+  ASSERT_EQ(inspector.scan(path, false, true, false, false, 0), 0);
+  ASSERT_EQ(out.str(), path + "\n");
+  ASSERT_TRUE(err.str().empty());
 }
 
 TEST_F(NamespaceExplorerF, NoFiles)

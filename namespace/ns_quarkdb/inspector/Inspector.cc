@@ -17,33 +17,34 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
-#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
-#include "namespace/ns_quarkdb/inspector/Printing.hh"
-#include "namespace/ns_quarkdb/inspector/OutputSink.hh"
-#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/Constants.hh"
-#include "common/LayoutId.hh"
-#include "common/IntervalStopwatch.hh"
 #include "common/InodeTranslator.hh"
+#include "common/IntervalStopwatch.hh"
+#include "common/LayoutId.hh"
 #include "common/ParseUtils.hh"
-#include "common/StringUtils.hh"
 #include "common/RegexWrapper.hh"
+#include "common/StringSplit.hh"
+#include "common/StringUtils.hh"
 #include "common/config/ConfigParsing.hh"
+#include "namespace/Constants.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
+#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "namespace/ns_quarkdb/inspector/OutputSink.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/utils/Checksum.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
-#include <qclient/QClient.hh>
-#include <qclient/ResponseParsing.hh>
 #include <google/protobuf/util/json_util.h>
 #include <json/json.h>
+#include <qclient/QClient.hh>
+#include <qclient/ResponseParsing.hh>
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -188,7 +189,10 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
   ContainerPrintingOptions containerPrintingOpts;
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
-  explorerOpts.depthLimit = maxDepth;
+  // NamespaceExplorer counts levels from /; scan counts its starting path as 0.
+  const uint64_t absoluteDepth =
+      static_cast<uint64_t>(maxDepth) + eos::common::SplitPath(rootPath).size();
+  explorerOpts.depthLimit = std::min<uint64_t>(absoluteDepth, UINT32_MAX);
 
   if (!trimPaths.empty()) {
     try {
@@ -2280,4 +2284,3 @@ void Inspector::executeRequestBatch(const std::vector<RedisRequest>& requests,
 }
 
 EOSNSNAMESPACE_END
-
