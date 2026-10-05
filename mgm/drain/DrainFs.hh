@@ -158,6 +158,13 @@ private:
   //----------------------------------------------------------------------------
   void GetSpaceConfiguration(const std::string& space);
 
+  //----------------------------------------------------------------------------
+  //! Re-read the space defined drain variables once every sRefreshTimeout, so
+  //! that a change of e.g. drainer.fs.ntx also applies to an ongoing drain
+  //! @note method must be called without a lock on gFsView.ViewMutex
+  //----------------------------------------------------------------------------
+  void RefreshSpaceConfiguration();
+
   //---------------------------------------------------------------------------
   //! Prepare the file system for drain i.e. delay the start by the configured
   //! amount of timem, set the status
@@ -254,6 +261,9 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
   //! Last timestamp when drain status was updated
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdateTime;
+  std::string mSpaceName; ///< Space of the drained file system
+  //! Last timestamp when the space drain configuration was read
+  std::chrono::time_point<std::chrono::steady_clock> mLastConfigRefresh;
 };
 
 EOSMGMNAMESPACE_END

@@ -40,13 +40,23 @@ constexpr std::chrono::seconds DrainFs::sStallTimeout;
 //------------------------------------------------------------------------------
 DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
                  eos::common::FileSystem::fsid_t src_fsid,
-                 eos::common::FileSystem::fsid_t dst_fsid):
-  mNsFsView(fs_view), mFsId(src_fsid), mTargetFsId(dst_fsid),
-  mStatus(eos::common::DrainStatus::kNoDrain), mDidRerun(false),
-  mDrainStop(false), mMaxJobs(10), mDrainPeriod(0), mMinTxRate(25),
-  mThreadPool(thread_pool), mTotalFiles(0ull), mPending(0ull),
-  mLastPending(0ull), mLastProgressTime(steady_clock::now()),
-  mLastUpdateTime(steady_clock::now())
+                 eos::common::FileSystem::fsid_t dst_fsid)
+    : mNsFsView(fs_view)
+    , mFsId(src_fsid)
+    , mTargetFsId(dst_fsid)
+    , mStatus(eos::common::DrainStatus::kNoDrain)
+    , mDidRerun(false)
+    , mDrainStop(false)
+    , mMaxJobs(10)
+    , mDrainPeriod(0)
+    , mMinTxRate(25)
+    , mThreadPool(thread_pool)
+    , mTotalFiles(0ull)
+    , mPending(0ull)
+    , mLastPending(0ull)
+    , mLastProgressTime(steady_clock::now())
+    , mLastUpdateTime(steady_clock::now())
+    , mLastConfigRefresh(steady_clock::now())
 {}
 
 //------------------------------------------------------------------------------
@@ -99,6 +109,41 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
   } else {
     // Use some sensible default values for testing
     mMaxJobs = 2;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Periodically re-read the space defined drain variables
+//------------------------------------------------------------------------------
+void
+DrainFs::RefreshSpaceConfiguration()
+{
+  const auto now = steady_clock::now();
+
+  if (mSpaceName.empty() || (now - mLastConfigRefresh < sRefreshTimeout)) {
+    return;
+  }
+
+  mLastConfigRefresh = now;
+  const uint32_t old_max_jobs = mMaxJobs;
+  const uint64_t old_min_rate = mMinTxRate;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+    // The space going away mid drain must not drop the limits to the testing
+    // defaults GetSpaceConfiguration falls back to, keep the current ones
+    if (!FsView::gFsView.mSpaceView.count(mSpaceName)) {
+      return;
+    }
+
+    GetSpaceConfiguration(mSpaceName);
+  }
+
+  if ((old_max_jobs != mMaxJobs) || (old_min_rate != mMinTxRate)) {
+    eos_static_info("msg=\"drain configuration updated\" fsid=%u "
+                    "max_jobs=%u->%u min_tx_rate=%llu->%llu",
+                    mFsId, old_max_jobs, mMaxJobs.load(), old_min_rate,
+                    mMinTxRate.load());
   }
 }
 
@@ -358,6 +403,7 @@ DrainFs::PrepareFs()
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     fs->SnapShotFileSystem(drain_snapshot, false);
     space_name = drain_snapshot.mSpace;
+    mSpaceName = space_name;
   }
   mDrainStart = steady_clock::now();
   mDrainEnd = mDrainStart + mDrainPeriod;
@@ -398,6 +444,7 @@ DrainFs::PrepareFs()
   }
 
   GetSpaceConfiguration(space_name);
+  mLastConfigRefresh = steady_clock::now();
   mStatus = eos::common::DrainStatus::kDraining;
   eos::common::FileSystemUpdateBatch batch;
   batch.setDrainStatusLocal(mStatus);
@@ -415,6 +462,7 @@ DrainFs::PrepareFs()
 DrainFs::State
 DrainFs::UpdateProgress()
 {
+  RefreshSpaceConfiguration();
   bool is_expired = false;
   auto now = steady_clock::now();
 
