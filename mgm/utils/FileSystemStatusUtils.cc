@@ -44,7 +44,9 @@ void ApplyDrainedStatus(eos::common::FileSystem::fsid_t fsid)
     batch.setLongLongLocal("local.drain.failed", 0);
     batch.setLongLongLocal("local.drain.files", 0);
 
-    if (!gOFS->Shutdown) {
+    const bool mark_empty = !gOFS->Shutdown;
+
+    if (mark_empty) {
       // If drain done and the system is not shutting down then set the
       // file system to "empty" state
       batch.setLongLongLocal("local.drain.progress", 100);
@@ -58,10 +60,16 @@ void ApplyDrainedStatus(eos::common::FileSystem::fsid_t fsid)
       batch.setStringDurable(eos::common::FS_SCHED_OPS_NAME,
                              eos::common::FormatSchedMask(eos::common::kMaskNone));
       batch.setStringDurable(eos::common::FS_DRAIN_REQUESTED_NAME, "0");
-      FsView::gFsView.StoreFsConfig(fs);
     }
 
     fs->applyBatch(batch);
+
+    // The stored config is a snapshot of the hash, so take it only once the
+    // batch is in - a snapshot taken before it records the mid-drain state,
+    // which a later config reload then puts back onto the file system
+    if (mark_empty) {
+      FsView::gFsView.StoreFsConfig(fs);
+    }
   }
 }
 
