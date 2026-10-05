@@ -12,6 +12,30 @@ inodes(=files) and maximum volume. The implementation of EOS quota uses the
 given inode limit as hard quota, while volume is applied as soft quota e.g.
 it can be slightly exceeded.
 
+Understanding inode quota
+-------------------------
+
+An inode is a filesystem's record describing a file. In EOS quota output,
+``inodes`` refers to the number of files stored in the namespace, rather than
+how many bytes they contain. Each file counts once, including an empty file;
+its storage replicas do not count as additional files.
+
+EOS therefore has two separate quota limits:
+
+* **Volume quota** limits storage space in bytes.
+* **Inode quota** limits the number of files.
+
+For example, a quota of one million files can be exhausted by one million
+small or empty files while plenty of volume quota remains. Conversely, a few
+large files can exhaust the volume quota while the inode quota still has room.
+Creating another file requires room under both applicable limits.
+
+Use ``eos quota <path>`` to check your quota for a directory. The ``used files``
+and ``ino-status`` columns describe file-count usage and status; ``used bytes``
+and ``vol-status`` describe space usage and status. If the inode quota is
+exceeded, reducing file sizes alone will not free file-count quota: reduce the
+number of files or ask the administrator to increase the inode limit.
+
 Quota is attached to a so called 'quota node'. A quota node defines the
 quota rules and counting for a subtree of the namespace. If the subtree
 contains another quota node in a deeper directory level quota is rooted
