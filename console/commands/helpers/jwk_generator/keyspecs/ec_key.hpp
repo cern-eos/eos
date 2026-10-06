@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #include "jwk_generator/libs/json.hpp"
 #include "jwk_generator/errors.hpp"
 #include "jwk_generator/openssl_wrapper.hpp"
@@ -299,15 +301,15 @@ public:
     }
 
 #endif
+    // Coordinates must be fixed-width big-endian, so right-align them in the
+    // zeroed buffer (BN_bn2binpad is not available in OpenSSL 1.0)
     std::vector<uint8_t> xBin;
     xBin.resize(pointSize);
-    //BN_bn2binpad(xBN, xBin.data(), pointSize);
-    BN_bn2bin(xBN, xBin.data());
+    BN_bn2bin(xBN, xBin.data() + pointSize - BN_num_bytes(xBN));
     pointX = base64_url_encode(xBin);
     std::vector<uint8_t> yBin;
     yBin.resize(pointSize);
-    //BN_bn2binpad(yBN, yBin.data(), pointSize);
-    BN_bn2bin(yBN, yBin.data());
+    BN_bn2bin(yBN, yBin.data() + pointSize - BN_num_bytes(yBN));
     pointY = base64_url_encode(yBin);
   }
 
