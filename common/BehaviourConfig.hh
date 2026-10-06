@@ -30,6 +30,7 @@ EOSCOMMONNAMESPACE_BEGIN
 enum struct BehaviourType {
   None,
   RainMinFsidEntry,
+  DisableAccessLog,
   All,
 };
 

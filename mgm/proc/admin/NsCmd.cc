@@ -1923,7 +1923,7 @@ NsCmd::BehaviourSubCmd(const eos::console::NsProto_BehaviourProto& behaviour,
     std::ostringstream oss;
 
     for (const auto& elem : map_behaviours) {
-      oss << elem.first << " => " << elem.second;
+      oss << elem.first << " => " << elem.second << "\n";
     }
 
     reply.set_std_out(oss.str());
@@ -1939,6 +1939,15 @@ NsCmd::BehaviourSubCmd(const eos::console::NsProto_BehaviourProto& behaviour,
       reply.set_retc(EINVAL);
     } else {
       if (gOFS->mBehaviourCfg->Set(btype, behaviour.value())) {
+        const std::string key = "behaviour:" + behaviour.name();
+
+        if (behaviour.value() == "off") {
+          gOFS->mConfigEngine->DeleteConfigValue("ns", key.c_str());
+        } else {
+          gOFS->mConfigEngine->SetConfigValue("ns", key.c_str(),
+                                              behaviour.value().c_str());
+        }
+
         reply.set_std_out("info: behaviour set successfully");
       } else {
         reply.set_std_err("error: operation failed, check accepted "
@@ -1979,6 +1988,10 @@ NsCmd::BehaviourSubCmd(const eos::console::NsProto_BehaviourProto& behaviour,
       reply.set_retc(EINVAL);
     } else {
       gOFS->mBehaviourCfg->Clear(btype);
+      gOFS->mConfigEngine->DropConfigValueByMatch(
+          "ns", ("behaviour:" +
+                 (btype == eos::common::BehaviourType::All ? "" : behaviour.name()))
+                    .c_str());
       reply.set_std_out("info: behaviour(s) cleared successfully");
     }
 

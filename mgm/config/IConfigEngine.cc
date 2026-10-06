@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/config/IConfigEngine.hh"
+#include "common/BehaviourConfig.hh"
 #include "common/Mapping.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
@@ -202,6 +203,14 @@ IConfigEngine::ApplyEachConfig(const char* key, const char* val,
   } else if (skey.beginswith("policy:")) {
     // Set a policy - not used
     return 0;
+  } else if (skey.beginswith("ns:behaviour:")) {
+    skey.erase(0, 13);
+    auto btype = eos::common::BehaviourConfig::ConvertStringToBehaviour(skey.c_str());
+
+    if (!gOFS->mBehaviourCfg->Set(btype, sval)) {
+      oss_err << "error: failed to apply config " << key << " => " << sval.c_str()
+              << std::endl;
+    }
   } else if (skey.beginswith("ns:")) {
     // internal NS configuration option
     std::map<std::string, std::string> map_cfg;
@@ -265,6 +274,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     eos::common::Mapping::gAllowedTidentMatches.clear();
   }
   Access::Reset(!apply_stall_redirect);
+  gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
   {
     // Reset space attribute map
     std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
@@ -551,6 +561,7 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
     eos::common::Mapping::gAllowedTidentMatches.clear();
   }
   Access::Reset(!apply_stall_redirect);
+  gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
   gOFS->ResetPathMap();
   gOFS->mRouting->Clear();
   FsView::gFsView.Reset();
