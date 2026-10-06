@@ -23,6 +23,7 @@
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/common/
+  ${CMAKE_SOURCE_DIR}/console/commands/helpers/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)
@@ -38,6 +39,7 @@ set(CONSOLE_UT_SRCS
   console/ConsoleCompletionTest.cc
   console/FileHelperTest.cc
   console/FusexCommandTest.cc
+  console/JwkGeneratorTests.cc
   console/NewfindHelperTest.cc
   console/ParseCommentTest.cc
   console/RegexUtilTest.cc
