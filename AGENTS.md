@@ -43,6 +43,8 @@ operation rules from this file.
 - `test/`: Instance/integration scripts and dedicated test executables.
 - `utils/`: Developer and operational helper scripts.
 - `doc/`: Sphinx and Doxygen documentation sources.
+  Use `doc/diopside/` for current documentation work. Older release directories
+  such as `doc/citrine/` should not receive current documentation changes unless the change is specifically relevant.
 
 ## Build And Test
 
@@ -187,6 +189,9 @@ committing again.
 - A longer explanation is allowed when useful, but put it in the commit body
   after a blank line so it does not appear in `git log --oneline`. Prefer a
   single-message commit when the subject is enough.
+- When working on a JIRA issue, include `Fixes EOS-XXXX` in the commit message,
+  replacing `EOS-XXXX` with the issue key, so the issue automatically closes
+  once the commit lands on `master`.
 - Use accurate subsystem prefixes:
   - `MGM: ...`
   - `FST: ...`
