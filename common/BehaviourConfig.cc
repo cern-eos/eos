@@ -29,13 +29,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 bool AcceptedValue(BehaviourType behaviour, const std::string& value)
 {
-  if (behaviour == BehaviourType::RainMinFsidEntry) {
-    if ((value != "on") && (value != "off")) {
-      return false;
-    }
-  }
-
-  return true;
+  return (behaviour != BehaviourType::None) && (behaviour != BehaviourType::All) &&
+         ((value == "on") || (value == "off"));
 }
 
 //----------------------------------------------------------------------------
@@ -46,6 +41,8 @@ BehaviourConfig::ConvertStringToBehaviour(const std::string& input)
 {
   if (input == "rain_min_fsid_entry") {
     return BehaviourType::RainMinFsidEntry;
+  } else if (input == "disable_access_log") {
+    return BehaviourType::DisableAccessLog;
   } else if (input == "all") {
     return BehaviourType::All;
   } else {
@@ -61,6 +58,8 @@ BehaviourConfig::ConvertBehaviourToString(const BehaviourType& btype)
 {
   if (btype == BehaviourType::RainMinFsidEntry) {
     return "rain_min_fsid_entry";
+  } else if (btype == BehaviourType::DisableAccessLog) {
+    return "disable_access_log";
   } else {
     return "unknown";
   }
