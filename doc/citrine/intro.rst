@@ -38,8 +38,7 @@ Architecture
 EOS is made by three components:
 
 * **MGM** - metadata server
-* **FST** (**File STorage** service) - storage server that stores file data
-  on disk and serves client reads and writes
+* **FST** - storage server
 * **MQ** - message broker for asynchronous messaging
 
 .. image:: eos-base-arch.jpg
