@@ -72,6 +72,9 @@ test_drain_purge_recycle() {
   eos attr set default=replica ${dir}
   eos attr set sys.forced.nstripes=1 ${dir}
   eos recycle config --add-bin ${dir}
+  # The recycle bin needs a quota node, eos-instance-test sets the same later
+  eos quota set -g 99 -v 100G -i 10M \
+    "$(echo ${EOS_DRAIN_DIR} | cut -d/ -f1-3)/proc/recycle/"
   xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${dir}/purge.dat
   local fmd=$(eos fileinfo ${dir}/purge.dat -m | tr ' ' '\n')
   local fxid=$(echo "${fmd}" | grep "^fxid=" | cut -d= -f2)
@@ -82,7 +85,11 @@ test_drain_purge_recycle() {
     return 1
   fi
 
-  eos rm ${dir}/purge.dat
+  if ! eos rm ${dir}/purge.dat; then
+    echo "error: failed to move the test file to the recycle bin"
+    return 1
+  fi
+
   local all_fsids=$(eos fs ls -m | tr ' ' '\n' | grep "^id=" | cut -d= -f2)
 
   for i in ${all_fsids}; do
