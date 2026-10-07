@@ -1708,10 +1708,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         auditTruncate = true;
       }
 
-      // Copied onto the new file when it is created
-      if (versioning) {
-        attrmapOverwritten = fmd->getAttributes();
-      }
+      // The new file is protected like the one it replaces, and gets its
+      // xattrs for versions
+      attrmapOverwritten = fmd->getAttributes();
 
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
@@ -1726,6 +1725,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                         "overwrite existing file - you have no write permission");
           }
         }
+      }
+
+      // The MGM can't encrypt the new contents with a key of the client, and
+      // contents stored in clear or with another key decode to garbage for a
+      // reader passing that key. Refuse before the file is versioned or
+      // removed, unless the upload brings the key or passes eos.obfuscate=0 to
+      // store the new contents without it - readers then must not pass the key
+      // any more.
+      if (attrmapOverwritten.count(eos::kAttrEncrypted) &&
+          !attrmapOverwritten.count(eos::kAttrEncryptSpace) && mEosKey.empty() &&
+          (mEosObfuscate != 0)) {
+        return Emsg(epname, error, ENOKEY,
+                    "overwrite existing file - it is "
+                    "encrypted with a client key: provide it with eos.key, or "
+                    "drop it with eos.obfuscate=0 and read without it",
+                    path);
       }
 
       if (versioning) {
@@ -1805,6 +1820,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Open for write for non existing file without creation flag
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
+        // A file replacing an obfuscated or encrypted one stays so, with a key
+        // of its own - unless the upload asks for eos.obfuscate=0 and its
+        // directory does not obfuscate its files. It is encrypted with the
+        // current key of its space or with the key the upload brings. Without
+        // either it is only obfuscated: once the key of a space is removed,
+        // what is written there is not encrypted any more.
+        if ((mEosObfuscate < 0) && attrmapOverwritten.count(eos::kAttrObfuscateKey)) {
+          mEosObfuscate = 1;
+        }
+
         // A new file is created - if the space it is placed in defines an
         // instance encryption key, encrypt it with that key. Has to happen
         // before the namespace write lock is taken since the placement policy
@@ -1814,7 +1839,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         // Generate the obfuscation key and its fingerprint before taking the
-        // namespace write lock, they only depend on the space key
+        // namespace write lock, they only depend on the space key. The policy
+        // of the directory wins over eos.obfuscate=0.
         const bool obfuscate = (mEosObfuscate > 0) ||
                                (attrmap.count(eos::kAttrFileObfuscate) &&
                                 (attrmap[eos::kAttrFileObfuscate] == "1"));
@@ -1828,6 +1854,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             obfuscate_fprint = eos::common::SymKey::KeyPrint16(mEosKey,
                                obfuscate_key);
           }
+        }
+
+        // The new file never reuses the keys of a file it replaces (e.g. an
+        // open with O_TRUNC), they would end up in the capability and on a
+        // version while the contents are written with other ones
+        for (const auto* key : eos::kAttrEncryptionKeys) {
+          attrmapF.erase(key);
         }
 
         // creation of a new file or isOcUpload
@@ -1908,8 +1941,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               if (mEosKey.length()) {
                 fmd->setAttribute(eos::kAttrEncrypted, "1");
                 attrmapF[eos::kAttrEncrypted] = "1";
-              } else {
-                attrmapF.erase(eos::kAttrEncrypted);
               }
 
               if (mEosKey.length() && !mEncryptionSpace.empty()) {
@@ -1921,11 +1952,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 fmd->setAttribute(eos::kAttrEncryptedFp, obfuscate_fprint);
                 attrmapF[eos::kAttrEncryptSpace] = mEncryptionSpace;
                 attrmapF[eos::kAttrEncryptedFp] = obfuscate_fprint;
-              } else {
-                // Drop any stale marker inherited from a previous incarnation
-                // of this path, they would otherwise be copied onto a version
-                attrmapF.erase(eos::kAttrEncryptSpace);
-                attrmapF.erase(eos::kAttrEncryptedFp);
               }
             }
 
@@ -1937,12 +1963,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // For versions copy the xattrs stored on the original file over,
             // never the space attributes merged into attrmapF as they would
-            // stick to the file once the space configuration changes
+            // stick to the file once the space configuration changes. The
+            // encryption keys are the ones the new file is written with.
             if (versioning) {
-              const auto& enc_xattrs = obfuscate ? attrmapF : attrmapOverwritten;
-
               for (const auto& [key, val] :
-                   attr::getCarryOverXattrs(attrmapOverwritten, enc_xattrs)) {
+                   attr::getCarryOverXattrs(attrmapOverwritten)) {
                 fmd->setAttribute(key, val);
               }
             }
@@ -2179,7 +2204,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (mEosObfuscate && !isFuse) {
+  // A write always applies the keys the file is stored with, eos.obfuscate=0
+  // only asks for the raw stored bytes when reading
+  if ((mEosObfuscate || isRW) && !isFuse) {
     // add obfuscation key to redirection capability
     if (attrmapF.count(eos::kAttrObfuscateKey)) {
       capability += "&mgm.obfuscate.key=";

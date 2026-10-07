@@ -518,7 +518,9 @@ private:
   //! Space whose configured encryption key is used - empty if the key was
   //! provided by the client or if the file is not encrypted at all
   std::string mEncryptionSpace;
-  //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
+  //! Value of eos.obfuscate: -1 take the directory default, 1 obfuscate, 0 do
+  //! not obfuscate a new file unless its directory does, and read the raw
+  //! stored bytes
   int mEosObfuscate { -1};
   bool mIsZeroSize {false}; //< Mark if file is zero size
 };

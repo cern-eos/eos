@@ -22,11 +22,12 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "namespace/interface/IView.hh"
-#include "namespace/Prefetcher.hh"
-#include "common/StringUtils.hh"
 #include "common/Logging.hh"
+#include "common/StringUtils.hh"
 #include "namespace/MDLocking.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/interface/IView.hh"
+#include <array>
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -40,6 +41,9 @@ auto constexpr kAttrEncrypted = "user.encrypted";
 auto constexpr kAttrEncryptedFp = "user.encrypted.fp";
 //! Name of the space whose encryption key was used to encrypt a file
 auto constexpr kAttrEncryptSpace = "sys.encrypt.space";
+//! All the attributes describing how the contents of a file are encrypted
+auto constexpr kAttrEncryptionKeys =
+    std::array{kAttrObfuscateKey, kAttrEncrypted, kAttrEncryptedFp, kAttrEncryptSpace};
 //! Directory attribute enabling obfuscation for all newly created files
 auto constexpr kAttrFileObfuscate = "sys.file.obfuscate";
 
