@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/ofs/fsctl/CommitHelper.hh"
+#include "common/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
@@ -30,6 +31,7 @@
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IView.hh"
@@ -926,12 +928,11 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         fmd->setCUid(versionfmd->getCUid());
         fmd->setCGid(versionfmd->getCGid());
         fmd->setFlags(versionfmd->getFlags());
-        static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
 
-        for (const auto& xattr : attrmapF) {
-          if (skip_tag.find(xattr.first) == skip_tag.end()) {
-            fmd->setAttribute(xattr.first, xattr.second);
-          }
+        // Copy the xattrs of the original file over, the new file keeps the
+        // encryption keys it was written with
+        for (const auto& [key, val] : attr::getCarryOverXattrs(attrmapF)) {
+          fmd->setAttribute(key, val);
         }
 
         gOFS->eosView->updateFileStore(fmd.get());
@@ -950,7 +951,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       std::string atomic_tag;
 
       try {
-        atomic_tag = pfmd->getAttribute("sys.tmp.atomic");
+        atomic_tag = pfmd->getAttribute(eos::common::EOS_TMP_ATOMIC_ATTR);
       } catch (eos::MDException& e) {
       }
 

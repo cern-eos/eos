@@ -86,17 +86,13 @@ bool getValue(const eos::IContainerMD::XAttrMap& attrmap,
 
 /*!
  * Get the xattrs carried over from an overwritten file onto the file
- * replacing it. Only keys stored on the old file are returned, attributes
- * describing the previous file instance are dropped and the encryption keys
- * are taken from enc_xattrs.
+ * replacing it. The attributes describing the previous file instance and its
+ * encryption keys are dropped, the new file keeps the keys it is written with.
  * @param old_xattrs xattrs stored on the overwritten file - not merged with
  *        space or linked attributes, which would then be persisted
- * @param enc_xattrs map holding the encryption keys the new file is written
- *        with, a key missing there is dropped
  * @return xattrs to set on the new file
  */
-eos::IFileMD::XAttrMap getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs,
-                                          const eos::IFileMD::XAttrMap& enc_xattrs);
+eos::IFileMD::XAttrMap getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs);
 
 /*!
  * Get numeric value from xattr map
