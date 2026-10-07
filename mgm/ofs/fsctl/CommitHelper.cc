@@ -22,15 +22,16 @@
  ************************************************************************/
 
 #include "mgm/ofs/fsctl/CommitHelper.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/FuseServer/FusexCastBatch.hh"
-#include "common/http/OwnCloud.hh"
 #include "common/LayoutId.hh"
+#include "common/http/OwnCloud.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/utils/AttrHelper.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -807,12 +808,12 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         fmd->setCUid(versionfmd->getCUid());
         fmd->setCGid(versionfmd->getCGid());
         fmd->setFlags(versionfmd->getFlags());
-        static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
 
-        for (const auto& xattr : attrmapF) {
-          if (skip_tag.find(xattr.first) == skip_tag.end()) {
-            fmd->setAttribute(xattr.first, xattr.second);
-          }
+        // Copy the xattrs of the original file over, keeping the encryption
+        // keys the new file was written with
+        for (const auto& [key, val] :
+             attr::getCarryOverXattrs(attrmapF, fmd->getAttributes())) {
+          fmd->setAttribute(key, val);
         }
 
         gOFS->eosView->updateFileStore(fmd.get());

@@ -177,6 +177,7 @@ TEST(getCarryOverXattrs, DropsPreviousInstanceXattrs)
                                     {eos::common::EOS_FS_TRACKING_ATTR, "+1"},
                                     {eos::common::EOS_DTRACE_ATTR, "dtrace"},
                                     {eos::common::EOS_VTRACE_ATTR, "vtrace"},
+                                    {eos::common::EOS_UTRACE_ATTR, "utrace"},
                                     {eos::common::EOS_TMP_ATOMIC_ATTR, ".sys.a#.file"}};
   eos::IFileMD::XAttrMap expected{{"user.foo", "1"}};
   ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, {}), expected);
@@ -200,6 +201,7 @@ TEST(getCarryOverXattrs, EncryptionKeysFromEncMap)
   eos::IFileMD::XAttrMap enc_xattrs{{eos::kAttrObfuscateKey, "new"}};
   eos::IFileMD::XAttrMap expected{{eos::kAttrObfuscateKey, "new"}};
   ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, enc_xattrs), expected);
-  // A file which is not re-encrypted keeps its own keys
-  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, old_xattrs), old_xattrs);
+  // A file which is not encrypted carries none of the keys of the file it
+  // replaces
+  ASSERT_TRUE(attr::getCarryOverXattrs(old_xattrs, {}).empty());
 }

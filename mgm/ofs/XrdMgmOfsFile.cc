@@ -1737,6 +1737,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
+        // The new file never reuses the keys of a file it replaces (e.g. an
+        // open with O_TRUNC), they would end up in the capability and on a
+        // version while the contents are written with other ones
+        for (const auto* key : eos::kAttrEncryptionKeys) {
+          attrmapF.erase(key);
+        }
+
         // creation of a new file or isOcUpload
         COMMONTIMING("write::begin", &tm);
         {
@@ -1815,8 +1822,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               if (mEosKey.length()) {
                 fmd->setAttribute(eos::kAttrEncrypted, "1");
                 attrmapF[eos::kAttrEncrypted] = "1";
-              } else {
-                attrmapF.erase(eos::kAttrEncrypted);
               }
 
               if (mEosKey.length() && !mEncryptionSpace.empty()) {
@@ -1828,11 +1833,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 fmd->setAttribute(eos::kAttrEncryptedFp, obfuscate_fprint);
                 attrmapF[eos::kAttrEncryptSpace] = mEncryptionSpace;
                 attrmapF[eos::kAttrEncryptedFp] = obfuscate_fprint;
-              } else {
-                // Drop any stale marker inherited from a previous incarnation
-                // of this path, they would otherwise be copied onto a version
-                attrmapF.erase(eos::kAttrEncryptSpace);
-                attrmapF.erase(eos::kAttrEncryptedFp);
               }
             }
 
@@ -1844,12 +1844,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // For versions copy the xattrs stored on the original file over,
             // never the space attributes merged into attrmapF as they would
-            // stick to the file once the space configuration changes
+            // stick to the file once the space configuration changes. The
+            // encryption keys are the ones the new file is written with.
             if (versioning) {
-              const auto& enc_xattrs = obfuscate ? attrmapF : attrmapOverwritten;
-
               for (const auto& [key, val] :
-                   attr::getCarryOverXattrs(attrmapOverwritten, enc_xattrs)) {
+                   attr::getCarryOverXattrs(attrmapOverwritten, attrmapF)) {
                 fmd->setAttribute(key, val);
               }
             }
