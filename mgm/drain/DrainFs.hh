@@ -239,9 +239,11 @@ private:
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::DrainStatus mStatus;
-  bool mDidRerun; ///< Flag if a rerun was already tried
+  std::uint32_t mNumRetries;    ///< Number of full drain reruns already done
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
+  //! Max number of full drain reruns if files are left on the file system
+  std::atomic<std::uint32_t> mMaxRetries{3};
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
   std::atomic<std::uint64_t> mMinTxRate; ///< Min transfer rate per job
   //! Purge recycle-bin files which fail to drain

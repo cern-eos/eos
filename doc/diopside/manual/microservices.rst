@@ -1121,6 +1121,7 @@ the space level:
 
    drainer.node.nfs                 := 10
    drainer.fs.ntx                   := 10
+   drainer.retries                  := 3
    drainperiod                      := 3600
    graceperiod                      := 86400
    ..
@@ -1134,6 +1135,15 @@ The values can be modified via:
 
    EOS Console [root://localhost] |/> space config default space.drainer.node.nfs=20
    EOS Console [root://localhost] |/> space config default space.drainer.fs.ntx=50
+
+If a drain finishes but files are still left on the file system, for example
+because some transfers failed due to transient errors, the full file system
+drain is restarted. This is repeated at most ``drainer.retries`` times
+(default 3) before the drain is declared failed:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/> space config default space.drainer.retries=5
 
 
 Example Drain Process

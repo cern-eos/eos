@@ -904,6 +904,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("drainer.tx.minrate", "25");
     }
 
+    // Set the number of full drain reruns if files fail to drain
+    if (GetConfigMember("drainer.retries").empty()) {
+      SetConfigMember("drainer.retries", "3");
+    }
+
     // Set the grace period before drain start on opserror to 1 day
     if (GetConfigMember("graceperiod").empty()) {
       SetConfigMember("graceperiod", "86400");

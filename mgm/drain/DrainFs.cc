@@ -45,7 +45,7 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
     , mFsId(src_fsid)
     , mTargetFsId(dst_fsid)
     , mStatus(eos::common::DrainStatus::kNoDrain)
-    , mDidRerun(false)
+    , mNumRetries(0)
     , mDrainStop(false)
     , mMaxJobs(10)
     , mDrainPeriod(0)
@@ -100,6 +100,19 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
         } catch (...) {
           eos_static_warning("msg=\"failed to convert drainer.tx.minrate\" "
                              "space=\"%s\"", space_name.c_str());
+        }
+      }
+
+      value = space->GetConfigMember("drainer.retries");
+
+      if (!value.empty()) {
+        try {
+          mMaxRetries.store(std::stoul(value));
+          eos_static_debug("msg=\"drain max retries=%u\"", mMaxRetries.load());
+        } catch (...) {
+          eos_static_warning("msg=\"failed to convert drainer.retries\" "
+                             "space=\"%s\"",
+                             space_name.c_str());
         }
       }
 
@@ -570,29 +583,27 @@ DrainFs::UpdateProgress()
     if (total_files == 0) {
       SuccessfulDrain();
       return State::Done;
-    } else {
-      if (total_files == NumFailedJobs()) {
-        FailedDrain();
-        return State::Failed;
-      } else {
-        if (mDidRerun) {
-          // If we already did a rerun then we just fail since there might be
-          // ghost entries on the file system i.e. fids registered in the
-          // FileSystem view but without any existing FileMD object.
-          FailedDrain();
-          return State::Failed;
-        } else {
-          mDidRerun = true;
-          eos_info("msg=\"still %llu files to drain before declaring the file "
-                   "system empty\" fsid=%lu", total_files, mFsId);
-          mTotalFiles = total_files;
-          mPending = mTotalFiles;
-          eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
-          mJobsFailed.clear();
-          return State::Rerun;
-        }
-      }
     }
+
+    // Files left behind either failed to drain, possibly due to transient
+    // errors, or were written while draining - restart the full drain until
+    // the retries are exhausted. Ghost entries i.e. fids registered in the
+    // FileSystem view without any FileMD object, never go away and end up
+    // failing the drain once the retries are used up.
+    if (mNumRetries >= mMaxRetries) {
+      FailedDrain();
+      return State::Failed;
+    }
+
+    ++mNumRetries;
+    eos_info("msg=\"restart drain\" fsid=%lu files_left=%llu failed=%llu "
+             "retry=%u max_retries=%u",
+             mFsId, total_files, NumFailedJobs(), mNumRetries, mMaxRetries.load());
+    mTotalFiles = total_files;
+    mPending = mTotalFiles;
+    eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+    mJobsFailed.clear();
+    return State::Rerun;
   }
 
   return State::Running;
