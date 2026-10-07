@@ -520,6 +520,120 @@ eos_lru() {
   echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+eos_tape_rest_xrootd_client() {
+  (
+    set -e -o pipefail
+    local prefix=${1%/} origin="https://${EOS_TEST_FULL_REDIRECTOR}:${EOS_HTTPS_PORT}"
+    local rooturl="root://${EOS_TEST_REDIRECTOR}" output value dir="" payload="" request="" created=0
+    if [[ ! "$prefix" =~ ^/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$ ]]; then
+      echo "Invalid Tape REST test prefix"; exit 1
+    fi
+    case "$prefix/" in */../*|*/./*) echo "Invalid Tape REST test prefix"; exit 1;; esac
+
+    tape_status() {
+      # FD 3 keeps the CI console visible while detailed output goes to the log.
+      printf '%s\n' "$1"
+      printf '%s\n' "$1" >&3
+    }
+
+    # NsCmd omits tapeenabled on disk-only instances; validate monitoring first.
+    tape_value() {
+      awk -v key="$2" -v optional="${3:-0}" '
+        { for (i=1; i<=NF; i++) if (index($i, key "=")==1) { value=substr($i,length(key)+2); count++ } }
+        END { if (count>1 || (count && value=="") || (!count && !optional)) exit 1; print value }' <<< "$1"
+    }
+    output=$(command eos -b "$rooturl" ns stat -m)
+    for value in ns.total.files ns.total.directories; do
+      [[ $(tape_value "$output" "$value") =~ ^[0-9]+$ ]]
+    done
+    value=$(tape_value "$output" ns.tapeenabled 1)
+    case "$value" in
+      true) ;;
+      false|"")
+        if [[ ${EOS_TAPE_REST_REQUIRE:-0} == 1 ]]; then
+          echo "Tape REST requires a tape-enabled MGM"; exit 1
+        fi
+        tape_status "SKIP: MGM reports tape disabled"; exit 0;;
+      *) echo "Invalid ns.tapeenabled monitoring value"; exit 1;;
+    esac
+    output=$(command eos -b "$rooturl" space status default -m)
+    [[ $(tape_value "$output" taperestapi.status) == on && $(tape_value "$output" taperestapi.stage) == on ]]
+
+    # Reuse the HTTP fixture credentials only when no authentication was supplied.
+    if [[ -z "${BEARER_TOKEN:-}${BEARER_TOKEN_FILE:-}${XRD_BEARERTOKEN:-}${XRD_BEARERTOKENFILE:-}${XRD_HTTPHEADERS:-}${X509_USER_PROXY:-}${X509_USER_CERT:-}${X509_USER_KEY:-}${XRD_HTTPCLIENTCERTFILE:-}${XRD_HTTPCLIENTKEYFILE:-}${XRD_HTTPDISABLEX509:-}" && ! -f /tmp/x509up_u$(id -u) ]]; then
+      export XRD_HTTPCLIENTCERTFILE="$cert" XRD_HTTPCLIENTKEYFILE="$key"
+    fi
+    [[ -z ${X509_USER_CERT:-} || -n ${XRD_HTTPCLIENTCERTFILE:-} ]] || export XRD_HTTPCLIENTCERTFILE="$X509_USER_CERT"
+    [[ -z ${X509_USER_KEY:-} || -n ${XRD_HTTPCLIENTKEYFILE:-} ]] || export XRD_HTTPCLIENTKEYFILE="$X509_USER_KEY"
+    if [[ -z ${XRD_HTTPCERTFILE:-}${X509_CERT_FILE:-}${XRD_HTTPCERTDIR:-}${X509_CERT_DIR:-} ]]; then
+      export XRD_HTTPCERTFILE="$cacert" X509_CERT_DIR="$capath"
+    fi
+
+    tape_xrdfs() {
+      # eos-xrootd installs the HTTP client library without a plugin configuration.
+      XRD_PLUGIN=libXrdClHttp.so xrdfs "$origin" "$@"
+    }
+
+    tape_xrdfs query opaque tape.discover | jq -e '
+      .version == "v1" and (.uri | test("^https://[^/?#@]+/[^?#]*v1/?$"))
+      and (.sitename | type == "string" and length > 0)'
+
+    tape_cleanup() {
+      local result=$? cleanup_output cleanup_result
+      trap - EXIT
+      if [[ -n "$request" ]]; then
+        if cleanup_output=$(tape_xrdfs query opaque $'tape.stage_delete\n'"$request" 2>&1); then :; else
+          cleanup_result=$?
+          if [[ $cleanup_result != 54 || "$cleanup_output" != *"[3011]"* ]]; then
+            printf '%s\n' "$cleanup_output"
+            echo "Failed to clean up Tape REST request $request"; [[ $result != 0 ]] || result=1
+          fi
+        fi
+      fi
+      if (( created )) && ! command eos -b "$rooturl" rm -r "$dir"; then
+        echo "Failed to clean up Tape REST directory $dir"; [[ $result != 0 ]] || result=1
+      fi
+      if [[ -n "$payload" ]] && ! rm -f "$payload"; then [[ $result != 0 ]] || result=1; fi
+      if [[ $result == 0 ]]; then tape_status "PASS: WLCG Tape REST via xrdfs"; fi
+      exit "$result"
+    }
+    trap tape_cleanup EXIT
+    dir="$prefix/tape-rest-xrootd-$(cat /proc/sys/kernel/random/uuid)"
+    local path="$dir/payload.dat" missing="$dir/missing.dat"
+    payload=$(mktemp)
+    printf 'EOS WLCG Tape REST client test\n' > "$payload"
+    command eos -b "$rooturl" mkdir "$dir"
+    created=1
+    # HTTPS uses the fixture user; prepare requires an explicit ACL even for disk files.
+    command eos -b "$rooturl" attr set sys.acl=z:p "$dir"
+    xrdcp -np "$payload" "$rooturl/$path"
+
+    tape_xrdfs query opaque $'tape.archiveinfo\n'"$origin$path"$'\n'"$origin$missing" |
+      jq -e --arg path "$path" --arg missing "$missing" '
+        length == 2 and ([.[] | select(.path == $path and .locality == "DISK" and (.error // "") == "")] | length == 1)
+        and ([.[] | select(.path == $missing and .error == "USER ERROR: file does not exist or is not accessible to you")] | length == 1)'
+    request=$(tape_xrdfs prepare -s "$path")
+    [[ -n "$request" && "$request" != *$'\n'* && "$request" != *$'\r'* ]]
+    tape_xrdfs query prepare "$request" |
+      jq -e --arg request "$request" --arg path "$path" --arg workflow "No prepare workflow set on the directory $dir/" '
+        .id == $request and (.files | length == 1)
+        and .files[0].path == $path and .files[0].onDisk == true
+        and ((.files[0].error // "") == "" or .files[0].error == $workflow)'
+    tape_xrdfs prepare -e "$request" "$path"
+    tape_xrdfs prepare -a "$request" "$path"
+    tape_xrdfs query opaque $'tape.stage_delete\n'"$request"
+    local result
+    if output=$(tape_xrdfs query prepare "$request" 2>&1); then
+      echo "Deleted Tape REST request is still present"; exit 1
+    else
+      result=$?
+      printf '%s\n' "$output"
+      [[ $result == 54 && "$output" == *"[3011]"* ]]
+    fi
+    request=""
+  ) 3>&1 >> "$EOSCERTLOG" 2>&1
+}
+
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -3036,6 +3150,14 @@ runtest "### eos-file-dual-protocol " unix SUCCESS "" eos_file_dual_protocol "/e
 categorie="accounting"
 # ------------------------------------------------------------------------------
 runtest "### eos-accounting  " unix SUCCESS "" eos_accounting "/eos/$EOS_TEST_INSTANCE/test/instancetest/accounting_test"
+
+################################################################################
+# Tape REST API tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="taperest"
+# ------------------------------------------------------------------------------
+runtest "### Tape REST " unix SUCCESS "" eos_tape_rest_xrootd_client "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 
 ################################################################################
 # lru tests

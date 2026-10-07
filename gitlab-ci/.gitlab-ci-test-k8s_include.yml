@@ -29,6 +29,25 @@ k8s_system:
   allow_failure: true
 
 
+k8s_tape_rest:
+  extends: .dock8s_base
+  image: alpine/k8s:1.18.2
+  variables:
+    EOS_MGM_ENABLE_TAPE_REST: "1"
+  script:
+    - exec_cmd eos-mgm1 'eos space config default space.taperestapi.status=on'
+    - exec_cmd eos-mgm1 'eos space config default space.taperestapi.stage=on'
+    - exec_cmd eos-mgm1 'EOS_TAPE_REST_REQUIRE=1 eos-instance-test taperest'
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
+  allow_failure: false
+
+
 k8s_system_flatscheduler:
   extends: .dock8s_system_test_template
   variables:
