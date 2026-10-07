@@ -111,6 +111,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get XrdCl error code of the response, XrdCl::errNone if successful
+  //----------------------------------------------------------------------------
+  inline uint16_t
+  GetErrCode() const
+  {
+    return mErrCode;
+  }
+
+  //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation
   //----------------------------------------------------------------------------
   inline bool
@@ -134,6 +143,7 @@ protected:
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
   bool mRespOK; ///< mark if the resp status is ok
+  uint16_t mErrCode; ///< XrdCl error code of the response
   bool mReqDone; ///< mark if the request was done
   bool mHasReq; ///< mark if there is any request to proceess
   XrdSysCondVar mCond; ///< cond. variable used for synchronisation

@@ -28,16 +28,17 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SimpleHandler::SimpleHandler(uint64_t offset, int32_t length, bool isWrite) :
-  eos::common::LogId(),
-  XrdCl::ResponseHandler(),
-  mOffset(offset),
-  mLength(length),
-  mRespLength(0),
-  mIsWrite(isWrite),
-  mRespOK(false),
-  mReqDone(false),
-  mHasReq(false)
+SimpleHandler::SimpleHandler(uint64_t offset, int32_t length, bool isWrite)
+    : eos::common::LogId()
+    , XrdCl::ResponseHandler()
+    , mOffset(offset)
+    , mLength(length)
+    , mRespLength(0)
+    , mIsWrite(isWrite)
+    , mRespOK(false)
+    , mErrCode(XrdCl::errNone)
+    , mReqDone(false)
+    , mHasReq(false)
 {
   mCond = XrdSysCondVar(0);
 }
@@ -60,6 +61,7 @@ SimpleHandler::Update(uint64_t offset, int32_t length, bool isWrite)
   mIsWrite = isWrite;
   XrdSysCondVarHelper scope_lock(&mCond);
   mRespOK = false;
+  mErrCode = XrdCl::errNone;
   mReqDone = false;
   mHasReq = true;
 }
@@ -80,6 +82,7 @@ SimpleHandler::HandleResponse(XrdCl::XRootDStatus* pStatus,
 
   mCond.Lock();
   mRespOK = pStatus->IsOK();
+  mErrCode = pStatus->code;
   mReqDone = true;
   mCond.Signal(); //signal
   mCond.UnLock();

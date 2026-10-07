@@ -21,18 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <stdint.h>
-#include <cstdlib>
 #include "fst/io/xrd/XrdIo.hh"
-#include "fst/io/ChunkHandler.hh"
-#include "fst/io/VectChunkHandler.hh"
-#include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
-#include <XrdCl/XrdClDefaultEnv.hh>
+#include "fst/io/AsyncMetaHandler.hh"
+#include "fst/io/ChunkHandler.hh"
+#include "fst/io/VectChunkHandler.hh"
 #include <XrdCl/XrdClBuffer.hh>
 #include <XrdCl/XrdClConstants.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
+#include <algorithm>
+#include <cstdlib>
+#include <stdint.h>
 
 // Linux compat for Apple
 #ifdef __APPLE__
@@ -89,6 +90,28 @@ int32_t InitBlocksize()
   return (ptr ? strtol(ptr, 0, 10) : 1024 * 1024);
 }
 
+//----------------------------------------------------------------------------
+//! Get the upper bound for the timeout of the readahead requests. It must
+//! stay below the XrdCl stream timeout otherwise a request stuck on the
+//! server side makes XrdCl declare the whole (possibly pooled) connection
+//! broken and invalidates all files opened over it. The stream timeout is
+//! assumed not to change during the lifetime of the process.
+//!
+//! @return max timeout in seconds
+//----------------------------------------------------------------------------
+static uint16_t
+GetMaxReadaheadTimeout()
+{
+  static const uint16_t sMaxTimeout = []() {
+    // Margin for the 1s timeout resolution and the request queuing on the
+    // client side before the stream id is allocated
+    constexpr int margin_sec = 5;
+    int stream_timeout = XrdCl::DefaultStreamTimeout;
+    XrdCl::DefaultEnv::GetEnv()->GetInt("StreamTimeout", stream_timeout);
+    return static_cast<uint16_t>(std::max(1, stream_timeout - margin_sec));
+  }();
+  return sMaxTimeout;
+}
 
 const bool sReadaheadForceDisable = InitReadaheadForceDisable();
 const bool sReadahead = InitReadahead();
@@ -475,6 +498,9 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
 
   int64_t fread = 0; // direct reads
   int64_t nread = 0; // total read for current request
+  const uint16_t max_timeout = GetMaxReadaheadTimeout();
+  const uint16_t rd_timeout =
+      ((timeout == 0) || (timeout > max_timeout)) ? max_timeout : timeout;
   XrdSysMutexHelper lock(mPrefetchMutex);
   char* ptr_buff = buffer;
 
@@ -484,7 +510,7 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
     if (iter == mMapBlocks.end()) {
       RecycleBlocks(iter);
       // Read directly the current block and prefetch the next one
-      fread = fileRead(offset, ptr_buff, length);
+      fread = fileRead(offset, ptr_buff, length, rd_timeout);
 
       if (offset && (offset != eos::common::LayoutId::OssXsBlockSize)) {
         eos_info("msg=\"disable readahead\" offset=%lli", offset);
@@ -492,7 +518,7 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
       }
 
       if ((fread == length) && mDoReadahead) {
-        if (!PrefetchBlock(offset + length, timeout)) {
+        if (!PrefetchBlock(offset + length, rd_timeout)) {
           eos_err("msg=\"failed to send prefetch request\" offset=%lli",
                   offset + length);
           mDoReadahead = false;
@@ -512,14 +538,29 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
     SimpleHandler* sh = iter->second->mHandler.get();
     uint64_t shift = offset - iter->first;
     RecycleBlocks(iter);
-    PrefetchBlock(mMapBlocks.rbegin()->first + mBlocksize);
+    PrefetchBlock(mMapBlocks.rbegin()->first + mBlocksize, rd_timeout);
 
     if (!sh->WaitOK()) {
+      const uint16_t err_code = sh->GetErrCode();
       // Error while prefetching, remove block from map
-      eos_err("%s", "msg=\"prefetching failed, disable it and clean blocks\"");
+      eos_err("msg=\"prefetching failed, disable it and clean blocks\" "
+              "url=\"%s\" offset=%lli err_code=%u timeout=%u",
+              mFilePath.c_str(), iter->first, err_code, rd_timeout);
       mDoReadahead = false;
       RecycleBlocks(mMapBlocks.end());
-      fread = fileRead(offset, ptr_buff, length);
+
+      if (err_code == XrdCl::errOperationExpired) {
+        // The server did not reply in time, a sync retry would most likely
+        // be queued behind the stalled request. Report the error and let the
+        // caller e.g. RAIN layout, recover the block from the other stripes.
+        errno = ETIMEDOUT;
+        mLastErrMsg = "prefetch request expired";
+        mLastErrCode = err_code;
+        mLastErrNo = ETIMEDOUT;
+        return (nread ? nread : SFS_ERROR);
+      }
+
+      fread = fileRead(offset, ptr_buff, length, rd_timeout);
       nread += fread;
       return nread;
     }
