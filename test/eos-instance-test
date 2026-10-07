@@ -3227,6 +3227,8 @@ runtest "### Cleanup     " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/
 categorie="spaceenc"
 # ------------------------------------------------------------------------------
 SPACEENC_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/spaceenc"
+# no sys.file.obfuscate here, only the eos.obfuscate CGI encrypts a file
+SPACEENC_CGI_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/spaceenc-cgi"
 SPACEENC_KEY1="82e9f4b4-518a-4ba1-b557-39ea36f7bdde"
 SPACEENC_KEY2="1dd23915-782a-4301-8cfd-37f99ce37a58"
 SPACEENC_USERKEY="039b9858-5bb3-4dcc-85c2-a5a333eb78b0"
@@ -3322,6 +3324,48 @@ runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.v1
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.v1"
 runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_DIR"
 
+# an overwrite which does not ask for obfuscation again must not reuse the keys
+# of the file it replaces - neither for writing nor on a version - otherwise
+# the new contents read back as garbage without any error
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "$SPACEENC_CGI_DIR"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$SPACEENC_CGI_DIR"
+runtest "### Attr      " unix ERROR   "" eos attr get sys.file.obfuscate "$SPACEENC_CGI_DIR"
+# plain overwrite
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/plain" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/plain | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/plain"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/plain | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.plain" "$SPACEENC_CGI_DIR/plain"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.plain"
+# atomic overwrite
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/atomic" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/atomic | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/atomic" "-ODeos.atomic=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/atomic | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.atomic" "$SPACEENC_CGI_DIR/atomic"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.atomic"
+# versioned overwrite, the version keeps its own key
+runtest "### Version   " unix SUCCESS "" eos attr set sys.versioning=2 "$SPACEENC_CGI_DIR"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/versioned" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/versioned | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/versioned"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/versioned | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.versioned" "$SPACEENC_CGI_DIR/versioned"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.versioned"
+SPACEENC_CGI_VERSION=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_CGI_DIR/versioned" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_CGI_VERSION\""
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.v1" "$SPACEENC_CGI_DIR/.sys.v#.versioned/$SPACEENC_CGI_VERSION"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.v1"
+# atomic overwrite of a versioned file asking for obfuscation again - the
+# commit must not put the keys of the previous version back
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/atomicv" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/atomicv | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/atomicv" "-ODeos.obfuscate=1\&eos.atomic=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/atomicv | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.atomicv" "$SPACEENC_CGI_DIR/atomicv"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.atomicv"
+runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
+
 # a key provided by the client takes precedence over the key of the space
 runtest "### UserKey   " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/userkey" "-ODeos.key=$SPACEENC_USERKEY"
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/userkey | grep -c 'Crypt: encrypted' | grep -w 1"
@@ -3352,8 +3396,37 @@ runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c enc
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/plain"
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/plain | grep -c 'Crypt: obfuscated' | grep -w 1"
 
+# an obfuscated file overwritten without asking for obfuscation again is stored
+# plain as well - also on a version, which used to reuse the previous key
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obf" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obf | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obf"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obf | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obf" "$SPACEENC_CGI_DIR/obf"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obf"
+runtest "### Version   " unix SUCCESS "" eos attr set sys.versioning=2 "$SPACEENC_CGI_DIR"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfv" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfv | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obfv"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfv | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfv" "$SPACEENC_CGI_DIR/obfv"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obfv"
+SPACEENC_CGI_OBF_VERSION=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_CGI_DIR/obfv" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_CGI_OBF_VERSION\""
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfv1" "$SPACEENC_CGI_DIR/.sys.v#.obfv/$SPACEENC_CGI_OBF_VERSION"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.obfv1"
+# the commit of an atomic overwrite must keep the key of the new contents
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfav" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfav | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obfav" "-ODeos.obfuscate=1\&eos.atomic=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfav | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfav" "$SPACEENC_CGI_DIR/obfav"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obfav"
+runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
+
 runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/spaceenc.*"
 runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$SPACEENC_DIR"
+runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$SPACEENC_CGI_DIR"
 
 ################################################################################
 # OTHER TESTS

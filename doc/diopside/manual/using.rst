@@ -2293,6 +2293,7 @@ Encryption uses an obfuscation key (start vector) which is transformed into an e
    pair: Encryption; Obfuscation
 
 To enable obfuscation for individual files using remote protocols, one can use the CGI `&eos.obfuscate=1` when creating a new file.
+Overwriting a file (e.g. `xrdcp -f`) creates a new file: it is obfuscated or encrypted only if it asks for it again, with the CGI or `sys.file.obfuscate=1` on the directory, and it never reuses the keys of the file it replaces, with or without versioning.
 
 To enable obfuscation for all new files created in in a directory use:
 

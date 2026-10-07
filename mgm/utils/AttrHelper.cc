@@ -123,13 +123,12 @@ getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs,
 {
   // Attributes describing the previous instance of the file
   static const std::set<std::string> skip_keys{
-      eos::common::EOS_BTIME, eos::common::EOS_FS_TRACKING_ATTR,
+      eos::common::EOS_BTIME,       eos::common::EOS_FS_TRACKING_ATTR,
       eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR,
-      eos::common::EOS_TMP_ATOMIC_ATTR};
+      eos::common::EOS_UTRACE_ATTR, eos::common::EOS_TMP_ATOMIC_ATTR};
   // The new file has to carry the keys its contents are encrypted with
-  static const std::set<std::string> enc_keys{eos::kAttrObfuscateKey, eos::kAttrEncrypted,
-                                              eos::kAttrEncryptSpace,
-                                              eos::kAttrEncryptedFp};
+  static const std::set<std::string> enc_keys(eos::kAttrEncryptionKeys.begin(),
+                                              eos::kAttrEncryptionKeys.end());
   eos::IFileMD::XAttrMap out;
 
   for (const auto& [key, val] : old_xattrs) {
