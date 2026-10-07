@@ -875,13 +875,6 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& sfsid, XrdOucString& option,
                                     XrdOucString& out, XrdOucString& err,
                                     size_t& entries)
 {
-  try {
-    mSemaphore.Wait();
-  } catch (...) {
-    err += "error: failed while waiting on semaphore, cannot dumpmd";
-    return EAGAIN;
-  }
-
   eos::IFileMD::location_t fsid = 0ul;
 
   try {
@@ -901,6 +894,14 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& sfsid, XrdOucString& option,
                    "fsid=%lu", fsid);
     err = "error: too many entries (>100k) on file system to dump them all";
     return EFBIG;
+  }
+
+  // Acquire after validation so early returns cannot leak a slot
+  try {
+    mSemaphore.Wait();
+  } catch (...) {
+    err += "error: failed while waiting on semaphore, cannot dumpmd";
+    return EAGAIN;
   }
 
   int lretc = proc_fs_dumpmd(sfsid, option, show_path, show_fid, show_fxid,
