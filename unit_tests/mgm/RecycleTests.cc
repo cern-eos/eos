@@ -24,6 +24,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
+#include "common/Path.hh"
 #include "mgm/recycle/Recycle.hh"
 #undef IN_TEST_HARNESS
 
@@ -54,4 +55,30 @@ TEST(Recycle, DemangleTest)
                Recycle::DemanglePath("#:#eos#:#top#:#dir#:#path.000000000000000a").c_str());
   ASSERT_STREQ("/eos/top/with_funny_chars!#?/file",
                Recycle::DemanglePath("#:#eos#:#top#:#with_funny_chars!#?#:#file.000000000000000b").c_str());
+}
+
+TEST(Recycle, EmptyParentCandidates)
+{
+  const std::string old_prefix = Recycle::gRecyclingPrefix;
+  Recycle::gRecyclingPrefix = "/eos/test/proc/recycle/";
+  // Bin directory rid:42/ carries the project ACLs and must be kept
+  EXPECT_EQ(
+      (std::vector<std::string>{"/eos/test/proc/recycle/rid:42/2026/10/",
+                                "/eos/test/proc/recycle/rid:42/2026/"}),
+      Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/rid:42/2026/10/08"));
+  EXPECT_EQ((std::vector<std::string>{"/eos/test/proc/recycle/uid:1000/2026/10/08/0/",
+                                      "/eos/test/proc/recycle/uid:1000/2026/10/08/",
+                                      "/eos/test/proc/recycle/uid:1000/2026/10/",
+                                      "/eos/test/proc/recycle/uid:1000/2026/"}),
+            Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/uid:1000/2026/10/"
+                                              "08/0/#:#eos#:#dir.000000000000000a.d/"));
+  EXPECT_TRUE(Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/rid:42").empty());
+  EXPECT_TRUE(Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/").empty());
+  EXPECT_TRUE(Recycle::GetEmptyParentCandidates("/eos/test/other/dir/").empty());
+  // Purge must skip the recycle root and bins, only date directories go
+  EXPECT_EQ(5u, Recycle::GetBinLevel());
+  EXPECT_EQ(5u, eos::common::Path("/eos/test/proc/recycle/rid:42/").GetSubPathSize());
+  EXPECT_EQ(6u,
+            eos::common::Path("/eos/test/proc/recycle/rid:42/2026/").GetSubPathSize());
+  Recycle::gRecyclingPrefix = old_prefix;
 }

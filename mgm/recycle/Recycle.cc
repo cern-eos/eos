@@ -299,9 +299,9 @@ Recycle::RemoveSubtree(std::string_view dpath)
       eos_static_info("msg=\"handling directory\" path=%s", dit->first.c_str());
       std::string ldpath = dit->first.c_str();
 
-      // Don't even try to delete the root directory or
-      // something outside the recycle bin
-      if ((ldpath == "/") || (ldpath.find(Recycle::gRecyclingPrefix) != 0)) {
+      // Skip root, paths outside the recycle bin, and ACL-carrying uid:/rid: bins
+      if ((ldpath == "/") || (ldpath.find(Recycle::gRecyclingPrefix) != 0) ||
+          (eos::common::Path(ldpath).GetSubPathSize() <= GetBinLevel())) {
         continue;
       }
 
@@ -315,24 +315,49 @@ Recycle::RemoveSubtree(std::string_view dpath)
     }
 
     // Delete parent directories if empty and still within the recycle bin.
-    if (dpath.find(Recycle::gRecyclingPrefix) == 0) {
-      eos_static_info("msg=\"delete parent directory\" path=%s", dpath.data());
-      eos::common::Path cpath(std::string(dpath.data()));
-
-      for (auto level = cpath.GetSubPathSize() - 1; level > 4; --level) {
-        std::string sub_path = cpath.GetSubPath(level);
-
-        if (!gOFS->_remdir(sub_path.c_str(), lerror, mRootVid, (const char*) 0)) {
-          eos_static_info("msg=\"permanently deleted directory from "
-                          "recycle bin\" path=%s", sub_path.c_str());
-        } else {
-          // Failed removal means directory is not empty so there is
-          // no point in continuing.
-          break;
-        }
+    for (const auto& sub_path : GetEmptyParentCandidates(dpath)) {
+      if (!gOFS->_remdir(sub_path.c_str(), lerror, mRootVid, (const char*)0)) {
+        eos_static_info("msg=\"permanently deleted directory from "
+                        "recycle bin\" path=%s",
+                        sub_path.c_str());
+      } else {
+        // Failed removal means directory is not empty so there is
+        // no point in continuing.
+        break;
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Get the sub path level of the uid:/rid: bin directories
+//------------------------------------------------------------------------------
+unsigned int
+Recycle::GetBinLevel()
+{
+  // Prefix last component is not a sub path, so bins are at size + 1
+  return eos::common::Path(Recycle::gRecyclingPrefix).GetSubPathSize() + 1;
+}
+
+//------------------------------------------------------------------------------
+// Get the parent directories of a removed subtree that can be deleted if empty
+//------------------------------------------------------------------------------
+std::vector<std::string>
+Recycle::GetEmptyParentCandidates(std::string_view dpath)
+{
+  std::vector<std::string> candidates;
+
+  if (dpath.find(Recycle::gRecyclingPrefix) != 0) {
+    return candidates;
+  }
+
+  eos::common::Path cpath(std::string(dpath.data(), dpath.size()));
+
+  for (auto level = cpath.GetSubPathSize() - 1; level > GetBinLevel(); --level) {
+    candidates.emplace_back(cpath.GetSubPath(level));
+  }
+
+  return candidates;
 }
 
 //------------------------------------------------------------------------------
@@ -1091,15 +1116,13 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     char sdir[4096];
 
     if ((type == "all") && (vid.uid == 0)) {
-      snprintf(sdir, sizeof(sdir) - 1, "%s/", Recycle::gRecyclingPrefix.c_str());
+      snprintf(sdir, sizeof(sdir) - 1, "%s", Recycle::gRecyclingPrefix.c_str());
     } else if ((type == "rid") && !recycle_id.empty()) {
-      snprintf(sdir, sizeof(sdir) - 1, "%s/rid:%s/%s",
-               Recycle::gRecyclingPrefix.c_str(),
+      snprintf(sdir, sizeof(sdir) - 1, "%srid:%s/%s", Recycle::gRecyclingPrefix.c_str(),
                recycle_id.data(), date.data());
     } else {
-      snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
-               Recycle::gRecyclingPrefix.c_str(),
-               (unsigned int) vid.uid, date.data());
+      snprintf(sdir, sizeof(sdir) - 1, "%suid:%u/%s", Recycle::gRecyclingPrefix.c_str(),
+               (unsigned int)vid.uid, date.data());
     }
 
     recycle_path = sdir;

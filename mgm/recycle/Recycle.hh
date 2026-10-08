@@ -22,13 +22,14 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
-#include "mgm/recycle/RecyclePolicy.hh"
 #include "common/AssistedThread.hh"
 #include "common/SystemClock.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/recycle/RecyclePolicy.hh"
 #include "proto/Recycle.pb.h"
 #include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
+#include <vector>
 
 class XrdOucErrInfo;
 
@@ -366,6 +367,22 @@ public:
   //! @param fullpath full path to directory
   //----------------------------------------------------------------------------
   static void RemoveSubtree(std::string_view fullpath);
+
+  //----------------------------------------------------------------------------
+  //! Get parent directories to remove if empty, excluding the bin and above
+  //!
+  //! @param dpath removed subtree path inside the recycle bin
+  //!
+  //! @return parent directories ordered from the deepest one upwards
+  //----------------------------------------------------------------------------
+  static std::vector<std::string> GetEmptyParentCandidates(std::string_view dpath);
+
+  //----------------------------------------------------------------------------
+  //! Get the sub path level of the uid:/rid: bin directories
+  //!
+  //! @return index of the bin directory in eos::common::Path sub paths
+  //----------------------------------------------------------------------------
+  static unsigned int GetBinLevel();
 
   //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
