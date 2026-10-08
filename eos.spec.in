@@ -32,8 +32,12 @@
 
 # By default we build against the eos-xrootd package. To build against the
 # vanilla XRootD packages instead, pass the "--without eos_xrootd_rh" flag
-# to the rpmbuild command
+# to the rpmbuild command. Fedora always uses the vanilla XRootD packages.
+%if 0%{?fedora}
+%bcond_with eos_xrootd_rh
+%else
 %bcond_without eos_xrootd_rh
+%endif
 
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
