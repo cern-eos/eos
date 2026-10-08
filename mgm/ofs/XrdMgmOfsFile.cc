@@ -776,14 +776,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uint64_t fmdsize = 0;
   // io priority string
   std::string ioPriority;
-  XrdOucString pinfo = (ininfo ? ininfo : "");
-  eos::common::StringConversion::MaskSecretTags(pinfo);
+  XrdOucString log_info = (ininfo ? ininfo : "");
+  eos::common::StringConversion::MaskSecretTags(log_info);
 
   if (isRW) {
-    eos_info("op=write trunc=%d path=%s info=%s",
-             open_mode & SFS_O_TRUNC, path, pinfo.c_str());
+    eos_info("op=write trunc=%d path=%s info=%s", open_mode & SFS_O_TRUNC, path,
+             log_info.c_str());
   } else {
-    eos_info("op=read path=%s info=%s", path, pinfo.c_str());
+    eos_info("op=read path=%s info=%s", path, log_info.c_str());
   }
 
   ACCESSMODE_R;
@@ -793,7 +793,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (ProcInterface::IsProcAccess(path)) {
-    if (ProcInterface::IsWriteAccess(path, pinfo.c_str())) {
+    if (ProcInterface::IsWriteAccess(path, ininfo)) {
       SET_ACCESSMODE_W;
     }
   } else {
