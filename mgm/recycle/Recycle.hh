@@ -385,6 +385,15 @@ public:
   static unsigned int GetBinLevel();
 
   //----------------------------------------------------------------------------
+  //! Check if the normalized path is inside the recycle bin
+  //!
+  //! @param path path to check, possibly containing ".." components
+  //!
+  //! @return true if path is the recycle bin or inside it, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsSafeRecyclePath(std::string_view path);
+
+  //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
   //! - file does not contain the ' -> ' string so it's returned as it is
   //! - file is not a symlink but contains the ' -> ' string in its name then

@@ -23,6 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <cerrno>
 #define IN_TEST_HARNESS
 #include "common/Path.hh"
 #include "mgm/recycle/Recycle.hh"
@@ -80,5 +81,30 @@ TEST(Recycle, EmptyParentCandidates)
   EXPECT_EQ(5u, eos::common::Path("/eos/test/proc/recycle/rid:42/").GetSubPathSize());
   EXPECT_EQ(6u,
             eos::common::Path("/eos/test/proc/recycle/rid:42/2026/").GetSubPathSize());
+  Recycle::gRecyclingPrefix = old_prefix;
+}
+
+TEST(Recycle, IsSafeRecyclePath)
+{
+  const std::string old_prefix = Recycle::gRecyclingPrefix;
+  Recycle::gRecyclingPrefix = "/eos/test/proc/recycle/";
+  // Paths escaping the recycle bin via ".." must never be removed
+  EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/"));
+  EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/rid:42/2026"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/../../project/a"));
+  EXPECT_FALSE(
+      Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/rid:../../../a/b/c/d/e/f"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/test/proc/recyclebin/"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("eos/test/proc/recycle/rid:42/"));
+  EXPECT_TRUE(
+      Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/rid:../../../a/b/c/d/e/f")
+          .empty());
+  EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/rid:42/../rid:43"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/.."));
+  // Recycle ids containing '/' are rejected before touching the namespace
+  std::string std_out, std_err;
+  auto vid = eos::common::VirtualIdentity::Root();
+  EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "", "2026", "rid",
+                                   "../../../eos/project"));
   Recycle::gRecyclingPrefix = old_prefix;
 }

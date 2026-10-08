@@ -272,6 +272,13 @@ Recycle::RemoveSubtree(std::string_view dpath)
   XrdOucString err_msg;
   XrdOucErrInfo lerror;
 
+  if (!IsSafeRecyclePath(dpath)) {
+    eos_static_crit("msg=\"refuse to remove path outside the recycle bin\" "
+                    "path=\"%s\"",
+                    std::string(dpath).c_str());
+    return;
+  }
+
   if (gOFS->_find(dpath.data(), lerror, err_msg, mRootVid, found)) {
     eos_static_err("msg=\"failed doing find in subtree\" path=%s stderr=\"%s\"",
                    dpath.data(), err_msg.c_str());
@@ -340,6 +347,19 @@ Recycle::GetBinLevel()
 }
 
 //------------------------------------------------------------------------------
+// Check if the normalized path is inside the recycle bin
+//------------------------------------------------------------------------------
+bool
+Recycle::IsSafeRecyclePath(std::string_view path)
+{
+  // Normalize first so that ".." components can't escape the recycle bin
+  eos::common::Path cpath(std::string(path.data(), path.size()));
+  std::string norm_path = cpath.GetPath();
+  norm_path += '/';
+  return (norm_path.find(Recycle::gRecyclingPrefix) == 0);
+}
+
+//------------------------------------------------------------------------------
 // Get the parent directories of a removed subtree that can be deleted if empty
 //------------------------------------------------------------------------------
 std::vector<std::string>
@@ -347,7 +367,7 @@ Recycle::GetEmptyParentCandidates(std::string_view dpath)
 {
   std::vector<std::string> candidates;
 
-  if (dpath.find(Recycle::gRecyclingPrefix) != 0) {
+  if (!IsSafeRecyclePath(dpath)) {
     return candidates;
   }
 
@@ -1103,6 +1123,12 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     }
   }
 
+  // A recycle id is a single path component, never a path
+  if (recycle_id.find('/') != std::string_view::npos) {
+    std_err = "error: invalid recycle id";
+    return EINVAL;
+  }
+
   // Path that needs to be purged
   std::string recycle_path;
 
@@ -1134,7 +1160,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   // Make sure the path to purge is inside the recycle bine
-  if (recycle_path.find(Recycle::gRecyclingPrefix) != 0) {
+  if (!IsSafeRecyclePath(recycle_path)) {
     std_err = SSTR("error: purge path \"" << recycle_path
                    << "\" is not in the recyle bin ");
     return EINVAL;
