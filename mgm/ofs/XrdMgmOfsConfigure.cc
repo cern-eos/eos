@@ -1740,6 +1740,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcBulkRequestPath = MgmProcPath;
   MgmProcBulkRequestPath += "/bulkrequests";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
+  // Prefix last component is not a sub path, so bins are at size + 1
+  Recycle::gRecyclingBinLevel =
+      eos::common::Path(Recycle::gRecyclingPrefix).GetSubPathSize() + 1;
   instancepath += subpath;
   // Initialize user mapping
   eos::common::Mapping::Init();

@@ -56,6 +56,8 @@ public:
   typedef std::vector<std::map<std::string, std::string>> RecycleListing;
   //! Prefix for all recycle bins
   static std::string gRecyclingPrefix;
+  //! Sub path level of the uid:/rid: bins, set together with the prefix
+  static unsigned int gRecyclingBinLevel;
   //! Attribute key defining a recycling location
   static std::string gRecyclingAttribute;
   static std::string gRecyclingPostFix;
@@ -376,13 +378,6 @@ public:
   //! @return parent directories ordered from the deepest one upwards
   //----------------------------------------------------------------------------
   static std::vector<std::string> GetEmptyParentCandidates(std::string_view dpath);
-
-  //----------------------------------------------------------------------------
-  //! Get the sub path level of the uid:/rid: bin directories
-  //!
-  //! @return index of the bin directory in eos::common::Path sub paths
-  //----------------------------------------------------------------------------
-  static unsigned int GetBinLevel();
 
   //----------------------------------------------------------------------------
   //! Check if the normalized path is inside the recycle bin

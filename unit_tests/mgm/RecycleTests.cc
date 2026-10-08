@@ -61,7 +61,9 @@ TEST(Recycle, DemangleTest)
 TEST(Recycle, EmptyParentCandidates)
 {
   const std::string old_prefix = Recycle::gRecyclingPrefix;
+  const unsigned int old_bin_level = Recycle::gRecyclingBinLevel;
   Recycle::gRecyclingPrefix = "/eos/test/proc/recycle/";
+  Recycle::gRecyclingBinLevel = 5;
   // Bin directory rid:42/ carries the project ACLs and must be kept
   EXPECT_EQ(
       (std::vector<std::string>{"/eos/test/proc/recycle/rid:42/2026/10/",
@@ -77,17 +79,21 @@ TEST(Recycle, EmptyParentCandidates)
   EXPECT_TRUE(Recycle::GetEmptyParentCandidates("/eos/test/proc/recycle/").empty());
   EXPECT_TRUE(Recycle::GetEmptyParentCandidates("/eos/test/other/dir/").empty());
   // Purge must skip the recycle root and bins, only date directories go
-  EXPECT_EQ(5u, Recycle::GetBinLevel());
+  // Same computation MgmOfsConfigure does when setting the prefix
+  EXPECT_EQ(5u, eos::common::Path(Recycle::gRecyclingPrefix).GetSubPathSize() + 1);
   EXPECT_EQ(5u, eos::common::Path("/eos/test/proc/recycle/rid:42/").GetSubPathSize());
   EXPECT_EQ(6u,
             eos::common::Path("/eos/test/proc/recycle/rid:42/2026/").GetSubPathSize());
   Recycle::gRecyclingPrefix = old_prefix;
+  Recycle::gRecyclingBinLevel = old_bin_level;
 }
 
 TEST(Recycle, IsSafeRecyclePath)
 {
   const std::string old_prefix = Recycle::gRecyclingPrefix;
+  const unsigned int old_bin_level = Recycle::gRecyclingBinLevel;
   Recycle::gRecyclingPrefix = "/eos/test/proc/recycle/";
+  Recycle::gRecyclingBinLevel = 5;
   // Paths escaping the recycle bin via ".." must never be removed
   EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/"));
   EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/rid:42/2026"));
@@ -113,4 +119,5 @@ TEST(Recycle, IsSafeRecyclePath)
   EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "", "2026", "rid",
                                    "../../../eos/project"));
   Recycle::gRecyclingPrefix = old_prefix;
+  Recycle::gRecyclingBinLevel = old_bin_level;
 }

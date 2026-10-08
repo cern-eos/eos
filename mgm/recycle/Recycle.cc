@@ -94,6 +94,8 @@ EOSMGMNAMESPACE_BEGIN
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is
 // /eos/<instance>/proc/recycle/
 std::string Recycle::gRecyclingPrefix = "/recycle/";
+// Bin level for the default prefix, updated by MgmOfsConfigure
+unsigned int Recycle::gRecyclingBinLevel = 2;
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingPostFix = ".d";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
@@ -308,7 +310,7 @@ Recycle::RemoveSubtree(std::string_view dpath)
 
       // Skip root, paths outside the recycle bin, and ACL-carrying uid:/rid: bins
       if ((ldpath == "/") || (ldpath.find(Recycle::gRecyclingPrefix) != 0) ||
-          (eos::common::Path(ldpath).GetSubPathSize() <= GetBinLevel())) {
+          (eos::common::Path(ldpath).GetSubPathSize() <= Recycle::gRecyclingBinLevel)) {
         continue;
       }
 
@@ -334,16 +336,6 @@ Recycle::RemoveSubtree(std::string_view dpath)
       }
     }
   }
-}
-
-//------------------------------------------------------------------------------
-// Get the sub path level of the uid:/rid: bin directories
-//------------------------------------------------------------------------------
-unsigned int
-Recycle::GetBinLevel()
-{
-  // Prefix last component is not a sub path, so bins are at size + 1
-  return eos::common::Path(Recycle::gRecyclingPrefix).GetSubPathSize() + 1;
 }
 
 //------------------------------------------------------------------------------
@@ -373,7 +365,8 @@ Recycle::GetEmptyParentCandidates(std::string_view dpath)
 
   eos::common::Path cpath(std::string(dpath.data(), dpath.size()));
 
-  for (auto level = cpath.GetSubPathSize() - 1; level > GetBinLevel(); --level) {
+  for (auto level = cpath.GetSubPathSize() - 1; level > Recycle::gRecyclingBinLevel;
+       --level) {
     candidates.emplace_back(cpath.GetSubPath(level));
   }
 
