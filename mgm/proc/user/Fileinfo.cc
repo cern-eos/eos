@@ -408,6 +408,10 @@ ProcCommand::FileInfo(const char* path)
 
             out << std::endl;
             out << "  Size: " << fmd_copy->getSize() << std::endl
+                << " total-rbytes: " << fmd_copy->getTotalRBytes() << std::endl
+                << " total-rbc: " << fmd_copy->getTotalRbc() << std::endl
+                << " total-ubytes: " << fmd_copy->getTotalUBytes() << std::endl
+                << " total-ubc: " << fmd_copy->getTotalUbc() << std::endl
                 << "Status: " << FileMDToStatus(fmd_copy) << std::endl
                 << "Modify: " << eos::common::Timing::ltime(filemtime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
@@ -485,6 +489,10 @@ ProcCommand::FileInfo(const char* path)
             out << "keylength.file=" << spath.length()
                 << " file=" << spath
                 << " size=" << fmd_copy->getSize()
+                << " total-rbytes=" << fmd_copy->getTotalRBytes()
+                << " total-rbc=" << fmd_copy->getTotalRbc()
+                << " total-ubytes=" << fmd_copy->getTotalUBytes()
+                << " total-ubc=" << fmd_copy->getTotalUbc()
                 << " status=" << FileMDToStatus(fmd_copy);
 
             if (fmd_copy->isLink()) {
@@ -948,6 +956,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["btime"] = (Json::Value::UInt64) btime.tv_sec;
     json["btime_ns"] = (Json::Value::UInt64) btime.tv_nsec;
     json["size"] = (Json::Value::UInt64) fmd_copy->getSize();
+    json["total-rbytes"] = (Json::Value::UInt64) fmd_copy->getTotalRBytes();
+    json["total-rbc"] = (Json::Value::UInt64) fmd_copy->getTotalRbc();
+    json["total-ubytes"] = (Json::Value::UInt64) fmd_copy->getTotalUBytes();
+    json["total-ubc"] = (Json::Value::UInt64) fmd_copy->getTotalUbc();
     json["uid"] = fmd_copy->getCUid();
     json["gid"] = fmd_copy->getCGid();
     json["mode"] = fmd_copy->getFlags();

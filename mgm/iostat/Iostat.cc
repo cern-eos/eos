@@ -27,6 +27,7 @@
  ************************************************************************/
 
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "common/Constants.hh"
 #include "common/Report.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
@@ -42,7 +43,9 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/ResponseParsing.hh"
+#include "namespace/MDException.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "mq/QdbListener.hh"
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdNet/XrdNetAddr.hh>
@@ -53,6 +56,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <algorithm>
+#include <limits>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -1068,6 +1073,8 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           }
         }
       }
+
+      AccountFileBytes(*report);
     }
 
     assistant.wait_for(std::chrono::seconds(1));
@@ -1076,6 +1083,76 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
   eos_static_info("%s", "msg=\"stopping iostat receiver thread\"");
 }
 
+//------------------------------------------------------------------------------
+// Add a close report's bytes onto the file counters
+//------------------------------------------------------------------------------
+void
+Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
+{
+  if ((report.fid == 0) || (gOFS == nullptr) || (gOFS->mMaster == nullptr) ||
+      !gOFS->mMaster->IsMaster() || (gOFS->eosView == nullptr) ||
+      (gOFS->eosFileService == nullptr)) {
+    return;
+  }
+
+  // /replicate: is the copy a layout makes of a transfer that the entry server
+  // already reported. Drain, balance and conversion name themselves
+  // eos/<subsystem>.
+  if ((report.path.compare(0, 11, "/replicate:") == 0) ||
+      eos::common::IsFileCounterExemptApp(report.sec_app)) {
+    return;
+  }
+
+  auto saturating_add = [](uint64_t current, uint64_t bytes) -> uint64_t {
+    const uint64_t room = std::numeric_limits<uint64_t>::max() - current;
+    return current + std::min(bytes, room);
+  };
+  const uint64_t rbytes = saturating_add(report.rb, report.rvb_sum);
+  const uint64_t ubytes = report.wb;
+
+  if ((rbytes == 0) && (ubytes == 0)) {
+    return;
+  }
+
+  try {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, report.fid);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    std::shared_ptr<eos::IFileMD> fmd;
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(report.fid);
+    } catch (eos::MDException& e) {
+      eos_static_debug("msg=\"skip file traffic counter, metadata gone\" "
+                       "fxid=%08llx ec=%d emsg=\"%s\"",
+                       report.fid, e.getErrno(), e.getMessage().str().c_str());
+      return;
+    }
+
+    if (!fmd) {
+      return;
+    }
+
+    if (rbytes) {
+      fmd->addTotalRBytes(rbytes);
+    }
+
+    if (ubytes) {
+      fmd->addTotalUBytes(ubytes);
+    }
+
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& e) {
+    eos_static_debug("msg=\"failed to account file traffic\" fxid=%08llx "
+                     "ec=%d emsg=\"%s\"",
+                     report.fid, e.getErrno(), e.getMessage().str().c_str());
+  } catch (const std::exception& e) {
+    eos_static_err("msg=\"failed to account file traffic\" fxid=%08llx "
+                   "emsg=\"%s\"", report.fid, e.what());
+  } catch (...) {
+    eos_static_err("msg=\"failed to account file traffic\" fxid=%08llx",
+                   report.fid);
+  }
+}
 
 //------------------------------------------------------------------------------
 // Write record to the stream - used by the MGM/FUSEX to push entries

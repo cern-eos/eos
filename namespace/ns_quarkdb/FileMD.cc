@@ -16,8 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <limits>
 #include "common/Logging.hh"
 #include "common/StacktraceHere.hh"
 #include "common/StringConversion.hh"
@@ -254,7 +256,12 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
     oss << "name=" << saveName << "&id=" << mFile.id()
         << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
         << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
-        << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
+        << "&size=" << mFile.size()
+        << "&total-rbytes=" << mFile.total_rbytes()
+        << "&total-rbc=" << mFile.total_rbc()
+        << "&total-ubytes=" << mFile.total_ubytes()
+        << "&total-ubc=" << mFile.total_ubc()
+        << "&cid=" << mFile.cont_id()
         << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
         << "&lid=" << mFile.layout_id() << "&flags=" << mFile.flags()
         << "&link=" << mFile.link_name();
@@ -368,6 +375,92 @@ QuarkFileMD::setSize(uint64_t size)
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
   {sizeChange, 0, 0});
   pFileMDSvc->notifyListeners(&e);
+}
+
+//------------------------------------------------------------------------------
+// Add to a saturating byte counter
+//------------------------------------------------------------------------------
+static uint64_t
+SaturatingAdd(uint64_t current, uint64_t bytes)
+{
+  const uint64_t room = std::numeric_limits<uint64_t>::max() - current;
+  return current + std::min(bytes, room);
+}
+
+//------------------------------------------------------------------------------
+// Bytes read from this file so far
+//------------------------------------------------------------------------------
+uint64_t
+QuarkFileMD::getTotalRBytes() const
+{
+  return runReadOp([this]() {
+    return mFile.total_rbytes();
+  });
+}
+
+//------------------------------------------------------------------------------
+// Add bytes read from this file
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::addTotalRBytes(uint64_t bytes)
+{
+  if (!bytes) {
+    return;
+  }
+
+  runWriteOp([this, bytes]() {
+    mFile.set_total_rbytes(SaturatingAdd(mFile.total_rbytes(), bytes));
+    mFile.set_total_rbc(SaturatingAdd(mFile.total_rbc(), 1));
+  });
+}
+
+//------------------------------------------------------------------------------
+// Number of read-byte commits so far
+//------------------------------------------------------------------------------
+uint64_t
+QuarkFileMD::getTotalRbc() const
+{
+  return runReadOp([this]() {
+    return mFile.total_rbc();
+  });
+}
+
+//------------------------------------------------------------------------------
+// Bytes written into this file so far
+//------------------------------------------------------------------------------
+uint64_t
+QuarkFileMD::getTotalUBytes() const
+{
+  return runReadOp([this]() {
+    return mFile.total_ubytes();
+  });
+}
+
+//------------------------------------------------------------------------------
+// Add bytes written into this file
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::addTotalUBytes(uint64_t bytes)
+{
+  if (!bytes) {
+    return;
+  }
+
+  runWriteOp([this, bytes]() {
+    mFile.set_total_ubytes(SaturatingAdd(mFile.total_ubytes(), bytes));
+    mFile.set_total_ubc(SaturatingAdd(mFile.total_ubc(), 1));
+  });
+}
+
+//------------------------------------------------------------------------------
+// Number of update-byte commits so far
+//------------------------------------------------------------------------------
+uint64_t
+QuarkFileMD::getTotalUbc() const
+{
+  return runReadOp([this]() {
+    return mFile.total_ubc();
+  });
 }
 
 //------------------------------------------------------------------------------
