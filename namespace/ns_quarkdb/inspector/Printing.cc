@@ -138,6 +138,10 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   stream << "Container ID: " << proto.cont_id() << std::endl;
   stream << "uid: " << proto.uid() << ", gid: " << proto.gid() << std::endl;
   stream << "Size: " << proto.size() << std::endl;
+  stream << "total-rbytes: " << proto.total_rbytes() << std::endl;
+  stream << "total-rbc: " << proto.total_rbc() << std::endl;
+  stream << "total-ubytes: " << proto.total_ubytes() << std::endl;
+  stream << "total-ubc: " << proto.total_ubc() << std::endl;
   stream << "Modify: " << serializeTime(proto.mtime()) << std::endl;
   stream << "Change: " << serializeTime(proto.ctime()) << std::endl;
   stream << "Access: " << serializeTime(proto.atime()) << std::endl;

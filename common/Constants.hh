@@ -230,6 +230,24 @@ IsInternalApp(std::string_view app)
 }
 
 //------------------------------------------------------------------------------
+//! Check whether an application tag names draining or balancing
+//!
+//! @param app application tag, as reported by "eos.app" / "sec.app"
+//!
+//! @return true for filesystem and group drain, and for the filesystem, group
+//!         and geo balancers
+//------------------------------------------------------------------------------
+inline bool
+IsDrainOrBalanceApp(std::string_view app)
+{
+  return (app == InternalAppTag(EOS_APP_DRAIN)) ||
+         (app == InternalAppTag(EOS_APP_GROUP_DRAINER)) ||
+         (app == InternalAppTag(EOS_APP_BALANCER)) ||
+         (app == InternalAppTag(EOS_APP_GROUP_BALANCER)) ||
+         (app == InternalAppTag(EOS_APP_GEO_BALANCER));
+}
+
+//------------------------------------------------------------------------------
 //! Take the internal traffic prefix off an application tag a client chose for
 //! itself. Only EOS's own engines may name themselves "eos/<subsystem>", see
 //! VirtualIdentity::IsInternalEngine - a client that types the prefix anyway

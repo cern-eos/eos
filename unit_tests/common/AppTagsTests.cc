@@ -33,6 +33,7 @@ using eos::common::EOS_APP_GEO_BALANCER;
 using eos::common::EOS_APP_GROUP_BALANCER;
 using eos::common::EOS_APP_GROUP_DRAINER;
 using eos::common::InternalAppTag;
+using eos::common::IsDrainOrBalanceApp;
 using eos::common::IsInternalApp;
 using eos::common::StripInternalAppPrefix;
 
@@ -83,6 +84,24 @@ TEST(AppTags, InternalIsTheOnesWithThePrefix)
   // the bare subsystem names are not internal by themselves - they are what a
   // call site passes in, never what goes out
   EXPECT_FALSE(IsInternalApp(EOS_APP_FSCK));
+}
+
+//------------------------------------------------------------------------------
+// Draining and balancing stay out of the per-file byte counters
+//------------------------------------------------------------------------------
+TEST(AppTags, DrainAndBalanceAreExcludedFromFileCounters)
+{
+  EXPECT_TRUE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_DRAIN)));
+  EXPECT_TRUE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_GROUP_DRAINER)));
+  EXPECT_TRUE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_BALANCER)));
+  EXPECT_TRUE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_GROUP_BALANCER)));
+  EXPECT_TRUE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_GEO_BALANCER)));
+  EXPECT_FALSE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_CONVERTER)));
+  EXPECT_FALSE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_FSCK)));
+  EXPECT_FALSE(IsDrainOrBalanceApp(InternalAppTag(EOS_APP_FSCK_SCAN)));
+  EXPECT_FALSE(IsDrainOrBalanceApp(EOS_APP_DRAIN));
+  EXPECT_FALSE(IsDrainOrBalanceApp("atlas"));
+  EXPECT_FALSE(IsDrainOrBalanceApp(""));
 }
 
 //------------------------------------------------------------------------------

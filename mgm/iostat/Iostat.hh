@@ -586,6 +586,16 @@ public:
                        time_t start, time_t stop);
 
   //----------------------------------------------------------------------------
+  //! Add a close report's bytes onto the file's total-rbytes / total-ubytes.
+  //! Each non-zero add also counts one total-rbc or total-ubc commit.
+  //! Runs off the client close path. Drain and balance transfers, and the
+  //! replica fan-out of a transfer, are not counted.
+  //!
+  //! @param report close report already parsed from an FST
+  //----------------------------------------------------------------------------
+  void AccountFileBytes(const eos::common::Report& report) noexcept;
+
+  //----------------------------------------------------------------------------
   //! One off migration from file based to QDB of IoStat information
   //!
   //! @param legacy_file file path for IoStat information
