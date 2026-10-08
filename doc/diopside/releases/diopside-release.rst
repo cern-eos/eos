@@ -16,6 +16,37 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.3 Diopside``
+===================
+
+2026-10-08
+
+Note
+-----
+
+* Update eos-xrootd dependency to 6.2.0.
+
+Bug
+----
+
+* [EOS-6641] - Too many _access log entries when polling CTA files
+* [EOS-6644] - MGM - HTTP TPC - COPY with src = destination erases destination
+* [EOS-6646] - `eos scitoken create-keys` intermittently generates invalid P-256 JWK coordinates
+* [EOS-6652] - FileInsert still fetches from individual `checksum` field rather than `checksums`
+* [EOS-6661] - Rejected dumps leak semaphore slots
+
+New Feature
+------------
+
+* [EOS-6657] - MGM: Drain - Add space.drain config to allow deletion of files in recycle-bin
+
+Improvement
+-------------
+
+* [EOS-6183] - doc: document inodes & inode quota
+* [EOS-6496] - Add in the web or either eos docs the meaning of FST (File STorage service)
+
+
 ``v5.5.2 Diopside``
 ===================
 
@@ -44,6 +75,7 @@ New Feature
 
 Note
 -----
+
 * Update eos-xrootd dependency to 6.1.1.
 
 Bug
