@@ -180,6 +180,9 @@ build_fedora_44:
   image: registry.fedoraproject.org/fedora:44
   variables:
     BUILD_NAME: fc-44
+  # Fedora builds are disabled for the time being
+  rules:
+    - when: never
 
 
 build_fedora_rawhide:
@@ -187,7 +190,10 @@ build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
   variables:
     BUILD_NAME: fc-rawhide
-  rules: !reference [.rules-manual-on-schedule, rules]
+  # Fedora builds are disabled for the time being, otherwise they use
+  # .rules-manual-on-schedule
+  rules:
+    - when: never
 
 
 #-------------------------------------------------------------------------------
