@@ -24,6 +24,10 @@ message FileMdProto {
   bytes atime = 17; // server access time
   map<uint32, bytes> altchecksums = 18; // alternative checksums
   uint32 cache_location = 19; // read-through cache filesystem id (0 = none)
+  uint64 total_rbytes = 20; // bytes read from this file by clients
+  uint64 total_ubytes = 21; // bytes written into this file by clients
+  uint64 total_rbc = 22;    // number of read-byte commits
+  uint64 total_ubc = 23;    // number of update-byte commits
   uint64 cloneid = 256;     // transient
   bytes clonefst = 257;     // transient
 }

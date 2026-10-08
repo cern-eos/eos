@@ -185,6 +185,38 @@ public:
   virtual void setSize(uint64_t size) = 0;
 
   //----------------------------------------------------------------------------
+  //! Bytes read from this file so far
+  //----------------------------------------------------------------------------
+  virtual uint64_t getTotalRBytes() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Add bytes read from this file. The sum saturates at the counter maximum.
+  //! A non-zero add also counts one read-byte commit.
+  //----------------------------------------------------------------------------
+  virtual void addTotalRBytes(uint64_t bytes) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Number of read-byte commits so far
+  //----------------------------------------------------------------------------
+  virtual uint64_t getTotalRbc() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Bytes written into this file so far
+  //----------------------------------------------------------------------------
+  virtual uint64_t getTotalUBytes() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Add bytes written into this file. The sum saturates at the counter maximum.
+  //! A non-zero add also counts one update-byte commit.
+  //----------------------------------------------------------------------------
+  virtual void addTotalUBytes(uint64_t bytes) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Number of update-byte commits so far
+  //----------------------------------------------------------------------------
+  virtual uint64_t getTotalUbc() const = 0;
+
+  //----------------------------------------------------------------------------
   //! Get tag
   //----------------------------------------------------------------------------
   virtual IContainerMD::id_t getContainerId() const = 0;

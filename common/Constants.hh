@@ -231,6 +231,26 @@ IsInternalApp(std::string_view app)
 }
 
 //------------------------------------------------------------------------------
+//! Check whether an application tag names traffic that must not move the
+//! per-file byte counters: draining, balancing, and layout conversion
+//!
+//! @param app application tag, as reported by "eos.app" / "sec.app"
+//!
+//! @return true for filesystem and group drain, the filesystem, group and geo
+//!         balancers, and the converter
+//------------------------------------------------------------------------------
+inline bool
+IsFileCounterExemptApp(std::string_view app)
+{
+  return (app == InternalAppTag(EOS_APP_DRAIN)) ||
+         (app == InternalAppTag(EOS_APP_GROUP_DRAINER)) ||
+         (app == InternalAppTag(EOS_APP_BALANCER)) ||
+         (app == InternalAppTag(EOS_APP_GROUP_BALANCER)) ||
+         (app == InternalAppTag(EOS_APP_GEO_BALANCER)) ||
+         (app == InternalAppTag(EOS_APP_CONVERTER));
+}
+
+//------------------------------------------------------------------------------
 //! Take the internal traffic prefix off an application tag a client chose for
 //! itself. Only EOS's own engines may name themselves "eos/<subsystem>", see
 //! VirtualIdentity::IsInternalEngine - a client that types the prefix anyway

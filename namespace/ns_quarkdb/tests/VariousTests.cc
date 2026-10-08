@@ -273,6 +273,14 @@ TEST_F(VariousTests, BasicSanity)
   mtime.tv_sec = 2000;
   mtime.tv_nsec = 999;
   file1->setATime(atime);
+  file1->addTotalRBytes(1000);
+  file1->addTotalUBytes(250);
+  file1->addTotalRBytes(5);
+  file1->addTotalUBytes(0);
+  ASSERT_EQ(file1->getTotalRBytes(), 1005u);
+  ASSERT_EQ(file1->getTotalRbc(), 2u);
+  ASSERT_EQ(file1->getTotalUBytes(), 250u);
+  ASSERT_EQ(file1->getTotalUbc(), 1u);
   ASSERT_EQ(eos::Printing::printMultiline(static_cast<eos::QuarkFileMD*>
                                           (file1.get())->getProto()),
             SSTR("ID: 1\n"
@@ -281,6 +289,10 @@ TEST_F(VariousTests, BasicSanity)
                  "Container ID: 2\n"
                  "uid: 333, gid: 999\n"
                  "Size: 555\n"
+                 "total-rbytes: 1005\n"
+                 "total-rbc: 2\n"
+                 "total-ubytes: 250\n"
+                 "total-ubc: 1\n"
                  "Modify: " << Printing::timespecToFileinfo(mtime) << "\n"
                  "Change: " << Printing::timespecToFileinfo(ctime) << "\n"
                  "Access: " << Printing::timespecToFileinfo(atime) << "\n"
@@ -303,6 +315,10 @@ TEST_F(VariousTests, BasicSanity)
   ASSERT_EQ(file1->getNumLocation(), 2u);
   ASSERT_EQ(file1->getLocation(0), 1);
   ASSERT_EQ(file1->getLocation(1), 7);
+  ASSERT_EQ(file1->getTotalRBytes(), 1005u);
+  ASSERT_EQ(file1->getTotalRbc(), 2u);
+  ASSERT_EQ(file1->getTotalUBytes(), 250u);
+  ASSERT_EQ(file1->getTotalUbc(), 1u);
   root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
   FileOrContainerMD item = view()->getItem("/").get();
