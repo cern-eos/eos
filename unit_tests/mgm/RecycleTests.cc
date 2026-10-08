@@ -101,6 +101,12 @@ TEST(Recycle, IsSafeRecyclePath)
           .empty());
   EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/rid:42/../rid:43"));
   EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle/.."));
+  // Recycle root without trailing slash is inside, other instances are not
+  EXPECT_TRUE(Recycle::IsSafeRecyclePath("/eos/test/proc/recycle"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/other/proc/recycle/rid:42/2026"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/project/a/awesomeproject"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/testing/proc/recycle/"));
+  EXPECT_FALSE(Recycle::IsSafeRecyclePath("/eos/"));
   // Recycle ids containing '/' are rejected before touching the namespace
   std::string std_out, std_err;
   auto vid = eos::common::VirtualIdentity::Root();
