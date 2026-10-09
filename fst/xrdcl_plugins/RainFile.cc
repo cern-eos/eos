@@ -110,11 +110,8 @@ RainFile::~RainFile()
 // Open
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Open(const std::string& url,
-               OpenFlags::Flags flags,
-               Access::Mode mode,
-               ResponseHandler* handler,
-               uint16_t timeout)
+RainFile::Open(const std::string& url, OpenFlags::Flags flags, Access::Mode mode,
+               ResponseHandler* handler, time_t timeout)
 {
   eos_debug("url=%s", url.c_str());
   XRootDStatus st;
@@ -352,8 +349,7 @@ RainFile::OpenPio(const std::string& url, bool is_write, OpenFlags::Flags flags,
 // Close
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Close(ResponseHandler* handler,
-                uint16_t timeout)
+RainFile::Close(ResponseHandler* handler, time_t timeout)
 {
   eos_debug("calling close");
   XRootDStatus st;
@@ -538,9 +534,7 @@ RainFile::QueryMgm(const std::string& query)
 // Stat
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Stat(bool force,
-               ResponseHandler* handler,
-               uint16_t timeout)
+RainFile::Stat(bool force, ResponseHandler* handler, time_t timeout)
 {
   eos_debug("calling stat");
   XRootDStatus st;
@@ -582,11 +576,8 @@ RainFile::Stat(bool force,
 // Read
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Read(uint64_t offset,
-               uint32_t size,
-               void* buffer,
-               ResponseHandler* handler,
-               uint16_t timeout)
+RainFile::Read(uint64_t offset, uint32_t size, void* buffer, ResponseHandler* handler,
+               time_t timeout)
 {
   eos_debug("offset=%ju, size=%ju", offset, size);
   XRootDStatus st;
@@ -615,11 +606,8 @@ RainFile::Read(uint64_t offset,
 // Write
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Write(uint64_t offset,
-                uint32_t size,
-                const void* buffer,
-                ResponseHandler* handler,
-                uint16_t timeout)
+RainFile::Write(uint64_t offset, uint32_t size, const void* buffer,
+                ResponseHandler* handler, time_t timeout)
 {
   eos_debug("offset=%ju, size=%ju", offset, size);
   XRootDStatus st;
@@ -663,8 +651,7 @@ RainFile::Write(uint64_t offset,
 // Sync
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Sync(ResponseHandler* handler,
-               uint16_t timeout)
+RainFile::Sync(ResponseHandler* handler, time_t timeout)
 {
   eos_debug("callnig sync");
   XRootDStatus st;
@@ -690,9 +677,7 @@ RainFile::Sync(ResponseHandler* handler,
 // Truncate
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Truncate(uint64_t size,
-                   ResponseHandler* handler,
-                   uint16_t timeout)
+RainFile::Truncate(uint64_t size, ResponseHandler* handler, time_t timeout)
 {
   eos_debug("offset=%ju", size);
   XRootDStatus st;
@@ -725,10 +710,8 @@ RainFile::Truncate(uint64_t size,
 // VectorRead
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::VectorRead(const ChunkList& chunks,
-                     void* buffer,
-                     ResponseHandler* handler,
-                     uint16_t timeout)
+RainFile::VectorRead(const ChunkList& chunks, void* buffer, ResponseHandler* handler,
+                     time_t timeout)
 {
   eos_debug("calling vread");
   XRootDStatus st;
@@ -767,9 +750,7 @@ RainFile::VectorRead(const ChunkList& chunks,
 // Fcntl
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Fcntl(const XrdCl::Buffer& arg,
-                ResponseHandler* handler,
-                uint16_t timeout)
+RainFile::Fcntl(const XrdCl::Buffer& arg, ResponseHandler* handler, time_t timeout)
 {
   eos_debug("calling fcntl");
   XRootDStatus st;
@@ -788,8 +769,7 @@ RainFile::Fcntl(const XrdCl::Buffer& arg,
 // Visa
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Visa(ResponseHandler* handler,
-               uint16_t timeout)
+RainFile::Visa(ResponseHandler* handler, time_t timeout)
 {
   eos_debug("calling visa");
   XRootDStatus st;

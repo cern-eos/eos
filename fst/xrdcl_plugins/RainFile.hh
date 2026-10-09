@@ -68,106 +68,75 @@ public:
   //----------------------------------------------------------------------------
   //! Open
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Open(const std::string& url,
-                            OpenFlags::Flags flags,
-                            Access::Mode mode,
-                            ResponseHandler* handler,
-                            uint16_t timeout);
-
+  virtual XRootDStatus Open(const std::string& url, OpenFlags::Flags flags,
+                            Access::Mode mode, ResponseHandler* handler,
+                            time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Close
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Close(ResponseHandler* handler,
-                             uint16_t timeout);
-
+  virtual XRootDStatus Close(ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Stat
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Stat(bool force,
-                            ResponseHandler* handler,
-                            uint16_t timeout);
-
+  virtual XRootDStatus Stat(bool force, ResponseHandler* handler,
+                            time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Read
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Read(uint64_t offset,
-                            uint32_t size,
-                            void* buffer,
-                            ResponseHandler* handler,
-                            uint16_t timeout);
-
+  virtual XRootDStatus Read(uint64_t offset, uint32_t size, void* buffer,
+                            ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Write
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Write(uint64_t offset,
-                             uint32_t size,
-                             const void* buffer,
-                             ResponseHandler* handler,
-                             uint16_t timeout);
-
+  virtual XRootDStatus Write(uint64_t offset, uint32_t size, const void* buffer,
+                             ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Sync
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Sync(ResponseHandler* handler,
-                            uint16_t timeout);
-
+  virtual XRootDStatus Sync(ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Truncate
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Truncate(uint64_t size,
-                                ResponseHandler* handler,
-                                uint16_t timeout);
-
+  virtual XRootDStatus Truncate(uint64_t size, ResponseHandler* handler,
+                                time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! VectorRead
   //----------------------------------------------------------------------------
-  virtual XRootDStatus VectorRead(const ChunkList& chunks,
-                                  void* buffer,
-                                  ResponseHandler* handler,
-                                  uint16_t timeout);
-
+  virtual XRootDStatus VectorRead(const ChunkList& chunks, void* buffer,
+                                  ResponseHandler* handler, time_t timeout) override;
 
   //------------------------------------------------------------------------
   //! Fcntl
   //------------------------------------------------------------------------
-  virtual XRootDStatus Fcntl(const Buffer& arg,
-                             ResponseHandler* handler,
-                             uint16_t timeout);
-
+  virtual XRootDStatus Fcntl(const Buffer& arg, ResponseHandler* handler,
+                             time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! Visa
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Visa(ResponseHandler* handler,
-                            uint16_t timeout);
-
+  virtual XRootDStatus Visa(ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
   //! IsOpen
   //----------------------------------------------------------------------------
-  virtual bool IsOpen() const;
-
+  virtual bool IsOpen() const override;
 
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::SetProperty
   //----------------------------------------------------------------------------
-  virtual bool SetProperty(const std::string& name,
-                           const std::string& value);
-
+  virtual bool SetProperty(const std::string& name, const std::string& value) override;
 
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::GetProperty
   //----------------------------------------------------------------------------
-  virtual bool GetProperty(const std::string& name,
-                           std::string& value) const;
-
+  virtual bool GetProperty(const std::string& name, std::string& value) const override;
 
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::GetDataServer
