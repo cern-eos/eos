@@ -75,26 +75,26 @@ namespace experimental {
 
     inline size_t increment(uint64_t epoch, uint16_t count=1) noexcept {
       auto index = getEpochIndex(epoch);
-      mCounter[index].fetch_add(count, std::memory_order_release);
+      mCounter[index].fetch_add(count, std::memory_order_seq_cst);
       return index;
     }
 
     inline void decrement(uint64_t epoch) noexcept {
       auto index = getEpochIndex(epoch);
-      mCounter[index].fetch_sub(1, std::memory_order_release);
+      mCounter[index].fetch_sub(1, std::memory_order_seq_cst);
     }
 
     inline void decrement(uint64_t epoch, uint64_t index) noexcept {
-      mCounter[index].fetch_sub(1, std::memory_order_release);
+      mCounter[index].fetch_sub(1, std::memory_order_seq_cst);
     }
 
     inline size_t getReaders(uint64_t epoch) noexcept {
-      return mCounter[getEpochIndex(epoch)].load(std::memory_order_relaxed);
+      return mCounter[getEpochIndex(epoch)].load(std::memory_order_seq_cst);
     }
 
     bool epochHasReaders(uint64_t epoch) noexcept {
       auto index = getEpochIndex(epoch);
-      return mCounter[index].load(std::memory_order_acquire) > 0;
+      return mCounter[index].load(std::memory_order_seq_cst) > 0;
     }
 
   private:
@@ -124,23 +124,27 @@ struct ThreadID {
 extern thread_local ThreadID tlocalID;
 
 /**
-* @brief a simple epoch counter per thread that can be used to implement
-* RCU-like algorithms. Basically we store a bitfield of
+ * @brief a simple epoch counter per thread that can be used to implement
+ * RCU-like algorithms. Basically we store a bitfield of
  * 16 bit counter and a 48 bit epoch. If we have no hash collisions, this is fairly
- * simple to implement, you'd only need a simple increment and a memory_order_release
- * store. However, if we have hash collisions, we need to store the oldest epoch
- * as we're tracking the oldest epoch.
+ * simple to implement with a load and store. Nested reads retain the oldest
+ * active epoch until all of that thread's read sections have ended. Registration
+ * and scans use sequential consistency to pair with RCUDomain's epoch validation.
  *
  * This counter is supposed to be used with a threadID that is unique
  * like the one provided by ThreadID above.
  */
 
 struct alignas(hardware_destructive_interference_size) ThreadEpoch {
-  auto get(std::memory_order order = std::memory_order_acquire) {
+  auto
+  get(std::memory_order order = std::memory_order_seq_cst)
+  {
     return epoch_counter.load(order);
   }
 
-  auto get_counter(std::memory_order order = std::memory_order_acquire) {
+  auto
+  get_counter(std::memory_order order = std::memory_order_seq_cst)
+  {
     return get(order) & 0xFFFF;
   }
 
@@ -154,24 +158,27 @@ public:
 
   size_t increment(uint64_t epoch, uint16_t count=1) noexcept {
     auto tid = tlocalID.get();
-    // This is 2 instructions, instead of a single CAS. Given that threads
-    // will not hash to the same number, we can guarantee that we'd only have one
-    // epoch per thread
-
+    // Each slot has one owning thread, including its nested read sections.
     auto old = mCounter[tid].get();
-    auto new_val = (epoch << 16) | ((old & 0xFFFF) + count);
-    mCounter[tid].epoch_counter.store(new_val, std::memory_order_release);
+    auto old_count = old & 0xFFFF;
+
+    if (old_count != 0 && (old >> 16) < epoch) {
+      epoch = old >> 16;
+    }
+
+    auto new_val = (epoch << 16) | (old_count + count);
+    mCounter[tid].epoch_counter.store(new_val, std::memory_order_seq_cst);
     return tid;
   }
 
   inline void decrement(uint64_t epoch, size_t tid) {
     // assert (old >> 16) == epoch);
-    mCounter[tid].epoch_counter.fetch_sub(1, std::memory_order_release);
+    mCounter[tid].epoch_counter.fetch_sub(1, std::memory_order_seq_cst);
   }
 
   inline void decrement() {
     auto tid = tlocalID.get();
-    mCounter[tid].epoch_counter.fetch_sub(1, std::memory_order_release);
+    mCounter[tid].epoch_counter.fetch_sub(1, std::memory_order_seq_cst);
   }
 
   size_t getReaders(size_t tid) noexcept {
@@ -182,7 +189,7 @@ public:
   bool epochHasReaders(uint64_t epoch) noexcept {
     for (size_t i=0; i < EOS_MAX_THREADS; ++i) {
       auto val = mCounter[i].get();
-      if ((val >> 16) == epoch && (val & 0xFFFF) > 0) {
+      if ((val >> 16) <= epoch && (val & 0xFFFF) > 0) {
         return true;
       }
     }

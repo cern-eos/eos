@@ -1,5 +1,6 @@
 #include "common/concurrency/ThreadEpochCounter.hh"
 #include <gtest/gtest.h>
+#include <memory>
 
 TEST(ThreadEpochCounter, Basic)
 {
@@ -11,6 +12,40 @@ TEST(ThreadEpochCounter, Basic)
   ASSERT_EQ(counter.getReaders(tid), 1);
   counter.decrement();
   ASSERT_FALSE(counter.epochHasReaders(epoch));
+}
+
+TEST(ThreadEpochCounter, NestedReadsRetainOldestEpochUntilAllUnlock)
+{
+  auto counter = std::make_unique<eos::common::ThreadEpochCounter>();
+  const auto tid = counter->increment(3);
+  EXPECT_EQ(tid, counter->increment(4));
+  EXPECT_EQ(2u, counter->getReaders(tid));
+  EXPECT_FALSE(counter->epochHasReaders(2));
+  EXPECT_TRUE(counter->epochHasReaders(3));
+  EXPECT_TRUE(counter->epochHasReaders(4));
+  counter->decrement();
+  EXPECT_EQ(1u, counter->getReaders(tid));
+  EXPECT_TRUE(counter->epochHasReaders(3));
+  counter->decrement();
+  EXPECT_FALSE(counter->epochHasReaders(4));
+  counter->increment(5);
+  EXPECT_FALSE(counter->epochHasReaders(4));
+  EXPECT_TRUE(counter->epochHasReaders(5));
+  counter->decrement();
+}
+
+TEST(ThreadEpochCounter, NestedOlderCandidateIsRetainedForLaterWriter)
+{
+  auto counter = std::make_unique<eos::common::ThreadEpochCounter>();
+  const auto tid = counter->increment(7);
+  counter->increment(5);
+  EXPECT_EQ(2u, counter->getReaders(tid));
+  EXPECT_TRUE(counter->epochHasReaders(5));
+  EXPECT_TRUE(counter->epochHasReaders(7));
+  counter->decrement();
+  EXPECT_TRUE(counter->epochHasReaders(5));
+  counter->decrement();
+  EXPECT_FALSE(counter->epochHasReaders(7));
 }
 
 TEST(ThreadEpochCounter, HashCollision)

@@ -17,10 +17,165 @@
 //  ************************************************************************
 //
 
-#include "common/concurrency/RCULite.hh"
 #include "common/concurrency/AtomicUniquePtr.h"
+#include "common/concurrency/RCULite.hh"
 #include "gtest/gtest.h"
+#include <functional>
+#include <memory>
 #include <shared_mutex>
+#include <type_traits>
+#include <vector>
+
+namespace {
+
+template <typename CounterT>
+class RegistrationCounter : public eos::common::detail::stateful_trait_base<CounterT> {
+public:
+  inline static std::function<void(uint64_t)> beforeRegistration;
+  inline static std::function<void(uint64_t, size_t)> beforeUnlock;
+
+  size_t
+  increment(uint64_t epoch) noexcept
+  {
+    if (beforeRegistration) {
+      beforeRegistration(epoch);
+    }
+
+    return mCounter.increment(epoch);
+  }
+
+  void
+  decrement(uint64_t epoch, size_t tag) noexcept
+  {
+    if (beforeUnlock) {
+      beforeUnlock(epoch, tag);
+    }
+
+    mCounter.decrement(epoch, tag);
+  }
+
+  void
+  decrement() noexcept
+  {
+    mCounter.decrement();
+  }
+
+  bool
+  epochHasReaders(uint64_t epoch) noexcept
+  {
+    return mCounter.epochHasReaders(epoch);
+  }
+
+private:
+  CounterT mCounter;
+};
+
+using ThreadRegistrationCounter = RegistrationCounter<eos::common::ThreadEpochCounter>;
+using VersionRegistrationCounter =
+    RegistrationCounter<eos::common::experimental::VersionEpochCounter<4>>;
+using ThreadRegistrationDomain = eos::common::RCUDomain<ThreadRegistrationCounter>;
+using VersionRegistrationDomain = eos::common::RCUDomain<VersionRegistrationCounter>;
+
+class RCURegistrationTest : public ::testing::Test {
+protected:
+  void
+  TearDown() override
+  {
+    ThreadRegistrationCounter::beforeRegistration = {};
+    ThreadRegistrationCounter::beforeUnlock = {};
+    VersionRegistrationCounter::beforeRegistration = {};
+    VersionRegistrationCounter::beforeUnlock = {};
+  }
+};
+
+using Mutex = eos::common::RCUMutexT<>;
+using ReadGuard = eos::common::RCUReadLock<Mutex>;
+using WriteGuard = eos::common::RCUWriteLock<eos::common::EpochRCUDomain>;
+using ScopedGuard =
+    eos::common::ScopedRCUWrite<Mutex, eos::common::atomic_unique_ptr<int>>;
+static_assert(!std::is_copy_constructible_v<ReadGuard> &&
+              !std::is_move_constructible_v<ReadGuard>);
+static_assert(!std::is_copy_constructible_v<WriteGuard> &&
+              !std::is_move_constructible_v<WriteGuard>);
+static_assert(!std::is_copy_constructible_v<ScopedGuard> &&
+              !std::is_move_constructible_v<ScopedGuard>);
+
+TEST_F(RCURegistrationTest, MutexReaderRetriesAfterPublicationBeforeRegistration)
+{
+  using namespace eos::common;
+  // Thread counters are large; keep the domain off the test thread's stack.
+  auto mutex = std::make_unique<RCUMutexT<ThreadRegistrationDomain>>();
+  atomic_unique_ptr<int> ptr(new int(0));
+  std::vector<uint64_t> registrations;
+  ThreadRegistrationCounter::beforeRegistration = [&](uint64_t epoch) {
+    registrations.push_back(epoch);
+
+    if (registrations.size() == 1) {
+      int* retired;
+      {
+        std::unique_lock lock(*mutex);
+        retired = ptr.reset(new int(1));
+      }
+      delete retired;
+    }
+  };
+  {
+    RCUReadLock guard(*mutex);
+    EXPECT_EQ((std::vector<uint64_t>{0, 1}), registrations);
+    EXPECT_EQ(1, *ptr.get());
+  }
+}
+
+TEST_F(RCURegistrationTest, ExplicitLockReturnsAcceptedEpochAfterStaleCandidate)
+{
+  auto domain = std::make_unique<VersionRegistrationDomain>();
+  domain->rcu_write_lock();
+  domain->rcu_write_unlock();
+  std::vector<uint64_t> registrations, unlocks;
+  VersionRegistrationCounter::beforeRegistration = [&](uint64_t epoch) {
+    registrations.push_back(epoch);
+  };
+  VersionRegistrationCounter::beforeUnlock = [&](uint64_t epoch, size_t) {
+    unlocks.push_back(epoch);
+  };
+  uint64_t epoch = 0;
+  auto tag = domain->rcu_read_lock(epoch);
+  EXPECT_EQ(1u, epoch);
+  EXPECT_EQ((std::vector<uint64_t>{0, 1}), registrations);
+  domain->rcu_read_unlock(epoch, tag);
+  EXPECT_EQ((std::vector<uint64_t>{0, 1}), unlocks);
+}
+
+TEST_F(RCURegistrationTest, StatefulGuardUnlocksAcceptedRegistration)
+{
+  using namespace eos::common;
+  auto domain = std::make_unique<VersionRegistrationDomain>();
+  atomic_unique_ptr<int> ptr(new int(0));
+  std::vector<uint64_t> registrations, unlocks;
+  VersionRegistrationCounter::beforeRegistration = [&](uint64_t epoch) {
+    registrations.push_back(epoch);
+
+    if (registrations.size() == 1) {
+      int* retired;
+      {
+        RCUWriteLock guard(*domain);
+        retired = ptr.reset(new int(1));
+      }
+      delete retired;
+    }
+  };
+  VersionRegistrationCounter::beforeUnlock = [&](uint64_t epoch, size_t) {
+    unlocks.push_back(epoch);
+  };
+  {
+    RCUReadLock guard(*domain);
+    EXPECT_EQ((std::vector<uint64_t>{0, 1}), registrations);
+    EXPECT_EQ(1, *ptr.get());
+  }
+  EXPECT_EQ((std::vector<uint64_t>{0, 1}), unlocks);
+}
+
+} // namespace
 
 TEST(RCUTests, Basic)
 {

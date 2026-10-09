@@ -62,59 +62,59 @@ private:
   alignas(hardware_destructive_interference_size) std::atomic<uint32_t> serving {0};
 };
 
- /*
-  A Read Copy Update Like primitive that guarantees that is wait-free on the
-  readers and guarantees that all memory is protected from deletion. This
-  is similar to folly's RCU implementation, but a bit simpler to accomodate
-  our use cases.
+/*
+ A Read Copy Update Like primitive that protects readers from deletion without
+ taking the writer lock. Read registration retries if the epoch changes. This
+ is similar to folly's RCU implementation, but a bit simpler to accomodate
+ our use cases.
 
-  Let's say you've a data type that is mostly a read workload with very rare
-  updates, with classical RW Locks this is what you'd be doing
+ Let's say you've a data type that is mostly a read workload with very rare
+ updates, with classical RW Locks this is what you'd be doing
 
-  void reader() {
-     std::shared_lock lock(shared_mutex);
-     process(myconfig);
-  }
+ void reader() {
+    std::shared_lock lock(shared_mutex);
+    process(myconfig);
+ }
 
-  A rather simple way to not pay the cost would be using something like
-  atomic_unique_ptr
+ A rather simple way to not pay the cost would be using something like
+ atomic_unique_ptr
 
-  void reader() {
-     auto* config_data = myconfig.get()
-     process(config_data);
-  }
+ void reader() {
+    auto* config_data = myconfig.get()
+    process(config_data);
+ }
 
-  void writer() {
-    auto *old_config_data = myconfig.reset(new myconfig(config_data));
-    // This works and is safe, however we don't know when is a good checkpoint
-    // in the program to delete the old_config_data. Deleting when another reader
-    // is still accessing the data is something we want to avoid
+ void writer() {
+   auto *old_config_data = myconfig.reset(new myconfig(config_data));
+   // This works and is safe, however we don't know when is a good checkpoint
+   // in the program to delete the old_config_data. Deleting when another reader
+   // is still accessing the data is something we want to avoid
 
-  }
+ }
 
-  void reader() {
-    RCUReadLock rlock(my_rcu_domain);
-    process(myconfig.get());
-  }
+ void reader() {
+   RCUReadLock rlock(my_rcu_domain);
+   process(myconfig.get());
+ }
 
-  void writer() {
-    ConfigData* old_config_data(nullptr);
-    {
-      RCUWriteLock wlock(my_rcu_domain);
-      old_config_data = myconfig.reset(new config(config_data));
-    }
+ void writer() {
+   ConfigData* old_config_data(nullptr);
+   {
+     RCUWriteLock wlock(my_rcu_domain);
+     old_config_data = myconfig.reset(new config(config_data));
+   }
 
-    delete (old_config_data);
-  }
+   delete (old_config_data);
+ }
 
-  // Alternatively a scopedRCUWrite will drain the readers and wait for them to
-  complete before deletion
+ // Alternatively a scopedRCUWrite will drain the readers and wait for them to
+ complete before deletion
 
-  void writer() { ScopedRCUWrite(my_rcu_domain,
-  myconfig, new config(config_data)); }
+ void writer() { ScopedRCUWrite(my_rcu_domain,
+ myconfig, new config(config_data)); }
 
 
- */
+*/
 
 template <typename CounterT = ThreadEpochCounter>
 class RCUDomain : public detail::stateful_trait_base<CounterT>
@@ -123,21 +123,37 @@ public:
 
   RCUDomain() = default;
 
-  inline uint64_t get_current_epoch(std::memory_order order
-                                    = std::memory_order_acquire) noexcept
+  inline uint64_t
+  get_current_epoch(std::memory_order order = std::memory_order_seq_cst) noexcept
   {
     return mEpoch.load(order);
   }
 
-
-  inline size_t rcu_read_lock(uint64_t epoch) noexcept
+  // The caller supplies a candidate epoch and receives the accepted epoch for
+  // the matching epoch/tag unlock.
+  inline size_t
+  rcu_read_lock(uint64_t& epoch) noexcept
   {
-    return mReadersCounter.increment(epoch);
+    for (;;) {
+      auto tag = mReadersCounter.increment(epoch);
+
+      // SC registration and validation are paired with the writer's SC epoch
+      // advance and scan: either it sees this reader or we retry before access.
+      auto current_epoch = mEpoch.load(std::memory_order_seq_cst);
+
+      if (current_epoch == epoch) {
+        return tag;
+      }
+
+      mReadersCounter.decrement(epoch, tag);
+      epoch = current_epoch;
+    }
   }
 
   inline size_t rcu_read_lock() noexcept
   {
-    return rcu_read_lock(mEpoch.load(std::memory_order_acquire));
+    auto epoch = mEpoch.load(std::memory_order_seq_cst);
+    return rcu_read_lock(epoch);
   }
 
 
@@ -158,7 +174,7 @@ public:
   inline auto rcu_read_unlock(uint64_t tag) noexcept
   -> std::enable_if_t<detail::is_stateful_v<T>, void>
   {
-    mReadersCounter.decrement(mEpoch.load(std::memory_order_acquire), tag);
+    mReadersCounter.decrement(mEpoch.load(std::memory_order_seq_cst), tag);
   }
 
   inline void rcu_write_lock() noexcept
@@ -179,7 +195,7 @@ private:
 
   inline void rcu_synchronize() noexcept
   {
-    auto old_epoch = mEpoch.fetch_add(1, std::memory_order_acq_rel);
+    auto old_epoch = mEpoch.fetch_add(1, std::memory_order_seq_cst);
     uint32_t spin_count = 0;
     while (mReadersCounter.epochHasReaders(old_epoch)) {
       if (++spin_count % 1000 == 0) {
@@ -206,6 +222,11 @@ struct RCUWriteLock {
   {
     rcu_domain.rcu_write_unlock();
   }
+
+  RCUWriteLock(const RCUWriteLock&) = delete;
+  RCUWriteLock& operator=(const RCUWriteLock&) = delete;
+  RCUWriteLock(RCUWriteLock&&) = delete;
+  RCUWriteLock& operator=(RCUWriteLock&&) = delete;
 
   RCUDomain& rcu_domain;
 };
@@ -258,7 +279,13 @@ public:
       rcu_mutex.unlock();
       delete old_val;
     }
-    private:
+
+    ScopedRCUWrite(const ScopedRCUWrite&) = delete;
+    ScopedRCUWrite& operator=(const ScopedRCUWrite&) = delete;
+    ScopedRCUWrite(ScopedRCUWrite&&) = delete;
+    ScopedRCUWrite& operator=(ScopedRCUWrite&&) = delete;
+
+  private:
     RCUMutexT& rcu_mutex;
     typename Ptr::pointer old_val;
 };
@@ -292,6 +319,12 @@ public:
   ~RCUReadLock() {
     unlock_impl();
   }
+
+  RCUReadLock(const RCUReadLock&) = delete;
+  RCUReadLock& operator=(const RCUReadLock&) = delete;
+  RCUReadLock(RCUReadLock&&) = delete;
+  RCUReadLock& operator=(RCUReadLock&&) = delete;
+
 private:
   template <typename U = T>
   std::enable_if_t<detail::is_stateful_v<U>> lock_impl() {
