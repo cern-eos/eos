@@ -47,7 +47,7 @@ ClusterMgr::GetSnapshotBuilder(size_t max_buckets)
 ClusterMgr::ClusterDataPtr
 ClusterMgr::GetClusterData()
 {
-  return {mClusterData.get(), mClusterMgrRcu};
+  return {mClusterData, mClusterMgrRcu};
 }
 
 //------------------------------------------------------------------------------

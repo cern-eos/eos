@@ -56,7 +56,7 @@ struct FillLimitsConfig {
 //------------------------------------------------------------------------------
 //! Class ClusterMgr - holds the topology snapshot of one space. The snapshot is
 //! kept in an atomic unique pointer guarded by an RCU mutex: readers are
-//! wait-free, a full topology change swaps in a new snapshot, and per disk
+//! guarded while a full topology change swaps in a new snapshot; per disk
 //! status or weight changes mutate the atomics of the current one in place.
 //------------------------------------------------------------------------------
 class ClusterMgr {
@@ -69,13 +69,19 @@ public:
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param data_ snapshot to guard
+    //! @param data_ atomic snapshot source, read after taking the guard
     //! @param rcu_domain_ RCU domain to take the read lock on
     //--------------------------------------------------------------------------
-    ClusterDataPtr(ClusterData* data_, RCUMutexT& rcu_domain_)
+    ClusterDataPtr(const eos::common::atomic_unique_ptr<ClusterData>& data_,
+                   RCUMutexT& rcu_domain_)
         : mRlock(rcu_domain_)
-        , mData(data_)
+        , mData(data_.get())
     {}
+
+    ClusterDataPtr(const ClusterDataPtr&) = delete;
+    ClusterDataPtr& operator=(const ClusterDataPtr&) = delete;
+    ClusterDataPtr(ClusterDataPtr&&) = delete;
+    ClusterDataPtr& operator=(ClusterDataPtr&&) = delete;
 
     //--------------------------------------------------------------------------
     //! Destructor

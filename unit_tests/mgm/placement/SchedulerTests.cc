@@ -894,6 +894,45 @@ void printProcessMemoryUsage() {
   }
 }
 
+TEST(ClusterMgr, SnapshotSourceIsReadAfterGuardConstruction)
+{
+  using namespace eos::mgm::placement;
+  using AtomicSnapshot = eos::common::atomic_unique_ptr<ClusterData>;
+  RCUMutexT domain;
+  AtomicSnapshot source(new ClusterData);
+  auto* replacement = new ClusterData;
+
+  // Force publication during argument conversion. The former raw-pointer
+  // constructor captured the old snapshot before acquiring its read guard.
+  struct PublishingSource {
+    AtomicSnapshot& source;
+    RCUMutexT& domain;
+    ClusterData* replacement;
+
+    void
+    Publish() const
+    {
+      eos::common::ScopedRCUWrite publish(domain, source, replacement);
+    }
+
+    operator const AtomicSnapshot&() const
+    {
+      Publish();
+      return source;
+    }
+
+    operator ClusterData*() const
+    {
+      auto* captured = source.get();
+      Publish();
+      return captured;
+    }
+  } publishing_source{source, domain, replacement};
+
+  ClusterMgr::ClusterDataPtr snapshot(publishing_source, domain);
+  EXPECT_EQ(snapshot.operator->(), replacement);
+}
+
 TEST(ClusterMgr, Concurrency)
 {
   using namespace eos::mgm::placement;
@@ -953,7 +992,7 @@ TEST(ClusterMgr, Concurrency)
       ASSERT_TRUE(data->disks.size());
       auto result = flat_scheduler.Schedule(data(), {2});
 
-      ASSERT_TRUE(result);
+      ASSERT_TRUE(result) << result.ErrorString();
       ASSERT_TRUE(result.IsValidPlacement(2));
     }
     {
