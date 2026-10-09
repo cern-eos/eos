@@ -46,23 +46,24 @@
 #ifndef __EOSCOMMON_LOGGING_HH__
 #define __EOSCOMMON_LOGGING_HH__
 
-#include "common/Namespace.hh"
 #include "common/Mapping.hh"
+#include "common/Namespace.hh"
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucString.hh>
-#include <XrdSys/XrdSysPthread.hh>
 #include <XrdSec/XrdSecEntity.hh>
+#include <XrdSys/XrdSysPthread.hh>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <sstream>
 #include <string.h>
+#include <string>
 #include <sys/syslog.h>
 #include <sys/time.h>
-#include <uuid/uuid.h>
-#include <string>
-#include <vector>
-#include <sstream>
 #include <thread>
-#include <chrono>
-#include <mutex>
-#include <condition_variable>
+#include <uuid/uuid.h>
+#include <vector>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -547,6 +548,7 @@ public:
   std::atomic<int> gLogMask; //< log mask
   std::atomic<int> gPriorityLevel; //< log priority
   bool gToSysLog; //< duplicate into syslog
+  std::atomic<bool> gToStderr; //< write to stderr, the default
   XrdSysMutex gMutex; //< global mutex
   XrdOucString gUnit; //< global unit name
   //! Global list of function names allowed to log
@@ -622,6 +624,16 @@ public:
   SetSysLog(bool onoff)
   {
     gToSysLog = onoff;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Enable/disable writing log messages to stderr e.g. when they are only
+  //! written to a '*' fan-out file
+  //----------------------------------------------------------------------------
+  void
+  SetStderr(bool onoff)
+  {
+    gToStderr = onoff;
   }
 
   //----------------------------------------------------------------------------

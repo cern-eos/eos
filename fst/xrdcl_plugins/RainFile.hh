@@ -90,6 +90,19 @@ public:
                             ResponseHandler* handler, time_t timeout) override;
 
   //----------------------------------------------------------------------------
+  //! PgRead - used by xrdcp when the data server supports page reads
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus PgRead(uint64_t offset, uint32_t size, void* buffer,
+                              ResponseHandler* handler, time_t timeout) override;
+
+  //----------------------------------------------------------------------------
+  //! PgWrite - used by xrdcp when the data server supports page writes
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus PgWrite(uint64_t offset, uint32_t size, const void* buffer,
+                               std::vector<uint32_t>& cksums, ResponseHandler* handler,
+                               time_t timeout) override;
+
+  //----------------------------------------------------------------------------
   //! Write
   //----------------------------------------------------------------------------
   virtual XRootDStatus Write(uint64_t offset, uint32_t size, const void* buffer,

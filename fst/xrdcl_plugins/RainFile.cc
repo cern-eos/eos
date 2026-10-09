@@ -28,7 +28,11 @@
 #include "fst/layout/RainMetaLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClURL.hh>
+#include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSys/XrdSysPageSize.hh>
+#include <algorithm>
 #include <sys/time.h>
 
 using namespace eos::common;
@@ -122,6 +126,20 @@ RainFile::Open(const std::string& url, OpenFlags::Flags flags, Access::Mode mode
   }
 
   mUrl = url;
+  // PIO only makes sense for XRootD URLs pointing to the MGM. Anything else
+  // goes directly through XrdCl e.g. local files used as xrdcp source or
+  // destination and the stripe files opened by the plugin itself which carry
+  // an FST capability.
+  const XrdCl::URL xrd_url(url);
+  const std::string protocol = xrd_url.GetProtocol();
+  const bool is_xrootd = (protocol == "root") || (protocol == "roots") ||
+                         (protocol == "xroot") || (protocol == "xroots");
+  const bool is_fst_access = xrd_url.GetParams().count("cap.sym");
+  const bool try_pio = is_xrootd && !is_fst_access;
+
+  if (!try_pio) {
+    eos_debug("msg=\"skip PIO for non-MGM url\" url=\"%s\"", url.c_str());
+  }
 
   // Only creation or overwrite of files is supported for PIO writes. If the
   // MGM refuses the PIO open e.g. anonymous client or non-RAIN layout then
@@ -130,7 +148,7 @@ RainFile::Open(const std::string& url, OpenFlags::Flags flags, Access::Mode mode
                                   OpenFlags::Delete));
   const bool is_pio_write = is_write && (flags & (OpenFlags::New | OpenFlags::Delete));
 
-  if (is_pio_write) {
+  if (try_pio && is_pio_write) {
     st = OpenPio(url, true, flags, mode);
 
     if (st.IsOK()) {
@@ -149,7 +167,8 @@ RainFile::Open(const std::string& url, OpenFlags::Flags flags, Access::Mode mode
     mIsPioWrite = false;
     mChecksum.reset();
     mPioCapability.clear();
-  } else if (!is_write && ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read)) {
+  } else if (try_pio && !is_write &&
+             ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read)) {
     // For reading try PIO mode
     st = OpenPio(url, false, flags, mode);
 
@@ -601,6 +620,61 @@ RainFile::Read(uint64_t offset, uint32_t size, void* buffer, ResponseHandler* ha
   return st;
 }
 
+//------------------------------------------------------------------------------
+// PgRead
+//------------------------------------------------------------------------------
+XRootDStatus
+RainFile::PgRead(uint64_t offset, uint32_t size, void* buffer, ResponseHandler* handler,
+                 time_t timeout)
+{
+  eos_debug("offset=%ju, size=%ju", offset, size);
+
+  if (pFile) {
+    return pFile->PgRead(offset, size, buffer, handler, timeout);
+  }
+
+  int64_t retc = pRainFile->Read(offset, (char*)buffer, size);
+
+  if (retc == -1) {
+    return XRootDStatus(stError, errUnknown);
+  }
+
+  // Provide the crc32c of each page, the first one is partial if the offset
+  // is not page aligned
+  std::vector<uint32_t> cksums;
+  const char* data = static_cast<const char*>(buffer);
+  uint64_t pos = offset;
+  const uint64_t end = offset + retc;
+
+  while (pos < end) {
+    const uint64_t page_end =
+        std::min((pos / XrdSys::PageSize + 1) * XrdSys::PageSize, end);
+    cksums.push_back(XrdOucCRC::Calc32C(data + (pos - offset), page_end - pos));
+    pos = page_end;
+  }
+
+  XRootDStatus* ret_st = new XRootDStatus();
+  PageInfo* page_info = new PageInfo(offset, retc, buffer, std::move(cksums));
+  AnyObject* obj = new AnyObject();
+  obj->Set(page_info);
+  handler->HandleResponse(ret_st, obj);
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// PgWrite
+//------------------------------------------------------------------------------
+XRootDStatus
+RainFile::PgWrite(uint64_t offset, uint32_t size, const void* buffer,
+                  std::vector<uint32_t>& cksums, ResponseHandler* handler, time_t timeout)
+{
+  if (pFile) {
+    return pFile->PgWrite(offset, size, buffer, cksums, handler, timeout);
+  }
+
+  // In PIO mode the stripes are protected by the RAIN block checksums
+  return Write(offset, size, buffer, handler, timeout);
+}
 
 //------------------------------------------------------------------------------
 // Write
@@ -819,8 +893,6 @@ bool
 RainFile::GetProperty(const std::string& name,
                       std::string& value) const
 {
-  eos_debug("name=%s", name.c_str());
-
   if (pFile) {
     return pFile->GetProperty(name, value);
   }
@@ -832,7 +904,8 @@ RainFile::GetProperty(const std::string& name,
     return true;
   }
 
-  eos_err("op. not implemented for RAIN files");
+  // Querying e.g. the DataServer is a normal part of an xrdcp transfer
+  eos_debug("msg=\"property not available in PIO mode\" name=\"%s\"", name.c_str());
   return false;
 }
 
@@ -843,7 +916,7 @@ RainFile::GetProperty(const std::string& name,
 std::string
 RainFile::GetDataServer() const
 {
-  eos_debug("get data server");
+  eos_debug("%s", "msg=\"get data server\"");
   return std::string("");
 }
 
@@ -854,7 +927,7 @@ RainFile::GetDataServer() const
 URL
 RainFile::GetLastURL() const
 {
-  eos_debug("get last URL");
+  eos_debug("%s", "msg=\"get last URL\"");
   return std::string("");
 }
 

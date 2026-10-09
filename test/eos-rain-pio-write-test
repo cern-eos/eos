@@ -81,16 +81,16 @@ EOS_DIR="$2"
 EOSURL="root://${RDR_HOST}"
 RAIN_PLUGIN="${EOS_RAIN_PLUGIN:-/usr/lib64/libEosRainClient.so}"
 UNTRUSTED_HOST="${EOS_PIO_UNTRUSTED_HOST:-$(hostname -f)}"
-# Log file of the plugin, which also gets the stdout/stderr of the process
-PLUGIN_LOG="/tmp/rain/xrdcp_rain.log"
 NSTRIPES=6
 # Content of the plugin log produced by the last run_with_plugin call
 LAST_LOG=""
 
 TMP_DIR=$(mktemp -d)
+# Log file shared by XrdCl and the plugin (XRD_LOGFILE) for each plugin run
+PLUGIN_LOG="${TMP_DIR}/xrdcl_rain.log"
 
 cleanup() {
-  ${EOS} ${EOSURL} rm -r "${EOS_DIR}" > /dev/null 2>&1
+  ${EOS} ${EOSURL} rm -r --no-confirmation "${EOS_DIR}" > /dev/null 2>&1
   rm -rf "${TMP_DIR}"
 }
 
@@ -109,14 +109,13 @@ fail() {
 
 #------------------------------------------------------------------------------
 # Run the given command with the RAIN plugin loaded and save in LAST_LOG what
-# the plugin logged during this run
+# XrdCl and the plugin logged at info level during this run
 #------------------------------------------------------------------------------
 run_with_plugin() {
-  local offset=0
-  [[ -f "${PLUGIN_LOG}" ]] && offset=$(stat -c %s "${PLUGIN_LOG}")
-  XRD_PLUGIN="${RAIN_PLUGIN}" "$@"
+  rm -f "${PLUGIN_LOG}"
+  XRD_PLUGIN="${RAIN_PLUGIN}" XRD_LOGLEVEL=Info XRD_LOGFILE="${PLUGIN_LOG}" "$@"
   local rc=$?
-  LAST_LOG=$(tail -c +$((offset + 1)) "${PLUGIN_LOG}" 2> /dev/null)
+  LAST_LOG=$(cat "${PLUGIN_LOG}" 2> /dev/null)
   return ${rc}
 }
 
@@ -213,7 +212,7 @@ REF_BIG="${TMP_DIR}/ref_21000000.dat"
 REF_OTHER="${TMP_DIR}/ref_other.dat"
 head -c 3000000 /dev/urandom > "${REF_OTHER}"
 
-${EOS} ${EOSURL} rm -r "${EOS_DIR}" > /dev/null 2>&1
+${EOS} ${EOSURL} rm -r --no-confirmation "${EOS_DIR}" > /dev/null 2>&1
 
 for layout in raid6 raiddp; do
   DIR="${EOS_DIR}/${layout}"

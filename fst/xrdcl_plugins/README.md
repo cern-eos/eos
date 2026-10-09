@@ -38,12 +38,33 @@ enable = true
 ```
 
 Alternatively, set `XRD_PLUGIN=/usr/lib64/libEosRainClient.so` for a single
-process.
+process. The plug-in then sees every file the process opens, but it only
+attempts PIO for XRootD URLs (`root://`, `roots://`, `xroot://`, `xroots://`).
+Anything else, e.g. a local `xrdcp` source or destination, goes directly
+through XrdCl.
 
-When loaded, the plugin sends its log to `/tmp/rain/xrdcp_rain.log` and
-redirects the process `stdout`/`stderr` to that file. The log level follows
-`XRD_LOGLEVEL`, either as a number `0-7` or as a name such as `debug`; the
-default is `info`.
+### Logging
+
+The plugin follows the standard XrdCl logging options, so it logs like the
+rest of the client:
+
+| Option | Effect |
+|--------|--------|
+| `XRD_LOGLEVEL` or `xrdcp -d <1-3>` | Log level, mapped from XrdCl to the EOS log priority: `Error` → error, `Warning` → warning, `Info` → info, `Debug`/`Dump` → debug |
+| `XRD_LOGFILE` | Log file, shared with XrdCl. Both append to it, so their messages are interleaved |
+
+By default XrdCl reports nothing and writes to stderr, so the plugin only
+reports critical messages, on stderr. The plugin never redirects the
+`stdout`/`stderr` of the process. The level is read again each time a file
+is opened, so a level set by `xrdcp --debug` after the plugin is loaded still
+applies.
+
+For example, to see what the plugin does during a copy:
+
+```
+XRD_PLUGIN=/usr/lib64/libEosRainClient.so XRD_LOGLEVEL=Info \
+XRD_LOGFILE=/tmp/xrdcp.log xrdcp /tmp/file root://eos-mgm.example.org//eos/rain/file
+```
 
 ## PIO open request
 

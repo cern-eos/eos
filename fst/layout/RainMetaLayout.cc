@@ -370,8 +370,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       if (open_futures[i].get().IsOK()) {
         if (!hd->ReadFromFile(mStripe[i].get(), mTimeout) &&
             ((flags & SFS_O_CREAT) == 0)) {
-          eos_warning("msg=\"failed reading header\" url=\"%s\"",
-                      stripe_urls[i].c_str());
+          eos_debug("msg=\"failed reading header\" url=\"%s\"", stripe_urls[i].c_str());
         }
       } else {
         eos_warning("msg=\"failed open stripe\" url=\"%s\"",
@@ -565,8 +564,8 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
     if (open_futures[i].valid()) {
       if (open_futures[i].get().IsOK()) {
         if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
-          eos_warning("msg=\"failed reading header\" url=\"%s\"",
-                      stripe_urls[i].second.c_str());
+          eos_debug("msg=\"failed reading header\" url=\"%s\"",
+                    stripe_urls[i].second.c_str());
         }
       } else {
         // If flag is SFS_RDWR then we can try to create the file otherwise

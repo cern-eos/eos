@@ -129,9 +129,14 @@ Logging::GetInstance()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Logging::Logging():
-  gLogMask(0), gPriorityLevel(0), gToSysLog(false),  gUnit("none"),
-  gShortFormat(0), gRateLimiter(false)
+Logging::Logging()
+    : gLogMask(0)
+    , gPriorityLevel(0)
+    , gToSysLog(false)
+    , gToStderr(true)
+    , gUnit("none")
+    , gShortFormat(0)
+    , gRateLimiter(false)
 {
   LB = new LogBuffer;
   // Initialize the log array and sets the log circular size
@@ -581,11 +586,14 @@ LogBuffer::log_thread()
       log_buffer_in_q--;
       guard.unlock();                                 /* drop while buffer is printed */
 
-      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+      const bool to_stderr = eos::common::Logging::GetInstance().gToStderr &&
+                             !eos::common::Logging::GetInstance().IsZstdEnabled();
+
+      if (to_stderr) {
         fprintf(stderr, "%s\n", buff->buffer);
       }
 
-      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+      if (to_stderr) {
         if (null_active_head) {
           fflush(stderr);        /* only flush if there's no other */
         }
