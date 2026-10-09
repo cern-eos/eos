@@ -207,7 +207,7 @@ add_library(
   ofs/fsctl/Getfmd.cc
   ofs/fsctl/GetFusex.cc
   ofs/fsctl/Mkdir.cc
-  ofs/fsctl/Open.cc
+  ofs/fsctl/OpenPio.cc
   ofs/fsctl/Readlink.cc
   ofs/fsctl/Redirect.cc
   ofs/fsctl/Stat.cc

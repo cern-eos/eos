@@ -52,7 +52,15 @@ XrdMgmOfs::Commit(const char* path,
                   const XrdSecEntity* client)
 {
   static const char* epname = "Commit";
-  REQUIRE_SSS_OR_LOCAL_AUTH;
+  // A PIO writer of a RAIN file commits all the stripes in one request. It
+  // can be any authenticated client, the file id, path and stripe locations
+  // are taken from the PIO write capability issued to it at open.
+  const bool is_pio_commit = (env.Get("mgm.pio.commit") != nullptr);
+
+  if (!is_pio_commit) {
+    REQUIRE_SSS_OR_LOCAL_AUTH;
+  }
+
   ACCESSMODE_W;
   MAYSTALL;
   const char* inpath = path;
@@ -67,6 +75,41 @@ XrdMgmOfs::Commit(const char* path,
   // Initialize logging
   if (cgi.count("logid")) {
     tlLogId.SetLogId(cgi["logid"].c_str(), error.getErrUser());
+  }
+
+  // File systems to which the file is committed
+  std::vector<unsigned long> fsids;
+
+  if (is_pio_commit) {
+    std::string emsg;
+    CommitHelper::PioCapability pio_cap;
+
+    if (!CommitHelper::extract_pio_capability(env, vid, pio_cap, emsg)) {
+      eos_thread_err("msg=\"PIO commit refused\" uid=%u prot=%s "
+                     "reason=\"%s\"",
+                     vid.uid, vid.prot.c_str(), emsg.c_str());
+      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, EACCES,
+                  "commit - request not covered by a "
+                  "valid PIO write capability",
+                  path);
+    }
+
+    fsids = pio_cap.fsids;
+    cgi["fid"] = pio_cap.hex_fid;
+    cgi["path"] = pio_cap.path;
+    // Only used for logging, the commit goes to all the stripe locations
+    cgi["fsid"].clear();
+
+    for (const auto id : fsids) {
+      cgi["fsid"] += (cgi["fsid"].empty() ? "" : ",") + std::to_string(id);
+    }
+    // The size and the checksum (if any) are committed for the whole file
+    cgi["commitsize"] = "1";
+    cgi["commitchecksum"] = (cgi["checksum"].empty() ? "0" : "1");
+    cgi.erase("replication");
+    cgi.erase("verifychecksum");
+    cgi.erase("verifysize");
   }
 
   // OC parameters
@@ -103,16 +146,24 @@ XrdMgmOfs::Commit(const char* path,
     // Convert the main CGI parameters into numbers
     unsigned long long size = std::stoull(cgi["size"]);
     unsigned long long fid = strtoull(cgi["fid"].c_str(), 0, 16);
-    unsigned long fsid = std::stoul(cgi["fsid"]);
     unsigned long mtime = std::stoul(cgi["mtime"]);
     unsigned long mtimens = std::stoul(cgi["mtimensec"]);
+
+    if (fsids.empty()) {
+      fsids.push_back(std::stoul(cgi["fsid"]));
+    }
+
+    // Single location used by the non-PIO specific commit options
+    const unsigned long fsid = fsids.front();
     std::string emsg;
     CommitHelper::log_info(vid, tlLogId, cgi, option, params);
-    int rc = CommitHelper::check_filesystem(vid, fsid, cgi, option,
-                                            params, emsg);
 
-    if (rc) {
-      return Emsg(epname, error, rc, emsg.c_str(), "");
+    for (const auto id : fsids) {
+      int rc = CommitHelper::check_filesystem(vid, id, cgi, option, params, emsg);
+
+      if (rc) {
+        return Emsg(epname, error, rc, emsg.c_str(), "");
+      }
     }
 
     // Create a checksum buffer object
@@ -224,11 +275,18 @@ XrdMgmOfs::Commit(const char* path,
                                          cgi, option);
       }
 
-      if (!CommitHelper::handle_location(vid, cid, fmd, fsid, size,
-                                         cgi, option)) {
-        return Emsg(epname, error, EIDRM,
-                    "commit file, parent container removed [EIDRM]", "");
+      bool update = false;
+
+      for (const auto id : fsids) {
+        if (!CommitHelper::handle_location(vid, cid, fmd, id, size, cgi, option)) {
+          return Emsg(epname, error, EIDRM,
+                      "commit file, parent container removed [EIDRM]", "");
+        }
+
+        update = update || option["update"];
       }
+
+      option["update"] = update;
 
       if (cgi["altxs"].length()) {
         std::vector<std::string> tkns;

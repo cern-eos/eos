@@ -1,0 +1,365 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# File: eos-rain-pio-write-test
+# Author: Elvin-Alin Sindrilaru - CERN
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+#------------------------------------------------------------------------------
+# Description: End-to-end test for RAIN parallel IO (PIO) writes done by the
+#   XrdCl RAIN plugin (libEosRainClient.so). The plugin asks the MGM for the
+#   stripe locations, writes the data and parity stripes directly to the FSTs
+#   and commits the file to the MGM by itself.
+#
+#   For each RAIN layout (raid6 and raiddp) the test checks that:
+#    - files of different sizes are written in PIO mode (no gateway fallback)
+#      and the size, checksum and number of stripes registered at the MGM are
+#      correct;
+#    - the files read back through a gateway FST and in PIO mode match;
+#    - xrdcp --cksum verifies the checksum committed by the plugin;
+#    - overwrite (xrdcp -f) works and exclusive creation of an existing file
+#      fails and leaves the file untouched;
+#    - non-sequential writes produce a correct checksum and parity;
+#    - the parity is correct i.e. the file can be read after dropping two
+#      stripes.
+#
+#   It also checks that PIO writes to a non-RAIN directory fall back to a
+#   gateway write, that PIO commit and drop requests without a valid PIO write
+#   capability are refused even for a trusted (local) client and, if the MGM
+#   can be reached with an identity which is not trusted (not sss and not
+#   localhost), that any commit and drop request without one is refused.
+#
+# Usage: eos-rain-pio-write-test <redirector_host> <eos_test_dir>
+#   <redirector_host> - MGM hostname[:port], e.g. localhost
+#   <eos_test_dir>    - EOS namespace directory used for the test, it is
+#                       created and removed at the end,
+#                       e.g. /eos/dockertest/test/rain_pio
+#
+# Environment:
+#   EOS_RAIN_PLUGIN         - path to the plugin library,
+#                             default /usr/lib64/libEosRainClient.so
+#   EOS_PIO_UNTRUSTED_HOST  - MGM host used for the untrusted client checks,
+#                             default the FQDN of the local host
+#
+# Note: requires at least 6 file systems to host the raid6/raiddp layouts.
+#------------------------------------------------------------------------------
+
+# Set the path to the xrdcp and eos commands, considering it may come from eos-xrootd
+export EOS_XROOTSYS=/opt/eos/xrootd/
+export LD_LIBRARY_PATH=$EOS_XROOTSYS/lib64/:$LD_LIBRARY_PATH
+export PATH=$EOS_XROOTSYS/bin:$PATH
+
+XRDCP="$(command -v xrdcp) --nopbar"
+XRDFS=$(command -v xrdfs)
+EOS=$(command -v eos)
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: $0 <redirector_host> <eos_test_dir>"
+  exit 1
+fi
+
+RDR_HOST="$1"
+EOS_DIR="$2"
+EOSURL="root://${RDR_HOST}"
+RAIN_PLUGIN="${EOS_RAIN_PLUGIN:-/usr/lib64/libEosRainClient.so}"
+UNTRUSTED_HOST="${EOS_PIO_UNTRUSTED_HOST:-$(hostname -f)}"
+# Log file of the plugin, which also gets the stdout/stderr of the process
+PLUGIN_LOG="/tmp/rain/xrdcp_rain.log"
+NSTRIPES=6
+# Content of the plugin log produced by the last run_with_plugin call
+LAST_LOG=""
+
+TMP_DIR=$(mktemp -d)
+
+cleanup() {
+  ${EOS} ${EOSURL} rm -r "${EOS_DIR}" > /dev/null 2>&1
+  rm -rf "${TMP_DIR}"
+}
+
+trap cleanup EXIT
+
+fail() {
+  echo "error: $1"
+
+  if [[ -n "${LAST_LOG}" ]]; then
+    echo "info: last plugin log output:"
+    echo "${LAST_LOG}"
+  fi
+
+  exit 1
+}
+
+#------------------------------------------------------------------------------
+# Run the given command with the RAIN plugin loaded and save in LAST_LOG what
+# the plugin logged during this run
+#------------------------------------------------------------------------------
+run_with_plugin() {
+  local offset=0
+  [[ -f "${PLUGIN_LOG}" ]] && offset=$(stat -c %s "${PLUGIN_LOG}")
+  XRD_PLUGIN="${RAIN_PLUGIN}" "$@"
+  local rc=$?
+  LAST_LOG=$(tail -c +$((offset + 1)) "${PLUGIN_LOG}" 2> /dev/null)
+  return ${rc}
+}
+
+# Check the last plugin run did a PIO write and no gateway fallback
+expect_pio_write() {
+  local what=$1
+  grep -q 'msg="PIO commit done"' <<< "${LAST_LOG}" ||
+    fail "${what}: no PIO commit done by the plugin"
+  grep -q 'fall back to gateway write' <<< "${LAST_LOG}" &&
+    fail "${what}: plugin fell back to a gateway write"
+  return 0
+}
+
+# Return the given field of the file's JSON fileinfo
+get_info() {
+  local path=$1
+  local filter=$2
+  ${EOS} -j ${EOSURL} fileinfo "${path}" 2> /dev/null | jq -r "${filter}"
+}
+
+# Adler32 of a local file, as stored by EOS
+local_adler() {
+  eos-adler32 "$1" | awk -F'adler32=' '{print $2}'
+}
+
+#------------------------------------------------------------------------------
+# Check the file at the MGM has the given size, checksum and number of stripes
+# and that it reads back correctly through a gateway FST and in PIO mode. The
+# number of stripes is not checked if it is given as "-".
+#------------------------------------------------------------------------------
+verify_file() {
+  local ref=$1
+  local path=$2
+  local nloc=${3:-${NSTRIPES}}
+  local size xs nlocations
+  size=$(get_info "${path}" '.size')
+  xs=$(get_info "${path}" '.checksumvalue')
+  nlocations=$(get_info "${path}" '.locations | length')
+  test "${size}" = "$(stat -c %s "${ref}")" ||
+    fail "${path}: wrong size at MGM '${size}'"
+  test "${xs}" = "$(local_adler "${ref}")" ||
+    fail "${path}: wrong checksum at MGM '${xs}' expected '$(local_adler "${ref}")'"
+  [[ "${nloc}" == "-" ]] || test "${nlocations}" = "${nloc}" ||
+    fail "${path}: expected ${nloc} stripes, got '${nlocations}'"
+  # Gateway read
+  rm -f "${TMP_DIR}/read.dat"
+  ${XRDCP} "${EOSURL}/${path}" "${TMP_DIR}/read.dat" > /dev/null 2>&1 ||
+    fail "${path}: gateway read failed"
+  cmp -s "${ref}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: gateway read content mismatch"
+  # PIO read
+  rm -f "${TMP_DIR}/read.dat"
+  run_with_plugin ${XRDCP} "${EOSURL}/${path}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: PIO read failed"
+  cmp -s "${ref}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: PIO read content mismatch"
+  rm -f "${TMP_DIR}/read.dat"
+}
+
+# Create an EOS directory with the given layout and the adler checksum
+make_dir() {
+  local dir=$1
+  local layout=$2
+  local nstripes=$3
+  ${EOS} ${EOSURL} mkdir -p "${dir}"                              || fail "could not create ${dir}"
+  ${EOS} ${EOSURL} chmod 777 "${dir}"                             || fail "could not chmod ${dir}"
+  ${EOS} ${EOSURL} attr set sys.forced.checksum=adler "${dir}"     || fail "could not set checksum on ${dir}"
+  ${EOS} ${EOSURL} attr set sys.forced.layout=${layout} "${dir}"   || fail "could not set layout on ${dir}"
+  ${EOS} ${EOSURL} attr set sys.forced.nstripes=${nstripes} "${dir}" || fail "could not set nstripes on ${dir}"
+
+  if [[ "${layout}" != "replica" ]]; then
+    ${EOS} ${EOSURL} attr set sys.forced.blockchecksum=crc32c "${dir}" || fail "could not set blockchecksum on ${dir}"
+    ${EOS} ${EOSURL} attr set sys.forced.blocksize=1M "${dir}"         || fail "could not set blocksize on ${dir}"
+  fi
+}
+
+#------------------------------------------------------------------------------
+# Prerequisites
+#------------------------------------------------------------------------------
+[[ -f "${RAIN_PLUGIN}" ]] || fail "RAIN plugin library not found: ${RAIN_PLUGIN}"
+command -v jq > /dev/null || fail "jq is required"
+command -v eos-adler32 > /dev/null || fail "eos-adler32 is required"
+command -v xrdcpnonstreaming > /dev/null || fail "xrdcpnonstreaming is required"
+
+# Reference files: empty, sub-block, one block, just above one raid6 group
+# (4 data blocks of 1M) and above one raiddp group (16 data blocks of 1M)
+SIZES="0 1 4095 1048576 4194321 21000000"
+
+for sz in ${SIZES}; do
+  head -c "${sz}" /dev/urandom > "${TMP_DIR}/ref_${sz}.dat"
+done
+
+REF_BIG="${TMP_DIR}/ref_21000000.dat"
+REF_OTHER="${TMP_DIR}/ref_other.dat"
+head -c 3000000 /dev/urandom > "${REF_OTHER}"
+
+${EOS} ${EOSURL} rm -r "${EOS_DIR}" > /dev/null 2>&1
+
+for layout in raid6 raiddp; do
+  DIR="${EOS_DIR}/${layout}"
+  make_dir "${DIR}" ${layout} ${NSTRIPES}
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: PIO write of files with different sizes"
+  #----------------------------------------------------------------------------
+  for sz in ${SIZES}; do
+    path="${DIR}/file_${sz}.dat"
+    run_with_plugin ${XRDCP} "${TMP_DIR}/ref_${sz}.dat" "${EOSURL}/${path}" ||
+      fail "${path}: PIO write failed"
+    expect_pio_write "${path}"
+    verify_file "${TMP_DIR}/ref_${sz}.dat" "${path}"
+    echo "ok: ${path} size=${sz}"
+  done
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: xrdcp --cksum verifies the committed checksum"
+  #----------------------------------------------------------------------------
+  path="${DIR}/file_cksum.dat"
+  run_with_plugin ${XRDCP} --cksum adler32 "${REF_BIG}" "${EOSURL}/${path}" ||
+    fail "${path}: PIO write with end-to-end checksum verification failed"
+  expect_pio_write "${path}"
+  verify_file "${REF_BIG}" "${path}"
+  echo "ok: ${path}"
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: overwrite and exclusive creation"
+  #----------------------------------------------------------------------------
+  path="${DIR}/file_1048576.dat"
+  run_with_plugin ${XRDCP} -f "${REF_OTHER}" "${EOSURL}/${path}" ||
+    fail "${path}: PIO overwrite failed"
+  expect_pio_write "${path}"
+  verify_file "${REF_OTHER}" "${path}"
+
+  run_with_plugin ${XRDCP} "${REF_BIG}" "${EOSURL}/${path}" &&
+    fail "${path}: exclusive creation of an existing file succeeded"
+  verify_file "${REF_OTHER}" "${path}"
+  echo "ok: ${path} overwritten and protected against exclusive creation"
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: non-sequential writes"
+  #----------------------------------------------------------------------------
+  path="${DIR}/file_nonstreaming.dat"
+  run_with_plugin xrdcpnonstreaming "${REF_BIG}" "${EOSURL}/${path}" ||
+    fail "${path}: PIO non-streaming write failed"
+  expect_pio_write "${path}"
+  grep -q 'msg="rescanned checksum"' <<< "${LAST_LOG}" ||
+    fail "${path}: checksum was not rescanned after non-sequential writes"
+  verify_file "${REF_BIG}" "${path}"
+  echo "ok: ${path}"
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: read with two dropped stripes uses the parity"
+  #----------------------------------------------------------------------------
+  # The plugin registers the stripes in their logical order, therefore the
+  # first two locations hold data and reading them back needs the parity
+  for drop in "0 1" "2 3"; do
+    path="${DIR}/file_parity_${drop// /}.dat"
+    run_with_plugin ${XRDCP} "${REF_BIG}" "${EOSURL}/${path}" ||
+      fail "${path}: PIO write failed"
+    expect_pio_write "${path}"
+
+    for idx in ${drop}; do
+      fsid=$(get_info "${path}" ".locations[${idx}].fsid")
+      ${EOS} ${EOSURL} file drop "${path}" "${fsid}" -f > /dev/null ||
+        fail "${path}: failed to drop stripe on fsid=${fsid}"
+    done
+
+    # Do not check the number of stripes, fsck might already repair them
+    verify_file "${REF_BIG}" "${path}" -
+    echo "ok: ${path} read with stripes ${drop} dropped"
+  done
+done
+
+#------------------------------------------------------------------------------
+echo "### replica: PIO write falls back to a gateway write"
+#------------------------------------------------------------------------------
+DIR="${EOS_DIR}/replica"
+make_dir "${DIR}" replica 2
+path="${DIR}/file_fallback.dat"
+run_with_plugin ${XRDCP} "${REF_OTHER}" "${EOSURL}/${path}" ||
+  fail "${path}: write to a non-RAIN directory failed"
+grep -q 'fall back to gateway write' <<< "${LAST_LOG}" ||
+  fail "${path}: plugin did not fall back to a gateway write"
+grep -q 'msg="PIO commit done"' <<< "${LAST_LOG}" &&
+  fail "${path}: plugin committed a non-RAIN file"
+verify_file "${REF_OTHER}" "${path}" 2
+echo "ok: ${path}"
+
+#------------------------------------------------------------------------------
+echo "### trusted client: PIO commit and drop also require a PIO write capability"
+#------------------------------------------------------------------------------
+path="${EOS_DIR}/raid6/file_${SIZES##* }.dat"
+size=$(get_info "${path}" '.size')
+
+${XRDFS} ${RDR_HOST} query opaquefile \
+  "/?mgm.pcmd=commit&mgm.pio.commit=1&mgm.size=1&mgm.mtime=1&mgm.mtime_ns=0" \
+  > /dev/null 2>&1 && fail "trusted PIO commit without capability accepted"
+
+${XRDFS} ${RDR_HOST} query opaquefile "/?mgm.pcmd=drop&mgm.pio.drop=1" \
+  > /dev/null 2>&1 && fail "trusted PIO drop without capability accepted"
+
+test "$(get_info "${path}" '.size')" = "${size}" ||
+  fail "${path}: size changed by a refused commit"
+test "$(get_info "${path}" '.locations | length')" = "${NSTRIPES}" ||
+  fail "${path}: locations changed by a refused drop"
+echo "ok: trusted PIO commit and drop without capability refused"
+
+#------------------------------------------------------------------------------
+echo "### untrusted client: commit and drop require a PIO write capability"
+#------------------------------------------------------------------------------
+# Connect with unix authentication through the FQDN so that the MGM sees the
+# client neither as sss nor as localhost
+WHOAMI=$(XrdSecPROTOCOL=unix ${EOS} root://${UNTRUSTED_HOST} whoami 2>&1)
+
+if [[ "${WHOAMI}" != *"authz:unix"* ]] || [[ "${WHOAMI}" == *"host=localhost"* ]]; then
+  echo "warning: skip untrusted client checks, can not reach the MGM as an " \
+       "untrusted unix client via ${UNTRUSTED_HOST}: ${WHOAMI}"
+  exit 0
+fi
+
+fxid=$(get_info "${path}" '.fxid')
+fsid=$(get_info "${path}" '.locations[0].fsid')
+test -n "${fxid}" -a -n "${fsid}" || fail "${path}: could not get fxid/fsid"
+
+XrdSecPROTOCOL=unix ${XRDFS} ${UNTRUSTED_HOST} query opaquefile \
+  "/?mgm.pcmd=commit&mgm.path=${path}&mgm.fid=${fxid}&mgm.add.fsid=${fsid}&mgm.size=1&mgm.commit.size=1&mgm.mtime=1&mgm.mtime_ns=0" \
+  > /dev/null 2>&1 && fail "${path}: commit without capability accepted"
+
+XrdSecPROTOCOL=unix ${XRDFS} ${UNTRUSTED_HOST} query opaquefile \
+  "/?mgm.pcmd=drop&mgm.fid=${fxid}&mgm.fsid=0&mgm.dropall=1" \
+  > /dev/null 2>&1 && fail "${path}: drop without capability accepted"
+
+XrdSecPROTOCOL=unix ${XRDFS} ${UNTRUSTED_HOST} query opaquefile \
+  "/?mgm.pcmd=commit&mgm.pio.commit=1&mgm.size=1&mgm.mtime=1&mgm.mtime_ns=0" \
+  > /dev/null 2>&1 && fail "${path}: PIO commit without capability accepted"
+
+XrdSecPROTOCOL=unix ${XRDFS} ${UNTRUSTED_HOST} query opaquefile \
+  "/?mgm.pcmd=drop&mgm.pio.drop=1" \
+  > /dev/null 2>&1 && fail "${path}: PIO drop without capability accepted"
+
+test "$(get_info "${path}" '.size')" = "${size}" ||
+  fail "${path}: size changed by a refused commit"
+test "$(get_info "${path}" '.locations | length')" = "${NSTRIPES}" ||
+  fail "${path}: locations changed by a refused drop"
+echo "ok: commit and drop without capability refused"
+exit 0

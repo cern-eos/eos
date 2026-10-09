@@ -25,12 +25,13 @@
 #define __EOSMGM_COMMITHELPER__HH__
 
 #include "common/Logging.hh"
-#include "common/Path.hh"
 #include "common/Mapping.hh"
+#include "common/Path.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
 
 #include <XrdOuc/XrdOucEnv.hh>
 
@@ -73,6 +74,32 @@ public:
   static bool is_reconstruction(CommitHelper::option_t& option);
 
   static bool check_commit_params(CommitHelper::cgi_t& cgi);
+
+  //! File information taken from a PIO write capability
+  struct PioCapability {
+    std::string hex_fid; ///< File identifier in hex format
+    std::string path;    ///< Namespace path (sealed) the file was opened with
+    std::vector<unsigned long> fsids; ///< File systems of all the stripes
+  };
+
+  //----------------------------------------------------------------------------
+  //! Decode and verify the PIO write capability carried by a commit or drop
+  //! request of a PIO writer (mgm.pio.commit/mgm.pio.drop). The file id, path
+  //! and stripe locations are taken only from the capability, which the client
+  //! can not read or modify. Expired capabilities are accepted up to the
+  //! maximum PIO upload age (EOS_MGM_PIO_MAX_UPLOAD_AGE seconds, default 24h)
+  //! since uploads can outlast the capability validity.
+  //!
+  //! @param env request opaque info which also holds the capability
+  //! @param vid client identity
+  //! @param pio_cap file information from the capability
+  //! @param emsg error message
+  //!
+  //! @return true if the capability is valid for this client, otherwise false
+  //----------------------------------------------------------------------------
+  static bool extract_pio_capability(XrdOucEnv& env,
+                                     const eos::common::VirtualIdentity& vid,
+                                     PioCapability& pio_cap, std::string& emsg);
 
   static bool check_altchecksums_commit_params(CommitHelper::cgi_t& cgi);
 

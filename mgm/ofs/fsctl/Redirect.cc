@@ -48,27 +48,12 @@ XrdMgmOfs::Redirect(const char* path,
     XrdSfsFileOpenMode oflags = SFS_O_RDONLY;
     mode_t omode = 0;
 
-    if (env.Get("eos.client.openflags")) {
-      std::string openflags = env.Get("eos.client.openflags");
-
-      if (openflags.find("wo") != std::string::npos) {
-        oflags |= SFS_O_WRONLY;
-      }
-
-      if (openflags.find("rw") != std::string::npos) {
-        oflags |= SFS_O_RDWR;
-      }
-
-      if (openflags.find("cr") != std::string::npos) {
-        oflags |= SFS_O_CREAT;
-      }
-
-      if (openflags.find("tr") != std::string::npos) {
-        oflags |= SFS_O_TRUNC;
-      }
-
-      std::string openmode = env.Get("eos.client.openmode");
-      omode = (mode_t) strtol(openmode.c_str(), NULL, 8);
+    if (!XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode)) {
+      delete file;
+      const char* emsg = "invalid eos.client.openmode";
+      error.setErrInfo(strlen(emsg) + 1, emsg);
+      error.setErrCode(EINVAL);
+      return SFS_ERROR;
     }
 
     if ((oflags & SFS_O_CREAT) || (oflags & SFS_O_RDWR) ||

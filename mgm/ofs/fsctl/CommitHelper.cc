@@ -22,15 +22,45 @@
  ************************************************************************/
 
 #include "mgm/ofs/fsctl/CommitHelper.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/FuseServer/FusexCastBatch.hh"
-#include "common/http/OwnCloud.hh"
 #include "common/LayoutId.hh"
+#include "common/SymKeys.hh"
+#include "common/http/OwnCloud.hh"
+#include "common/utils/XrdUtils.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/Prefetcher.hh"
+
+namespace {
+//------------------------------------------------------------------------------
+// Maximum age in seconds of a PIO upload for which commit/drop requests with
+// an expired capability are still accepted
+//------------------------------------------------------------------------------
+time_t
+GetPioMaxUploadAge()
+{
+  static const time_t max_age = []() {
+    time_t age = 86400;
+    const char* val = getenv("EOS_MGM_PIO_MAX_UPLOAD_AGE");
+
+    if (val) {
+      try {
+        age = std::stoll(val);
+      } catch (...) {
+        eos_static_err("msg=\"invalid EOS_MGM_PIO_MAX_UPLOAD_AGE, use default\" "
+                       "val=\"%s\"",
+                       val);
+      }
+    }
+
+    return age;
+  }();
+  return max_age;
+}
+} // namespace
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -342,6 +372,95 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 {
   return cgi["size"].length() && cgi["fid"].length() && cgi["path"].length() &&
          cgi["fsid"].length() && cgi["mtime"].length() && cgi["mtimensec"].length();
+}
+
+//------------------------------------------------------------------------------
+// Decode and verify the PIO write capability of a commit or drop request
+//------------------------------------------------------------------------------
+bool
+CommitHelper::extract_pio_capability(XrdOucEnv& env,
+                                     const eos::common::VirtualIdentity& vid,
+                                     CommitHelper::PioCapability& pio_cap,
+                                     std::string& emsg)
+{
+  using eos::common::LayoutId;
+  using eos::common::XrdUtils;
+  // Only the parameters used by a PIO writer are accepted
+  static const std::vector<std::string> forbidden_keys{
+      "mgm.drop.fsid", "mgm.reconstruction", "mgm.fusex",        "mgm.commit.verify",
+      "mgm.altxs",     "mgm.commit.altxs",   "mgm.altxs.delete", "oc-chunk-n",
+      "oc-chunk-max",  "oc-chunk-uuid"};
+
+  for (const auto& key : forbidden_keys) {
+    if (env.Get(key.c_str())) {
+      emsg = "parameter not allowed: " + key;
+      return false;
+    }
+  }
+
+  XrdOucEnv* raw_cap = nullptr;
+  int rc = eos::common::SymKey::ExtractCapability(&env, raw_cap);
+  std::unique_ptr<XrdOucEnv> cap(raw_cap);
+
+  if (((rc != 0) && (rc != ETIME)) || !cap) {
+    emsg = "invalid or missing capability rc=" + std::to_string(rc);
+    return false;
+  }
+
+  // Capability is authentic but expired, check the age of the upload
+  if (rc == ETIME) {
+    const char* svalid = cap->Get("cap.valid");
+    const time_t issued = (svalid ? std::strtoll(svalid, nullptr, 10) : 0) -
+                          gOFS->mCapabilityValidity.count();
+
+    if (time(nullptr) - issued > GetPioMaxUploadAge()) {
+      emsg = "capability exceeded the maximum PIO upload age";
+      return false;
+    }
+  }
+
+  if (XrdUtils::GetEnv(*cap, "mgm.pio.write") != "1") {
+    emsg = "not a PIO write capability";
+    return false;
+  }
+
+  if (XrdUtils::GetEnv(*cap, "mgm.pio.uid") != std::to_string(vid.uid)) {
+    emsg = "capability issued to a different client";
+    return false;
+  }
+
+  const unsigned long lid =
+      std::strtoul(XrdUtils::GetEnv(*cap, "mgm.lid").c_str(), nullptr, 10);
+
+  if (!LayoutId::IsRain(lid)) {
+    emsg = "capability not issued for a RAIN file";
+    return false;
+  }
+
+  pio_cap.hex_fid = XrdUtils::GetEnv(*cap, "mgm.fid");
+  pio_cap.path = XrdUtils::GetEnv(*cap, "mgm.path");
+
+  if (pio_cap.hex_fid.empty() || pio_cap.path.empty()) {
+    emsg = "capability without file id or path";
+    return false;
+  }
+
+  pio_cap.fsids.clear();
+
+  for (unsigned int i = 0; i <= LayoutId::GetStripeNumber(lid); ++i) {
+    const std::string tag = "mgm.fsid" + std::to_string(i);
+    const unsigned long fsid =
+        std::strtoul(XrdUtils::GetEnv(*cap, tag.c_str()).c_str(), nullptr, 10);
+
+    if (fsid == 0ul) {
+      emsg = "capability without file system for stripe " + std::to_string(i);
+      return false;
+    }
+
+    pio_cap.fsids.push_back(fsid);
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

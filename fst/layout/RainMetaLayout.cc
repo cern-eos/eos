@@ -70,38 +70,34 @@ RainMetaLayout::LegacyCopyDispatch() noexcept
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
-                               unsigned long lid,
-                               const XrdSecEntity* client,
-                               XrdOucErrInfo* outError,
-                               const char* path,
-                               uint16_t timeout,
-                               bool force_recovery,
-                               off_t targetSize,
-                               std::string bookingOpaque,
+RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
+                               const XrdSecEntity* client, XrdOucErrInfo* outError,
+                               const char* path, uint16_t timeout, bool force_recovery,
+                               off_t targetSize, std::string bookingOpaque,
                                eos::fst::FmdHandler* fmdHandler,
-                               bool computeStripeChecksum) :
-  Layout(file, lid, client, outError, path, fmdHandler, timeout),
-  mIsRw(false),
-  mIsOpen(false),
-  mIsPio(false),
-  mDoTruncate(false),
-  mDoneRecovery(false),
-  mIsStreaming(true),
-  mForceRecovery(force_recovery),
-  mStoreRecoveryRW(false),
-  mComputeStripeChecksum(computeStripeChecksum),
-  mStripeHead(-1),
-  mNbTotalFiles(0),
-  mNbDataBlocks(0),
-  mNbTotalBlocks(0),
-  mLastWriteOffset(0),
-  mStripeSize(0),
-  mFileSize(0),
-  mSizeLine(0),
-  mSizeGroup(0),
-  mStripeChecksum(nullptr),
-  mIsTruncated(false)
+                               bool computeStripeChecksum)
+    : Layout(file, lid, client, outError, path, fmdHandler, timeout)
+    , mIsRw(false)
+    , mIsOpen(false)
+    , mIsPio(false)
+    , mDoTruncate(false)
+    , mDoneRecovery(false)
+    , mIsStreaming(true)
+    , mForceRecovery(force_recovery)
+    , mStoreRecoveryRW(false)
+    , mComputeStripeChecksum(computeStripeChecksum)
+    , mPioWrRainStripes(false)
+    , mStripeHead(-1)
+    , mNbTotalFiles(0)
+    , mNbDataBlocks(0)
+    , mNbTotalBlocks(0)
+    , mLastWriteOffset(0)
+    , mStripeSize(0)
+    , mFileSize(0)
+    , mSizeLine(0)
+    , mSizeGroup(0)
+    , mStripeChecksum(nullptr)
+    , mIsTruncated(false)
 {
   mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
   mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
@@ -174,10 +170,10 @@ RainMetaLayout::BasicLayoutChecks()
     return false;
   }
 
-  // Get the index of the head stripe
-  const char* head = mOfsFile->mOpenOpaque->Get("mgm.replicahead");
-
-  if (head) {
+  // For PIO writes the client acts as entry server, all stripes are local only
+  if (mOfsFile->IsPioWrite()) {
+    mStripeHead = -1;
+  } else if (const char* head = mOfsFile->mOpenOpaque->Get("mgm.replicahead")) {
     mStripeHead = atoi(head);
 
     if ((mStripeHead < 0) || (mStripeHead > 255)) {
@@ -522,8 +518,10 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
     return SFS_ERROR;
   }
 
-  //!!!!
-  // TODO: allow open only in read only mode
+  // In PIO mode the client acts as entry server. Set it early so that on
+  // failure Remove() applies to all the stripes already opened.
+  mIsEntryServer = true;
+
   // Set the correct open flags for the stripe
   if (mForceRecovery) {
     flags = SFS_O_RDWR;
@@ -596,6 +594,18 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
     }
   }
 
+  // For writes (not recovery) all the stripes must be available
+  if (mIsRw && !mForceRecovery) {
+    for (unsigned int i = 0; i < mStripe.size(); ++i) {
+      if (!mStripe[i]) {
+        eos_err("msg=\"failed pio open for write, stripe unavailable\" "
+                "url=\"%s\"",
+                stripe_urls[i].second.c_str());
+        return SFS_ERROR;
+      }
+    }
+  }
+
   // For PIO if header invalid then we abort
   if (!ValidateHeader()) {
     eos_err("%s", "msg=\"headers invalid, fail open\"");
@@ -615,7 +625,14 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
   eos_debug("msg=\"pio open done\" open_size=%llu", mFileSize);
   mIsPio = true;
   mIsOpen = true;
-  mIsEntryServer = true;
+
+  // Same as for the entry server, parity computation is done in a separate
+  // thread for writes
+  if (mIsRw) {
+    mHasParityThread = true;
+    mParityThread.reset(&RainMetaLayout::StartParityThread, this);
+  }
+
   return SFS_OK;
 }
 
@@ -1733,7 +1750,9 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
 
     uint64_t tr_offset = offset;
 
-    if (mIsPio || (i == 0)) {
+    // Local stripe and plain PIO read stripes get the stripe offset while the
+    // RAIN aware PIO write stripes do the conversion by themselves
+    if (mIsPio ? !mPioWrRainStripes : (i == 0)) {
       tr_offset = truncate_offset;
     }
 

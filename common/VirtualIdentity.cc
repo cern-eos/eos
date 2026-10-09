@@ -133,7 +133,6 @@ VirtualIdentity::IsNobody() const
 bool
 VirtualIdentity::IsInternalEngine() const
 {
-  // XrdOucString has no const comparison operator, hence the strcmp
   return ((strcmp(prot.c_str(), "sss") == 0) && (uid <= DAEMONUID));
 }
 

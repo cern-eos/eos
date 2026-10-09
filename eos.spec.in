@@ -369,6 +369,7 @@ The EOS server installation
 %{_libdir}/libEosFstIo.so.%{version}
 %{_libdir}/libEosFstIo.so.%{major_version}
 %{_libdir}/libEosFstIo.so
+%{_libdir}/libEosRainClient.so*
 %{_libdir}/libEosNsCommon.so.%{version}
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
@@ -877,6 +878,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fsck-test
 %{_sbindir}/eos-recycle-test
 %{_sbindir}/eos-ec-parallel-write-test
+%{_sbindir}/eos-rain-pio-write-test
 %{_sbindir}/eos-fst-close-test
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-acl-concurrent

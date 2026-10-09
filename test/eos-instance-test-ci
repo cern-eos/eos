@@ -49,6 +49,12 @@ run_test_script "drain" eos-drain-test localhost
 run_test_script "balance" eos-balance-test localhost
 run_test_script "altxs" eos-altxs-test localhost
 
+#-------------------------------------------------------------------------------
+# RAIN parallel IO (PIO) writes done by the XrdCl RAIN plugin
+#-------------------------------------------------------------------------------
+RAIN_PIO_DIR="/eos/dockertest/test/rain_pio"
+run_test_script "RAIN PIO write" eos-rain-pio-write-test localhost ${RAIN_PIO_DIR}
+
 echo "Running instance tests ..."
 eos space quota default on
 eos-instance-test

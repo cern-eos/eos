@@ -93,6 +93,24 @@ public:
                        eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
+  //! Get the open flags and mode requested by a client through the opaque info
+  //! of a query based open e.g. mgm.pcmd=redirect or mgm.pcmd=open:
+  //!  - eos.client.openflags: any of "wo" (SFS_O_WRONLY), "rw" (SFS_O_RDWR),
+  //!    "cr" (SFS_O_CREAT i.e. exclusive creation) and "tr" (SFS_O_TRUNC
+  //!    i.e. create or truncate), default SFS_O_RDONLY
+  //!  - eos.client.openmode: octal permission bits of a new file
+  //!  - eos.client.mkpath=1: create the parent directories (SFS_O_MKPTH)
+  //!
+  //! @param env opaque info of the request
+  //! @param oflags XRootD open flags
+  //! @param omode XRootD open mode i.e. permission bits and SFS_O_MKPTH
+  //!
+  //! @return true if successful, false if the open mode is invalid
+  //----------------------------------------------------------------------------
+  static bool GetClientOpenFlags(XrdOucEnv& env, XrdSfsFileOpenMode& oflags,
+                                 mode_t& omode);
+
+  //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------
   // utility function: create copy-on-write clone
   //----------------------------------------------------------------------------

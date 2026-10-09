@@ -2493,14 +2493,13 @@ private:
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
-  //! Parallel IO mode open
+  //! Parallel IO (PIO) mode open of a RAIN file (mgm.pcmd=open). Instead of
+  //! redirecting the client to a gateway FST, return the locations of all the
+  //! stripes and the capability so that the client accesses the stripes
+  //! directly, for reading or for creating/overwriting the file.
   //----------------------------------------------------------------------------
-  int Open(const char* path,
-           const char* ininfo,
-           XrdOucEnv& env,
-           XrdOucErrInfo& error,
-           eos::common::VirtualIdentity& vid,
-           const XrdSecEntity* client);
+  int OpenPio(const char* path, const char* ininfo, XrdOucEnv& env, XrdOucErrInfo& error,
+              eos::common::VirtualIdentity& vid, const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Resolve symbolic link

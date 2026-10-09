@@ -228,7 +228,7 @@ XrdMgmOfs::FSctl(const int cmd,
   EXEC_TIMING_BEGIN("IdMap");
   // @todo(esindril) the access operation type should be reviewed depending
   // on the type of incoming request and adjust accordingly.
-  
+
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
                               AOP_Stat, fusexset?"/proc/fusex":inpath, false);
   EXEC_TIMING_END("IdMap");
@@ -356,7 +356,7 @@ XrdMgmOfs::FSctl(const int cmd,
     }
 
     case FsctlCommand::open: {
-      return XrdMgmOfs::Open(path, ininfo, env, error, vid, client);
+      return XrdMgmOfs::OpenPio(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::readlink: {

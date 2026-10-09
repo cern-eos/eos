@@ -414,6 +414,59 @@ XrdMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
 }
 
 //------------------------------------------------------------------------------
+// Get the open flags and mode requested by a client through the opaque info
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfsFile::GetClientOpenFlags(XrdOucEnv& env, XrdSfsFileOpenMode& oflags,
+                                  mode_t& omode)
+{
+  oflags = SFS_O_RDONLY;
+  omode = 0;
+
+  if (const char* val = env.Get("eos.client.openflags")) {
+    const std::string openflags = val;
+
+    if (openflags.find("wo") != std::string::npos) {
+      oflags |= SFS_O_WRONLY;
+    }
+
+    if (openflags.find("rw") != std::string::npos) {
+      oflags |= SFS_O_RDWR;
+    }
+
+    if (openflags.find("cr") != std::string::npos) {
+      oflags |= SFS_O_CREAT;
+    }
+
+    if (openflags.find("tr") != std::string::npos) {
+      oflags |= SFS_O_TRUNC;
+    }
+  }
+
+  if (const char* val = env.Get("eos.client.openmode")) {
+    char* end = nullptr;
+    errno = 0;
+    const unsigned long mode = strtoul(val, &end, 8);
+
+    if (errno || (end == val) || (*end != '\0')) {
+      eos_static_err("msg=\"invalid eos.client.openmode\" val=\"%s\"", val);
+      return false;
+    }
+
+    // Only permission bits, flags like SFS_O_MKPTH have their own tag
+    omode = mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+  }
+
+  if (const char* val = env.Get("eos.client.mkpath")) {
+    if (strcmp(val, "1") == 0) {
+      omode |= SFS_O_MKPTH;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Get POSIX open flags from the given XRootD open mode
 //------------------------------------------------------------------------------
 int
@@ -947,6 +1000,24 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // ---------------------------------------------------------------------------
   isPio = XrdUtils::GetEnv(*openOpaque, "eos.cli.access") == "pio";
   isPioReconstruct = XrdUtils::GetEnv(*openOpaque, "eos.pio.action") == "reconstruct";
+
+  // PIO writes leave the parity computation and the commit to the client. Any
+  // client can commit or drop only what the PIO write capability issued to its
+  // uid covers, therefore anonymous identities are refused upfront.
+  if (isPio && isRW && vid.IsNobody()) {
+    eos_err("msg=\"PIO write refused for nobody identity\" prot=%s host=%s "
+            "path=\"%s\"",
+            vid.prot.c_str(), vid.host.c_str(), path);
+    gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, EACCES,
+                "open - PIO write not allowed for "
+                "unauthorized identity",
+                path);
+  }
+
+  // Client identity bound to the PIO write capability, taken before any
+  // sticky owner mapping of the vid
+  const uid_t pio_client_uid = vid.uid;
 
   {
     // Discover PIO reconstruction filesystems (stripes to be replaced)
@@ -1585,6 +1656,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
                   "you have to be a priviledged user for updates");
+    }
+
+    // PIO writes are handled by the client only for RAIN layouts. Check this
+    // with a dry-run of the layout selection before any namespace change.
+    if (isPio) {
+      std::string tmp_space = "default";
+      unsigned long tmp_lid = 0;
+      unsigned long tmp_fsid = 0;
+      long tmp_group = -1;
+      std::string tmp_bw, tmp_ioprio, tmp_iotype;
+      bool tmp_sched = false;
+      Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, tmp_space, *openOpaque,
+                                tmp_fsid, tmp_group, tmp_bw, tmp_sched, tmp_ioprio,
+                                tmp_iotype, isRW, true);
+
+      if (!LayoutId::IsRain(tmp_lid)) {
+        return Emsg(epname, error, ENOTSUP,
+                    "open - PIO write is supported "
+                    "only for RAIN layouts",
+                    path);
+      }
     }
 
     // Block parallel writers into a (RAIN/EC) file which is still being created
@@ -3095,22 +3187,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Rebuild the layout ID (for read it should indicate only the number of
   // available stripes for reading);
   // For 'pio' mode we hand out plain layouts to the client and add the IO
-  // layout as an extra field
+  // layout as an extra field. For 'pio' writes the stripes keep the RAIN
+  // layout since they are written exactly as the stripes of a gateway write.
   // ---------------------------------------------------------------------------
+  const bool isPioRead = isPio && !isRW;
   // Get the unique set of file systems
   std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
   ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
   // If file system 0 sentinel is present then it must be removed
   ufs.erase(0u);
   new_lid = LayoutId::GetId(
-              isPio ? LayoutId::kPlain :
-              LayoutId::GetLayoutType(layoutId),
-              (isPio ? LayoutId::kNone :
-               LayoutId::GetChecksum(layoutId)),
-              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
-              (selectedfs.size()),
-              LayoutId::GetBlocksizeType(layoutId),
-              LayoutId::GetBlockChecksum(layoutId));
+      isPioRead ? LayoutId::kPlain : LayoutId::GetLayoutType(layoutId),
+      (isPioRead ? LayoutId::kNone : LayoutId::GetChecksum(layoutId)),
+      isPioReconstruct ? static_cast<int>(ufs.size())
+                       : static_cast<int>(selectedfs.size()),
+      LayoutId::GetBlocksizeType(layoutId), LayoutId::GetBlockChecksum(layoutId));
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs
@@ -3163,6 +3254,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (mIsZeroSize) {
     capability += "&mgm.zerosize=1";
+  }
+
+  // Stripes written in PIO mode leave the parity and commit to the client.
+  // The client identity is used to authorize its commit and drop requests.
+  if (isPio && isRW) {
+    capability += "&mgm.pio.write=1";
+    capability += "&mgm.pio.uid=";
+    capability += std::to_string(pio_client_uid).c_str();
   }
 
   // Add the store flag for RAIN reconstruct jobs

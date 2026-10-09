@@ -28,12 +28,9 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/common)
 
 #-------------------------------------------------------------------------------
-# Add XrdCl RAIN plugin library only if explicitly requested by using the
-# BUILD_XRDCL_RAIN_PLUGIN flag.
+# Add XrdCl RAIN plugin library
 #-------------------------------------------------------------------------------
-if(BUILD_XRDCL_RAIN_PLUGIN)
-  add_subdirectory(xrdcl_plugins)
-endif()
+add_subdirectory(xrdcl_plugins)
 
 #-------------------------------------------------------------------------------
 # Add css plugin library only if explicitly requested by using the

@@ -93,26 +93,70 @@ XrdFstOfsFile::GetTpcKeyExpireTS(std::string_view tpc_ttl, time_t now_ts)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
-  XrdOfsFileBase(user, MonID), eos::common::LogId(),
-  mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
-  mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
-  mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
-  mRdrManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
-  mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
-  mFusex(false), mFusexIsUnlinked(false), mClosed(false), mCloseRc(0),
-  mOpened(false), mHasWrite(false), mHasWriteErr(false), mHasReadErr(false),
-  mIsRW(false), mIsDevNull(false), mIsCreation(false), mIsReplication(false),
-  noAtomicVersioning(false),
-  mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
-  mRepairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
-  mEventOnClose(false), mSyncOnClose(false), mEventWorkflow("default"),
-  mSyncEventOnClose(false), mFmd(nullptr),
-  mLayout(nullptr), mMaxOffsetWritten(0ull),
-  mWritePosition(0ull), mOpenSize(0),
-  mCloseSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
-  mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false), mTpcFileSize(0ull), mIsHttp(false)
+XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID)
+    : XrdOfsFileBase(user, MonID)
+    , eos::common::LogId()
+    , mOpenOpaque(nullptr)
+    , mCapOpaque(nullptr)
+    , mFstPath("")
+    , mBookingSize(0)
+    , mTargetSize(0)
+    , mMinSize(0)
+    , mMaxSize(0)
+    , viaDelete(false)
+    , mWrDelete(false)
+    , mRainSize(0)
+    , mNsPath("")
+    , mLocalPrefix("")
+    , mRdrManager("")
+    , mTapeEnabled(false)
+    , mSecString("")
+    , mEtag("")
+    , mFileId(0)
+    , mFsId(0)
+    , mLid(0)
+    , mCid(0)
+    , mForcedMtime(1)
+    , mForcedMtime_ms(0)
+    , mFusex(false)
+    , mFusexIsUnlinked(false)
+    , mClosed(false)
+    , mCloseRc(0)
+    , mOpened(false)
+    , mHasWrite(false)
+    , mHasWriteErr(false)
+    , mHasReadErr(false)
+    , mIsRW(false)
+    , mIsDevNull(false)
+    , mIsCreation(false)
+    , mIsReplication(false)
+    , noAtomicVersioning(false)
+    , mIsInjection(false)
+    , mRainReconstruct(false)
+    , mIsPioWrite(false)
+    , mDelOnClose(false)
+    , mRepairOnClose(false)
+    , mIsOCchunk(false)
+    , writeErrorFlag(false)
+    , mEventOnClose(false)
+    , mSyncOnClose(false)
+    , mEventWorkflow("default")
+    , mSyncEventOnClose(false)
+    , mFmd(nullptr)
+    , mLayout(nullptr)
+    , mMaxOffsetWritten(0ull)
+    , mWritePosition(0ull)
+    , mOpenSize(0)
+    , mCloseSize(0)
+    , mTpcThreadStatus(EINVAL)
+    , mTpcState(kTpcIdle)
+    , mTpcFlag(kTpcNone)
+    , mTpcKey("")
+    , mIsTpcDst(false)
+    , mTpcRetc(0)
+    , mTpcCancel(false)
+    , mTpcFileSize(0ull)
+    , mIsHttp(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -241,6 +285,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC))) {
     mIsRW = true;
+  }
+
+  // For RAIN stripes written in PIO mode the client computes the parity and
+  // does the final commit, therefore the stripes never contact the MGM
+  if (mIsRW && eos::common::LayoutId::IsRain(mLid) && mCapOpaque &&
+      (val = mCapOpaque->Get("mgm.pio.write")) && (strncmp(val, "1", 1) == 0)) {
+    eos_info("msg=\"RAIN stripe written in PIO mode\" fxid=%08llx", mFileId);
+    mIsPioWrite = true;
   }
 
   if (mNsPath.beginswith("/replicate:")) {
@@ -1928,8 +1980,9 @@ XrdFstOfsFile::_close_wr()
           // In case we are doing a RAIN reconstruct delay the commit to MGM
           // until after we have the result of the CLOSE otherwise we risk
           // dropping a good replica for a failed reconstruction which we
-          // can not get back.
-          if ((mRainReconstruct == false) && (rc = CommitToMgm())) {
+          // can not get back. For PIO writes the client does the commit.
+          if ((mRainReconstruct == false) && (mIsPioWrite == false) &&
+              (rc = CommitToMgm())) {
             if ((error.getErrInfo() == EIDRM) ||
                 (error.getErrInfo() == EBADE) ||
                 (error.getErrInfo() == EBADR) ||
@@ -2075,18 +2128,19 @@ XrdFstOfsFile::_close_wr()
                 mFileId, retc);
     }
 
-    // Unlink file or just current replica from the MGM
-    bool drop_all = false;
+    // Unlink file or just current replica from the MGM. For PIO writes the
+    // client is in charge of the namespace entry, stripe is not registered.
+    if (!mIsPioWrite) {
+      bool drop_all = false;
 
-    // If mDelOnClose at the gateway then we drop all replicas
-    if (mLayout->IsEntryServer() && mIsCreation &&
-        !mIsReplication && !mIsInjection &&
-        !mIsOCchunk && !mRainReconstruct) {
-      drop_all = true;
+      // If mDelOnClose at the gateway then we drop all replicas
+      if (mLayout->IsEntryServer() && mIsCreation && !mIsReplication && !mIsInjection &&
+          !mIsOCchunk && !mRainReconstruct) {
+        drop_all = true;
+      }
+
+      DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(), mRdrManager.c_str());
     }
-
-    DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
-                mRdrManager.c_str());
 
     if (min_sz_err) {
       // Minimum size criteria not fullfilled

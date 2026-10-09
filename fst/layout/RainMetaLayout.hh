@@ -127,6 +127,19 @@ public:
                       const char* opaque = "fst.pio");
 
   //----------------------------------------------------------------------------
+  //! Mark the stripes of a PIO write as RAIN aware. For PIO writes the MGM
+  //! hands out the RAIN layout to the stripes, so the FSTs serve them through
+  //! a RAIN layout and do the logical to stripe offset conversion on truncate
+  //! by themselves. PIO reads get plain stripes and must not set this.
+  //! Must be called before OpenPio.
+  //----------------------------------------------------------------------------
+  inline void
+  SetPioWrRainStripes(bool value)
+  {
+    mPioWrRainStripes = value;
+  }
+
+  //----------------------------------------------------------------------------
   //! Read from file
   //!
   //! @param offset offset
@@ -280,6 +293,7 @@ protected:
   //! Store recovery flag due to file begin opened in RW mode
   bool mStoreRecoveryRW;
   bool mComputeStripeChecksum;
+  bool mPioWrRainStripes; ///< PIO write stripes served by a RAIN layout at the FST
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe
   unsigned int mNbParityFiles; ///< number of parity files

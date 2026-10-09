@@ -309,3 +309,38 @@ TEST_F(ProcOpenRoutingTest, NamespaceStatusUsesLocalReadRules)
 }
 
 } // namespace
+
+TEST(XrdMgmOfsFile, GetClientOpenFlags)
+{
+  XrdSfsFileOpenMode oflags;
+  mode_t omode;
+  {
+    // No tags means read only
+    XrdOucEnv env("key1=val1");
+    ASSERT_TRUE(XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode));
+    ASSERT_EQ(SFS_O_RDONLY, oflags);
+    ASSERT_EQ(0u, omode);
+  }
+  {
+    XrdOucEnv env("eos.client.openflags=rw,cr&eos.client.openmode=640");
+    ASSERT_TRUE(XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode));
+    ASSERT_EQ(SFS_O_RDWR | SFS_O_CREAT, oflags);
+    ASSERT_EQ((mode_t)0640, omode);
+  }
+  {
+    XrdOucEnv env("eos.client.openflags=wo,tr&eos.client.mkpath=1");
+    ASSERT_TRUE(XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode));
+    ASSERT_EQ(SFS_O_WRONLY | SFS_O_TRUNC, oflags);
+    ASSERT_EQ((mode_t)SFS_O_MKPTH, omode);
+  }
+  {
+    // Only permission bits are taken from the open mode
+    XrdOucEnv env("eos.client.openmode=7777");
+    ASSERT_TRUE(XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode));
+    ASSERT_EQ((mode_t)0777, omode);
+  }
+  {
+    XrdOucEnv env("eos.client.openflags=rw&eos.client.openmode=64x");
+    ASSERT_FALSE(XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode));
+  }
+}

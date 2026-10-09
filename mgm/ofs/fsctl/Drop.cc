@@ -23,19 +23,20 @@
 
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "namespace/Prefetcher.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IQuota.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/cache/ReadThroughCache.hh"
-#include "mgm/macros/Macros.hh"
 #include "mgm/iostat/Iostat.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
+#include "mgm/stat/Stat.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/IView.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 
 //----------------------------------------------------------------------------
@@ -50,7 +51,15 @@ XrdMgmOfs::Drop(const char* path,
                 const XrdSecEntity* client)
 {
   static const char* epname = "Drop";
-  REQUIRE_SSS_OR_LOCAL_AUTH;
+  // A PIO writer of a RAIN file cleaning up after a failure drops the whole
+  // file. It can be any authenticated client, the file id is taken from the
+  // PIO write capability issued to it at open.
+  const bool is_pio_drop = (env.Get("mgm.pio.drop") != nullptr);
+
+  if (!is_pio_drop) {
+    REQUIRE_SSS_OR_LOCAL_AUTH;
+  }
+
   ACCESSMODE_W;
   MAYSTALL;
   const char* inpath = path;
@@ -61,6 +70,28 @@ XrdMgmOfs::Drop(const char* path,
   char* afid = env.Get("mgm.fid");
   char* afsid = env.Get("mgm.fsid");
   char* report = env.Get("mgm.report");
+  bool drop_all = (env.Get("mgm.dropall") != nullptr);
+  eos::mgm::CommitHelper::PioCapability pio_cap;
+  std::string pio_fsid = "0";
+
+  if (is_pio_drop) {
+    std::string emsg;
+
+    if (!eos::mgm::CommitHelper::extract_pio_capability(env, vid, pio_cap, emsg)) {
+      eos_thread_err("msg=\"PIO drop refused\" uid=%u prot=%s reason=\"%s\"", vid.uid,
+                     vid.prot.c_str(), emsg.c_str());
+      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, EACCES,
+                  "drop - request not covered by a "
+                  "valid PIO write capability",
+                  path);
+    }
+
+    afid = pio_cap.hex_fid.data();
+    afsid = pio_fsid.data();
+    report = nullptr;
+    drop_all = true;
+  }
 
   if (afid && afsid) {
     eos::IFileMD::id_t fid = eos::common::FileId::Hex2Fid(afid);
@@ -90,6 +121,11 @@ XrdMgmOfs::Drop(const char* path,
         eos_thread_warning("msg=\"no meta record exists anymore\" fxid=%s", afid);
         ns_wr_lock.Release();
         fmd = nullptr;
+
+        if (is_pio_drop) {
+          return Emsg(epname, error, ENOENT, "drop - file does not exist", afid);
+        }
+
         // Nevertheless drop the file identifier from the file system view
         gOFS->eosFsView->eraseEntry(fsid, fid);
       }
@@ -119,8 +155,6 @@ XrdMgmOfs::Drop(const char* path,
           bool updatestore = false;
           // If mgm.dropall flag is set then it means we got a deleteOnClose
           // at the gateway node and we need to delete all replicas
-          char* drop_all = env.Get("mgm.dropall");
-
           if (drop_all) {
             for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
               drop_fsid.push_back(fmd->getLocation(i));

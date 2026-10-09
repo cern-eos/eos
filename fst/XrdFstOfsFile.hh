@@ -382,6 +382,9 @@ public:
   //! checksum must match
   bool mIsInjection;
   bool mRainReconstruct; ///< indicator that the opened file is in a RAIN reconstruction process
+  //! Indicator that this is a RAIN stripe written in PIO mode by a client
+  //! that computes the parity and commits the file to the MGM by itself
+  bool mIsPioWrite;
   bool mDelOnClose; ///< indicator that the file has to be cleaned on close
   bool mRepairOnClose; ///< indicator that the file should get repaired on close
   bool mIsOCchunk; //! indicator this is an OC chunk upload
@@ -684,6 +687,16 @@ public:
   unsigned long long GetFileId() const
   {
     return mFileId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if this is a RAIN stripe written in PIO mode where the client
+  //! handles the parity computation and the final commit to the MGM
+  //----------------------------------------------------------------------------
+  inline bool
+  IsPioWrite() const
+  {
+    return mIsPioWrite;
   }
 
   //----------------------------------------------------------------------------
