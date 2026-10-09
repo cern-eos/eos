@@ -547,7 +547,7 @@ IConfigEngine::Get(const std::string& prefix, const std::string& key,
 //------------------------------------------------------------------------------
 // Reset the configuration
 //------------------------------------------------------------------------------
-void
+bool
 IConfigEngine::ResetConfig(bool apply_stall_redirect)
 {
   mConfigFile.clear();
@@ -564,13 +564,17 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
   gOFS->ResetPathMap();
   gOFS->mRouting->Clear();
-  FsView::gFsView.Reset();
+  if (!FsView::gFsView.Reset()) {
+    eos_err("%s", "msg=\"failed resetting filesystem view, abort configuration reset\"");
+    return false;
+  }
   {
     std::lock_guard lock(mMutex);
     sConfigDefinitions.clear();
   }
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
+  return true;
 }
 
 //------------------------------------------------------------------------------

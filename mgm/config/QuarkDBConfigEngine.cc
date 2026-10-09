@@ -155,7 +155,11 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     return false;
   }
 
-  ResetConfig(apply_stall_redirect);
+  if (!ResetConfig(apply_stall_redirect)) {
+    err = "error: failed to reset filesystem view; configuration was not loaded";
+    return false;
+  }
+
   common::Status st = PullFromQuarkDB(filename);
 
   if (!st) {

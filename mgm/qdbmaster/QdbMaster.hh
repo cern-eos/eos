@@ -87,6 +87,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Apply configuration setting
+  //! A failed reload invalidates the previously loaded configuration status.
   //!
   //! @param stdOut output string
   //! @param stdErr output error string

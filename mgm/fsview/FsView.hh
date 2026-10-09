@@ -830,6 +830,15 @@ public:
   void StoreFsConfig(FileSystem* fs, bool save_config = true);
 
   //----------------------------------------------------------------------------
+  //! Resolve a filesystem's locally registered group and space.
+  //! Empty fields denote absent memberships during partial registration.
+  //! @return false for ambiguous membership, clearing both output fields
+  //! @note caller must hold ViewMutex
+  //----------------------------------------------------------------------------
+  bool GetFsMembership(eos::common::FileSystem::fsid_t fsid, std::string& group,
+                       std::string& space) const;
+
+  //----------------------------------------------------------------------------
   //! Remove a filesystem
   //!
   //! @param fs file system object
@@ -944,8 +953,9 @@ public:
   //----------------------------------------------------------------------------
   //! Clear all maps and delete all filesystem/group/space/node objects while
   //! obtaining the necessary locks
+  //! @return false if removal fails, preserving surviving objects and mappings
   //----------------------------------------------------------------------------
-  void Reset();
+  bool Reset();
 
   //----------------------------------------------------------------------------
   //! Thread loop function checking heartbeats

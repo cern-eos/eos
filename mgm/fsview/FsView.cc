@@ -2186,6 +2186,53 @@ FsView::MoveGroup(FileSystem* fs, std::string group_name)
   return false;
 }
 //------------------------------------------------------------------------------
+// Resolve memberships from the local view, independent of shared hash updates
+//------------------------------------------------------------------------------
+bool
+FsView::GetFsMembership(eos::common::FileSystem::fsid_t fsid, std::string& group,
+                        std::string& space) const
+{
+  group.clear();
+  space.clear();
+  std::string registered_group;
+  std::string registered_space;
+  std::string geotag;
+  bool found_group = false;
+  bool found_space = false;
+
+  for (const auto& entry : mGroupView) {
+    if (entry.second->getGeoTagInTree(fsid, geotag)) {
+      if (found_group) {
+        eos_err("msg=\"ambiguous filesystem group membership\" fsid=%lu "
+                "group=%s other_group=%s",
+                fsid, registered_group.c_str(), entry.first.c_str());
+        return false;
+      }
+
+      registered_group = entry.first;
+      found_group = true;
+    }
+  }
+
+  for (const auto& entry : mSpaceView) {
+    if (entry.second->getGeoTagInTree(fsid, geotag)) {
+      if (found_space) {
+        eos_err("msg=\"ambiguous filesystem space membership\" fsid=%lu "
+                "space=%s other_space=%s",
+                fsid, registered_space.c_str(), entry.first.c_str());
+        return false;
+      }
+
+      registered_space = entry.first;
+      found_space = true;
+    }
+  }
+
+  group = registered_group;
+  space = registered_space;
+  return true;
+}
+//------------------------------------------------------------------------------
 // Remove a file system
 //------------------------------------------------------------------------------
 bool
@@ -2206,6 +2253,46 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
     return false;
   }
 
+  // Shared schedgroup updates can arrive before the local config listener.
+  // Deregister the memberships we installed, not the new shared group/space.
+  std::string registered_group;
+  std::string registered_space;
+
+  if (!GetFsMembership(snapshot.mId, registered_group, registered_space)) {
+    return false;
+  }
+
+  if (unreg_from_geo_tree && registered_group.empty()) {
+    eos_err("msg=\"filesystem has no registered group, abort deregistration\" "
+            "fsid=%lu",
+            snapshot.mId);
+    return false;
+  }
+
+  FsGroup* group = registered_group.empty() ? nullptr : mGroupView[registered_group];
+  FsSpace* space = registered_space.empty() ? nullptr : mSpaceView[registered_space];
+  std::string scheduler_space = registered_space;
+
+  // Register publishes the flat snapshot before installing space membership.
+  if (scheduler_space.empty() && group) {
+    common::GroupLocator group_locator;
+    (void)common::GroupLocator::parseGroup(registered_group, group_locator);
+    scheduler_space = group_locator.getSpace();
+  }
+
+  if (group && unreg_from_geo_tree &&
+      !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false)) {
+    eos_err("msg=\"failed to remove filesystem from GeoTreeEngine, "
+            "keeping local views\" fsid=%lu group=%s",
+            snapshot.mId, registered_group.c_str());
+    return false;
+  }
+
+  // Mirror the removal into the flat scheduler's snapshot, best effort.
+  if (!scheduler_space.empty()) {
+    gOFS->mFsScheduler->RemoveFs(scheduler_space, snapshot.mId);
+  }
+
   // Remove fs from node view & evt. remove node view
   if (mNodeView.count(snapshot.mQueue)) {
     FsNode* node = mNodeView[snapshot.mQueue];
@@ -2213,46 +2300,29 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   }
 
   // Remove fs from group view & evt. remove group view
-  if (mGroupView.count(snapshot.mGroup)) {
-    FsGroup* group = mGroupView[snapshot.mGroup];
-
-    if (unreg_from_geo_tree
-        && !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false)) {
-      if (Register(fs, fs->getCoreParams(), false)) {
-        eos_err("could not remove fs %u from GeoTreeEngine : fs was "
-                "registered back and consistency is KEPT between FsView "
-                "and GeoTreeEngine", snapshot.mId);
-      } else {
-        eos_crit("could not remove fs %u from GeoTreeEngine : fs could not "
-                 "be registered back and consistency is BROKEN between "
-                 "FsView and GeoTreeEngine", snapshot.mId);
-      }
-
-      return false;
-    }
-
-    // Mirror the removal into the flat scheduler's snapshot, best effort
-    gOFS->mFsScheduler->RemoveFs(snapshot.mSpace, snapshot.mId);
+  if (group) {
     group->erase(snapshot.mId);
     eos_debug("msg=\"unregister group %s from group view\"",
               group->GetMember("name").c_str());
 
     if (!group->size()) {
-      mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
-      mGroupView.erase(snapshot.mGroup);
+      for (auto& entry : mSpaceGroupView) {
+        entry.second.erase(group);
+      }
+
+      mGroupView.erase(registered_group);
       delete group;
     }
   }
 
   // Remove fs from space view & evt. remove space view
-  if (mSpaceView.count(snapshot.mSpace)) {
-    FsSpace* space = mSpaceView[snapshot.mSpace];
+  if (space) {
     space->erase(snapshot.mId);
     eos_debug("msg=\"unregister space %s from space view\"",
               space->GetMember("name").c_str());
 
     if (!space->size()) {
-      mSpaceView.erase(snapshot.mSpace);
+      mSpaceView.erase(registered_space);
       delete space;
     }
   }
@@ -2353,7 +2423,6 @@ bool
 FsView::UnRegisterNode(const char* nodename)
 {
   bool retc = true;
-  bool has_fs = false;
 
   if (mNodeView.count(nodename)) {
     while (mNodeView.count(nodename) &&
@@ -2361,19 +2430,27 @@ FsView::UnRegisterNode(const char* nodename)
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
       FileSystem* fs = mIdView.lookupByID(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("msg=\"unregister filesystem\" fsid=%llu node=%s "
-                         "queue=%s", (unsigned long long) fsid, nodename,
-                         fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (!fs) {
+        eos_static_err("msg=\"removing orphan filesystem from node view\" "
+                       "fsid=%llu node=%s",
+                       (unsigned long long)fsid, nodename);
+        mNodeView[nodename]->erase(fsid);
+        retc = false;
+        continue;
+      }
+
+      eos_static_debug("msg=\"unregister filesystem\" fsid=%llu node=%s "
+                       "queue=%s",
+                       (unsigned long long)fsid, nodename, fs->GetQueue().c_str());
+
+      if (!UnRegister(fs)) {
+        return false;
       }
     }
 
-    // Explicitly remove the node from the view here because no fs was removed
-    if (!has_fs) {
+    if (mNodeView.count(nodename)) {
       delete mNodeView[nodename];
-      retc = (mNodeView.erase(nodename) ? true : false);
+      mNodeView.erase(nodename);
     }
   }
 
@@ -2406,33 +2483,33 @@ FsView::UnRegisterSpace(const char* spacename)
   // We have to remove all the connected filesystems via UnRegister(fs) to keep
   // space, group and fs views in sync
   bool retc = true;
-  bool has_fs = false;
 
   if (mSpaceView.count(spacename)) {
     while (mSpaceView.count(spacename) && mSpaceView[spacename]->size()) {
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       FileSystem* fs = mIdView.lookupByID(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("msg=\"unregister filesystem \"fsid=%llu space=%s "
-                         "queue=%s", (unsigned long long) fsid, spacename,
-                         fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (!fs) {
+        eos_static_err("msg=\"removing orphan filesystem from space view\" "
+                       "fsid=%llu space=%s",
+                       (unsigned long long)fsid, spacename);
+        mSpaceView[spacename]->erase(fsid);
+        retc = false;
+        continue;
       }
 
-      if (mSpaceView.count(spacename) == 0) {
-        return true;
+      eos_static_debug("msg=\"unregister filesystem\" fsid=%llu space=%s "
+                       "queue=%s",
+                       (unsigned long long)fsid, spacename, fs->GetQueue().c_str());
+
+      if (!UnRegister(fs)) {
+        return false;
       }
     }
 
-    if (!has_fs) {
-      // We have to explicitly remove the space from the view here because no
-      // fs was removed
-      if (mSpaceView.count(spacename)) {
-        delete mSpaceView[spacename];
-        retc = (mSpaceView.erase(spacename) ? true : false);
-      }
+    if (mSpaceView.count(spacename)) {
+      delete mSpaceView[spacename];
+      mSpaceView.erase(spacename);
     }
   }
 
@@ -2465,7 +2542,6 @@ FsView::UnRegisterGroup(const char* groupname)
   // We have to remove all the connected filesystems via UnRegister(fs) to keep
   // the group view in sync.
   bool retc = true;
-  bool has_fs = false;
 
   if (mGroupView.count(groupname)) {
     while (mGroupView.count(groupname) &&
@@ -2473,30 +2549,31 @@ FsView::UnRegisterGroup(const char* groupname)
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
       FileSystem* fs = mIdView.lookupByID(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("msg=\"unregister filesystem fsid=%llu group=%s "
-                         "queue=%s", (unsigned long long) fsid, groupname,
-                         fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (!fs) {
+        eos_static_err("msg=\"removing orphan filesystem from group view\" "
+                       "fsid=%llu group=%s",
+                       (unsigned long long)fsid, groupname);
+        mGroupView[groupname]->erase(fsid);
+        retc = false;
+        continue;
+      }
+
+      eos_static_debug("msg=\"unregister filesystem\" fsid=%llu group=%s "
+                       "queue=%s",
+                       (unsigned long long)fsid, groupname, fs->GetQueue().c_str());
+
+      if (!UnRegister(fs)) {
+        return false;
       }
     }
 
-    if (!has_fs) {
-      std::string sgroupname = groupname;
-      std::string spacename = "";
-      std::string index = "";
-
-      // remove the direct group reference here
-      if (mSpaceGroupView.count(spacename)) {
-        mSpaceGroupView[spacename].erase(mGroupView[groupname]);
+    if (mGroupView.count(groupname)) {
+      for (auto& entry : mSpaceGroupView) {
+        entry.second.erase(mGroupView[groupname]);
       }
 
-      // We have to explicitly remove the group from the view here because no
-      // fs was removed
       delete mGroupView[groupname];
-      retc = (mGroupView.erase(groupname) ? true : false);
-      eos::common::StringConversion::SplitByPoint(groupname, spacename, index);
+      mGroupView.erase(groupname);
     }
   }
 
@@ -2505,7 +2582,7 @@ FsView::UnRegisterGroup(const char* groupname)
 //------------------------------------------------------------------------------
 // Remove all filesystems by erasing all spaces
 //------------------------------------------------------------------------------
-void
+bool
 FsView::Reset()
 {
   {
@@ -2520,7 +2597,31 @@ FsView::Reset()
 
   while (mSpaceView.size()) {
     std::string name = mSpaceView.begin()->first;
-    UnRegisterSpace(name.c_str());
+
+    if (!UnRegisterSpace(name.c_str()) && mSpaceView.count(name)) {
+      eos_crit("msg=\"failed resetting filesystem view, keeping surviving "
+               "views\" space=%s",
+               name.c_str());
+      return false;
+    }
+  }
+
+  while (mGroupView.size()) {
+    std::string name = mGroupView.begin()->first;
+
+    if (!UnRegisterGroup(name.c_str()) && mGroupView.count(name)) {
+      eos_crit("msg=\"failed resetting filesystem view, keeping surviving "
+               "views\" group=%s",
+               name.c_str());
+      return false;
+    }
+  }
+
+  if (mIdView.size() != 0) {
+    eos_crit("msg=\"failed resetting filesystem view, registered filesystems "
+             "remain without group or space membership\" count=%zu",
+             mIdView.size());
+    return false;
   }
 
   // The space unregistration above removes all the filesystems but, since
@@ -2538,8 +2639,10 @@ FsView::Reset()
   mFilesystemMapper.clear();
   mSpaceView.clear();
   mGroupView.clear();
+  mSpaceGroupView.clear();
   mNodeView.clear();
   mIdView.clear();
+  return true;
 }
 //------------------------------------------------------------------------------
 // Find a filesystem specifying a queuepath
@@ -3253,6 +3356,7 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
     if (!UnRegister(fs)) {
       eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu",
                          fsid);
+      return false;
     }
 
     fs = nullptr;

@@ -294,8 +294,9 @@ public:
   //! Reset the current configuration
   //!
   //! @param apply_stall_redirect
+  //! @return false if filesystem view reset fails
   //----------------------------------------------------------------------------
-  void ResetConfig(bool apply_stall_redirect = true);
+  bool ResetConfig(bool apply_stall_redirect = true);
 
   //----------------------------------------------------------------------------
   //! Get the autosave mode

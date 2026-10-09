@@ -157,7 +157,13 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 //----------------------------------------------------------------------------
 void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
 {
-  gOFS->mConfigEngine->ResetConfig();
+  if (!gOFS->mConfigEngine->ResetConfig()) {
+    reply.set_std_err(
+        "error: failed to reset filesystem view; configuration reset aborted");
+    reply.set_retc(EIO);
+    return;
+  }
+
   reply.set_std_out("success: configuration has been reset(cleaned)!");
 }
 

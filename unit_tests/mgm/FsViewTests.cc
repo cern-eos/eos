@@ -94,7 +94,7 @@ TEST(FsView, ResetDeletesNodes)
     ASSERT_EQ(fs_view.mNodeView.size(), num_nodes);
     ASSERT_EQ(FsNode::sNumInstances.load() - baseline, num_nodes);
     // Reset must delete the node objects, not just drop the pointers
-    fs_view.Reset();
+    ASSERT_TRUE(fs_view.Reset());
     ASSERT_TRUE(fs_view.mNodeView.empty());
     ASSERT_EQ(FsNode::sNumInstances.load(), baseline);
   }
@@ -103,6 +103,263 @@ TEST(FsView, ResetDeletesNodes)
   ASSERT_EQ(FsNode::sNumInstances.load(), baseline);
   eos::common::InstanceName::clear();
 }
+
+namespace {
+
+class CleanupTestGroup : public eos::mgm::FsGroup {
+public:
+  CleanupTestGroup(const char* name, unsigned int& deleted)
+      : FsGroup(name)
+      , mDeleted(deleted)
+  {
+  }
+
+  ~CleanupTestGroup() override { ++mDeleted; }
+
+private:
+  unsigned int& mDeleted;
+};
+
+class FsViewCleanupTest : public ::testing::Test {
+protected:
+  void
+  SetUp() override
+  {
+    mView.StopHeartBeat();
+    if (!eos::common::InstanceName::empty()) {
+      mPreviousInstance = eos::common::InstanceName::get();
+    }
+    eos::common::InstanceName::clear();
+    eos::common::InstanceName::set("fsview-cleanup-test");
+    mPreviousDisableDefaults = eos::mgm::FsSpace::gDisableDefaults.exchange(true);
+    mNodeBaseline = eos::mgm::FsNode::sNumInstances.load();
+  }
+
+  void
+  TearDown() override
+  {
+    // Clean up directly so a failed assertion does not repeat the operation
+    // under test, which used to loop indefinitely on an orphan filesystem ID.
+    mView.mSpaceGroupView.clear();
+
+    for (auto& entry : mView.mSpaceView) {
+      delete entry.second;
+    }
+
+    for (auto& entry : mView.mGroupView) {
+      delete entry.second;
+    }
+
+    for (auto& entry : mView.mNodeView) {
+      delete entry.second;
+    }
+
+    mView.mSpaceView.clear();
+    mView.mGroupView.clear();
+    mView.mNodeView.clear();
+    mView.mIdView.clear();
+    EXPECT_EQ(mNodeBaseline, eos::mgm::FsNode::sNumInstances.load());
+    eos::mgm::FsSpace::gDisableDefaults = mPreviousDisableDefaults;
+    eos::common::InstanceName::clear();
+
+    if (!mPreviousInstance.empty()) {
+      eos::common::InstanceName::set(mPreviousInstance);
+    }
+  }
+
+  eos::mgm::FsSpace*
+  AddSpace()
+  {
+    auto* space = new eos::mgm::FsSpace("spare");
+    mView.mSpaceView["spare"] = space;
+    return space;
+  }
+
+  eos::mgm::FsGroup*
+  AddGroup(const std::string& name = "spare")
+  {
+    auto* group = new CleanupTestGroup(name.c_str(), mDeletedGroups);
+    mView.mGroupView[name] = group;
+    mView.mSpaceGroupView["spare"].insert(group);
+    return group;
+  }
+
+  eos::mgm::FsNode*
+  AddNode()
+  {
+    auto* node = new eos::mgm::FsNode(mNodeQueue.c_str());
+    mView.mNodeView[mNodeQueue] = node;
+    return node;
+  }
+
+  eos::mgm::FsView mView;
+  const std::string mNodeQueue = "/eos/fsview-test.example:1095/fst";
+  unsigned int mDeletedGroups = 0;
+  std::uint64_t mNodeBaseline = 0;
+  std::string mPreviousInstance;
+  bool mPreviousDisableDefaults = false;
+};
+
+TEST_F(FsViewCleanupTest, UnregisterSpaceDrainsOrphanIds)
+{
+  auto* space = AddSpace();
+  ASSERT_TRUE(space->insert(1));
+  ASSERT_TRUE(space->insert(2));
+  ASSERT_EQ(0u, mView.mIdView.size());
+  EXPECT_FALSE(mView.UnRegisterSpace("spare"));
+  EXPECT_TRUE(mView.mSpaceView.empty());
+}
+
+TEST_F(FsViewCleanupTest, UnregisterGroupDrainsOrphanIdsAndReferences)
+{
+  auto* group = AddGroup();
+  ASSERT_TRUE(group->insert(1));
+  ASSERT_TRUE(group->insert(2));
+  mView.mSpaceGroupView["other"].insert(group);
+  ASSERT_EQ(0u, mView.mIdView.size());
+  EXPECT_FALSE(mView.UnRegisterGroup("spare"));
+  EXPECT_TRUE(mView.mGroupView.empty());
+  EXPECT_TRUE(mView.mSpaceGroupView.at("spare").empty());
+  EXPECT_TRUE(mView.mSpaceGroupView.at("other").empty());
+  EXPECT_EQ(1u, mDeletedGroups);
+}
+
+TEST_F(FsViewCleanupTest, UnregisterNodeDrainsOrphanIds)
+{
+  auto* node = AddNode();
+  ASSERT_TRUE(node->insert(1));
+  ASSERT_TRUE(node->insert(2));
+  ASSERT_EQ(0u, mView.mIdView.size());
+  EXPECT_FALSE(mView.UnRegisterNode(mNodeQueue.c_str()));
+  EXPECT_TRUE(mView.mNodeView.empty());
+  EXPECT_EQ(mNodeBaseline, eos::mgm::FsNode::sNumInstances.load());
+}
+
+TEST_F(FsViewCleanupTest, UnregisterEmptyGroupRemovesSpaceReferences)
+{
+  auto* group = AddGroup("default.0");
+  mView.mSpaceGroupView["default"].insert(group);
+  EXPECT_TRUE(mView.UnRegisterGroup("default.0"));
+  EXPECT_TRUE(mView.mGroupView.empty());
+  EXPECT_TRUE(mView.mSpaceGroupView.at("default").empty());
+  EXPECT_TRUE(mView.mSpaceGroupView.at("spare").empty());
+  EXPECT_EQ(1u, mDeletedGroups);
+}
+
+TEST_F(FsViewCleanupTest, ResetDrainsOrphanIdsAndDeletesResidualViews)
+{
+  auto* space = AddSpace();
+  auto* group = AddGroup();
+  auto* node = AddNode();
+
+  for (const auto id : {1u, 2u}) {
+    ASSERT_TRUE(space->insert(id));
+    ASSERT_TRUE(group->insert(id));
+    ASSERT_TRUE(node->insert(id));
+  }
+
+  ASSERT_TRUE(mView.ProvideMapping("fsview-test-uuid", 1));
+  ASSERT_EQ(0u, mView.mIdView.size());
+  EXPECT_TRUE(mView.Reset());
+  EXPECT_TRUE(mView.mSpaceView.empty());
+  EXPECT_TRUE(mView.mGroupView.empty());
+  EXPECT_TRUE(mView.mSpaceGroupView.empty());
+  EXPECT_TRUE(mView.mNodeView.empty());
+  EXPECT_EQ(0u, mView.mIdView.size());
+  EXPECT_FALSE(mView.HasMapping(1));
+  EXPECT_EQ(1u, mDeletedGroups);
+  EXPECT_EQ(mNodeBaseline, eos::mgm::FsNode::sNumInstances.load());
+}
+
+TEST_F(FsViewCleanupTest, MembershipUsesRegisteredViews)
+{
+  // The config listener must remove the installed spare membership even when
+  // a new config names default.0, which is already present for another fs.
+  ASSERT_TRUE(AddGroup()->insert(1));
+  ASSERT_TRUE(AddSpace()->insert(1));
+  ASSERT_TRUE(AddGroup("default.0")->insert(2));
+  std::string group = "default.0";
+  std::string space = "default";
+  eos::common::RWMutexReadLock lock(mView.ViewMutex);
+  ASSERT_TRUE(mView.GetFsMembership(1, group, space));
+  EXPECT_EQ("spare", group);
+  EXPECT_EQ("spare", space);
+}
+
+TEST_F(FsViewCleanupTest, ResetPreservesRegistryWithoutGroupOrSpaceMembership)
+{
+  const eos::common::FileSystemLocator locator("fsview-test.example", 1095, "/data");
+  // This guard only inspects the registry's size. As in FileSystemRegistryTests,
+  // use an opaque pointer without constructing a filesystem or contacting QDB.
+  auto* fs = reinterpret_cast<eos::mgm::FileSystem*>(std::uintptr_t{1});
+  ASSERT_TRUE(mView.mIdView.registerFileSystem(locator, 1, fs));
+  ASSERT_TRUE(mView.ProvideMapping("fsview-test-uuid", 1));
+  ASSERT_TRUE(AddNode()->insert(1));
+  ASSERT_TRUE(mView.mSpaceView.empty());
+  ASSERT_TRUE(mView.mGroupView.empty());
+  EXPECT_FALSE(mView.Reset());
+  EXPECT_EQ(1u, mView.mIdView.size());
+  EXPECT_EQ(fs, mView.mIdView.lookupByID(1));
+  EXPECT_TRUE(mView.HasMapping(1));
+  ASSERT_EQ(1u, mView.mNodeView.size());
+  EXPECT_EQ(1u, mView.mNodeView.at(mNodeQueue)->size());
+  EXPECT_EQ(mNodeBaseline + 1, eos::mgm::FsNode::sNumInstances.load());
+}
+
+TEST_F(FsViewCleanupTest, MembershipAllowsPartialRegistrationRollback)
+{
+  ASSERT_TRUE(AddGroup()->insert(1));
+  ASSERT_TRUE(AddSpace()->insert(2));
+  std::string group = "stale-group";
+  std::string space = "stale-space";
+  eos::common::RWMutexReadLock lock(mView.ViewMutex);
+  ASSERT_TRUE(mView.GetFsMembership(1, group, space));
+  EXPECT_EQ("spare", group);
+  EXPECT_TRUE(space.empty());
+  ASSERT_TRUE(mView.GetFsMembership(2, group, space));
+  EXPECT_TRUE(group.empty());
+  EXPECT_EQ("spare", space);
+  ASSERT_TRUE(mView.GetFsMembership(3, group, space));
+  EXPECT_TRUE(group.empty());
+  EXPECT_TRUE(space.empty());
+}
+
+TEST_F(FsViewCleanupTest, MembershipRejectsDuplicateGroups)
+{
+  ASSERT_TRUE(AddGroup()->insert(1));
+  ASSERT_TRUE(AddGroup("default.0")->insert(1));
+  ASSERT_TRUE(AddSpace()->insert(1));
+  std::string group = "stale-group";
+  std::string space = "stale-space";
+  eos::common::RWMutexReadLock lock(mView.ViewMutex);
+  EXPECT_FALSE(mView.GetFsMembership(1, group, space));
+  EXPECT_TRUE(group.empty());
+  EXPECT_TRUE(space.empty());
+  EXPECT_EQ(2u, mView.mGroupView.size());
+  EXPECT_EQ(1u, mView.mSpaceView.size());
+}
+
+TEST_F(FsViewCleanupTest, MembershipRejectsDuplicateSpaces)
+{
+  ASSERT_TRUE(AddGroup()->insert(1));
+  ASSERT_TRUE(AddSpace()->insert(1));
+  // Both cached space entries claim this ID. Spare avoids starting the space
+  // services, which are unnecessary for this local membership check.
+  auto* duplicate = new eos::mgm::FsSpace("spare");
+  duplicate->mName = "other";
+  mView.mSpaceView["other"] = duplicate;
+  ASSERT_TRUE(duplicate->insert(1));
+  std::string group = "stale-group";
+  std::string space = "stale-space";
+  eos::common::RWMutexReadLock lock(mView.ViewMutex);
+  EXPECT_FALSE(mView.GetFsMembership(1, group, space));
+  EXPECT_TRUE(group.empty());
+  EXPECT_TRUE(space.empty());
+  EXPECT_EQ(1u, mView.mGroupView.size());
+  EXPECT_EQ(2u, mView.mSpaceView.size());
+}
+
+} // namespace
 
 //------------------------------------------------------------------------------
 // Test FilesystemUuidMapper

@@ -546,16 +546,19 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     eos_static_info("msg=\"autoload config\" cfg_name=\"%s\"",
                     gOFS->MgmConfigAutoLoad.c_str());
     std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
-    XrdOucString stdErr = "";
+    XrdOucString config_err = "";
 
-    if (!gOFS->mConfigEngine->LoadConfig(configenv, stdErr, apply_stall_rdr)) {
+    if (!gOFS->mConfigEngine->LoadConfig(configenv, config_err, apply_stall_rdr)) {
+      mConfigLoaded = false;
+      stdErr = config_err.c_str();
       eos_crit("msg=\"failed config autoload\" config=\"%s\" err=\"%s\"",
-               gOFS->MgmConfigAutoLoad.c_str(), stdErr.c_str());
-    } else {
-      mConfigLoaded = true;
-      eos_static_info("msg=\"successful config autoload\" config=\"%s\"",
-                      gOFS->MgmConfigAutoLoad.c_str());
+               gOFS->MgmConfigAutoLoad.c_str(), config_err.c_str());
+      return false;
     }
+
+    mConfigLoaded = true;
+    eos_static_info("msg=\"successful config autoload\" config=\"%s\"",
+                    gOFS->MgmConfigAutoLoad.c_str());
   }
 
   return mConfigLoaded;
