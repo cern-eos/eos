@@ -2535,6 +2535,25 @@ runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "/test-fusex/$EOS_
 runtest "### cp        " unix SUCCESS "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/newfile" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file.hardlink"
 runtest "### Rm        " unix SUCCESS "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink
+# a file overwritten with eos.xattr.preserve must not inherit the link count of
+# a hard link target, otherwise its removal renames it to ...eos.ino... instead
+# of deleting it - needs a directory without versioning and recycle bin
+HLPRESERVE_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve"
+runtest "### mkdir     " unix SUCCESS "" eos mkdir "-p" "$HLPRESERVE_DIR"
+runtest "### chmod     " unix SUCCESS "" eos chmod 777 "$HLPRESERVE_DIR"
+runtest "### Version   " unix IGNORE  "" eos attr rm sys.versioning "$HLPRESERVE_DIR"
+runtest "### Version   " unix ERROR   "" eos attr get sys.versioning "$HLPRESERVE_DIR"
+runtest "### Recycle   " unix ERROR   "" eos attr get sys.recycle "$HLPRESERVE_DIR"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/file"
+runtest "### link      " unix SUCCESS "" shell cd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/ && ln file file.hardlink"
+dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/file.hardlink" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/file"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$HLPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/file"
+# only the previous file, still referenced by the hard link, stays hidden
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/file"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR | grep -c 'eos.ino' | grep -w 1"
+runtest "### Rm        " unix SUCCESS "" eos rm -r "$HLPRESERVE_DIR"
 
 #obfuscation
 runtest "### Obfuscate " unix SUCCESS "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
@@ -2818,6 +2837,58 @@ runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/tes
 runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 
 ################################################################################
+# Preserving the xattrs of an overwritten file
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="xattrpreserve"
+# ------------------------------------------------------------------------------
+XATTRPRESERVE_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/xattrpreserve"
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "$XATTRPRESERVE_DIR"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$XATTRPRESERVE_DIR"
+runtest "### Version   " unix ERROR   "" eos attr get sys.versioning "$XATTRPRESERVE_DIR"
+# without the CGI an overwrite drops the xattrs of the file it replaces
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file"
+# with it they are copied onto the new file, which is still a new file
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.preserve=kept "$XATTRPRESERVE_DIR/file"
+XATTRPRESERVE_FID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$XATTRPRESERVE_DIR/file" 2>/dev/null | jq -r .id)
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+XATTRPRESERVE_NEWFID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$XATTRPRESERVE_DIR/file" 2>/dev/null | jq -r .id)
+runtest "### Fid       " unix SUCCESS "" shell test "-n" "\"$XATTRPRESERVE_NEWFID\""
+runtest "### Fid       " unix SUCCESS "" shell test "\"$XATTRPRESERVE_FID\"" "!=" "\"$XATTRPRESERVE_NEWFID\""
+# xattrs given with eos.xattr take precedence over the copied ones
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1\&eos.xattr=user.preserve=new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+# an atomic upload copies them at open onto its temporary file
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/xattrpreserve.atomic" "$XATTRPRESERVE_DIR/file"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/xattrpreserve.atomic"
+# the commit of an atomic upload keeps a forced ETag, the next upload must not
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/etag" "-ODeos.etag=preservetag\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.tmp.etag "$XATTRPRESERVE_DIR/etag | grep preservetag"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/etag" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.tmp.etag "$XATTRPRESERVE_DIR/etag"
+# space attributes are only merged into listings, they must not be stored
+runtest "### SpaceAttr " unix SUCCESS "" eos space config default space.attr.sys.preservetest=space
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preservetest "$XATTRPRESERVE_DIR/file | grep space"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### SpaceAttr " unix SUCCESS "" eos space config rm default space.attr.sys.preservetest
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.preservetest "$XATTRPRESERVE_DIR/file | grep space"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/xattrpreserve.*"
+runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$XATTRPRESERVE_DIR"
+
+################################################################################
 # HTTP tests
 ################################################################################
 # ------------------------------------------------------------------------------
@@ -2833,6 +2904,15 @@ runtest "### Mkdir        " unix SUCCESS "" eos mkdir $HTTPDIR
 runtest "### Chmod        " unix SUCCESS "" eos chmod 777 $HTTPDIR
 runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file $TESTSYSFILE50M https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m
 runtest "### Http GET     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+# a PUT replaces the file and drops its xattrs, unless its query asks for
+# eos.xattr.preserve
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/passwd https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve
+runtest "### Attr Set     " unix SUCCESS "" eos attr set user.preserve=kept /$HTTPDIR/preserve
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/group https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve
+runtest "### Attr Get     " unix ERROR   "" eos attr get user.preserve /$HTTPDIR/preserve
+runtest "### Attr Set     " unix SUCCESS "" eos attr set user.preserve=kept /$HTTPDIR/preserve
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/passwd https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve?eos.xattr.preserve=1
+runtest "### Attr Get     " unix SUCCESS "" eos attr get user.preserve "/$HTTPDIR/preserve | grep kept"
 runtest "### Chmod        " unix SUCCESS "" eos chmod 644 $HTTPDIR
 runtest "### Http PUT     " unix ERROR "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file $TESTSYSFILE50M https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m
 runtest "### Http GET     " unix ERROR "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
@@ -3404,6 +3484,26 @@ runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/userke
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.userav" "$SPACEENC_CGI_DIR/userkeyav" "-OSeos.key=$SPACEENC_USERKEY"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.userav"
 runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
+
+# eos.xattr.preserve keeps the xattrs of an encrypted file but never its keys,
+# the new file is encrypted only if its own upload asks for it
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/preserve" "-ODeos.obfuscate=1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "$SPACEENC_CGI_DIR/preserve"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1\&eos.obfuscate=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.enc" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.enc"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.atomic" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.atomic"
 
 # a conversion has to copy the stored bytes as they are - decoding them on the
 # way out would store the file in clear and fail the checksum of the original

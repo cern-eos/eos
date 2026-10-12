@@ -183,6 +183,22 @@ TEST(getCarryOverXattrs, DropsPreviousInstanceXattrs)
   ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, {}), expected);
 }
 
+TEST(getCarryOverXattrs, DropsInternalAndTmpXattrs)
+{
+  // e.g. a new file keeping the link count of a hard link target would be
+  // renamed instead of deleted, one keeping a forced ETag would never change it
+  eos::IFileMD::XAttrMap old_xattrs{{"user.foo", "1"},
+                                    {SYS_HARD_LINK, "4097"},
+                                    {SYS_NUM_LINK, "1"},
+                                    {"sys.eos.fifo", "1"},
+                                    {eos::kAttrTmpEtagKey, "\"etag\""},
+                                    {"sys.eosx", "1"},
+                                    {"sys.tmpx", "1"}};
+  eos::IFileMD::XAttrMap expected{
+      {"user.foo", "1"}, {"sys.eosx", "1"}, {"sys.tmpx", "1"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs, {}), expected);
+}
+
 TEST(getCarryOverXattrs, IgnoresKeysOnlyInEncMap)
 {
   // e.g. space attributes merged into the attribute map of the open

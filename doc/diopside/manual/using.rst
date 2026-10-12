@@ -795,6 +795,29 @@ Purging existing versions
    # keep 5 versions (FIFO)
    eos file purge myfile 5
 
+.. index::
+   pair: Versioning; Preserving Attributes
+
+Keeping the attributes of an overwritten file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An overwrite creates a new file, which only keeps the extended attributes of the file it replaces when versioning is enabled. Without versioning, an upload can ask for them with the open CGI ``eos.xattr.preserve=1``:
+
+.. code-block:: bash
+
+   xrdcp -f /tmp/file 'root://eos.example.org//eos/dir/file?eos.xattr.preserve=1'
+   curl -T /tmp/file 'https://eos.example.org:8443/eos/dir/file?eos.xattr.preserve=1'
+
+The ``user.*`` and ``sys.*`` attributes stored on the overwritten file are copied, as with versioning, except:
+
+* the traces of the previous file (``sys.utrace``, ``sys.vtrace``, ``sys.dtrace``, ``sys.fs.tracking``) and all ``sys.eos.*`` and ``sys.tmp.*`` attributes, e.g. the birth time, hard link bookkeeping or a forced ETag
+* the encryption keys: the new file is obfuscated or encrypted only if its own upload asks for it
+* the attributes of the space, which are never stored on a file
+
+Ownership and mode are not copied. Attributes given with ``eos.xattr`` in the same upload take precedence over the copied ones. An atomic upload (``eos.atomic=1``) copies the attributes when it starts, changes made to the overwritten file while it runs are lost.
+
+The CGI does nothing when the file does not exist yet, when versioning is enabled (which already copies the attributes), for FUSE mounts, injections and partial or chunked HTTP uploads, and when the MGM redirects an HTTP upload to another MGM, as that redirection drops the query string.
+
 
 .. index::
    pair: File; Erasure Coding

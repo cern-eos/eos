@@ -121,18 +121,20 @@ eos::IFileMD::XAttrMap
 getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs,
                    const eos::IFileMD::XAttrMap& enc_xattrs)
 {
-  // Attributes describing the previous instance of the file
+  // Attributes describing the previous instance of the file, along with the
+  // sys.eos.* (e.g. hard link count) and sys.tmp.* (e.g. forced ETag) ones
   static const std::set<std::string> skip_keys{
-      eos::common::EOS_BTIME,       eos::common::EOS_FS_TRACKING_ATTR,
-      eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR,
-      eos::common::EOS_UTRACE_ATTR, eos::common::EOS_TMP_ATOMIC_ATTR};
+      eos::common::EOS_FS_TRACKING_ATTR, eos::common::EOS_DTRACE_ATTR,
+      eos::common::EOS_VTRACE_ATTR, eos::common::EOS_UTRACE_ATTR};
   // The new file has to carry the keys its contents are encrypted with
   static const std::set<std::string> enc_keys(eos::kAttrEncryptionKeys.begin(),
                                               eos::kAttrEncryptionKeys.end());
   eos::IFileMD::XAttrMap out;
 
   for (const auto& [key, val] : old_xattrs) {
-    if (!skip_keys.count(key) && !enc_keys.count(key)) {
+    if (!skip_keys.count(key) && !enc_keys.count(key) &&
+        !eos::common::startsWith(key, eos::common::EOS_INTERNAL_ATTR_PREFIX) &&
+        !eos::common::startsWith(key, eos::common::EOS_TMP_ATTR_PREFIX)) {
       out.emplace(key, val);
     }
   }

@@ -56,6 +56,10 @@ static constexpr auto EOS_BTIME = "sys.eos.btime";
 static constexpr auto EOS_FS_TRACKING_ATTR = "sys.fs.tracking";
 //! Name of the latest atomic upload targeting a file
 static constexpr auto EOS_TMP_ATOMIC_ATTR = "sys.tmp.atomic";
+//! Prefix of the attributes EOS manages itself, e.g. btime or hard links
+static constexpr auto EOS_INTERNAL_ATTR_PREFIX = "sys.eos.";
+//! Prefix of the temporary attributes, e.g. a forced ETag
+static constexpr auto EOS_TMP_ATTR_PREFIX = "sys.tmp.";
 //! CTA internal objectsore id for archive requests
 static constexpr auto CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME =
   "sys.cta.archive.objectstore.id";

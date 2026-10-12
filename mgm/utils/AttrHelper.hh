@@ -83,9 +83,11 @@ bool getValue(const eos::IContainerMD::XAttrMap& attrmap,
 
 /*!
  * Get the xattrs carried over from an overwritten file onto the file
- * replacing it. Only keys stored on the old file are returned, attributes
- * describing the previous file instance are dropped and the encryption keys
- * are taken from enc_xattrs.
+ * replacing it, used by versioning (at open and at the commit of an atomic
+ * upload) and by the eos.xattr.preserve open CGI. Only keys stored on the old
+ * file are returned, attributes describing the previous file instance as well
+ * as the sys.eos.* and sys.tmp.* ones are dropped and the encryption keys are
+ * taken from enc_xattrs.
  * @param old_xattrs xattrs stored on the overwritten file - not merged with
  *        space or linked attributes, which would then be persisted
  * @param enc_xattrs map holding the encryption keys the new file is written
