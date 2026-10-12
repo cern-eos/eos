@@ -5,6 +5,7 @@
 #include "mgm/misc/Constants.hh"
 #include "namespace/utils/Attributes.hh"
 #include <algorithm>
+#include <array>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -137,15 +138,26 @@ getCarryOverXattrs(const eos::IFileMD::XAttrMap& old_xattrs)
 {
   // Attributes describing the previous instance of the file
   static const std::set<std::string> skip_keys{
-      eos::common::EOS_BTIME,       eos::common::EOS_FS_TRACKING_ATTR,
-      eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR,
-      eos::common::EOS_UTRACE_ATTR, eos::common::EOS_TMP_ATOMIC_ATTR};
+      eos::common::EOS_FS_TRACKING_ATTR, eos::common::EOS_DTRACE_ATTR,
+      eos::common::EOS_VTRACE_ATTR, eos::common::EOS_UTRACE_ATTR};
+  // Attributes EOS manages itself (e.g. btime, hard link count), temporary
+  // ones (e.g. forced ETag), the FUSE bookkeeping of the previous file and the
+  // tape metadata of its contents - CTA gives the new file its own at creation
+  static constexpr std::array skip_prefixes{
+      eos::common::EOS_INTERNAL_ATTR_PREFIX, eos::common::EOS_TMP_ATTR_PREFIX,
+      eos::common::FUSEX_ATTR_PREFIX,        eos::common::ARCHIVE_ATTR_PREFIX,
+      eos::common::CTA_ATTR_PREFIX,          eos::common::RETRIEVE_ATTR_PREFIX};
+  const auto has_skip_prefix = [](const std::string& key) {
+    return std::any_of(
+        skip_prefixes.begin(), skip_prefixes.end(),
+        [&key](const char* prefix) { return eos::common::startsWith(key, prefix); });
+  };
   const auto& enc_keys = eos::kAttrEncryptionKeys;
   eos::IFileMD::XAttrMap out;
 
   for (const auto& [key, val] : old_xattrs) {
     // The new file keeps the encryption keys it is written with
-    if (!skip_keys.count(key) &&
+    if (!skip_keys.count(key) && !has_skip_prefix(key) &&
         std::find(enc_keys.begin(), enc_keys.end(), key) == enc_keys.end()) {
       out.emplace(key, val);
     }

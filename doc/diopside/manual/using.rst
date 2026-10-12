@@ -795,6 +795,34 @@ Purging existing versions
    # keep 5 versions (FIFO)
    eos file purge myfile 5
 
+.. index::
+   pair: Versioning; Preserving Attributes
+
+Keeping the attributes of an overwritten file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Overwriting a file with a remote protocol (e.g. ``xrdcp -f`` or an HTTP PUT) creates a new file. Without versioning, the new file only keeps the file ACL of the file it replaces (``user.acl`` together with ``sys.eval.useracl``) and loses all its other extended attributes. Since EOS 5.5.5 the upload can ask to keep them with the open CGI ``eos.xattr.preserve=1``, an older MGM silently ignores it:
+
+.. code-block:: bash
+
+   xrdcp -f /tmp/file 'root://eos.example.org//eos/dir/file?eos.xattr.preserve=1'
+   curl -T /tmp/file 'https://eos.example.org:8443/eos/dir/file?eos.xattr.preserve=1'
+
+The ``user.*`` and ``sys.*`` attributes stored on the overwritten file are copied, as with versioning, except:
+
+* the traces of the previous file (``sys.utrace``, ``sys.vtrace``, ``sys.dtrace``, ``sys.fs.tracking``) and all ``sys.eos.*``, ``sys.tmp.*`` and ``sys.fusex.*`` attributes, e.g. the birth time, hard link bookkeeping, a forced ETag or the FUSE state
+* the tape metadata of the previous contents (``sys.archive.*``, ``sys.cta.*``, ``sys.retrieve.*``): CTA gives the new file its own archive file ID when it is created, with the storage class of the directory
+* the encryption keys: the new file gets keys of its own. Like any file replacing an obfuscated or encrypted one, it stays obfuscated, encrypted with the current key of its space if that space has one, unless the upload passes ``eos.obfuscate=0`` in a directory which does not obfuscate its files. A file encrypted with a key of the client can't be overwritten without that key or ``eos.obfuscate=0``
+* the attributes of the space, which are never stored on a file
+
+The copied attributes include a file ACL (``sys.acl``) or an application lock (``sys.app.lock``) of the overwritten file, which keep applying to the new contents. Ownership and mode are not copied, the new file belongs to the user overwriting it.
+
+Attributes given with ``eos.xattr`` in the same upload take precedence over the copied ones. ``eos.xattr`` only sets ``user.*`` attributes, and a ``user.acl`` evaluated through ``sys.eval.useracl`` on the overwritten file is kept instead. An atomic upload (``eos.atomic=1``) copies the attributes when it is committed: changes made to the overwritten file while it runs are kept, e.g. an application lock refreshed or released or a file ACL changed or removed, and the attributes the upload sets itself still take precedence. It copies nothing if the overwritten file is removed or moved away in the meantime.
+
+With versioning enabled the CGI changes nothing, the attributes are copied anyway, at commit for an atomic upload.
+
+The CGI is not needed when the file is updated in place, which keeps all its attributes: FUSE mounts, injections and partial HTTP uploads. It cannot keep anything when the file does not exist yet, for ownCloud chunked uploads, and when the MGM redirects an HTTP upload to another MGM, as that redirection drops the query string.
+
 
 .. index::
    pair: File; Erasure Coding

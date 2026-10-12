@@ -62,6 +62,20 @@ GetPioMaxUploadAge()
   }();
   return max_age;
 }
+
+//------------------------------------------------------------------------------
+// Copy the xattrs carried over from the file replaced by an atomic upload,
+// the ones the upload already set on the new file win
+//------------------------------------------------------------------------------
+void
+AddCarryOverXattrs(eos::IFileMD& fmd, const eos::IFileMD::XAttrMap& old_xattrs)
+{
+  for (const auto& [key, val] : eos::mgm::attr::getCarryOverXattrs(old_xattrs)) {
+    if (!fmd.hasAttribute(key)) {
+      fmd.setAttribute(key, val);
+    }
+  }
+}
 } // namespace
 
 EOSMGMNAMESPACE_BEGIN
@@ -265,6 +279,10 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
   if (env.Get("mgm.altxs.delete")) {
     cgi["altxs_delete"] = env.Get("mgm.altxs.delete");
   }
+
+  if (env.Get("mgm.xattr.preserve")) {
+    cgi["xattrpreserve"] = env.Get("mgm.xattr.preserve");
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -333,6 +351,8 @@ CommitHelper::set_options(CommitHelper::option_t& option,
   option["reconstruction"] = (cgi["reconstruction"] == "1");
   option["modified"] = (cgi["ismodified"] == "1");
   option["fusex"] = (cgi["fusex"] == "1");
+  // copy the xattrs of the file replaced by an atomic upload
+  option["xattrpreserve"] = (cgi["xattrpreserve"] == "1");
   option["abort"] = false; // indicate to abort a commit
   option["versioning"] = false; // indicate versioning
   option["atomic"] = false; // indicate an atomic upload
@@ -457,6 +477,7 @@ CommitHelper::extract_pio_capability(XrdOucEnv& env,
 
   pio_cap.hex_fid = XrdUtils::GetEnv(*cap, "mgm.fid");
   pio_cap.path = XrdUtils::GetEnv(*cap, "mgm.path");
+  pio_cap.xattr_preserve = (XrdUtils::GetEnv(*cap, "mgm.xattr.preserve") == "1");
 
   if (pio_cap.hex_fid.empty() || pio_cap.path.empty()) {
     emsg = "capability without file id or path";
@@ -913,8 +934,12 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                               paths["versiondir"].GetParentPath()) + std::string(paths["atomic"].GetPath()));
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                         e.getMessage().str().c_str());
+        eos_thread_err("msg=\"no new version, a file still there is replaced "
+                       "without one\" path=\"%s\" ec=%d emsg=\"%s\"",
+                       paths["atomic"].GetName(), e.getErrno(),
+                       e.getMessage().str().c_str());
+        // The new file still gets the xattrs of the file it replaces
+        option["xattrpreserve"] = true;
         versiondir.reset();
         versionfmd.reset();
       }
@@ -952,8 +977,6 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
 
     if (versiondir && versionfmd) {
       try {
-        // rename the existing path to the version path
-        dir->removeFile(paths["atomic"].GetName());
         // If a file with the same name already exists then we have conflict
         // and the timestamp of the version file needs to be increased
         uint16_t attempt = 0;
@@ -969,6 +992,21 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
           paths["version"] = eos::common::Path(full_path);
         }
 
+        // Overlapping uploads of the same file took every name the version
+        // can get. Discard this upload, the file and its versions stay as
+        // they are and the client gets an error.
+        if (versiondir->findFile(paths["version"].GetName()) != nullptr) {
+          delete_path = fmd->getName();
+          eos_thread_err("msg=\"no free version name, discarding the atomic "
+                         "upload\" path=\"%s\" last-tried=\"%s\" upload=\"%s\"",
+                         paths["atomic"].GetName(), paths["version"].GetName(),
+                         delete_path.c_str());
+          option["abort"] = true;
+          return;
+        }
+
+        // rename the existing path to the version path
+        dir->removeFile(paths["atomic"].GetName());
         versionfmd->setName(paths["version"].GetName());
         versionfmd->setContainerId(versiondir->getId());
         attrmapF = versionfmd->getAttributes();
@@ -989,16 +1027,17 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         fmd->setFlags(versionfmd->getFlags());
 
         // Copy the xattrs of the original file over, the new file keeps the
-        // encryption keys it was written with
-        for (const auto& [key, val] : attr::getCarryOverXattrs(attrmapF)) {
-          fmd->setAttribute(key, val);
-        }
-
+        // encryption keys it was written with and the xattrs set by the upload
+        AddCarryOverXattrs(*fmd, attrmapF);
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                         e.getErrno(), e.getMessage().str().c_str());
+        eos_thread_err("msg=\"no new version, a file still there is replaced "
+                       "without one\" path=\"%s\" ec=%d emsg=\"%s\"",
+                       paths["atomic"].GetName(), e.getErrno(),
+                       e.getMessage().str().c_str());
+        // The new file still gets the xattrs of the file it replaces
+        option["xattrpreserve"] = true;
       }
     }
 
@@ -1023,6 +1062,13 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         option["abort"] = true;
       } else {
         eos_thread_info("msg=\"found final path\" %s", paths["atomic"].GetName());
+
+        // Asked at open by eos.xattr.preserve
+        if (option["xattrpreserve"]) {
+          AddCarryOverXattrs(*fmd, pfmd->getAttributes());
+          gOFS->eosView->updateFileStore(fmd.get());
+        }
+
         // If the target exists we swap the two and then delete the
         // previous one
         delete_path = fmd->getName();
