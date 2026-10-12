@@ -80,15 +80,16 @@ public:
     std::string hex_fid; ///< File identifier in hex format
     std::string path;    ///< Namespace path (sealed) the file was opened with
     std::vector<unsigned long> fsids; ///< File systems of all the stripes
+    bool xattr_preserve = false;      ///< Atomic upload copying the replaced xattrs
   };
 
   //----------------------------------------------------------------------------
   //! Decode and verify the PIO write capability carried by a commit or drop
-  //! request of a PIO writer (mgm.pio.commit/mgm.pio.drop). The file id, path
-  //! and stripe locations are taken only from the capability, which the client
-  //! can not read or modify. Expired capabilities are accepted up to the
-  //! maximum PIO upload age (EOS_MGM_PIO_MAX_UPLOAD_AGE seconds, default 24h)
-  //! since uploads can outlast the capability validity.
+  //! request of a PIO writer (mgm.pio.commit/mgm.pio.drop). The file id, path,
+  //! stripe locations and xattr copy flag are taken only from the capability,
+  //! which the client can not read or modify. Expired capabilities are
+  //! accepted up to the maximum PIO upload age (EOS_MGM_PIO_MAX_UPLOAD_AGE
+  //! seconds, default 24h) since uploads can outlast the capability validity.
   //!
   //! @param env request opaque info which also holds the capability
   //! @param vid client identity

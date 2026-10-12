@@ -37,6 +37,8 @@
 #    - xrdcp --cksum verifies the checksum committed by the plugin;
 #    - overwrite (xrdcp -f) works and exclusive creation of an existing file
 #      fails and leaves the file untouched;
+#    - an atomic overwrite with eos.xattr.preserve=1 keeps the xattrs of the
+#      file it replaces;
 #    - non-sequential writes produce a correct checksum and parity;
 #    - the parity is correct i.e. the file can be read after dropping two
 #      stripes.
@@ -253,6 +255,27 @@ for layout in raid6 raiddp; do
     fail "${path}: exclusive creation of an existing file succeeded"
   verify_file "${REF_OTHER}" "${path}"
   echo "ok: ${path} overwritten and protected against exclusive creation"
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: atomic overwrite keeping the xattrs"
+  #----------------------------------------------------------------------------
+  # The PIO commit of an atomic upload with eos.xattr.preserve=1 gives the new
+  # file the xattrs of the one it replaces
+  path="${DIR}/file_preserve.dat"
+  run_with_plugin ${XRDCP} "${REF_OTHER}" "${EOSURL}/${path}" ||
+    fail "${path}: PIO write failed"
+  ${EOS} ${EOSURL} attr set user.preserve=kept "${path}" ||
+    fail "${path}: could not set user.preserve"
+  run_with_plugin ${XRDCP} -f "${REF_BIG}" \
+    "${EOSURL}/${path}?eos.atomic=1&eos.xattr.preserve=1" ||
+    fail "${path}: atomic PIO overwrite failed"
+  expect_pio_write "${path}"
+  verify_file "${REF_BIG}" "${path}"
+  ${EOS} ${EOSURL} attr get user.preserve "${path}" | grep -q kept ||
+    fail "${path}: xattrs of the replaced file not kept"
+  ${EOS} ${EOSURL} ls -a "${DIR}" | grep -qF '.sys.a#.' &&
+    fail "${path}: temporary file of the atomic upload left behind"
+  echo "ok: ${path} overwritten atomically keeping its xattrs"
 
   #----------------------------------------------------------------------------
   echo "### ${layout}: non-sequential writes"

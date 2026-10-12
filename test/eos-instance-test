@@ -346,6 +346,126 @@ downloadh () {
     echo xrdcp -np -v -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval command xrdcp -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
 }
 ################################################################################
+# wait until <count> atomic uploads of <dir>/<name>, versioned or not, are open
+wait_atomic_uploads () {
+    local dir=$1 name=$2 count=$3 i
+    for i in $(seq 1 300); do
+      if [ "$(command eos -b root://$EOS_TEST_REDIRECTOR ls -a "$dir" 2>/dev/null | grep -cF -e ".sys.a#.$name." -e ".sys.a#.v#$name.")" = "$count" ]; then
+        return 0
+      fi
+      sleep 0.1
+    done
+    return 1
+}
+################################################################################
+# two overlapping atomic uploads with eos.xattr.preserve=1 of <path>: /etc/passwd
+# is opened first, /etc/group second and closed first. Each upload streams from
+# stdin and is kept open until its flag file exists. Succeeds if the upload of
+# /etc/group is committed and the one of /etc/passwd is discarded.
+atomic_preserve_overlap () {
+    local path=$1
+    local url="root://$EOS_TEST_REDIRECTOR/$path?eos.atomic=1&eos.xattr.preserve=1"
+    local flag="$EOS_TEST_TESTSYS/atomic.overlap"
+    local pid_first pid_second ret_first ret_second ok=0
+    echo atomic_preserve_overlap $path >& $EOSLASTLOG
+    rm -f "$flag.first" "$flag.second"
+    ( cat /etc/passwd; while [ ! -e "$flag.first" ]; do sleep 0.1; done ) |
+      command xrdcp -f - "$url" >> $EOSCERTLOG 2>&1 &
+    pid_first=$!
+    if wait_atomic_uploads "$(dirname "$path")" "$(basename "$path")" 1; then
+      ( cat /etc/group; while [ ! -e "$flag.second" ]; do sleep 0.1; done ) |
+        command xrdcp -f - "$url" >> $EOSCERTLOG 2>&1 &
+      pid_second=$!
+      wait_atomic_uploads "$(dirname "$path")" "$(basename "$path")" 2 && ok=1
+      touch "$flag.second"
+      wait $pid_second; ret_second=$?
+    fi
+    touch "$flag.first"
+    wait $pid_first; ret_first=$?
+    rm -f "$flag.first" "$flag.second"
+    echo "overlap opened=$ok first=$ret_first second=$ret_second" >> $EOSCERTLOG 2>&1
+    test "$ok" = 1 && test "$ret_second" = 0 && test "$ret_first" != 0
+}
+################################################################################
+# atomic upload of <src> to <path> with the CGI <cgi>, kept open while
+# <command> [<args>] <path> changes the file it replaces. Succeeds if the
+# command succeeds while the upload is open and the upload is committed.
+atomic_upload_during () {
+    local src=$1 path=$2 cgi=$3
+    shift 3
+    local url="root://$EOS_TEST_REDIRECTOR/$path?eos.atomic=1&$cgi"
+    local flag="$EOS_TEST_TESTSYS/atomic.during"
+    local pid ret ok=0
+    echo atomic_upload_during $src $path $cgi $* >& $EOSLASTLOG
+    rm -f "$flag"
+    ( cat "$src"; while [ ! -e "$flag" ]; do sleep 0.1; done ) |
+      command xrdcp -f - "$url" >> $EOSCERTLOG 2>&1 &
+    pid=$!
+    wait_atomic_uploads "$(dirname "$path")" "$(basename "$path")" 1 &&
+      "$@" "$path" >> $EOSCERTLOG 2>&1 && ok=1
+    touch "$flag"
+    wait $pid; ret=$?
+    rm -f "$flag"
+    echo "during=$ok upload=$ret" >> $EOSCERTLOG 2>&1
+    test "$ok" = 1 && test "$ret" = 0
+}
+################################################################################
+# refresh the application lock of <path> the way the wopiserver does, to expire
+# at <expires>, and change its xattrs: user.changed, user.given and user.added
+# are set to "after", user.removed is removed
+xattr_change () {
+    local expires=$1 path=$2
+    command eos -b -a wopi_test root://$EOS_TEST_REDIRECTOR attr set "sys.app.lock=expires:$expires,type:shared,owner:*:wopi_test" "$path" &&
+      command eos -b -a wopi_test root://$EOS_TEST_REDIRECTOR attr set user.iop.lock=after "$path" &&
+      command eos -b root://$EOS_TEST_REDIRECTOR attr set user.changed=after "$path" &&
+      command eos -b root://$EOS_TEST_REDIRECTOR attr set user.given=after "$path" &&
+      command eos -b root://$EOS_TEST_REDIRECTOR attr set user.added=after "$path" &&
+      command eos -b root://$EOS_TEST_REDIRECTOR attr rm user.removed "$path"
+}
+################################################################################
+# release the application lock of <path> the way the wopiserver does
+lock_release () {
+    command eos -b -a wopi_test root://$EOS_TEST_REDIRECTOR attr rm sys.app.lock "$1" &&
+      command eos -b -a wopi_test root://$EOS_TEST_REDIRECTOR attr rm user.iop.lock "$1"
+}
+################################################################################
+# share <path>, which has the file ACL user.acl=u:2:r, with uid 3 as well
+acl_change () {
+    command eos -b root://$EOS_TEST_REDIRECTOR attr set user.acl=u:2:r,u:3:r "$1"
+}
+################################################################################
+# remove the file ACL of <path>
+acl_remove () {
+    command eos -b root://$EOS_TEST_REDIRECTOR attr rm user.acl "$1"
+}
+################################################################################
+# remove <path>
+file_remove () {
+    command eos -b root://$EOS_TEST_REDIRECTOR rm "$1"
+}
+################################################################################
+# take the names the commit of an atomic upload can give the version of <path>:
+# the one derived from the file and the five it falls back to. Remembers the
+# file, which then gets replaced without a version.
+version_names_take () {
+    local path=$1 info ctime fxid i
+    local vdir="$(dirname "$path")/.sys.v#.$(basename "$path")"
+    info=$(command eos -b root://$EOS_TEST_REDIRECTOR fileinfo "$path" -m) || return 1
+    ctime=$(echo "$info" | tr ' ' '\n' | sed -n 's/^ctime=\([0-9]*\)\..*/\1/p')
+    fxid=$(echo "$info" | tr ' ' '\n' | sed -n 's/^fxid=//p')
+    echo "version_names_take $path ctime=$ctime fxid=$fxid" >> $EOSCERTLOG
+    test -n "$ctime" && test -n "$fxid" || return 1
+    echo "$fxid" > "$EOS_TEST_TESTSYS/versioning.taken"
+    for i in $(seq 0 5); do
+      command eos -b root://$EOS_TEST_REDIRECTOR file touch "$vdir/$((ctime + i)).$fxid" >> $EOSCERTLOG 2>&1 || return 1
+    done
+}
+################################################################################
+# succeeds once the file version_names_take looked at is deleted
+version_names_file_deleted () {
+    file_is_deleted "$(cat "$EOS_TEST_TESTSYS/versioning.taken")"
+}
+################################################################################
 timeout() {
     echo "## TIMEOUT ##";
     exit 0;
@@ -1066,6 +1186,7 @@ runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.space /eos/$EOS_
 runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.atomic /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/test
 runtest "### Cleanup   " unix IGNORE  "" eos space config rm default space.attr.sys.versiontest
+runtest "### Cleanup   " unix IGNORE  "" eos space config rm default space.attr.sys.preservetest
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Quota     " unix SUCCESS "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix ERROR   "" eos quota set -u ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
@@ -2884,6 +3005,36 @@ runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "/test-fusex/$EOS_
 runtest "### cp        " unix SUCCESS "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/newfile" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file.hardlink"
 runtest "### Rm        " unix SUCCESS "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink
+# a file overwritten with eos.xattr.preserve must not inherit the link count of
+# a hard link target, otherwise its removal renames it to ...eos.ino... instead
+# of deleting it - needs a directory without versioning and recycle bin. The
+# directory is created through FUSE, which writes into it first, and is only
+# changed through the MGM once the sync has flushed it.
+HLPRESERVE_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve"
+runtest "### mkdir     " unix SUCCESS "" shell mkdir -p "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/file"
+runtest "### link      " unix SUCCESS "" shell cd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/ && ln file file.hardlink"
+runtest "### Sync      " unix SUCCESS "" shell dd "of=/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/file.hardlink" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### chmod     " unix SUCCESS "" eos chmod 777 "$HLPRESERVE_DIR"
+runtest "### Version   " unix IGNORE  "" eos attr rm sys.versioning "$HLPRESERVE_DIR"
+runtest "### Version   " unix ERROR   "" eos attr get sys.versioning "$HLPRESERVE_DIR"
+runtest "### Recycle   " unix ERROR   "" eos attr get sys.recycle "$HLPRESERVE_DIR"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/file"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$HLPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/file"
+# only the previous file, still referenced by the hard link, stays hidden
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/file"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR | grep -c 'eos.ino' | grep -w 1"
+# nor must a new version of a hard link target - only its owner or root may
+# version it, and a plain upload is not mapped to the account FUSE created it as
+runtest "### Version   " unix SUCCESS "" eos attr set sys.versioning=2 "$HLPRESERVE_DIR"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/vfile"
+runtest "### link      " unix SUCCESS "" shell cd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/ && ln vfile vfile.hardlink"
+runtest "### Sync      " unix SUCCESS "" shell dd "of=/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlpreserve/vfile.hardlink" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$HLPRESERVE_DIR/vfile" "-ODeos.ruid=0"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
+runtest "### Rm        " unix SUCCESS "" eos rm -r "$HLPRESERVE_DIR"
 
 #obfuscation
 runtest "### Obfuscate " unix SUCCESS "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
@@ -3167,6 +3318,109 @@ runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'"
 runtest "### SpaceAttr " unix SUCCESS "" eos space config rm default space.attr.sys.versiontest
 runtest "### Attr Get  " unix ERROR "" eos attr get sys.versiontest "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd | grep space"
 runtest "### Attr Get  " unix ERROR "" eos attr get sys.versiontest "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic | grep space"
+# the tape metadata of the previous version is not carried over, CTA gives the
+# new file its own - at open and at the commit of an atomic upload
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.archive.file_id=4242 "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Attr Get  " unix ERROR "" eos attr get sys.archive.file_id "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.archive.file_id=4242 "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic"
+runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "--atomic /etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic"
+runtest "### Attr Get  " unix ERROR "" eos attr get sys.archive.file_id "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd.atomic"
+# the commit of an atomic upload keeps a forced ETag, a new version must not
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/etag" "-ODeos.etag=versiontag\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.tmp.etag "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/etag | grep versiontag"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/etag" "-ODeos.atomic=1"
+runtest "### Attr Get  " unix ERROR "" eos attr get sys.tmp.etag "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/etag"
+# what changes on the file while a versioned atomic upload is open - its
+# application lock refreshed or released the way the wopiserver does - is
+# neither lost nor brought back, xattrs given with eos.xattr take precedence
+VERSIONING_DURING="/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/during"
+VERSIONING_LOCK="expires:$(( $(date +%s) + 3600 )),type:shared,owner:*:wopi_test"
+VERSIONING_REFRESH=$(( $(date +%s) + 7200 ))
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set "'sys.app.lock=${VERSIONING_LOCK}'" "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.iop.lock=before "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.changed=before "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.given=before "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.removed=before "$VERSIONING_DURING"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_DURING" "eos.app=wopi_test&eos.xattr=user.given=fromcgi" xattr_change "$VERSIONING_REFRESH"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.during | wc -l | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.during" "$VERSIONING_DURING"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/versioning.during"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "$VERSIONING_DURING | grep -F 'expires:${VERSIONING_REFRESH},'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "$VERSIONING_DURING | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$VERSIONING_DURING | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.added "$VERSIONING_DURING | grep after"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.removed "$VERSIONING_DURING"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.given "$VERSIONING_DURING | grep fromcgi"
+# a lock released while the upload is open no longer guards the new version
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_DURING" "eos.app=wopi_test" lock_release
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.app.lock "$VERSIONING_DURING"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.iop.lock "$VERSIONING_DURING"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$VERSIONING_DURING | grep after"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$VERSIONING_DURING" "-ODeos.app=other_app"
+# a file removed while the upload is open gives no xattrs to the new one
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_DURING" "eos.app=wopi_test" file_remove
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.removed" "$VERSIONING_DURING"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/versioning.removed"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.changed "$VERSIONING_DURING"
+# a file ACL changed or removed while the upload is open is neither lost nor
+# brought back, a user.acl given with eos.xattr does not replace it, and a file
+# removed meanwhile passes no ACL to the new one
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.eval.useracl=1 "$VERSIONING_DURING"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$VERSIONING_DURING"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_DURING" "eos.app=wopi_test&eos.xattr=user.acl=u:4:r" acl_change
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.acl "$VERSIONING_DURING | grep -F 'u:3:r'"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_DURING | grep -F 'u:4:r'"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_DURING" "eos.app=wopi_test" acl_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_DURING"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eval.useracl "$VERSIONING_DURING | grep 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$VERSIONING_DURING"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_DURING" "eos.app=wopi_test" file_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_DURING"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eval.useracl "$VERSIONING_DURING"
+# a commit which can't create the version replaces the file without one: the new
+# file still gets the file ACL, and the replaced one doesn't stay behind. The
+# folder allows more versions than the ones taken, the upload purges it at open.
+VERSIONING_TAKEN="/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/taken"
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "$VERSIONING_TAKEN"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$VERSIONING_TAKEN"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.versioning=16 "$VERSIONING_TAKEN"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$VERSIONING_TAKEN/file"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$VERSIONING_TAKEN/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.eval.useracl=1 "$VERSIONING_TAKEN/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$VERSIONING_TAKEN/file"
+runtest "### Taken     " unix SUCCESS "" version_names_take "$VERSIONING_TAKEN/file"
+runtest "### Atomic    " unix SUCCESS "" upload "/etc/passwd" "$VERSIONING_TAKEN/file" "-ODeos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.acl "$VERSIONING_TAKEN/file | grep -F 'u:2:r'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eval.useracl "$VERSIONING_TAKEN/file | grep 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.taken.file" "$VERSIONING_TAKEN/file"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/versioning.taken.file"
+runtest "### Deleted   " unix SUCCESS "" wait_for 10 version_names_file_deleted
+runtest "### Rm        " unix SUCCESS "" eos rm -r "$VERSIONING_TAKEN"
+# an application lock, set the way the wopiserver does, is carried over onto a
+# new version and keeps guarding it - at open and at the commit of an atomic upload
+WOPILOCK_EXPIRES=$(( $(date +%s) + 3600 ))
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set "'sys.app.lock=expires:${WOPILOCK_EXPIRES},type:shared,owner:*:wopi_test'" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.iop.lock=wopilockid "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=wopi_test"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.wopilock | wc -l | grep -w 1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep -F 'expires:${WOPILOCK_EXPIRES},type:shared,owner:*:wopi_test'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep wopilockid"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
+# a FUSE state saying the file is open lets any application past the lock, a
+# new version must not inherit it
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.fusex.state=CU "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=wopi_test"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.fusex.state "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app\&eos.atomic=1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=wopi_test\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep -F 'expires:${WOPILOCK_EXPIRES},type:shared,owner:*:wopi_test'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep wopilockid"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
 # Versioning test when acls control the permission for the user on the folder and
 # implicitly also for the creation of the versions directory.
 runtest "### Mkdir     " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
@@ -3177,6 +3431,148 @@ runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'"
 runtest "### Ls        " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/.sys.v#.file.dat | wc -l | grep -w 1"
 runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
 runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+
+################################################################################
+# Preserving the xattrs of an overwritten file
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="xattrpreserve"
+# ------------------------------------------------------------------------------
+XATTRPRESERVE_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/xattrpreserve"
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "$XATTRPRESERVE_DIR"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$XATTRPRESERVE_DIR"
+runtest "### Version   " unix ERROR   "" eos attr get sys.versioning "$XATTRPRESERVE_DIR"
+# without the CGI an overwrite drops the xattrs of the file it replaces
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file"
+# with it they are copied onto the new file, which is still a new file
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/file"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.preserve=kept "$XATTRPRESERVE_DIR/file"
+XATTRPRESERVE_FID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$XATTRPRESERVE_DIR/file" 2>/dev/null | jq -r .id)
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+XATTRPRESERVE_NEWFID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$XATTRPRESERVE_DIR/file" 2>/dev/null | jq -r .id)
+runtest "### Fid       " unix SUCCESS "" shell test "-n" "\"$XATTRPRESERVE_FID\""
+runtest "### Fid       " unix SUCCESS "" shell test "\"$XATTRPRESERVE_FID\"" "!=" "null"
+runtest "### Fid       " unix SUCCESS "" shell test "-n" "\"$XATTRPRESERVE_NEWFID\""
+runtest "### Fid       " unix SUCCESS "" shell test "\"$XATTRPRESERVE_NEWFID\"" "!=" "null"
+runtest "### Fid       " unix SUCCESS "" shell test "\"$XATTRPRESERVE_FID\"" "!=" "\"$XATTRPRESERVE_NEWFID\""
+# xattrs given with eos.xattr take precedence over the copied ones
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1\&eos.xattr=user.preserve=new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+# an atomic upload copies them when it is committed
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/xattrpreserve.atomic" "$XATTRPRESERVE_DIR/file"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/xattrpreserve.atomic"
+# of two overlapping atomic uploads the last opened one wins, also when it is
+# closed first: the new file must not get the sys.tmp.atomic tag of the file
+# it replaces, or the first upload would replace it
+runtest "### Atomic    " unix SUCCESS "" atomic_preserve_overlap "$XATTRPRESERVE_DIR/file"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/xattrpreserve.overlap" "$XATTRPRESERVE_DIR/file"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/xattrpreserve.overlap"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/file | grep new"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.tmp.atomic "$XATTRPRESERVE_DIR/file"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $XATTRPRESERVE_DIR | grep -cF '.sys.a#.' | grep -w 0"
+# what changes on the file while an atomic upload replacing it is open - its
+# application lock refreshed or released the way the wopiserver does - is
+# neither lost nor brought back, xattrs given with eos.xattr take precedence
+XATTRPRESERVE_LOCK="expires:$(( $(date +%s) + 3600 )),type:shared,owner:*:wopi_test"
+XATTRPRESERVE_REFRESH=$(( $(date +%s) + 7200 ))
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set "'sys.app.lock=${XATTRPRESERVE_LOCK}'" "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.iop.lock=before "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.changed=before "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.given=before "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.removed=before "$XATTRPRESERVE_DIR/during"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$XATTRPRESERVE_DIR/during" "eos.app=wopi_test&eos.xattr.preserve=1&eos.xattr=user.given=fromcgi" xattr_change "$XATTRPRESERVE_REFRESH"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/xattrpreserve.during" "$XATTRPRESERVE_DIR/during"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/xattrpreserve.during"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "$XATTRPRESERVE_DIR/during | grep -F 'expires:${XATTRPRESERVE_REFRESH},'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "$XATTRPRESERVE_DIR/during | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$XATTRPRESERVE_DIR/during | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.added "$XATTRPRESERVE_DIR/during | grep after"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.removed "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.given "$XATTRPRESERVE_DIR/during | grep fromcgi"
+# a lock released while the upload is open no longer guards the new file
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$XATTRPRESERVE_DIR/during" "eos.app=wopi_test&eos.xattr.preserve=1" lock_release
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.app.lock "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.iop.lock "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$XATTRPRESERVE_DIR/during | grep after"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/during" "-ODeos.app=other_app\&eos.xattr.preserve=1"
+# a file removed while the upload is open gives no xattrs to the new one
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$XATTRPRESERVE_DIR/during" "eos.app=wopi_test&eos.xattr.preserve=1" file_remove
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/xattrpreserve.removed" "$XATTRPRESERVE_DIR/during"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/xattrpreserve.removed"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.changed "$XATTRPRESERVE_DIR/during"
+# a file ACL changed or removed while the upload is open is neither lost nor
+# brought back, a user.acl given with eos.xattr does not replace it, and a file
+# removed meanwhile passes no ACL to the new one
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.eval.useracl=1 "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$XATTRPRESERVE_DIR/during"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$XATTRPRESERVE_DIR/during" "eos.xattr.preserve=1&eos.xattr=user.acl=u:4:r" acl_change
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.acl "$XATTRPRESERVE_DIR/during | grep -F 'u:3:r'"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$XATTRPRESERVE_DIR/during | grep -F 'u:4:r'"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$XATTRPRESERVE_DIR/during" "eos.xattr.preserve=1" acl_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eval.useracl "$XATTRPRESERVE_DIR/during | grep 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$XATTRPRESERVE_DIR/during"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$XATTRPRESERVE_DIR/during" "eos.xattr.preserve=1" file_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$XATTRPRESERVE_DIR/during"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eval.useracl "$XATTRPRESERVE_DIR/during"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $XATTRPRESERVE_DIR | grep -cF '.sys.a#.' | grep -w 0"
+# the commit of an atomic upload keeps a forced ETag, the next upload must not
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/etag" "-ODeos.etag=preservetag\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.tmp.etag "$XATTRPRESERVE_DIR/etag | grep preservetag"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/etag" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.tmp.etag "$XATTRPRESERVE_DIR/etag"
+# space attributes are only merged into listings, they must not be stored
+runtest "### SpaceAttr " unix SUCCESS "" eos space config default space.attr.sys.preservetest=space
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preservetest "$XATTRPRESERVE_DIR/file | grep space"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/file" "-ODeos.xattr.preserve=1"
+runtest "### SpaceAttr " unix SUCCESS "" eos space config rm default space.attr.sys.preservetest
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.preservetest "$XATTRPRESERVE_DIR/file | grep space"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.preserve "$XATTRPRESERVE_DIR/file | grep kept"
+# only eos.xattr.preserve=1 asks for them
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/value"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/value"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/value" "-ODeos.xattr.preserve=0"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/value"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/value"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/value" "-ODeos.xattr.preserve=true"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/value"
+# ownership and mode are not copied, the new file belongs to the overwriter -
+# root here, a plain upload is not mapped to root on every instance
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/owner" "-ODeos.ruid=${NOBODY_UID}"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "600" "$XATTRPRESERVE_DIR/owner"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/owner"
+runtest "### Fileinfo  " unix SUCCESS "" eos fileinfo "$XATTRPRESERVE_DIR/owner -m | grep -w uid=${NOBODY_UID} | grep -w mode=0600"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/owner" "-ODeos.xattr.preserve=1\&eos.ruid=0"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/owner | grep kept"
+runtest "### Fileinfo  " unix SUCCESS "" eos fileinfo "$XATTRPRESERVE_DIR/owner -m | grep -w uid=0"
+runtest "### Fileinfo  " unix ERROR   "" eos fileinfo "$XATTRPRESERVE_DIR/owner -m | grep -w mode=0600"
+# the tape metadata belongs to the previous contents, CTA gives the new file
+# its own archive file id when it is created
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.archive.file_id=4242 "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.cta.objectstore.id=preservetest "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.retrieve.req_id=preservetest "$XATTRPRESERVE_DIR/tape"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/tape" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.preserve "$XATTRPRESERVE_DIR/tape | grep kept"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.archive.file_id "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.cta.objectstore.id "$XATTRPRESERVE_DIR/tape"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.retrieve.req_id "$XATTRPRESERVE_DIR/tape"
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/xattrpreserve.*"
+runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$XATTRPRESERVE_DIR"
 
 ################################################################################
 # HTTP tests
@@ -3194,6 +3590,24 @@ runtest "### Mkdir        " unix SUCCESS "" eos mkdir $HTTPDIR
 runtest "### Chmod        " unix SUCCESS "" eos chmod 777 $HTTPDIR
 runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file $TESTSYSFILE50M https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m
 runtest "### Http GET     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+# a PUT replaces the file and drops its xattrs, unless its query asks for
+# eos.xattr.preserve
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/passwd https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve
+runtest "### Attr Set     " unix SUCCESS "" eos attr set user.preserve=kept /$HTTPDIR/preserve
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/group https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve
+runtest "### Attr Get     " unix ERROR   "" eos attr get user.preserve /$HTTPDIR/preserve
+runtest "### Attr Set     " unix SUCCESS "" eos attr set user.preserve=kept /$HTTPDIR/preserve
+HTTPPRESERVE_FID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/$HTTPDIR/preserve" 2>/dev/null | jq -r .id)
+runtest "### Http PUT     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file /etc/passwd https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve?eos.xattr.preserve=1
+runtest "### Attr Get     " unix SUCCESS "" eos attr get user.preserve "/$HTTPDIR/preserve | grep kept"
+HTTPPRESERVE_NEWFID=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/$HTTPDIR/preserve" 2>/dev/null | jq -r .id)
+runtest "### Fid          " unix SUCCESS "" shell test "-n" "\"$HTTPPRESERVE_FID\""
+runtest "### Fid          " unix SUCCESS "" shell test "\"$HTTPPRESERVE_FID\"" "!=" "null"
+runtest "### Fid          " unix SUCCESS "" shell test "-n" "\"$HTTPPRESERVE_NEWFID\""
+runtest "### Fid          " unix SUCCESS "" shell test "\"$HTTPPRESERVE_NEWFID\"" "!=" "null"
+runtest "### Fid          " unix SUCCESS "" shell test "\"$HTTPPRESERVE_FID\"" "!=" "\"$HTTPPRESERVE_NEWFID\""
+runtest "### Http GET     " unix SUCCESS "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/preserve --output $EOS_TEST_TESTSYS/http.preserve
+runtest "### Diff         " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/http.preserve"
 runtest "### Chmod        " unix SUCCESS "" eos chmod 644 $HTTPDIR
 runtest "### Http PUT     " unix ERROR "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent --upload-file $TESTSYSFILE50M https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m
 runtest "### Http GET     " unix ERROR "" curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --location --fail --silent https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
@@ -3831,6 +4245,26 @@ runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cg
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.userav"
 runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
 
+# eos.xattr.preserve keeps the xattrs of an encrypted file but never its keys,
+# the new file is encrypted with keys of its own
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/preserve" "-ODeos.obfuscate=1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "$SPACEENC_CGI_DIR/preserve"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1\&eos.obfuscate=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.enc" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.enc"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/preserve" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/preserve | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/preserve | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.atomic" "$SPACEENC_CGI_DIR/preserve"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.preserve.atomic"
+
 # encrypted files which get overwritten once the key of their space is gone,
 # see below
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/keyrm" "-ODeos.obfuscate=1"
@@ -3953,6 +4387,27 @@ runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfav 
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfav" "$SPACEENC_CGI_DIR/obfav"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obfav"
 runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
+
+# eos.xattr.preserve keeps a file which is only obfuscated obfuscated, like a
+# new version does, unless the upload asks for eos.obfuscate=0
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfp" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfp | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "$SPACEENC_CGI_DIR/obfp"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obfp" "-ODeos.xattr.preserve=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/obfp | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfp | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp" "$SPACEENC_CGI_DIR/obfp"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfp" "-ODeos.xattr.preserve=1\&eos.atomic=1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/obfp | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfp | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp.atomic" "$SPACEENC_CGI_DIR/obfp"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp.atomic"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obfp" "-ODeos.xattr.preserve=1\&eos.obfuscate=0"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/obfp | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfp | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp.plain" "$SPACEENC_CGI_DIR/obfp"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.obfp.plain"
 
 runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/spaceenc.*"
 runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$SPACEENC_DIR"

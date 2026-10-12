@@ -98,6 +98,8 @@ XrdMgmOfs::Commit(const char* path,
     fsids = pio_cap.fsids;
     cgi["fid"] = pio_cap.hex_fid;
     cgi["path"] = pio_cap.path;
+    // Never from the request, which the client builds
+    cgi["xattrpreserve"] = (pio_cap.xattr_preserve ? "1" : "0");
     // Only used for logging, the commit goes to all the stripe locations
     cgi["fsid"].clear();
 

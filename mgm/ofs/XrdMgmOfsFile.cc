@@ -822,6 +822,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isTpc = false;
   // flag indicating a file touch
   bool isTouch = false;
+  // flag indicating to keep the xattrs of an overwritten file
+  bool isXattrPreserve = false;
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
   // Set of filesystem IDs to reconstruct
@@ -970,6 +972,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   currentWorkflow = XrdUtils::GetEnv(*openOpaque, "eos.workflow", "default");
   versioning_cgi = XrdUtils::GetEnv(*openOpaque, "eos.versioning");
+  isXattrPreserve = (XrdUtils::GetEnv(*openOpaque, "eos.xattr.preserve") == "1");
   isTpc = openOpaque->Get("tpc.stage") != nullptr;
 
   if (!isFuse && isRW) {
@@ -1713,7 +1716,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       // The new file is protected like the one it replaces, and gets its
-      // xattrs for versions
+      // xattrs for versions or if asked by eos.xattr.preserve
       attrmapOverwritten = fmd->getAttributes();
 
       // check if this directory is write-once for the mapped user
@@ -1965,11 +1968,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             }
 
-            // For versions copy the xattrs stored on the original file over,
-            // never the space attributes merged into attrmapF as they would
-            // stick to the file once the space configuration changes. The
-            // encryption keys are the ones the new file is written with.
-            if (versioning) {
+            // For versions, or if asked by eos.xattr.preserve, copy the xattrs
+            // stored on the overwritten file over, never the space attributes
+            // merged into attrmapF as they would stick to the file once the
+            // space configuration changes. The encryption keys are the ones
+            // the new file is written with. An atomic upload gets them at
+            // commit, which keeps the changes made to the overwritten file
+            // while it runs, e.g. an application lock refreshed or released.
+            if ((versioning || isXattrPreserve) && !isAtomicUpload) {
               for (const auto& [key, val] :
                    attr::getCarryOverXattrs(attrmapOverwritten)) {
                 fmd->setAttribute(key, val);
@@ -2183,6 +2189,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         capability += "&mgm.access=update";
       } else {
         capability += "&mgm.access=create";
+
+        // The commit of an atomic upload copies the xattrs of the file it
+        // replaces, a versioned one is recognised by its temporary name. An
+        // ownCloud chunked upload only gets them with versioning.
+        if (isAtomicUpload && !ocUploadUuid.length() && isXattrPreserve) {
+          capability += "&mgm.xattr.preserve=1";
+        }
       }
 
       uint64_t cloneId;
@@ -2488,9 +2501,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (acl.EvalUserAttrFile()) {
-        // we inherit existing ACLs during (atomic) versioning
-        fmd->setAttribute("user.acl", acl.UserAttrFile());
-        fmd->setAttribute("sys.eval.useracl", "1");
+        if (isAtomicUpload && !ocUploadUuid.length() && (versioning || isXattrPreserve)) {
+          // No ACL until the commit, which copies the one of the replaced file
+          // as it is then: an ACL changed or removed during the upload is
+          // neither lost nor brought back. The commit only adds missing keys,
+          // so drop a user.acl given with eos.xattr, the replaced file's wins.
+          fmd->removeAttribute("user.acl");
+        } else {
+          // we inherit existing ACLs during (atomic) versioning
+          fmd->setAttribute("user.acl", acl.UserAttrFile());
+          fmd->setAttribute("sys.eval.useracl", "1");
+        }
       }
 
       try {
