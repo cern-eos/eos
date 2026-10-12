@@ -223,6 +223,51 @@ TEST(getCarryOverXattrs, DropsPreviousInstanceXattrs)
   ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs), expected);
 }
 
+TEST(getCarryOverXattrs, DropsInternalAndTmpXattrs)
+{
+  // e.g. a new file keeping the link count of a hard link target would be
+  // renamed instead of deleted, one keeping a forced ETag would never change it
+  eos::IFileMD::XAttrMap old_xattrs{{"user.foo", "1"},
+                                    {SYS_HARD_LINK, "4097"},
+                                    {SYS_NUM_LINK, "1"},
+                                    {"sys.eos.fifo", "1"},
+                                    {eos::kAttrTmpEtagKey, "\"etag\""},
+                                    {"sys.eosx", "1"},
+                                    {"sys.tmpx", "1"}};
+  eos::IFileMD::XAttrMap expected{
+      {"user.foo", "1"}, {"sys.eosx", "1"}, {"sys.tmpx", "1"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs), expected);
+}
+
+TEST(getCarryOverXattrs, DropsFusexAndTapeXattrs)
+{
+  // CTA gives the new file its own archive file id when it is created, the
+  // retrieve requests and the FUSE state belong to the previous contents
+  eos::IFileMD::XAttrMap old_xattrs{
+      {"user.foo", "1"},
+      {eos::common::ARCHIVE_FILE_ID_ATTR_NAME, "4242"},
+      {eos::common::ARCHIVE_STORAGE_CLASS_ATTR_NAME, "single"},
+      {eos::common::ARCHIVE_ERROR_ATTR_NAME, "error"},
+      {eos::common::CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME, "archive_req"},
+      {eos::common::CTA_OBJECTSTORE_REQ_ID_NAME, "retrieve_req"},
+      {eos::common::RETRIEVE_REQID_ATTR_NAME, "req_id"},
+      {eos::common::RETRIEVE_REQTIME_ATTR_NAME, "1"},
+      {eos::common::RETRIEVE_EVICT_COUNTER_NAME, "1"},
+      {eos::common::RETRIEVE_ERROR_ATTR_NAME, "error"},
+      {"sys.fusex.state", "C|"},
+      {"sys.fusex.creator", "uuid"},
+      {"sys.archivex", "1"},
+      {"sys.ctax", "1"},
+      {"sys.retrievex", "1"},
+      {"sys.fusexx", "1"}};
+  eos::IFileMD::XAttrMap expected{{"user.foo", "1"},
+                                  {"sys.archivex", "1"},
+                                  {"sys.ctax", "1"},
+                                  {"sys.retrievex", "1"},
+                                  {"sys.fusexx", "1"}};
+  ASSERT_EQ(attr::getCarryOverXattrs(old_xattrs), expected);
+}
+
 TEST(getCarryOverXattrs, DropsEncryptionKeys)
 {
   // The new file is only encrypted with the keys of its own upload

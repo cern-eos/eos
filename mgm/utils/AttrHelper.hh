@@ -86,8 +86,9 @@ bool getValue(const eos::IContainerMD::XAttrMap& attrmap,
 
 /*!
  * Get the xattrs carried over from an overwritten file onto the file
- * replacing it. The attributes describing the previous file instance and its
- * encryption keys are dropped, the new file keeps the keys it is written with.
+ * replacing it. The attributes describing the previous file instance or its
+ * contents (e.g. sys.eos.*, sys.tmp.*, tape metadata) and its encryption keys
+ * are dropped, the new file keeps the keys it is written with.
  * @param old_xattrs xattrs stored on the overwritten file - not merged with
  *        space or linked attributes, which would then be persisted
  * @return xattrs to set on the new file
