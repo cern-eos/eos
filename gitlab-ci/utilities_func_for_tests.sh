@@ -52,7 +52,82 @@ function cp_to_local_cmd_k8s() {
 }
 
 function get_podname () {
-    kubectl get pods --namespace=${K8S_NAMESPACE} -l app=${1} | grep -E '([0-9]+)/\1' | awk '{print $1}' # Get only READY pods
+  local pods
+  pods=$(kubectl get pods --namespace="$K8S_NAMESPACE" -l "app=$1" \
+    -o 'jsonpath={range .items[*]}{.metadata.name}{" "}{.metadata.deletionTimestamp}{" "}{.status.phase}{" "}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}') || return $?
+  # A deletion timestamp shifts the remaining columns and excludes terminating pods.
+  awk '$2 == "Running" && $3 == "True" {print $1}' <<< "$pods"
+}
+
+# Use concrete pod identities and preserve each command argument. In particular,
+# a temporarily unready pod must still be reachable during daemon recovery.
+function k8s_cmd() {
+  timeout -s KILL 30 kubectl --namespace "$K8S_NAMESPACE" "$@"
+}
+
+function exec_cmd_argv() {
+  local container=$1
+  shift
+  if [[ $IS_DOCKER == true ]]; then
+    docker exec -i "$container" "$@"
+  else
+    k8s_cmd exec "$container" -- "$@"
+  fi
+}
+
+function monitor_value() {
+  awk -v key="$2" '
+    { for (i=1; i<=NF; i++) if (index($i,key "=")==1) {
+        value=substr($i,length(key)+2); count++
+      } }
+    END { if (count!=1 || value=="") exit 1; print value }' <<< "$1"
+}
+
+# The caller owns failure reporting. The optional callback can report progress
+# after a failed predicate without putting test-specific state in this helper.
+function poll_until() {
+  [[ $# -ge 4 ]] || return 2
+  local deadline=$1 interval=$2 pending=$3 remaining
+  shift 3
+  [[ $deadline =~ ^[0-9]+$ && $interval =~ ^[1-9][0-9]*$ && $# -gt 0 ]] || return 2
+  while (( SECONDS < deadline )); do
+    if "$@"; then return 0; fi
+    if [[ -n $pending ]]; then "$pending" || return $?; fi
+    remaining=$((deadline - SECONDS))
+    (( remaining > 0 )) || break
+    if (( remaining < interval )); then
+      sleep "$remaining"
+    else
+      sleep "$interval"
+    fi
+  done
+  return 1
+}
+
+function cleanup_k8s_fixture() {
+  local namespace=${1:-} log_directory=${2:-} status cleanup_status=0
+  [[ $# == 2 && -n $log_directory && $IS_DOCKER == false && -n ${KUBECONFIG:-} && $namespace != default &&
+      ${#namespace} -le 63 && $namespace =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] || {
+    echo 'error: refusing empty, default or invalid Kubernetes cleanup namespace' >&2
+    return 2
+  }
+  if timeout -s KILL 120 bash ./eos-on-k8s/collect_logs.sh "$namespace" "$log_directory"; then
+    :
+  else
+    status=$?
+    printf 'error: Kubernetes log collection failed or timed out (rc=%s)\n' "$status" >&2
+    cleanup_status=1
+  fi
+  # Always delete, including when collecting logs failed or timed out. The
+  # fixture scripts handle a namespace that a previous finalizer already deleted.
+  if timeout -s KILL 180 bash -e ./eos-on-k8s/delete-all.sh "$namespace"; then
+    :
+  else
+    status=$?
+    printf 'error: Kubernetes namespace deletion failed or timed out (rc=%s)\n' "$status" >&2
+    cleanup_status=1
+  fi
+  return "$cleanup_status"
 }
 
 
@@ -87,4 +162,3 @@ else
   echo "error: unknown type of executor \"$2\""
   usage && exit 1
 fi
-

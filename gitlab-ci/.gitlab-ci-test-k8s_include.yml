@@ -29,6 +29,32 @@ k8s_system:
   allow_failure: true
 
 
+k8s_mgm_ha:
+  extends: .dock8s_base
+  image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
+  variables:
+    EOS_K8S_MGM_COUNT: "2"
+    EOS_K8S_FST_COUNT: "2"
+    EOS_K8S_HA_TEST: "1"
+  script:
+    - bash ./gitlab-ci/run_mgm_ha_ci.sh
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  retry:
+    max: 1
+    when: runner_system_failure
+  tags:
+    - docker_node
+    - k8s
+  allow_failure: false
+  artifacts:
+    when: always
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+      - eos-ha-${CI_JOB_ID}.log
+
+
 k8s_tape_rest:
   extends: .dock8s_base
   image: alpine/k8s:1.18.2

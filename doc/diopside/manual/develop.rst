@@ -427,6 +427,95 @@ The manual CI jobs :code:`build_el9_ubsan`,
 and run the existing test suite with UBSan, using the regular EL9 dependencies.
 
 
+Kubernetes MGM HA test
+""""""""""""""""""""""
+
+The required CI job :code:`k8s_mgm_ha` runs
+:code:`gitlab-ci/test_mgm_ha.sh` in a disposable :code:`eos-on-k8s`
+namespace with two MGMs, two FSTs, one client and one QDB. The bootstrap
+in :code:`eos-on-k8s` creates the shared test user on all MGMs before any MGM
+starts and retains the common configuration's bootstrap MGM alias. The prepared
+MGM, FST and QDB configurations in :code:`eos-docker` limit XRootD to 65,536 file
+descriptors to bound startup allocations. Both :code:`runtime` and :code:`test`
+images use these defaults.
+The fixture uses the regular FST volumes and keeps the production free-space
+guards enabled. The runner node must have enough free disk space and inodes;
+competing workloads exhausting its storage are infrastructure failures to
+resolve on the cluster.
+Before each phase's payload write, the test checks actual free bytes and inodes in
+:code:`/var` and the data directory, plus daemon write, fsync, read and user
+xattr support. Failures collect filesystem capacity, inode usage, EOS
+filesystem states and Kubernetes events.
+The initial payload upload waits up to 180 seconds for placement to become
+ready, retrying only the observed XRootD ``[3009]`` free-space response with
+exit status 54. Other errors fail immediately. The test verifies that payload
+before crashing an MGM; uploads after either failover are single attempts.
+
+Docker image builds and fixture setup clone the default branches of
+:code:`eos-docker` and :code:`eos-on-k8s`. Before creating the namespace, the HA
+job runs :code:`gitlab-ci/tests/test_k8s_fixture.py` against that fixture
+checkout using a fake :code:`kubectl`. These regression tests cover one, two
+and three MGM configurations, account creation before MGM startup, log
+collection and namespace deletion without contacting a cluster. The suite
+requires Python 3 and PyYAML. For local execution, set
+:code:`EOS_K8S_FIXTURE_DIR` to the fixture checkout; by default the suite uses
+:code:`eos-on-k8s` inside the EOS checkout.
+Fixture preparation belongs to :code:`create-all.sh -m 2`; the EOS job does
+not rewrite the fixture templates or image configuration. After successful
+creation, the EOS HA job labels its namespace :code:`eos.cern.ch/ha-test=true`
+to authorize the destructive failover test.
+The test reuses :code:`gitlab-ci/utilities_func_for_tests.sh` for concrete-pod
+argument execution, bounded polling, monitoring field parsing and cleanup.
+
+The test first compares each MGM's direct :code:`is_master` protocol query
+with its local :code:`eos ns stat -m` output. Exactly one MGM must report
+:code:`is_master=true` and :code:`role=leader`; both must identify the same
+leader, and each status response must identify the MGM that was queried.
+This detects read-only namespace commands incorrectly redirected from a
+follower to the leader.
+
+An :code:`ExternalName` Service provides the client alias
+:code:`eos-mgm.<namespace>.svc.cluster.local`. The test kills the current
+MGM daemon, waits for the other MGM to accept writes, and updates the alias
+to that leader. It checks DNS resolution and probes the alias directly,
+then reads existing files and writes new metadata and payloads. It restarts
+the stopped MGM as a follower and repeats the failover in the other
+direction. SHA-256 checks verify every payload after both transitions.
+Legacy mkdir and protobuf rm writes sent directly to each healthy follower,
+including after rejoining, exercise write redirection and verify deletion.
+
+To rerun against an already prepared disposable HA fixture:
+
+.. code-block:: bash
+
+    KUBECONFIG=/path/to/test-kubeconfig K8S_NAMESPACE=your-test-namespace \
+      bash gitlab-ci/test_mgm_ha.sh
+
+The namespace must carry :code:`eos.cern.ch/ha-test=true` and contain exactly
+the expected two MGM pods, two FST pods and client. This label is owned by the
+EOS HA job; generic multi-MGM deployments are not marked automatically.
+The runner crashes MGM processes and creates temporary test data and the
+alias Service. Cleanup restarts stopped daemons and removes those owned
+resources. The CI wrapper :code:`gitlab-ci/run_mgm_ha_ci.sh` then collects
+daemon logs and deletes the namespace from its exit finalizer, including on
+interrupt or termination. It preserves a failed test's exit code and fails a
+successful test when fixture cleanup fails. Log collection has a 120-second
+deadline. Deletion has a 180-second deadline to include the fixture's 120-second
+namespace wait and bounded context cleanup; it is attempted even if log
+collection fails.
+The shared cleanup utility calls the fixture's existing :code:`collect_logs.sh`
+and :code:`delete-all.sh`, which collect all pod/container diagnostics and
+handle an already deleted namespace successfully.
+The :code:`after_script` fallback retries cleanup after interrupted setup or
+failed deletion, and removes the local fixture directory. The main finalizer
+gates the job because GitLab does not use
+:code:`after_script` failures to change a successful job's result.
+The CI artifacts include the test and cleanup trace and daemon logs on both
+success and failure. Only runner system failures are automatically retried.
+Commands and election waits also have deadlines.
+This topology tests MGM failover; it does not test QDB quorum failure.
+
+
 Troubleshooting
 """""""""""""""
 

@@ -1,7 +1,10 @@
 #!/bin/bash -ve
 
 export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
-git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
+git clone https://gitlab.cern.ch/eos/eos-on-k8s.git || exit $?
+if [[ ${EOS_K8S_HA_TEST:-0} == 1 ]]; then
+  EOS_K8S_FIXTURE_DIR="$PWD/eos-on-k8s" python3 ./gitlab-ci/tests/test_k8s_fixture.py || exit $?
+fi
 export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
 
 export IMAGE_REPO="${CI_REGISTRY_IMAGE}/eos-ci"
@@ -24,4 +27,12 @@ if [[ ${EOS_MGM_ENABLE_TAPE_REST:-0} == 1 ]]; then
 EOF
 fi
 
-./eos-on-k8s/create-all.sh -b ${IMAGE_REPO} -i ${IMAGE_TAG} -u ${CLI_IMAGE_TAG} -n ${K8S_NAMESPACE} -k ${KRB5:-"mit"} ${EOS_MGM_ENABLE_REST_API:+-r}
+./eos-on-k8s/create-all.sh -b "${IMAGE_REPO}" -i "${IMAGE_TAG}" \
+  -u "${CLI_IMAGE_TAG}" -n "${K8S_NAMESPACE}" -k "${KRB5:-mit}" \
+  -m "${EOS_K8S_MGM_COUNT:-1}" -f "${EOS_K8S_FST_COUNT:-8}" \
+  ${EOS_MGM_ENABLE_REST_API:+-r} || exit $?
+
+if [[ ${EOS_K8S_HA_TEST:-0} == 1 ]]; then
+  timeout -s KILL 30 kubectl --request-timeout=20s label namespace \
+    "$K8S_NAMESPACE" eos.cern.ch/ha-test=true --overwrite || exit $?
+fi
