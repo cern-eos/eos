@@ -38,6 +38,8 @@
 # Within one component the stock reprepro keeps the newest version of every
 # package, which is all that is needed once the series are separated: a new
 # 5.4.10 replaces 5.4.9 in jammy/tag/5.4 while jammy/tag/5.3 is left alone.
+# A package already published with the very same version is removed first and
+# then overwritten by the new build.
 #-------------------------------------------------------------------------------
 set -ex
 
@@ -72,6 +74,14 @@ for RELEASE in "jammy" "noble" "noble-arm" "resolute"; do
     RELEASE_LTS="$(echo ${RELEASE} | cut -d '-' -f1)"
     COMPONENT="${RELEASE_LTS}/${BUILD_TYPE}/${MAJOR_MINOR}"
     echo "info: Publishing for: ${RELEASE} version: ${EOS_VERSION} in location: ${EXPORT_REPO}/pool/${COMPONENT}/e/eos/"
+    # Nightly builds of an unchanged commit get the same version but are not
+    # bit-for-bit reproducible, so reprepro refuses to include them again. Drop
+    # any already published package with the same name, version and architecture
+    # so that the new build replaces it.
+    for DEB in ./ubuntu-${RELEASE}/*.deb; do
+      read -r PKG_NAME PKG_VERSION PKG_ARCH <<< "$(dpkg-deb --show --showformat='${Package} ${Version} ${Architecture}' ${DEB})"
+      reprepro -C ${COMPONENT} -A ${PKG_ARCH} -T deb -Vb ${EXPORT_REPO} removefilter ${RELEASE_LTS} "Package (== ${PKG_NAME}), Version (== ${PKG_VERSION})"
+    done
     reprepro -C ${COMPONENT} -Vb ${EXPORT_REPO} includedeb ${RELEASE_LTS} ./ubuntu-${RELEASE}/*.deb
   fi
 done
