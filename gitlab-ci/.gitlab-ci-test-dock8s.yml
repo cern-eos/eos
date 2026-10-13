@@ -22,6 +22,7 @@
 
 .dock8s_base:
   stage: test
+  resource_group: $EOS_K8S_QUEUE_4
   variables:
     OS_TAG: ".el9"
   before_script:
@@ -49,6 +50,7 @@
 
 .dock8s_system_test_template:
   extends: .dock8s_base
+  resource_group: $EOS_K8S_QUEUE_1
   variables:
     # eos-instance-test-ci runs eos-grpc-gateway-test against the REST API
     EOS_MGM_ENABLE_REST_API: "1"
@@ -74,6 +76,7 @@
 
 .dock8s_convert_fsck_recycle_template:
   extends: .dock8s_base
+  resource_group: $EOS_K8S_QUEUE_2
   script:
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-convert-test ./eos-convert-test; chmod +x eos-convert-test

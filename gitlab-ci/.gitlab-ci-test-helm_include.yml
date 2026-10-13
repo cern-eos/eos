@@ -18,6 +18,7 @@
 
 # @todo consider to move the variables in the global 'variable' yaml keymap, not sure it works with ever-changing content
 .helm_before_script_template: &helm_before_script_template
+  resource_group: $EOS_K8S_QUEUE_4
   # Setup a KDC server, an EOS instance, and an EOS client with an eos-fusex mount
   before_script:
     - |
@@ -73,6 +74,7 @@
       kubectl exec eos-mgm-0 -- eos fs ls
 
 .helm_groups_before_script_template: &helm_groups_before_script_template
+  resource_group: $EOS_K8S_QUEUE_6
   before_script:
     - |
       chmod 600 $K8S_CONFIG
@@ -162,6 +164,7 @@ helm_conv_fsck_recycle:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: [*helm_before_script_template, *helm_after_script_template]
+  resource_group: $EOS_K8S_QUEUE_2
   script:
     - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils
@@ -282,6 +285,7 @@ helm_stress:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: [*helm_before_script_template, *helm_after_script_template]
+  resource_group: $EOS_K8S_QUEUE_5
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
     - |
@@ -312,6 +316,7 @@ helm_stress:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: [*helm_before_script_template, *helm_after_script_template]
+  resource_group: $EOS_K8S_QUEUE_1
   script:
     - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
@@ -357,6 +362,7 @@ helm_traffic_shaping:
     OS_TAG: ".el9"
     FF_SCRIPT_SECTIONS: "true"
   <<: [*helm_groups_before_script_template, *helm_after_script_template]
+  resource_group: $EOS_K8S_QUEUE_7
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
