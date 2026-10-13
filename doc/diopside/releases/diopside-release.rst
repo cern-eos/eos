@@ -16,6 +16,23 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.4 Diopside``
+===================
+
+2026-10-13
+
+Bug
+----
+
+* MGM: Fix regression in MGM HA status display for slaves and add tests for HA transition
+* [EOS-6662] - MGM: Recycler removes empty project bins (rid:X), so they come back without their egroup ACLs
+
+New Feature
+------------
+
+* [EOS-6664] - Add support for PIO write mode for RAIN files
+
+
 ``v5.5.3 Diopside``
 ===================
 
