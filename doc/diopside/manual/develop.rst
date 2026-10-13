@@ -427,6 +427,85 @@ The manual CI jobs :code:`build_el9_ubsan`,
 and run the existing test suite with UBSan, using the regular EL9 dependencies.
 
 
+Kubernetes CI concurrency
+"""""""""""""""""""""""""
+
+Kubernetes fixture and Helm instance jobs use four GitLab resource
+groups by default. Each group allows one instance job at a time across this
+project's pipelines, limiting concurrent instance jobs using this configuration
+to four. Build and unit-test jobs remain concurrent. Instance jobs hold their
+slot through setup, tests and cleanup.
+
+The global :code:`EOS_K8S_QUEUE_1` through :code:`EOS_K8S_QUEUE_8` variables
+map eight logical queues to resource-group names. The defaults keep the two
+long system-test families separate and distribute the remaining work across
+two groups:
+
+.. list-table:: Default queue assignments
+   :header-rows: 1
+
+   * - Queue variable suffix
+     - Resource group
+     - Instance jobs
+   * - 1
+     - :code:`eos-ci-k8s-1`
+     - System tests (Kubernetes and Helm)
+   * - 2
+     - :code:`eos-ci-k8s-2`
+     - Conversion/fsck/recycle, Kubernetes MGM HA and cbox
+   * - 3
+     - :code:`eos-ci-k8s-3`
+     - Kubernetes flat-scheduler system test
+   * - 4
+     - :code:`eos-ci-k8s-4`
+     - Remaining instance jobs
+   * - 5
+     - :code:`eos-ci-k8s-2`
+     - Stress tests (Kubernetes and Helm)
+   * - 6
+     - :code:`eos-ci-k8s-4`
+     - Helm groupdrainer
+   * - 7
+     - :code:`eos-ci-k8s-4`
+     - Helm traffic shaping
+   * - 8
+     - :code:`eos-ci-k8s-2`
+     - Kubernetes Reva
+
+Queue assignment is static: a waiting job cannot borrow an idle slot from
+another resource group. Existing jobs retain their previous assignments and
+can run alongside jobs using a changed configuration until they finish.
+
+Project CI/CD variables can override the defaults for new pipelines. For eight
+concurrent instance jobs, give the last four queues distinct group names:
+
+.. code-block:: yaml
+
+   EOS_K8S_QUEUE_5: "eos-ci-k8s-5"
+   EOS_K8S_QUEUE_6: "eos-ci-k8s-6"
+   EOS_K8S_QUEUE_7: "eos-ci-k8s-7"
+   EOS_K8S_QUEUE_8: "eos-ci-k8s-8"
+
+For six, override only :code:`EOS_K8S_QUEUE_5` and :code:`EOS_K8S_QUEUE_6`
+as above, leaving queues 7 and 8 at their defaults.
+
+To reduce the four-group default to two concurrent instance jobs, set:
+
+.. code-block:: yaml
+
+   EOS_K8S_QUEUE_3: "eos-ci-k8s-1"
+   EOS_K8S_QUEUE_4: "eos-ci-k8s-2"
+   EOS_K8S_QUEUE_6: "eos-ci-k8s-2"
+   EOS_K8S_QUEUE_7: "eos-ci-k8s-2"
+
+For one concurrent instance job, set all eight variables to :code:`eos-ci-k8s-1`.
+Keep resource-group names fixed across pipelines so their jobs share the same
+queues.
+These limits do not reserve worker disk capacity or coordinate other GitLab
+projects. Runner storage must still provide enough free space for images,
+logs and data.
+
+
 Kubernetes MGM HA test
 """"""""""""""""""""""
 

@@ -31,6 +31,7 @@ k8s_system:
 
 k8s_mgm_ha:
   extends: .dock8s_base
+  resource_group: $EOS_K8S_QUEUE_2
   image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
   variables:
     EOS_K8S_MGM_COUNT: "2"
@@ -76,6 +77,7 @@ k8s_tape_rest:
 
 k8s_system_flatscheduler:
   extends: .dock8s_system_test_template
+  resource_group: $EOS_K8S_QUEUE_3
   variables:
     EOS_SCHEDULER_TYPE: weightedrandom
   image: alpine/k8s:1.18.2
@@ -140,6 +142,7 @@ k8s_flamegraph:
 
 k8s_cbox:
   extends: .dock8s_cbox_test_template
+  resource_group: $EOS_K8S_QUEUE_2
   image: alpine/k8s:1.18.2
   needs:
     - job: el9_docker_image
@@ -150,6 +153,7 @@ k8s_cbox:
 
 k8s_reva:
   extends: .dock8s_reva_test_template
+  resource_group: $EOS_K8S_QUEUE_8
   image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
   needs:
     - job: el9_docker_image
@@ -161,6 +165,7 @@ k8s_reva:
 k8s_stress:
   extends:
     - .dock8s_base
+  resource_group: $EOS_K8S_QUEUE_5
   image: alpine/k8s:1.18.2
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
