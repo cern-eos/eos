@@ -64,9 +64,11 @@ clone_docker:
     - ARTIFACT_DIR="${ARTIFACT_DIR:-${DIST}-artifacts/RPMS}"
     - echo "CACHE=$CACHE - DESTINATION=$DESTINATION - DIST=$DIST - TARGET=$TARGET - ARTIFACT_DIR=$ARTIFACT_DIR"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    # Snapshot each stage after temporary RPM repositories have been removed.
     - |
       set -- \
         --cache=$CACHE \
+        --single-snapshot \
         --destination "$DESTINATION" \
         --dockerfile "$DOCKERFILE" \
         --context "$CI_PROJECT_DIR" \
