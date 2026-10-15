@@ -151,6 +151,17 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CLI::App app;
+    bool counter = false, removal = false;
+    uint64_t fsid = 0;
+    std::vector<std::string> paths;
+    ConfigureEvictApp(app, counter, removal, fsid, paths);
+    return CompleteCliArguments(app, args, {},
+                                {{app.get_option("paths"), CompletionPath::Eos}});
+  }
   void
   printHelp() const override
   {

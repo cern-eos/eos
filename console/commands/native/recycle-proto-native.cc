@@ -110,6 +110,12 @@ MakeRecycleHelp()
 
 class RecycleProtoCommand : public IConsoleCommand {
 public:
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    RecycleHelper helper(gGlobalOpts);
+    return helper.CompleteArguments(args);
+  }
   const char*
   name() const override
   {

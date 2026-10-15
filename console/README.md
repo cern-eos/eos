@@ -53,6 +53,27 @@ Some active commands still use C-style entry points: `cat` calls `com_cat()` and
 invokes `ls` directly with an argument vector. The old command table, unused
 legacy source copies, and unused compatibility adapters have been removed.
 
+### Completion
+
+Bash, Zsh and the interactive console use the same command completion metadata.
+Every registered command has an explicit schema, including commands that take
+no arguments. Registry-wide tests require a matching coverage entry when adding
+a command.
+
+Commands with a shared CLI11 execution schema expose that schema directly.
+Manual command grammars have separate completion-only CLI11 definitions in
+`CompletionAdminSchemas.cc` and `CompletionStorageSchemas.cc`; update those
+definitions alongside changes to their execution grammar. Completion inspects
+the definitions without running parse callbacks, validators, or commands.
+Help text is not parsed to infer a grammar.
+
+The completer tracks subcommands, option arity, combined short flags, repeated
+options, exclusions, `--`, finite value suggestions and positional path kinds.
+Freeform names, numbers and identifiers remain freeform even when examples are
+offered. Local paths are listed locally; EOS paths use read-only MGM listings.
+Completing an option or a subcommand does not require an MGM connection.
+Aliases inherit the completion of their target command and prepended arguments.
+
 ### Tests
 
 Console tests are part of `eos-unit-tests`. `ConsoleTestFixture.hh` runs registered

@@ -123,43 +123,11 @@ public:
   {
     return ConfigOptions{}.app.help("", CLI::AppFormatMode::All);
   }
-  std::vector<std::string>
-  complete(const std::vector<std::string>& args) const override
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
   {
     ConfigOptions options;
-    std::vector<std::string> result;
-    if (args.empty()) {
-      for (const auto* subcommand :
-           options.app.get_subcommands([](const CLI::App*) { return true; })) {
-        result.push_back(subcommand->get_name());
-      }
-      return result;
-    }
-    if (std::find(args.begin(), args.end(), "--") != args.end() || args.back() == "-c" ||
-        args.back() == "--comment") {
-      return {};
-    }
-    const auto* command = options.app.get_subcommand_no_throw(args.front());
-    if (!command) {
-      return {};
-    }
-    std::vector<std::string> reversed(args.rbegin(), args.rend());
-    try {
-      options.app.parse(reversed);
-    } catch (const CLI::RequiredError&) {
-      // Options remain available while the required configuration name is pending.
-    } catch (const CLI::ParseError&) {
-      return {};
-    }
-    for (const auto* option : command->get_options()) {
-      for (const auto& flag : option->get_snames()) {
-        result.push_back("-" + flag);
-      }
-      for (const auto& flag : option->get_lnames()) {
-        result.push_back("--" + flag);
-      }
-    }
-    return result;
+    return CompleteCliArguments(options.app, args);
   }
   void
   printHelp() const override

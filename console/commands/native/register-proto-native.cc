@@ -335,6 +335,15 @@ public:
     global_retc = helper.Execute(true, true);
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CLI::App app;
+    RegisterArguments values;
+    ConfigureRegisterApp(app, values);
+    return CompleteCliArguments(app, args, {},
+                                {{app.get_option("path"), CompletionPath::Eos}});
+  }
   void
   printHelp() const override
   {

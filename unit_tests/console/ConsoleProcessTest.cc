@@ -8,13 +8,16 @@
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <fstream>
 #include <map>
+#include <poll.h>
 #include <set>
 #include <signal.h>
 #include <spawn.h>
 #include <sstream>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -158,6 +161,155 @@ fi
     return process(arguments, {}, "/bin/bash");
   }
 
+  struct PtyStep {
+    std::string input;
+    std::string expected;
+  };
+
+  int
+  readlineProcess(const std::vector<PtyStep>& steps)
+  {
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      requests.clear();
+    }
+    lastOutput.clear();
+    struct PtyChild {
+      int master = -1;
+      pid_t child = -1;
+      ~PtyChild()
+      {
+        if (child > 0) {
+          kill(child, SIGKILL);
+          waitpid(child, nullptr, 0);
+        }
+        if (master >= 0) {
+          close(master);
+        }
+      }
+    } terminal;
+    terminal.master = posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (terminal.master < 0 || grantpt(terminal.master) || unlockpt(terminal.master)) {
+      ADD_FAILURE() << "Cannot allocate completion test PTY: " << strerror(errno);
+      return -1;
+    }
+    const char* slave = ptsname(terminal.master);
+    if (!slave) {
+      ADD_FAILURE() << "Cannot locate completion test PTY slave: " << strerror(errno);
+      return -1;
+    }
+    winsize size{};
+    size.ws_row = 40;
+    size.ws_col = 500;
+    EXPECT_EQ(ioctl(terminal.master, TIOCSWINSZ, &size), 0);
+    std::map<std::string, std::string> environment;
+    for (char** entry = environ; *entry; ++entry) {
+      const std::string value(*entry);
+      const auto separator = value.find('=');
+      environment[value.substr(0, separator)] = value.substr(separator + 1);
+    }
+    environment.erase("EOSAUTHZ");
+    environment.erase("EOS_CONSOLE_DEBUG");
+    environment["EOS_MGM_URL"] = gGlobalOpts.mMgmUri;
+    environment["EOSAPP"] = "";
+    environment["EOS_HISTORY_FILE"] = "/dev/null";
+    environment["EOS_PWD_FILE"] = "/dev/null";
+    environment["INPUTRC"] = "/dev/null";
+    environment["TERM"] = "dumb";
+    environment["LC_ALL"] = "C.UTF-8";
+    std::vector<std::string> envStrings;
+    for (const auto& [key, value] : environment) {
+      envStrings.push_back(key + "=" + value);
+    }
+    std::vector<char*> env;
+    for (auto& entry : envStrings) {
+      env.push_back(entry.data());
+    }
+    env.push_back(nullptr);
+    std::vector<std::string> arguments{consoleExecutable(), "-b"};
+    std::vector<char*> argv;
+    for (auto& argument : arguments) {
+      argv.push_back(argument.data());
+    }
+    argv.push_back(nullptr);
+    posix_spawn_file_actions_t actions;
+    EXPECT_EQ(posix_spawn_file_actions_init(&actions), 0);
+    EXPECT_EQ(posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, slave, O_RDWR, 0),
+              0);
+    EXPECT_EQ(posix_spawn_file_actions_adddup2(&actions, STDIN_FILENO, STDOUT_FILENO), 0);
+    EXPECT_EQ(posix_spawn_file_actions_adddup2(&actions, STDIN_FILENO, STDERR_FILENO), 0);
+    EXPECT_EQ(posix_spawn_file_actions_addclose(&actions, terminal.master), 0);
+    const int spawned = posix_spawn(&terminal.child, consoleExecutable(), &actions,
+                                    nullptr, argv.data(), env.data());
+    posix_spawn_file_actions_destroy(&actions);
+    if (spawned) {
+      ADD_FAILURE() << "Cannot spawn EOS completion test: " << strerror(spawned);
+      return -1;
+    }
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    auto readOutput = [&]() {
+      pollfd descriptor{terminal.master, POLLIN, 0};
+      poll(&descriptor, 1, 50);
+      char output[4096];
+      ssize_t count;
+      while ((count = read(terminal.master, output, sizeof(output))) > 0) {
+        lastOutput.append(output, static_cast<size_t>(count));
+      }
+    };
+    auto waitFor = [&](const std::string& expected, size_t start) {
+      while (lastOutput.find(expected, start) == std::string::npos) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+          ADD_FAILURE() << "Timed out waiting for readline output "
+                        << ::testing::PrintToString(expected) << ":\n"
+                        << lastOutput;
+          return false;
+        }
+        readOutput();
+      }
+      return true;
+    };
+    if (!waitFor("> ", 0)) {
+      return -1;
+    }
+    for (const auto& step : steps) {
+      const size_t outputStart = lastOutput.size();
+      size_t written = 0;
+      while (written < step.input.size()) {
+        const auto count = write(terminal.master, step.input.data() + written,
+                                 step.input.size() - written);
+        if (count > 0) {
+          written += static_cast<size_t>(count);
+        } else if (count < 0 && errno != EAGAIN && errno != EINTR) {
+          ADD_FAILURE() << "Cannot write completion test PTY: " << strerror(errno);
+          return -1;
+        }
+        if (std::chrono::steady_clock::now() >= deadline) {
+          ADD_FAILURE() << "Timed out writing completion test PTY";
+          return -1;
+        }
+      }
+      if (!step.expected.empty() && !waitFor(step.expected, outputStart)) {
+        return -1;
+      }
+    }
+    int status = 0;
+    pid_t waited = 0;
+    while ((waited = waitpid(terminal.child, &status, WNOHANG)) == 0) {
+      if (std::chrono::steady_clock::now() >= deadline) {
+        ADD_FAILURE() << "Readline completion process did not exit:\n" << lastOutput;
+        return -1;
+      }
+      readOutput();
+    }
+    EXPECT_EQ(waited, terminal.child);
+    if (waited != terminal.child) {
+      return -1;
+    }
+    terminal.child = -1;
+    EXPECT_TRUE(WIFEXITED(status)) << lastOutput;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+  }
+
   void
   noRequests()
   {
@@ -289,6 +441,80 @@ TEST_F(ConsoleProcessTest, HelpAndShellCompletionDoNotContactMgm)
   noRequests();
 }
 
+TEST_F(ConsoleProcessTest, NamespaceCompletionReturnsActualSubcommandsWithoutMgm)
+{
+  ASSERT_EQ(process({"__complete", "ns", ""}), 0) << lastOutput;
+  const auto root = outputLines();
+  for (const auto* value : {"stat", "mutex", "compact", "master", "cache", "drain",
+                            "reserve-ids", "benchmark", "tracker", "behaviour"}) {
+    EXPECT_EQ(root.count(value), 1u) << value << "\n" << lastOutput;
+  }
+  noRequests();
+
+  EXPECT_EQ(process({"__complete", "ns", "stat", "--r"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"--reset"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "ns", "cache", "drop-s"}), 0);
+  EXPECT_EQ(outputLines(),
+            (std::set<std::string>{"drop-single-container", "drop-single-file"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "ns", "tracker", "list", "--name", "dr"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"drain"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "ns", "behaviour", "set", "disable_access_log", "of"}),
+            0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"off"}));
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, CompletionPreservesGlobalPrefixesAndAliasTargets)
+{
+  for (const auto& prefix : std::vector<std::vector<std::string>>{
+           {},
+           {"-j"},
+           {"-r", "123", "456"},
+           {"--app", "test client"},
+           {"root://example.invalid:1094"},
+           {"-b", "-j", "--role", "123", "456", "--app", "test client",
+            "root://example.invalid:1094"}}) {
+    SCOPED_TRACE(::testing::PrintToString(prefix));
+    std::vector<std::string> arguments{"__complete"};
+    arguments.insert(arguments.end(), prefix.begin(), prefix.end());
+    arguments.insert(arguments.end(), {"ns", "ca"});
+    EXPECT_EQ(process(arguments), 0) << lastOutput;
+    EXPECT_EQ(outputLines(), (std::set<std::string>{"cache"}));
+    noRequests();
+  }
+  EXPECT_EQ(process({"__complete", "group", "set", "default.0", "dr"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"drain"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "help", "gr"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"group"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "?", "gr"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"group"}));
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, CompletionDistinguishesInlineAndPendingOptionValues)
+{
+  EXPECT_EQ(process({"__complete", "ns", "tracker", "list", "--name=dr"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"--name=drain"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "monit", "config", "set", "--port", ""}), 0);
+  EXPECT_TRUE(lastOutput.empty()) << lastOutput;
+  noRequests();
+  EXPECT_EQ(process({"__complete", "monit", "config", "set", "--port=9000", "--c"}), 0);
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"--cache-ttl"}));
+  noRequests();
+  EXPECT_EQ(process({"__complete", "config", "save", "demo", "--comment", "--"}), 0);
+  EXPECT_TRUE(lastOutput.empty()) << lastOutput;
+  noRequests();
+  EXPECT_EQ(process({"__complete", "group", "ls", "-g", ""}), 0);
+  EXPECT_TRUE(lastOutput.empty()) << lastOutput;
+  noRequests();
+}
+
 TEST_F(ConsoleProcessTest, UnknownChildrenAndTerminatedOptionsDoNotFallBackToFlags)
 {
   for (const auto* name : {"ns", "monit", "group", "config"}) {
@@ -300,6 +526,41 @@ TEST_F(ConsoleProcessTest, UnknownChildrenAndTerminatedOptionsDoNotFallBackToFla
     EXPECT_TRUE(lastOutput.empty()) << lastOutput;
     noRequests();
   }
+}
+
+TEST_F(ConsoleProcessTest, BashReassemblesEqualsWordBreaksForValueCompletion)
+{
+  EXPECT_EQ(bashCompletion("eos ns tracker list --name=dr",
+                           {"eos", "ns", "tracker", "list", "--name", "=", "dr"}, 6),
+            0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"drain"}));
+  noRequests();
+  EXPECT_EQ(bashCompletion("eos ns tracker list --name=",
+                           {"eos", "ns", "tracker", "list", "--name", "=", ""}, 6),
+            0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(),
+            (std::set<std::string>{"drain", "balance", "fsck", "convert", "all"}));
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, BashPreservesEndpointRolesAndQuotedApplication)
+{
+  EXPECT_EQ(bashCompletion(
+                "eos root://example.invalid:1094 ns ca",
+                {"eos", "root", ":", "//example.invalid", ":", "1094", "ns", "ca"}, 7),
+            0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"cache"}));
+  noRequests();
+  EXPECT_EQ(
+      bashCompletion("eos --app 'test client' -r 123 456 ns ca",
+                     {"eos", "--app", "test client", "-r", "123", "456", "ns", "ca"}, 7),
+      0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"cache"}));
+  noRequests();
 }
 
 TEST_F(ConsoleProcessTest, BashHandlesLocalFileSchemeAndQuotedOrEscapedSpaces)
@@ -481,4 +742,102 @@ TEST_F(ConsoleProcessTest, OrdinaryPromptsKeepTheirExistingDisplay)
       << lastOutput;
   EXPECT_NE(lastOutput.find("EOS Console [" + endpoint + "] |/> "), std::string::npos);
   noRequests();
+}
+
+TEST_F(ConsoleProcessTest, BashUsesTheFragmentAfterAnAtSignWordBreak)
+{
+  const auto path = tempDir + "/user@example.txt";
+  {
+    std::ofstream file(path);
+    ASSERT_TRUE(file.good());
+  }
+  EXPECT_EQ(bashCompletion("eos cp ./user@ex", {"eos", "cp", "./user", "@", "ex"}, 4), 0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"example.txt"}));
+  noRequests();
+  unlink(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, BashDoesNotInventLocalPathsForNonPathArguments)
+{
+  const auto path = tempDir + "/alpha file";
+  {
+    std::ofstream file(path);
+    ASSERT_TRUE(file.good());
+  }
+  struct Example {
+    const char* line;
+    std::vector<std::string> words;
+  };
+  const std::vector<Example> examples{
+      {"eos ns ./al", {"eos", "ns", "./al"}},
+      {"eos ns mutex --setblockedtime ./al",
+       {"eos", "ns", "mutex", "--setblockedtime", "./al"}},
+      {"eos group ls -g ./al", {"eos", "group", "ls", "-g", "./al"}},
+      {"eos monit config set --port=./al",
+       {"eos", "monit", "config", "set", "--port", "=", "./al"}}};
+  for (const auto& example : examples) {
+    SCOPED_TRACE(example.line);
+    EXPECT_EQ(bashCompletion(example.line, example.words, example.words.size() - 1), 0)
+        << lastOutput;
+    EXPECT_TRUE(lastOutput.empty()) << lastOutput;
+    noRequests();
+  }
+  unlink(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, BashTreatsCommandSubstitutionAsLiteralApplicationText)
+{
+  const std::string marker = tempDir + "/must-not-be-created";
+  const std::string application = "test $(touch " + marker + ")";
+  EXPECT_EQ(bashCompletion("eos --app '" + application + "' ns ca",
+                           {"eos", "--app", application, "ns", "ca"}, 4),
+            0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"cache"}));
+  EXPECT_NE(access(marker.c_str(), F_OK), 0);
+  unlink(marker.c_str());
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, RealReadlineCompletesInlineAndQuotedNamespaceValues)
+{
+  for (const auto* input :
+       {"ns tracker list --name=dr\t", "ns tracker list --name=\"dr\t"}) {
+    SCOPED_TRACE(input);
+    EXPECT_EQ(readlineProcess({{input, "drain"}, {"\025quit\n", ""}}), 0) << lastOutput;
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, RealReadlineInsertionPreservesOnePathOperand)
+{
+  struct Example {
+    std::string name;
+    std::string typedPrefix;
+  };
+  const std::vector<Example> examples{
+      {"alpha space end", tempDir + "/alpha"},
+      {"escaped space end", tempDir + "/escaped\\ sp"},
+      {"quoted space end", "\"" + tempDir + "/quoted sp"},
+      {"special ' \" \\ café end", tempDir + "/special"},
+      {"double ' \" \\ café end", "\"" + tempDir + "/double"},
+      {"single ' \" \\ café end", "'" + tempDir + "/single"}};
+  for (const auto& example : examples) {
+    SCOPED_TRACE(example.name);
+    const auto path = tempDir + "/" + example.name;
+    {
+      std::ofstream file(path);
+      ASSERT_TRUE(file.good());
+    }
+    // Complete using cp's local-path grammar, then change only the command
+    // word. Register sends the resulting parsed argv to the isolated fake MGM,
+    // proving that readline's quoting preserved the completed path as one arg.
+    const int result = readlineProcess({{"cp " + example.typedPrefix + "\t", "end"},
+                                        {"\001\004\004\004register \n", "> "},
+                                        {"quit\n", ""}});
+    EXPECT_EQ(result, 0) << lastOutput;
+    EXPECT_EQ(protobuf(true).record().path(), path) << lastOutput;
+    unlink(path.c_str());
+  }
 }
