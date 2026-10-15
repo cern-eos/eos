@@ -67,6 +67,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
+  bool ParseArguments(const std::vector<std::string>& args);
 
 private:
   PathResolver mPathResolver; ///< Path resolver, identity if unset
@@ -77,22 +78,8 @@ private:
   std::string AbsPath(const char* in) const;
 
   //----------------------------------------------------------------------------
-  //! Detect whether token is a path/fid/fxid-style specifier (as opposed to a
-  //! flag like "-f")
+  //! Populate metadata from a validated path or complete identifier.
   //----------------------------------------------------------------------------
-  static bool IsPathOrId(const std::string& s);
-
-  //----------------------------------------------------------------------------
-  //! Populate the shared eos::console::Metadata target (path or numeric file
-  //! id) from a raw token that may be a plain path, "fid:<dec>" or
-  //! "fxid:<hex>"
-  //----------------------------------------------------------------------------
-  void SetPathOrId(eos::console::Metadata* md, const std::string& raw) const;
-
-  //----------------------------------------------------------------------------
-  //! Like SetPathOrId, but also understands the container/inode specifiers
-  //! accepted by 'file info': pid:<dec>, pxid:<hex> (container id) and
-  //! inode:<dec> (fuse inode)
-  //----------------------------------------------------------------------------
-  void SetInfoPathOrId(eos::console::Metadata* md, const std::string& raw) const;
+  void SetPathOrId(eos::console::Metadata* md, const std::string& raw, bool info = false,
+                   bool pathOnly = false) const;
 };

@@ -16,14 +16,9 @@ int RunCmd(const std::string& name, const std::vector<std::string>& args) {
     return EINVAL;
   }
   CommandContext ctx;
-  ctx.serverUri = serveruri.c_str();
   ctx.globalOpts = &gGlobalOpts;
   ctx.json = json;
   ctx.silent = silent;
-  ctx.interactive = interactive;
-  ctx.timing = timing;
-  ctx.userRole = user_role.c_str();
-  ctx.groupRole = group_role.c_str();
   ctx.clientCommand = &client_command;
   ctx.outputResult = &output_result;
   return cmd->run(args, ctx);

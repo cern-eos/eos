@@ -1,36 +1,82 @@
 // ----------------------------------------------------------------------
-// File: du-native.cc
+// File: du-proto-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
+#include "console/commands/helpers/ICmdHelper.hh"
+#include "console/commands/helpers/NewfindHelper.hh"
 #include <memory>
-#include <sstream>
+
 namespace {
-std::string MakeDuHelp()
+struct DuOptions {
+  CLI::App app{"Print subtree size for directories", "du"};
+  bool files = false, readable = false, summary = false, si = false;
+  std::string path;
+
+  DuOptions()
+  {
+    // -h is the established human-readable option for du.
+    app.set_help_flag("--help", "Print this help message and exit");
+    app.add_flag("-a", files, "Print files as well as directories");
+    app.add_flag("-h", readable, "Print human-readable sizes");
+    app.add_flag("-s", summary, "Print only the summary");
+    app.add_flag("--si", si, "Print sizes in SI units");
+    app.add_option("path", path, "Namespace path or file:/root:/as3: URI")
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    app.footer("file:, root: and as3: use find-compatible traversal (options ignored).");
+  }
+};
+
+bool
+IsLocalDuPath(const std::string& path)
 {
-  return "Usage: du [-a] [-h] [-s] [--si] path\n\n"
-         "Print unix-like 'du' information showing subtree size for directories.\n\n"
-         "Options:\n"
-         "  -a     print also for files\n"
-         "  -h     print human readable in units of 1000\n"
-         "  -s     print only the summary\n"
-         "  --si   print in SI units\n";
+  return path.rfind("file:", 0) == 0 || path.rfind("root:", 0) == 0 ||
+         path.rfind("as3:", 0) == 0;
 }
 
-void ConfigureDuApp(CLI::App& app)
-{
-  app.name("du");
-  app.description("Get du output");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeDuHelp();
-      }));
-}
+class DuHelper : public ICmdHelper {
+public:
+  explicit DuHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
+  bool
+  ParseCommand(const char* arg) override
+  {
+    std::vector<std::string> args;
+    return eos::console::TokenizeArguments(arg, args) && ParseArguments(args);
+  }
+  bool
+  ParseArguments(const std::vector<std::string>& args)
+  {
+    DuOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
+      return false;
+    }
+    Configure(options);
+    return true;
+  }
+  void
+  Configure(const DuOptions& options)
+  {
+    std::string path = abspath(options.path.c_str());
+    if (path.back() != '/' && path.back() != ':') {
+      path += '/';
+    }
+    auto* find = mReq.mutable_find();
+    find->set_du(true);
+    find->set_directories(!options.files);
+    find->set_dusi(options.si);
+    find->set_dureadable(options.readable);
+    if (options.summary) {
+      find->set_maxdepth(0);
+    }
+    find->set_path(path);
+  }
+};
 
 class DuCommand : public IConsoleCommand {
 public:
@@ -47,92 +93,51 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    std::vector<std::string> arguments;
+    return eos::console::TokenizeArguments(args.c_str(), arguments) &&
+           requiresMgmArguments(arguments);
   }
-
+  bool
+  requiresMgmArguments(const std::vector<std::string>& args) const override
+  {
+    DuOptions options;
+    std::vector<std::string> reversed(args.rbegin(), args.rend());
+    try {
+      options.app.parse(reversed);
+    } catch (const CLI::ParseError&) {
+      return false;
+    }
+    return !IsLocalDuPath(options.path);
+  }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    IConsoleCommand* findCmd = CommandRegistry::instance().find("find");
-    if (!findCmd) {
-      fprintf(stderr, "error: 'find' command not available\n");
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i) {
-        oss << ' ';
-      }
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-
-    if (wants_help(joined.c_str(), true)) {
+    DuOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-
-    eos::common::StringTokenizer tokenizer(joined.c_str());
-    tokenizer.GetLine();
-    std::string token;
-    bool printfiles = false;
-    bool printreadable = false;
-    bool printsummary = false;
-    bool printsi = false;
-    std::string path;
-
-    do {
-      if (!tokenizer.NextToken(token)) {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
-
-      if (token == "-a") {
-        printfiles = true;
-      } else if (token == "-h") {
-        printreadable = true;
-      } else if (token == "-s") {
-        printsummary = true;
-      } else if (token == "--si") {
-        printsi = true;
-      } else {
-        path = abspath(token.c_str());
-        break;
-      }
-    } while (1);
-
-    std::vector<std::string> findArgs;
-    findArgs.emplace_back("--du");
-    if (!printfiles) {
-      findArgs.emplace_back("-d");
+    if (IsLocalDuPath(options.path)) {
+      NewfindHelper finder(*ctx.globalOpts);
+      global_retc = options.path.rfind("as3:", 0) == 0 ? finder.FindAs3(options.path)
+                                                       : finder.FindXroot(options.path);
+      return 0;
     }
-    if (printsi) {
-      findArgs.emplace_back("--du-si");
-    }
-    if (printreadable) {
-      findArgs.emplace_back("--du-h");
-    }
-    if (printsummary) {
-      findArgs.emplace_back("--maxdepth");
-      findArgs.emplace_back("0");
-    }
-    findArgs.emplace_back(path);
-
-    int rc = findCmd->run(findArgs, ctx);
-    global_retc = rc;
-    return rc;
+    DuHelper helper(*ctx.globalOpts);
+    helper.Configure(options);
+    global_retc = helper.Execute();
+    return 0;
   }
-
+  std::string
+  helpText() const override
+  {
+    return DuOptions{}.app.help();
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureDuApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

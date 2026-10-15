@@ -42,8 +42,6 @@
 #include <unordered_set>
 #include <vector>
 
-extern int com_ls(char*);
-
 namespace {
 std::vector<std::string> gWordCompletionCandidates;
 
@@ -1145,16 +1143,27 @@ char* eos_entry_generator(const char* text, int state, bool only_dirs)
       }
     }
 
-    bool oldsilent = silent;
+    const bool oldsilent = silent;
+    const int oldRetc = global_retc;
     silent = true;
-    XrdOucString comarg = "-F ";
-    comarg += inarg.c_str();
-    char buffer[4096];
-    sprintf(buffer, "%s", comarg.c_str());
-    com_ls((char*) buffer);
+    rstdout = "";
+    EnsureNativeCommandRegistryInitialized();
+    auto* command = CommandRegistry::instance().find("ls");
+    bool listed = false;
+    if (command) {
+      CommandContext context{};
+      context.globalOpts = &gGlobalOpts;
+      context.json = json;
+      context.silent = true;
+      context.clientCommand = &client_command;
+      context.outputResult = &output_result;
+      command->run({"-F", "--", inarg}, context);
+      listed = global_retc == 0;
+    }
     silent = oldsilent;
+    global_retc = oldRetc;
 
-    if (rstdout.c_str()) {
+    if (listed && rstdout.c_str()) {
       XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
 
       do {

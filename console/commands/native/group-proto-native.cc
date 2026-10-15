@@ -2,118 +2,95 @@
 // File: group-proto-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleCompletion.hh"
+#include "console/ConsoleCli.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
-#include <iomanip>
+#include <algorithm>
+#include <cstdint>
 #include <memory>
-#include <sstream>
 
 namespace {
-std::string MakeGroupHelp()
-{
-  std::ostringstream oss;
-  oss << " usage:\n"
-      << std::endl
-      << "group ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io] [<groups>] : list groups\n"
-      << "\t <groups> : list <groups> only, where <groups> is a substring match and can "
-         "be a comma seperated list\n"
-      << "\t       -s : silent mode\n"
-      << "\t       -g : geo output - aggregate group information along the instance "
-         "geotree down to <depth>\n"
-      << "\t       -b : brief output\n"
-      << "\t       -m : monitoring key=value output format\n"
-      << "\t       -l : long output - list also file systems after each group\n"
-      << "\t     --io : print IO statistics for the group\n"
-      << "\t     --IO : print IO statistics for each filesystem\n"
-      << std::endl
-      << "group rm <group-name> : remove group\n"
-      << std::endl
-      << "group set <group-name> on|drain|off : activate/drain/deactivate group\n"
-      << "\t  => when a group is (re-)enabled, the drain pull flag is recomputed for all "
-         "filesystems within a group\n"
-      << "\t  => when a group is (re-)disabled, the drain pull flag is removed from all "
-         "members in the group\n"
-      << "\t  => when a group is in drain, all the filesystems in the group will be "
-         "drained to other groups\n"
-      << std::endl;
-  return oss.str();
-}
+struct GroupOptions {
+  CLI::App app{"Group configuration", "group"};
+  CLI::App *ls, *rm, *set;
+  uint32_t depth = 0;
+  bool silent = false, brief = false, monitoring = false, listing = false;
+  bool ioGroup = false, ioFs = false;
+  std::string selection, groupName, state;
+  const std::vector<std::string> states{"on", "drain", "off"};
+
+  GroupOptions()
+  {
+    app.require_subcommand(1, 1);
+    ls = app.add_subcommand("ls", "List groups");
+    ls->add_flag("-s", silent, "Silent mode");
+    ls->add_option("-g", depth, "Aggregate geotree information down to this depth")
+        ->transform(eos::console::DecimalNumber);
+    ls->add_flag("-b,--brief", brief, "Brief output");
+    auto* monitor = ls->add_flag("-m", monitoring, "Monitoring key=value output");
+    auto* list = ls->add_flag("-l", listing, "List file systems after each group");
+    auto* groupIo = ls->add_flag("--io", ioGroup, "Group IO statistics");
+    auto* fsIo = ls->add_flag("--IO", ioFs, "Filesystem IO statistics");
+    monitor->excludes(list)->excludes(groupIo)->excludes(fsIo);
+    list->excludes(groupIo)->excludes(fsIo);
+    groupIo->excludes(fsIo);
+    ls->add_option("groups", selection, "Substring selection; comma-separated groups")
+        ->check(eos::console::NonEmptyArgument);
+    rm = app.add_subcommand("rm", "Remove a group");
+    rm->add_option("group-name", groupName)
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    set = app.add_subcommand("set", "Activate, drain, or deactivate a group");
+    set->add_option("group-name", groupName)
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    set->add_option("state", state)->required()->check(CLI::IsMember(states));
+  }
+};
 
 class GroupHelper : public ICmdHelper {
 public:
-  GroupHelper(const GlobalOptions& opts) : ICmdHelper(opts) {}
-  ~GroupHelper() override = default;
+  explicit GroupHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
   bool
   ParseCommand(const char* arg) override
   {
-    eos::console::GroupProto* group = mReq.mutable_group();
-    eos::common::StringTokenizer tokenizer(arg);
-    tokenizer.GetLine();
-    std::string token;
-    if (!tokenizer.NextToken(token)) {
+    std::vector<std::string> args;
+    return eos::console::TokenizeArguments(arg, args) && ParseArguments(args);
+  }
+  bool
+  ParseArguments(const std::vector<std::string>& args)
+  {
+    GroupOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
       return false;
     }
-    if (token == "ls") {
-      eos::console::GroupProto_LsProto* ls = group->mutable_ls();
-      while (tokenizer.NextToken(token)) {
-        if (token == "-s") {
-          mIsSilent = true;
-        } else if (token == "-g") {
-          if (!tokenizer.NextToken(token) ||
-              !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
-            std::cerr << "error: geodepth was not provided or it does not have "
-                      << "the correct value: geodepth should be a positive "
-                      << "integer\n";
-            return false;
-          }
-          try {
-            ls->set_outdepth(std::stoi(token));
-          } catch (...) {
-            std::cerr << "error: argument to geodepth (-g flag) needs to be a "
-                         "positive integer\n";
-            return false;
-          }
-        } else if (token == "-b" || token == "--brief") {
-          ls->set_outhost(true);
-        } else if (token == "-m") {
-          ls->set_outformat(eos::console::GroupProto_LsProto::MONITORING);
-        } else if (token == "-l") {
-          ls->set_outformat(eos::console::GroupProto_LsProto::LISTING);
-        } else if (token == "--io") {
-          ls->set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
-        } else if (token == "--IO") {
-          ls->set_outformat(eos::console::GroupProto_LsProto::IOFS);
-        } else if (token.find('-') != 0) {
-          ls->set_selection(token);
-        } else {
-          return false;
-        }
+    auto* group = mReq.mutable_group();
+    if (*options.ls) {
+      auto* ls = group->mutable_ls();
+      mIsSilent = options.silent;
+      ls->set_outdepth(options.depth);
+      ls->set_outhost(options.brief);
+      ls->set_selection(options.selection);
+      using Ls = eos::console::GroupProto_LsProto;
+      if (options.monitoring) {
+        ls->set_outformat(Ls::MONITORING);
+      } else if (options.listing) {
+        ls->set_outformat(Ls::LISTING);
+      } else if (options.ioGroup) {
+        ls->set_outformat(Ls::IOGROUP);
+      } else if (options.ioFs) {
+        ls->set_outformat(Ls::IOFS);
       }
-    } else if (token == "rm") {
-      if (!tokenizer.NextToken(token)) {
-        return false;
-      }
-      eos::console::GroupProto_RmProto* rm = group->mutable_rm();
-      rm->set_group(token);
-    } else if (token == "set") {
-      if (!tokenizer.NextToken(token)) {
-        return false;
-      }
-      eos::console::GroupProto_SetProto* set = group->mutable_set();
-      set->set_group(token);
-      if (!tokenizer.NextToken(token)) {
-        return false;
-      }
-      if (token == "on" || token == "off" || token == "drain") {
-        set->set_group_state(token);
-      } else {
-        return false;
-      }
-    } else {
-      return false;
+    } else if (*options.rm) {
+      group->mutable_rm()->set_group(options.groupName);
+    } else if (*options.set) {
+      auto* set = group->mutable_set();
+      set->set_group(options.groupName);
+      set->set_group_state(options.state);
     }
     return true;
   }
@@ -134,12 +111,41 @@ public:
   std::string
   helpText() const override
   {
-    return MakeGroupHelp();
+    return GroupOptions{}.app.help("", CLI::AppFormatMode::All);
   }
   std::vector<std::string>
   complete(const std::vector<std::string>& args) const override
   {
-    return eos_help_completion_candidates(name(), helpText(), args);
+    GroupOptions options;
+    std::vector<std::string> result;
+    if (args.empty()) {
+      for (const auto* subcommand :
+           options.app.get_subcommands([](const CLI::App*) { return true; })) {
+        result.push_back(subcommand->get_name());
+      }
+    } else if (args.front() == "ls") {
+      if (std::find(args.begin(), args.end(), "--") != args.end()) {
+        return {};
+      }
+      std::vector<std::string> reversed(args.rbegin(), args.rend());
+      try {
+        options.app.parse(reversed);
+      } catch (const CLI::ParseError&) {
+        return {};
+      }
+      for (const auto* option : options.ls->get_options()) {
+        for (const auto& flag : option->get_snames()) {
+          result.push_back("-" + flag);
+        }
+        for (const auto& flag : option->get_lnames()) {
+          result.push_back("--" + flag);
+        }
+      }
+    } else if (args.front() == "set" && args.size() == 2 && !args[1].empty() &&
+               args[1].front() != '-') {
+      result = options.states;
+    }
+    return result;
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -149,23 +155,8 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      if (args[i].find(' ') != std::string::npos)
-        oss << std::quoted(args[i]);
-      else
-        oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
     GroupHelper helper(*ctx.globalOpts);
-    if (!helper.ParseCommand(joined.c_str())) {
+    if (!helper.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;

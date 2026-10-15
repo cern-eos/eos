@@ -5,7 +5,6 @@
 
 #include "console/CommandFramework.hh"
 #include <memory>
-#include <sstream>
 #include <vector>
 
 namespace {
@@ -29,7 +28,7 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (wants_help(args.empty() ? "" : args[0].c_str()) || args.size() < 2) {
+    if (args.size() < 2) {
       printHelp();
       global_retc = EINVAL;
       return 0;

@@ -3,119 +3,98 @@
 // ----------------------------------------------------------------------
 
 #include "common/Path.hh"
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
-#include "console/ConsoleMain.hh"
+#include "console/ConsoleCli.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include "console/commands/helpers/PathIdentifier.hh"
 #include <memory>
-#include <sstream>
+#include <vector>
 
 namespace {
-std::string MakeRmHelp()
-{
-  return "Usage: rm [-r|-rf|-rF|-n] [--no-recycle-bin|-F] [--no-confirmation] "
-         "[--no-workflow] [--no-globbing] <path>|fid:<fid>|fxid:<fxid>|cid:<cid>|cxid:<cxid>\n\n"
-         "  -r|-rf     remove recursively\n"
-         "  -rF|-Fr    remove recursively, bypass recycling\n"
-         "  -F|--no-recycle-bin  bypass recycling policies (root only)\n"
-         "  -n|--no-workflow     don't run workflow when deleting\n"
-         "  --no-confirmation   skip confirmation for recursive deletions\n"
-         "  --no-globbing       disable path globbing\n";
-}
+struct RmOptions {
+  CLI::App app{"Remove files or directories", "rm"};
+  bool recursive = false;
+  bool force = false;
+  bool bypassRecycle = false;
+  bool noConfirmation = false;
+  bool noWorkflow = false;
+  bool noGlobbing = false;
+  std::vector<std::string> paths;
 
-void ConfigureRmApp(CLI::App& app)
-{
-  app.name("rm");
-  app.description("Remove a file");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeRmHelp();
-      }));
-}
+  RmOptions()
+  {
+    app.set_help_flag("-h,--help");
+    auto* recursiveOption = app.add_flag("-r", recursive, "Remove recursively");
+    app.add_flag("-f", force, "Compatibility flag for -rf and -fr")
+        ->needs(recursiveOption)
+        ->group("");
+    app.add_flag("-F,--no-recycle-bin", bypassRecycle,
+                 "Bypass recycling policies (root only)");
+    app.add_flag("--no-confirmation", noConfirmation,
+                 "Skip recursive deletion confirmation");
+    app.add_flag("-n,--no-workflow", noWorkflow, "Do not run deletion workflows");
+    app.add_flag("--no-globbing", noGlobbing, "Disable path globbing");
+    app.add_option("paths", paths, "Paths or fid:/fxid:/cid:/cxid: identifiers")
+        ->required()
+        ->expected(1, -1)
+        ->check(eos::console::NonEmptyArgument)
+        ->check(CLI::Validator(
+            [](const std::string& path) {
+              const auto parsed = eos::console::ParsePathIdentifier(path);
+              if (parsed.type == eos::console::IdentifierType::Invalid ||
+                  parsed.type == eos::console::IdentifierType::Inode ||
+                  path.compare(0, 4, "pid:") == 0 || path.compare(0, 5, "pxid:") == 0) {
+                return std::string(
+                    "expected a path or a complete uint64 file/container identifier");
+              }
+              return std::string{};
+            },
+            "PATH_OR_ID"));
+  }
+};
 
 class RmHelper : public ICmdHelper {
 public:
-  RmHelper(const GlobalOptions& opts) : ICmdHelper(opts) { mIsAdmin = false; }
-  ~RmHelper() override = default;
-
-  bool ParseCommand(const char* arg) override
+  explicit RmHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
   {
-    XrdOucString option;
-    eos::console::RmProto* rm = mReq.mutable_rm();
-    eos::common::StringTokenizer tokenizer(arg);
-    bool noconfirmation = false;
+  }
 
-    tokenizer.GetLine();
-
-    while ((option = tokenizer.GetToken(false)).length() > 0 &&
-           (option.beginswith("-"))) {
-      if ((option == "-r") || (option == "-rf") || (option == "-fr")) {
-        rm->set_recursive(true);
-      } else if ((option == "-F") || (option == "--no-recycle-bin")) {
-        rm->set_bypassrecycle(true);
-      } else if (option == "-rF" || option == "-Fr") {
-        rm->set_recursive(true);
-        rm->set_bypassrecycle(true);
-      } else if (option == "--no-confirmation") {
-        noconfirmation = true;
-      } else if (option == "--no-workflow" || option == "-n") {
-        rm->set_noworkflow(true);
-      } else if (option == "--no-globbing") {
-        rm->set_noglobbing(true);
-      } else {
-        return false;
-      }
-    }
-
-    auto path = option;
-
-    do {
-      XrdOucString param = tokenizer.GetToken();
-
-      if (param.length()) {
-        path += " ";
-        path += param;
-      } else {
-        break;
-      }
-    } while (true);
-
-    // remove escaped blanks
-    while (path.replace("\\ ", " ")) {
-    }
-
-    if (path.length() == 0) {
+  bool
+  ParseCommand(const char* arguments) override
+  {
+    std::vector<std::string> args;
+    RmOptions options;
+    if (!eos::console::TokenizeArguments(arguments, args) ||
+        !eos::console::ParseCliArguments(options.app, args) ||
+        options.paths.size() != 1) {
       return false;
     }
-
-    auto id = 0ull;
-
-    if (Path2FileDenominator(path, id)) {
-      rm->set_fileid(id);
-      rm->set_recursive(false); // disable recursive option for files
-      path = "";
-    } else {
-      if (Path2ContainerDenominator(path, id)) {
-        rm->set_containerid(id);
-        path = "";
-      } else {
-        path = abspath(path.c_str());
-        rm->set_path(path.c_str());
-      }
-    }
-
-    eos::common::Path cPath(path.c_str());
-
-    if (path.length()) {
-      mNeedsConfirmation = rm->recursive() &&
-                           (cPath.GetSubPathSize() < 4) &&
-                           !noconfirmation;
-    }
-
+    Configure(options, options.paths.front());
     return true;
+  }
+
+  void
+  Configure(const RmOptions& options, const std::string& path)
+  {
+    auto* rm = mReq.mutable_rm();
+    rm->set_recursive(options.recursive);
+    rm->set_bypassrecycle(options.bypassRecycle);
+    rm->set_noworkflow(options.noWorkflow);
+    rm->set_noglobbing(options.noGlobbing);
+    const auto parsed = eos::console::ParsePathIdentifier(path);
+    if (parsed.type == eos::console::IdentifierType::File) {
+      rm->set_fileid(parsed.value);
+      rm->set_recursive(false);
+    } else if (parsed.type == eos::console::IdentifierType::Container) {
+      rm->set_containerid(parsed.value);
+    } else {
+      const std::string absolute = abspath(path.c_str());
+      rm->set_path(absolute);
+      eos::common::Path namespacePath(absolute.c_str());
+      mNeedsConfirmation = options.recursive && namespacePath.GetSubPathSize() < 4 &&
+                           !options.noConfirmation;
+    }
   }
 };
 
@@ -129,88 +108,36 @@ public:
   const char*
   description() const override
   {
-    return "Remove a file";
+    return "Remove files or directories";
+  }
+  std::string
+  helpText() const override
+  {
+    return RmOptions{}.app.help();
   }
   bool
-  requiresMgm(const std::string& args) const override
+  requiresMgm(const std::string& arguments) const override
   {
-    return !wants_help(args.c_str());
+    const auto args = eos::console::TokenizeArguments(arguments.c_str());
+    const auto delimiter = std::find(args.begin(), args.end(), "--");
+    return std::find(args.begin(), delimiter, "--help") == delimiter &&
+           std::find(args.begin(), delimiter, "-h") == delimiter;
   }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    (void)ctx;
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
+    RmOptions options;
+    // Validate every operand before the first request: a malformed batch must
+    // never delete an earlier valid operand as a side effect of parsing.
+    if (!eos::console::ParseCliArguments(options.app, args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-
-    eos::common::StringTokenizer tokenizer(joined.c_str());
-    tokenizer.GetLine();
-
-    std::vector<std::string> paths;
-    std::string optStr;
-    std::string currentPath;
-    bool inOptions = true;
-
-    XrdOucString token;
-    while ((token = tokenizer.GetToken(false)).length() > 0) {
-      if (inOptions && token.beginswith("-")) {
-        if (!optStr.empty()) {
-          optStr += " ";
-        }
-        optStr += token.c_str();
-      } else {
-        inOptions = false;
-
-        if (token.beginswith("/") || token.beginswith("fid:") ||
-            token.beginswith("fxid:") || token.beginswith("cid:") ||
-            token.beginswith("cxid:")) {
-          if (!currentPath.empty()) {
-            paths.push_back(std::move(currentPath));
-          }
-          currentPath = token.c_str();
-        } else {
-          if (!currentPath.empty()) {
-            currentPath += " ";
-          }
-          currentPath += token.c_str();
-        }
-      }
-    }
-
-    if (!currentPath.empty()) {
-      paths.push_back(std::move(currentPath));
-    }
-
-    if (paths.empty()) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
     int retc = 0;
-    for (const auto& path : paths) {
-      std::string cmdArg = optStr;
-      if (!cmdArg.empty()) {
-        cmdArg += " ";
-      }
-      cmdArg += path;
-
-      RmHelper rm(gGlobalOpts);
-      if (!rm.ParseCommand(cmdArg.c_str())) {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
+    for (const auto& path : options.paths) {
+      RmHelper rm(*ctx.globalOpts);
+      rm.Configure(options, path);
       if (rm.NeedsConfirmation() && !rm.ConfirmOperation()) {
         retc = EINTR;
         continue;
@@ -219,16 +146,13 @@ public:
         retc = rc;
       }
     }
-
     global_retc = retc;
-    return global_retc;
+    return retc;
   }
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureRmApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    std::cerr << helpText();
   }
 };
 } // namespace

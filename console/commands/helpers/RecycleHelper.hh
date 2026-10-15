@@ -23,21 +23,23 @@
 
 #pragma once
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <string>
+#include <vector>
 
 //------------------------------------------------------------------------------
 //! Class RecycleHelper
 //------------------------------------------------------------------------------
-class RecycleHelper: public ICmdHelper
-{
+class RecycleHelper : public ICmdHelper {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param opts global options
   //----------------------------------------------------------------------------
-  RecycleHelper(const GlobalOptions& opts):
-    ICmdHelper(opts)
-  {}
+  RecycleHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -53,12 +55,6 @@ public:
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
 
-private:
-
-  //----------------------------------------------------------------------------
-  //! Check if given date format respects the specifications
-  //!
-  //! @return true if ok, otherwise false
-  //----------------------------------------------------------------------------
-  bool CheckDateFormat(const std::string& sdate) const;
+  // Parse argv without losing quoted path and key boundaries.
+  bool ParseArguments(const std::vector<std::string>& args);
 };

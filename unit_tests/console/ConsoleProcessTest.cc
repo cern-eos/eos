@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <spawn.h>
 #include <sstream>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 extern char** environ;
@@ -178,6 +179,97 @@ fi
   std::string lastOutput;
 };
 } // namespace
+
+TEST_F(ConsoleProcessTest, MissingGlobalValuesFailWithoutCrashOrRequest)
+{
+  for (const auto& args : std::vector<std::vector<std::string>>{{"-a"},
+                                                                {"--app"},
+                                                                {"-r"},
+                                                                {"-r", "0"},
+                                                                {"--role", "0"},
+                                                                {"--unknown"},
+                                                                {"-b", "evict", ""}}) {
+    SCOPED_TRACE(::testing::PrintToString(args));
+    EXPECT_EQ(process(args), EINVAL);
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, InheritedUnsafeApplicationFailsBeforeDirectCopyTransport)
+{
+  for (const auto* value : {"x&eos.ruid=0", "x\nvalue"}) {
+    EXPECT_EQ(process({"-b", "cp", "--help"}, {{"EOSAPP", value}}), EINVAL);
+    noRequests();
+    EXPECT_NE(lastOutput.find("EOSAPP"), std::string::npos);
+  }
+}
+
+TEST_F(ConsoleProcessTest, GlobalOptionsAndOriginalArgvReachProtobufUnchanged)
+{
+  const std::string path = "/eos/O'Brien \"quotes\" \\backslash & literal";
+  const std::string comment = "audit \"quote\" & x=y";
+  ASSERT_EQ(process({"-j", "-a", "console test", "-b", "-r", "123", "456", "register",
+                     path, "attr=user.key=a=b&c", "--comment", comment}),
+            ENOENT)
+      << lastOutput;
+  const auto result = protobuf(true);
+  EXPECT_EQ(result.record().path(), path);
+  EXPECT_EQ(result.record().attr().at("user.key"), "a=b&c");
+  EXPECT_EQ(result.comment(), comment);
+  EXPECT_EQ(result.format(), eos::console::RequestProto::JSON);
+  const std::string wire = request();
+  EXPECT_NE(wire.find("&eos.ruid=123"), std::string::npos);
+  EXPECT_NE(wire.find("&eos.rgid=456"), std::string::npos);
+}
+
+TEST_F(ConsoleProcessTest, ScriptSkipsBlankLinesAndRejectsNulBeforeDispatch)
+{
+  const auto path = tempDir + "/commands.eosh";
+  {
+    std::ofstream script(path, std::ios::binary);
+    script << "\n  \t\nregister /eos/script\n";
+  }
+  EXPECT_EQ(process({"-b", path}), ENOENT);
+  EXPECT_EQ(protobuf(true).record().path(), "/eos/script");
+  {
+    std::ofstream script(path, std::ios::binary | std::ios::trunc);
+    std::string line = "register /eos/truncated";
+    line.push_back('\0');
+    line += " invalid\n";
+    script.write(line.data(), line.size());
+  }
+  EXPECT_EQ(process({"-b", path}), EINVAL);
+  noRequests();
+  unlink(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, ScriptReadFailureReturnsError)
+{
+  const auto path = tempDir + "/directory.eosh";
+  ASSERT_EQ(mkdir(path.c_str(), 0700), 0);
+  EXPECT_EQ(process({"-b", path}), EIO);
+  noRequests();
+  rmdir(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, LocalListingPreservesArgvWithoutMgmPreflight)
+{
+  const auto path = tempDir + "/O'Brien \"quotes\" \\backslash";
+  ASSERT_EQ(mkdir(path.c_str(), 0700), 0);
+  EXPECT_EQ(process({"-b", "ls", "file:" + path}, {{"EOS_MGM_URL", "invalid://offline"}}),
+            0);
+  noRequests();
+  rmdir(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, HelpAndShellCompletionDoNotContactMgm)
+{
+  EXPECT_EQ(process({"-b", "-r", "0", "0", "-a", "test", "-j", "evict", "--help"}),
+            EINVAL);
+  noRequests();
+  EXPECT_EQ(process({"__complete", "eo"}), 0);
+  noRequests();
+}
 
 TEST_F(ConsoleProcessTest, UnknownChildrenAndTerminatedOptionsDoNotFallBackToFlags)
 {

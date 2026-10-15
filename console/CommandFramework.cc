@@ -3,12 +3,21 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleMain.hh"
-#include "common/StringTokenizer.hh"
-#include "common/Path.hh"
-#include <XrdOuc/XrdOucString.hh>
+#include <iomanip>
 #include <sstream>
-#include <cstdlib>
+
+bool
+IConsoleCommand::requiresMgmArguments(const std::vector<std::string>& args) const
+{
+  std::ostringstream line;
+  for (size_t i = 0; i < args.size(); ++i) {
+    if (i) {
+      line << ' ';
+    }
+    line << std::quoted(args[i]);
+  }
+  return requiresMgm(line.str());
+}
 
 CommandRegistry& CommandRegistry::instance()
 {
@@ -39,18 +48,7 @@ IConsoleCommand* CommandRegistry::find(const std::string& name) const
   return nullptr;
 }
 
-int CFuncCommandAdapter::run(const std::vector<std::string>& args, CommandContext&)
-{
-  std::ostringstream oss;
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (i) oss << ' ';
-    oss << args[i];
-  }
-  std::string joined = oss.str();
-  return mFunc((char*)joined.c_str());
-}
-
-// Default empty; concrete commands will be registered here as they are migrated
+// Register concrete commands once before dispatch or completion.
 void RegisterNativeConsoleCommands()
 {
   if (gRegistryInitialized) {
@@ -229,7 +227,6 @@ void RegisterNativeConsoleCommands()
   RegisterTrackerNativeCommand();
   extern void RegisterVidNativeCommand();
   RegisterVidNativeCommand();
-  // RemainingLegacyNativeCommands removed
 }
 
 void

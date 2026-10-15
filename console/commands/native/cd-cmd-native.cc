@@ -3,33 +3,25 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
-#include <algorithm>
 #include <fcntl.h>
 #include <memory>
-#include <sstream>
 #include <unistd.h>
 #include <vector>
 
 namespace {
-std::string MakeCdHelp()
-{
-  return "Usage: cd <path> | cd - | cd ~\n";
-}
+struct CdOptions {
+  CLI::App app{"Change directory", "cd"};
+  std::string path;
 
-void ConfigureCdApp(CLI::App& app, std::string& path)
-{
-  app.name("cd");
-  app.description("Change directory");
-  app.set_help_flag("");
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeCdHelp();
-      }));
-  app.add_option("path", path, "path (- for previous, ~ for home)")
-      ->default_val("");
-}
+  CdOptions()
+  {
+    app.add_option("path", path, "Namespace path (- for previous, ~ for home)")
+        ->check(eos::console::NonEmptyArgument);
+    app.footer("With no path, use EOS_HOME if it is defined.");
+  }
+};
 
 class CdCommand : public IConsoleCommand {
 public:
@@ -51,49 +43,24 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      fprintf(stderr, "%s", MakeCdHelp().c_str());
+    CdOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
+      printHelp();
       global_retc = EINVAL;
       return 0;
     }
-
-    std::string path;
-    if (!args.empty()) {
-      CLI::App app;
-      ConfigureCdApp(app, path);
-      std::vector<std::string> cli_args = args;
-      std::reverse(cli_args.begin(), cli_args.end());
-      try {
-        app.parse(cli_args);
-      } catch (const CLI::ParseError&) {
-        fprintf(stderr, "%s", MakeCdHelp().c_str());
-        global_retc = EINVAL;
-        return 0;
-      }
-    }
-
-    static XrdOucString opwd = "/";
-    static XrdOucString oopwd = "/";
+    static XrdOucString previousPwd = "/";
 
     XrdOucString lsminuss;
     XrdOucString newpath;
     XrdOucString oldpwd;
 
-    XrdOucString arg = path.c_str();
+    XrdOucString arg = options.path.c_str();
 
     if (arg == "-") {
-      oopwd = opwd;
-      arg = (char*)opwd.c_str();
+      arg = previousPwd;
     }
 
-    opwd = gPwd;
     newpath = abspath(arg.c_str());
     oldpwd = gPwd;
 
@@ -103,12 +70,12 @@ public:
       } else {
         fprintf(stderr,
                 "warning: there is no home directory defined via EOS_HOME\n");
-        newpath = opwd;
+        newpath = gPwd;
       }
     }
 
     gPwd = newpath;
-    if ((!gPwd.endswith("/")) && (!gPwd.endswith("/\""))) {
+    if (!gPwd.endswith("/")) {
       gPwd += "/";
     }
 
@@ -130,18 +97,21 @@ public:
       }
     }
 
-    if ((!gPwd.endswith("/")) && (!gPwd.endswith("/\""))) {
+    if (!gPwd.endswith("/")) {
       gPwd += "/";
     }
 
     lsminuss = "mgm.cmd=cd&mgm.path=";
-    lsminuss += gPwd;
-    lsminuss += "&mgm.option=s";
+    lsminuss += eos::common::StringConversion::curl_escaped(gPwd.c_str()).c_str();
+    lsminuss += "&eos.encodepath=1&mgm.option=s";
     global_retc =
         ctx.outputResult(ctx.clientCommand(lsminuss, false, nullptr), true);
     if (global_retc) {
       gPwd = oldpwd;
-    } else if (pwdfile.length()) {
+    } else {
+      previousPwd = oldpwd;
+    }
+    if (!global_retc && pwdfile.length()) {
       // store the last used directory
       int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
 
@@ -158,10 +128,15 @@ public:
     }
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return CdOptions{}.app.help();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeCdHelp().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

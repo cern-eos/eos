@@ -78,13 +78,17 @@ TEST(ConsoleCompletion, GroupCommandCompletesDrainState)
   EXPECT_TRUE(contains(suggestions, "off"));
 }
 
-TEST(ConsoleCompletion, GroupCommandUsesHelpTextForCompletion)
+TEST(ConsoleCompletion, GroupCommandHelpDescribesValidatedStates)
 {
   EnsureNativeCommandRegistryInitialized();
   auto* cmd = CommandRegistry::instance().find("group");
 
   ASSERT_NE(cmd, nullptr);
-  EXPECT_NE(cmd->helpText().find("on|drain|off"), std::string::npos);
+  const auto help = cmd->helpText();
+  EXPECT_NE(help.find("on"), std::string::npos);
+  EXPECT_NE(help.find("drain"), std::string::npos);
+  EXPECT_NE(help.find("off"), std::string::npos);
+  EXPECT_NE(help.find("--brief"), std::string::npos);
 }
 
 TEST(ConsoleCompletion, SpaceCommandCompletesGroupDrainerSubcommands)
