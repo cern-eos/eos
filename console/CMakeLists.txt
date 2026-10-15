@@ -147,9 +147,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/stat-native.cc
   commands/native/test-native.cc
 
-  # Legacy symbol aggregation
-  commands/native/LegacySymbols.cc
-
   # Shared helpers used by native/proto commands
   commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
@@ -163,9 +160,6 @@ target_link_libraries(EosConsoleCommands-Objects PUBLIC
   SCITOKENS::SCITOKENS
   XROOTD::UTILS
   CLI11::CLI11)
-
-target_include_directories(EosConsoleCommands-Objects PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/parser/include)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
