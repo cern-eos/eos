@@ -88,7 +88,8 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    ChmodOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

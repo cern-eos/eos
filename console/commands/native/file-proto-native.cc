@@ -13,6 +13,7 @@
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FileHelper.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
@@ -623,7 +624,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    eos::console::PrintLegacyHelp(helpText());
   }
 };
 } // namespace

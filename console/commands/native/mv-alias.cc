@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <memory>
 #include <vector>
 
@@ -48,7 +49,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: mv <src> <dst>\n");
+    eos::console::PrintLegacyHelp("Usage: mv <src> <dst>\n");
   }
 };
 } // namespace

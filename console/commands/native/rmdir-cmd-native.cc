@@ -4,6 +4,7 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -91,7 +92,10 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeRmdirHelp().c_str());
+    CLI::App app;
+    std::string path;
+    ConfigureRmdirApp(app, path);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

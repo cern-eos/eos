@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -74,8 +75,9 @@ public:
     return 0;
   }
   void printHelp() const override {
-    fprintf(stderr,
-            "Usage: test [mkdir|rmdir|ls|lsla <N> ]                                             :  run performance test\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: test [mkdir|rmdir|ls|lsla <N> ]                                          "
+        "   :  run performance test\n");
   }
 };
 } // namespace

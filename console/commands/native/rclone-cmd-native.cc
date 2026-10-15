@@ -21,29 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/CopyProcess.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/Timing.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
-#include "common/Timing.hh"
-#include "common/Path.hh"
-#include "common/LayoutId.hh"
-#include "common/CopyProcess.hh"
 #include <CLI/CLI.hpp>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClCopyProcess.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClPropertyList.hh>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-#include <iostream>
-#include <memory>
-#include <filesystem>
+#include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <memory>
 #include <optional>
+#include <string.h>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <vector>
 
 extern XrdOucString serveruri;
@@ -147,6 +148,15 @@ void ConfigureRcloneApp(CLI::App& app, RcloneOptions& opts)
   }
 }
 
+void
+PrintRcloneHelp()
+{
+  CLI::App app;
+  RcloneOptions opts;
+  ConfigureRcloneApp(app, opts);
+  eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
+}
+
 bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
 {
   if (args.empty())
@@ -154,7 +164,7 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
 
   for (const auto& a : args) {
     if (a == "--help" || a == "-h") {
-      std::cerr << MakeRcloneHelp();
+      PrintRcloneHelp();
       return false;
     }
   }
@@ -167,7 +177,7 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
   try {
     app.parse(cli_args);
   } catch (const CLI::ParseError&) {
-    std::cerr << MakeRcloneHelp();
+    PrintRcloneHelp();
     return false;
   }
 
@@ -185,7 +195,7 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
 
 static void rclone_usage()
 {
-  std::cerr << MakeRcloneHelp();
+  PrintRcloneHelp();
   exit(-1);
 }
 
@@ -1624,7 +1634,7 @@ public:
   void
   printHelp() const override
   {
-    std::cerr << MakeRcloneHelp();
+    PrintRcloneHelp();
   }
 };
 } // namespace

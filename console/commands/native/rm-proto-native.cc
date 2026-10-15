@@ -5,6 +5,7 @@
 #include "common/Path.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/PathIdentifier.hh"
 #include <memory>
@@ -159,7 +160,8 @@ public:
   void
   printHelp() const override
   {
-    std::cerr << helpText();
+    RmOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

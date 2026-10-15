@@ -4,6 +4,7 @@
 
 #include "common/BuildVersion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -102,7 +103,10 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeVersionHelp().c_str());
+    CLI::App app;
+    bool features = false, monitoring = false;
+    ConfigureVersionApp(app, features, monitoring);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

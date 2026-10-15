@@ -3,9 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
 #include <sys/time.h>
@@ -141,7 +142,7 @@ public:
     std::string excl_xattr;
     ConfigureBackupApp(app, ctime, mtime, excl_xattr);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace

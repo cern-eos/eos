@@ -147,3 +147,41 @@ IPC, and error propagation. It does not certify namespace changes, recycle
 policies, data movement, locks, or external XRootD/S3 services. In particular,
 recycle-bin add/remove paths containing spaces, `&`, and `%` need a disposable
 instance test to verify the resulting `sys.recycle` attribute end to end.
+
+### Terminal styling
+
+The global `--color=auto|always|never` option controls human-readable output.
+`auto` (the default) checks each output destination independently with `isatty`
+and terminfo; missing, unknown and `dumb` terminal types remain plain. A nonempty
+`NO_COLOR` disables automatic styling, including `NO_COLOR=0`. Explicit `always`
+overrides that preference and supports redirected human output, such as a pager.
+`never` disables all generated styling.
+
+Batch (`-b`), JSON (`-j`), shell-completion records and raw data remain unstyled,
+including when `always` is requested. Existing monitoring formats retain their
+plain representation. Exit codes, whitespace, stream selection and field values
+are unaffected. Use `--color=never` in scripts which explicitly need plain human
+output; scripts supporting older EOS versions must not require the new option.
+
+`ConsoleColor` owns this policy, activated by the console entry point. Shared
+helpers retain their existing server behavior outside that entry point. CLI11
+help is decorated through a temporary
+formatter after wrapping and alignment, while `helpText()` remains plain. Prompt
+escapes alone use Readline's invisible-character markers. Semantic diagnostics
+and local health tables use the destination stream's policy. The existing
+protobuf `dontcolor` flag covers both streams, so server coloring is permitted
+only when both destinations permit it. No protocol fields or
+server defaults change. Static and CLI11 help share post-layout styling through
+`PrintLegacyHelp` and `PrintCliHelp`; pure help strings stay plain. Registry-wide
+tests cover every help target, including deliberate empty pages, and preserve
+streams, exit codes and exact unstyled text. Help uses bold green command paths,
+cyan options, yellow argument placeholders and subdued grammar separators.
+Section and usage labels are emphasized separately from descriptions. Legacy
+command names come from copied completion metadata loaded only when colored help
+needs it; no parser callbacks, validators or namespace requests run. Shared
+helpers retain no dependency on the console registry. Further table styling
+should use semantic fields rather than replacements in arbitrary server text.
+
+`ConsoleColorTest`, `ConsoleColorRequest` and `ConsoleColorProcessTest` cover the
+policy, the existing wire flag, exact plain help, real pseudo-terminals, mixed
+stream redirection, environment overrides and machine-output precedence.

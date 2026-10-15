@@ -55,6 +55,7 @@ CommandCompletionResult CompleteCliArguments(
 CommandCompletionResult CompleteRegisteredCommand(const std::string& name,
                                                   const std::vector<std::string>& args);
 bool HasCommandCompletionSchema(const std::string& name);
+void RegisterCommandHelpMetadata();
 
 bool ConfigureAdminCompletion(CommandCompletionSchema& schema, const std::string& name);
 bool ConfigureStorageCompletion(CommandCompletionSchema& schema, const std::string& name);

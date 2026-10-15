@@ -22,12 +22,13 @@
  ************************************************************************/
 
 #include "HealthCommand.hh"
-#include "console/ConsoleMain.hh"
-#include "console/commands/helpers/NodeHelper.hh"
-#include "console/commands/helpers/FsHelper.hh"
+#include "common/Statistics.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/Statistics.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/helpers/FsHelper.hh"
+#include "console/commands/helpers/NodeHelper.hh"
 #include <algorithm>
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
@@ -222,8 +223,10 @@ void HealthCommand::BlackHoleCheck(NodeHelper& node_cmd)
   std::string format_s = !m_monitoring ? "s" : "os";
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_f = !m_monitoring ? "f" : "of";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
-                                     !isatty(STDERR_FILENO));
+  const bool plainOutput = m_consoleColorPolicy
+                               ? m_dont_color
+                               : (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(plainOutput);
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -554,26 +557,27 @@ void HealthCommand::AllCheck()
   BlackHoleCheck(node_cmd);
 }
 
-
-void HealthCommand::PrintHelp()
+void
+HealthCommand::PrintHelp()
 {
-  std::cerr << "Usage: eos health [OPTION] [SECTION]" << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "Options available: " << std::endl;
-  std::cerr << "  --help    Print help" << std::endl;
-  std::cerr << "   -m       Turn on monitoring mode" << std::endl;
-  std::cerr << "   -a       Display all information, not just critical" <<
-            std::endl;
-  std::cerr << std::endl;
-  std::cerr << "Sections available: " << std::endl;
-  std::cerr << "  all         Display all sections (default value)" << std::endl;
-  std::cerr << "  nodes       Display only information about nodes" << std::endl;
-  std::cerr << "  drain       Display drain health information" << std::endl;
-  std::cerr << "  placement   Display placement contention health information" <<
-            std::endl;
+  std::ostringstream help;
+  help << "Usage: eos health [OPTION] [SECTION]" << std::endl;
+  help << std::endl;
+  help << "Options available: " << std::endl;
+  help << "  --help    Print help" << std::endl;
+  help << "   -m       Turn on monitoring mode" << std::endl;
+  help << "   -a       Display all information, not just critical" << std::endl;
+  help << std::endl;
+  help << "Sections available: " << std::endl;
+  help << "  all         Display all sections (default value)" << std::endl;
+  help << "  nodes       Display only information about nodes" << std::endl;
+  help << "  drain       Display drain health information" << std::endl;
+  help << "  placement   Display placement contention health information" << std::endl;
+  eos::console::PrintLegacyHelp(help.str());
 }
 
-void HealthCommand::ParseCommand()
+void
+HealthCommand::ParseCommand()
 {
   std::string token;
   const char* temp;
@@ -620,6 +624,8 @@ void HealthCommand::ParseCommand()
 void HealthCommand::Execute()
 {
   ParseCommand();
+  m_consoleColorPolicy = true;
+  m_dont_color = m_monitoring || !eos::console::ColorEnabled(STDOUT_FILENO);
   GetGroupsInfo();
 
   if (m_section == "nodes") {
@@ -655,7 +661,9 @@ void HealthCommand::Execute()
 
 void HealthCommand::Execute(std::string& out)
 {
-  m_dont_color = false; // Color text for EOS-wnc reply
+  // This overload produces a server reply, independent of the server's terminal.
+  m_consoleColorPolicy = false;
+  m_dont_color = false;
   ParseCommand();
   GetGroupsInfo();
 

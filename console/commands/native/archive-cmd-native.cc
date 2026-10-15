@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -160,7 +161,7 @@ public:
     std::string arg;
     ConfigureArchiveApp(app, subcmd, retry, arg);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace

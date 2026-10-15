@@ -239,6 +239,7 @@ void RegisterNativeConsoleCommands()
   RegisterTrackerNativeCommand();
   extern void RegisterVidNativeCommand();
   RegisterVidNativeCommand();
+  RegisterCommandHelpMetadata();
 }
 
 void

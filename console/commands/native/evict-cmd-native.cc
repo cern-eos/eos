@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/PathIdentifier.hh"
@@ -173,7 +174,7 @@ public:
     ConfigureEvictApp(app, opt_ignore_evict_counter, opt_ignore_removal_on_fst, fsid,
                       pos);
     const std::string help = app.help();
-    std::cerr << help << std::endl;
+    eos::console::PrintLegacyHelp(help + "\n");
   }
 };
 } // namespace

@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/RecycleHelper.hh"
 #include <sstream>
@@ -147,7 +148,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeRecycleHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeRecycleHelp());
   }
 };
 } // namespace

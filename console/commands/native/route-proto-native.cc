@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
@@ -241,7 +242,8 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    RouteOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

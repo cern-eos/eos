@@ -276,6 +276,33 @@ TEST(ConsoleCompletion, ShellCompletionGlobalFlags)
   EXPECT_TRUE(contains(suggestions, "--json"));
 }
 
+TEST(ConsoleCompletion, ShellCompletionColorPolicyValues)
+{
+  EXPECT_EQ(eos_shell_completion_candidates({"--color"}, ""),
+            (std::vector<std::string>{"always", "auto", "never"}));
+  EXPECT_EQ(eos_shell_completion_candidates({"--color"}, "a"),
+            (std::vector<std::string>{"always", "auto"}));
+  EXPECT_EQ(
+      eos_shell_completion_candidates({}, "--color="),
+      (std::vector<std::string>{"--color=always", "--color=auto", "--color=never"}));
+  EXPECT_EQ(eos_shell_completion_candidates({}, "--color=n"),
+            (std::vector<std::string>{"--color=never"}));
+}
+
+TEST(ConsoleCompletion, GlobalValueArityPreventsColorOptionMisinterpretation)
+{
+  for (const auto& preceding : std::vector<std::vector<std::string>>{
+           {"--app"}, {"-a"}, {"--role"}, {"-r", "123"}, {"--role", "--color"}}) {
+    SCOPED_TRACE(::testing::PrintToString(preceding));
+    EXPECT_TRUE(eos_shell_completion_candidates(preceding, "a").empty());
+    EXPECT_TRUE(eos_shell_completion_candidates(preceding, "--color=a").empty());
+  }
+  EXPECT_EQ(eos_shell_completion_candidates({"--app", "--color"}, "ns"),
+            (std::vector<std::string>{"ns"}));
+  EXPECT_EQ(eos_shell_completion_candidates({"--role", "--color", "always"}, "ns"),
+            (std::vector<std::string>{"ns"}));
+}
+
 TEST(ConsoleCompletion, ShellCompletionIoShapingSubcommands)
 {
   const auto suggestions = eos_shell_completion_candidates({"io"}, "sh");

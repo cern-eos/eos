@@ -5,6 +5,7 @@
 #include "common/SymKeys.hh"
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -527,7 +528,7 @@ public:
     std::string subcmd;
     ConfigureAttrApp(app, opt_r, opt_V, subcmd);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace

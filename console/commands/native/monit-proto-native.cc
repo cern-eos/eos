@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 
@@ -188,7 +189,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMonitHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeMonitHelp());
   }
 };
 } // namespace

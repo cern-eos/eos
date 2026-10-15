@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "proto/ConsoleRequest.pb.h"
 #include "unit_tests/console/ConsoleTestFixture.hh"
@@ -287,7 +288,7 @@ TEST_P(ConsoleRequestTest, SerializesExpectedRequestAndPropagatesErrors)
     run(item.command, item.args);
     EXPECT_EQ(global_retc, retc);
     auto actual = protobuf(item.admin);
-    EXPECT_EQ(actual.dontcolor(), !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+    EXPECT_EQ(actual.dontcolor(), !eos::console::ServerColorEnabled());
     actual.clear_dontcolor();
     EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equivalent(expected, actual))
         << "Expected:\n"

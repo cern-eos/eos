@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <algorithm>
 #include <memory>
@@ -32,7 +33,10 @@ public:
   {
     if (args.empty()) {
       auto& all = CommandRegistry::instance().all();
-      fprintf(stderr, "Available commands:\n");
+      fprintf(stderr, "%s\n",
+              eos::console::Colorize(
+                  "Available commands:", eos::console::TextStyle::Heading, STDERR_FILENO)
+                  .c_str());
       // Make a copy and sort by command name
       std::vector<IConsoleCommand*> sorted(all.begin(), all.end());
       std::sort(sorted.begin(), sorted.end(),
@@ -40,7 +44,13 @@ public:
                   return std::string(a->name()) < std::string(b->name());
                 });
       for (auto* c : sorted) {
-        fprintf(stderr, "  %-16s %s\n", c->name(), c->description());
+        const std::string name = c->name();
+        fprintf(
+            stderr, "  %s%s %s\n",
+            eos::console::Colorize(name, eos::console::TextStyle::Command, STDERR_FILENO)
+                .c_str(),
+            std::string(name.size() < 16 ? 16 - name.size() : 0, ' ').c_str(),
+            c->description());
       }
       return 0;
     }
@@ -56,7 +66,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "usage: help [command]\n");
+    eos::console::PrintLegacyHelp("usage: help [command]\n");
   }
 };
 
@@ -89,9 +99,9 @@ public:
     case JSON:
       ::json = (!::json);
       gGlobalOpts.mJsonFormat = ::json;
+      eos::console::SetJsonColorOutput(::json);
       if (::json) {
         ::interactive = false;
-        ::global_highlighting = false;
       }
       if (!::silent) {
         fprintf(stderr, "json=%d\n", ::json);

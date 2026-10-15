@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/ConsoleMetadata.hh"
 #include <memory>
@@ -67,7 +68,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeRoleHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeRoleHelp());
   }
 };
 } // namespace

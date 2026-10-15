@@ -23,6 +23,7 @@
 
 #include "ConsoleMain.hh"
 #include "CommandFramework.hh"
+#include "ConsoleColor.hh"
 #include "ConsoleCompletion.hh"
 #include "ConsoleMetadata.hh"
 #include "ConsoleOptions.hh"
@@ -77,7 +78,6 @@ XrdOucString global_comment = "";
 XrdOucString app = "";
 
 int global_retc = 0;
-bool global_highlighting = true;
 bool global_debug = false;
 bool interactive = true;
 bool hasterminal = true;
@@ -337,26 +337,8 @@ output_result(XrdOucEnv* result, bool highlighting)
     StringConversion::UnSeal(rstdjson);
   }
 
-  if (highlighting && global_highlighting) {
-    // color replacements
-    rstdout.replace("[booted]", "\033[1m[booted]\033[0m");
-    rstdout.replace("[down]", "\033[49;31m[down]\033[0m");
-    rstdout.replace("[failed]", "\033[49;31m[failed]\033[0m");
-    rstdout.replace("[booting]", "\033[49;32m[booting]\033[0m");
-    rstdout.replace("[compacting]", "\033[49;34m[compacting]\033[0m");
-    // replication highlighting
-    rstdout.replace("master-rw", "\033[49;31mmaster-rw\033[0m");
-    rstdout.replace("master-ro", "\033[49;34mmaster-ro\033[0m");
-    rstdout.replace("slave-ro", "\033[1mslave-ro\033[0m");
-    rstdout.replace("=ok", "=\033[49;32mok\033[0m");
-    rstdout.replace("=compacting", "=\033[49;32mcompacting\033[0m");
-    rstdout.replace("=off", "=\033[49;34moff\033[0m");
-    rstdout.replace("=blocked", "=\033[49;34mblocked\033[0m");
-    rstdout.replace("=wait", "=\033[49;34mwait\033[0m");
-    rstdout.replace("=starting", "=\033[49;34mstarting\033[0m");
-    rstdout.replace("=true", "=\033[49;32mtrue\033[0m");
-    rstdout.replace("=false", "=\033[49;31mfalse\033[0m");
-  }
+  // Server text is kept intact; style only semantic client-owned output.
+  (void)highlighting;
 
   int retc = 0;
 
@@ -384,7 +366,11 @@ output_result(XrdOucEnv* result, bool highlighting)
       }
 
     if (rstderr.length()) {
-      fprintf(stderr, "%s (errc=%d) (%s)\n", rstderr.c_str(), retc, strerror(retc));
+      fprintf(stderr, "%s (errc=%d) (%s)\n",
+              eos::console::Colorize(rstderr.c_str(), eos::console::TextStyle::Error,
+                                     STDERR_FILENO)
+                  .c_str(),
+              retc, strerror(retc));
     }
   }
 
@@ -565,84 +551,71 @@ read_pwdfile()
 }
 
 //------------------------------------------------------------------------------
-// Colour definitions
-//------------------------------------------------------------------------------
-std::string textnormal("\001\033[0m\002");
-std::string textblack("\001\033[49;30m\002");
-std::string textred("\001\033[49;31m\002");
-std::string textrederror("\001\033[47;31m\e[5m\002");
-std::string textblueerror("\001\033[47;34m\e[5m\002");
-std::string textgreen("\001\033[49;32m\002");
-std::string textyellow("\001\033[49;33m\002");
-std::string textblue("\001\033[49;34m\002");
-std::string textbold("\001\033[1m\002");
-std::string textunbold("\001\033[0m\002");
-
-//------------------------------------------------------------------------------
 // Usage Information
 //------------------------------------------------------------------------------
 void
 usage()
 {
-  fprintf(stderr,
-          "`eos' is the command line interface (CLI) of the EOS storage system.\n");
-  fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] [-v|--version] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
-  fprintf(stderr,
-          "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
-  fprintf(stderr,
-          "            -a, --app <application>             : set the application name for the CLI\n");
-  fprintf(stderr,
-          "            -b, --batch                         : run in batch mode without colour and syntax highlighting\n");
-  fprintf(stderr,
-          "            -j, --json                          : switch to json output format\n");
-  fprintf(stderr,
-          "            -h, --help                          : print help text\n");
-  fprintf(stderr,
-          "            -v, --version                       : print version information\n");
-  fprintf(stderr,
-          "            -s                                  : run <status> command\n");
-  fprintf(stderr,
-          "            <mgm-url>                           : XRoot URL of the management server e.g. root://<hostname>[:<port>]\n");
-  fprintf(stderr,
-          "            <cmd>                               : eos shell command (use 'eos help' to see available commands)\n");
-  fprintf(stderr,
-          "            {<argN>}                            : single or list of arguments for the eos shell command <cmd>\n");
-  fprintf(stderr,
-          "            <filename>.eosh                     : eos script file name ending with .eosh suffix\n\n");
-  fprintf(stderr, "Environment Variables: \n");
-  fprintf(stderr,
-          "            EOS_MGM_URL                         : sets the redirector URL - if ipc://[ipc-path] is used, it will talk via ZMQ messaging to a single dedicated thread in the MGM\n");
-  fprintf(stderr,
-          "            EOS_HISTORY_FILE                    : sets the command history file - by default '$HOME/.eos_history' is used\n\n");
-  fprintf(stderr,
-          "            EOS_NEWGRP                          : requests for each command the group ID of the current shell\n");
-  fprintf(stderr,
-          "            EOS_PWD_FILE                        : sets the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
-  fprintf(stderr, "Return Value: \n");
-  fprintf(stderr,
-          "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
-  fprintf(stderr, "Examples:\n");
-  fprintf(stderr,
-          "            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variable EOS_MGM_URL\n");
-  fprintf(stderr,
-          "            eos -r 0 0                          : as before but take role root/root [only numeric IDs are supported]\n");
-  fprintf(stderr,
-          "            eos root://myeos                    : start the interactive eos shell connecting to MGM host 'myeos'\n");
-  fprintf(stderr,
-          "            eos -b whoami                       : run the eos shell command 'whoami' in batch mode without syntax highlighting\n");
-  fprintf(stderr,
-          "            eos space ls --io                   : run the eos shell command 'space' with arguments 'ls --io'\n");
-  fprintf(stderr,
-          "            eos --version                       : print version information\n");
-  fprintf(stderr,
-          "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell\n");
-  fprintf(stderr,
-          "            eos -s                              : run <status> command\n");
-  fprintf(stderr, "\n");
-  fprintf(stderr,
-          "You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.\n");
-  fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
+  eos::console::PrintLegacyHelp(
+      "`eos' is the command line interface (CLI) of the EOS storage system.\n"
+      "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] "
+      "[-v|--version] [-j|--json] [--color=auto|always|never] [<mgm-url>] [<cmd> "
+      "{<argN>}|<filename>.eosh]\n"
+      "            -r, --role <uid> <gid>              : select user role <uid> and "
+      "group role <gid>\n"
+      "            -a, --app <application>             : set the application name for "
+      "the CLI\n"
+      "            -b, --batch                         : run in batch mode without "
+      "colour and syntax highlighting\n"
+      "            --color <auto|always|never>          : control human-readable "
+      "terminal styling\n"
+      "            -j, --json                          : switch to json output format\n"
+      "            -h, --help                          : print help text\n"
+      "            -v, --version                       : print version information\n"
+      "            -s                                  : run <status> command\n"
+      "            <mgm-url>                           : XRoot URL of the management "
+      "server e.g. root://<hostname>[:<port>]\n"
+      "            <cmd>                               : eos shell command (use 'eos "
+      "help' to see available commands)\n"
+      "            {<argN>}                            : single or list of arguments for "
+      "the eos shell command <cmd>\n"
+      "            <filename>.eosh                     : eos script file name ending "
+      "with .eosh suffix\n\n"
+      "Environment Variables: \n"
+      "            NO_COLOR                            : disable automatic color when "
+      "nonempty\n"
+      "            EOS_MGM_URL                         : sets the redirector URL - if "
+      "ipc://[ipc-path] is used, it will talk via ZMQ messaging to a single dedicated "
+      "thread in the MGM\n"
+      "            EOS_HISTORY_FILE                    : sets the command history file - "
+      "by default '$HOME/.eos_history' is used\n\n"
+      "            EOS_NEWGRP                          : requests for each command the "
+      "group ID of the current shell\n"
+      "            EOS_PWD_FILE                        : sets the file where the last "
+      "working directory is stored- by default '$HOME/.eos_pwd\n\n"
+      "Return Value: \n"
+      "            The return code of the last executed command is returned. 0 is "
+      "returned in case of success otherwise <errno> (!=0).\n\n"
+      "Examples:\n"
+      "            eos                                 : start the interactive eos shell "
+      "client connected to localhost or URL defined in environment variable EOS_MGM_URL\n"
+      "            eos -r 0 0                          : as before but take role "
+      "root/root [only numeric IDs are supported]\n"
+      "            eos root://myeos                    : start the interactive eos shell "
+      "connecting to MGM host 'myeos'\n"
+      "            eos -b whoami                       : run the eos shell command "
+      "'whoami' in batch mode without syntax highlighting\n"
+      "            eos space ls --io                   : run the eos shell command "
+      "'space' with arguments 'ls --io'\n"
+      "            eos --version                       : print version information\n"
+      "            eos -b eosscript.eosh               : run the eos shell script "
+      "'eosscript.eosh'. This script has to contain linewise commands which are "
+      "understood by the eos interactive shell\n"
+      "            eos -s                              : run <status> command\n"
+      "\n"
+      "You can leave the interactive shell with <Control-D>. <Control-C> cleans the "
+      "current shell line or terminates the shell when a command is currently executed.\n"
+      "Report bugs to eos-dev@cern.ch\n");
 }
 
 namespace {
@@ -736,24 +709,23 @@ Run(int argc, char* argv[])
 
   gGlobalOpts.mMgmUri = serveruri.c_str();
   bool selectedrole = false;
-  int retc = system("test -t 0 && test -t 1");
+  const bool terminalInput = isatty(STDIN_FILENO) && isatty(STDOUT_FILENO);
 
   if (getenv("EOS_CONSOLE_DEBUG")) {
     global_debug = true;
     gGlobalOpts.mDebug = true;
   }
 
-  if (!retc) {
+  if (terminalInput) {
     hasterminal = true;
-    global_highlighting = true;
     interactive = true;
   } else {
     hasterminal = false;
-    global_highlighting = false;
     interactive = false;
   }
 
   if (argc > 1 && std::string(argv[1]) == "__complete") {
+    eos::console::ConfigureColor(eos::console::ColorMode::Never, true, false);
     return RunShellCompletion(argc, argv, 2);
   }
 
@@ -765,10 +737,17 @@ Run(int argc, char* argv[])
   eos::console::ConsoleOptions options;
   if (!eos::console::ExtractConsoleComment(arguments, comment, parse_error) ||
       !eos::console::ParseConsoleOptions(arguments, options, parse_error)) {
-    fprintf(stderr, "error: %s\n", parse_error.c_str());
+    // A failed global parse has not accepted a color/output policy yet.
+    eos::console::ConfigureColor(eos::console::ColorMode::Never, false, false);
+    fprintf(
+        stderr, "%s %s\n",
+        eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+            .c_str(),
+        parse_error.c_str());
     usage();
     return EINVAL;
   }
+  eos::console::ConfigureColor(options.color, options.batch, options.json);
   if (options.help) {
     usage();
     return -1;
@@ -787,7 +766,6 @@ Run(int argc, char* argv[])
   }
   if (options.batch || options.json) {
     interactive = false;
-    global_highlighting = false;
   }
   json = options.json;
   gGlobalOpts.mJsonFormat = options.json;
@@ -823,7 +801,6 @@ Run(int argc, char* argv[])
     const auto& command = options.command.front();
     if (command == "cp" || command == "rclone" || command == "fuse") {
       interactive = false;
-      global_highlighting = false;
     }
     if (command.size() > 5 && command.compare(command.size() - 5, 5, ".eosh") == 0 &&
         access(command.c_str(), R_OK) == 0) {
@@ -862,18 +839,6 @@ Run(int argc, char* argv[])
   /* install a shutdown handler */
   //signal(SIGINT, exit_handler);
 
-  if (!interactive) {
-    textnormal = "";
-    textblack = "";
-    textred = "";
-    textrederror = "";
-    textblueerror = "";
-    textgreen = "";
-    textyellow = "";
-    textblue = "";
-    textbold = "";
-    textunbold = "";
-  }
 
   if (interactive) {
     fprintf(stderr,
@@ -946,9 +911,15 @@ Run(int argc, char* argv[])
         static_cast<size_t>(std::clamp(screenColumns, 1, 128)) * 32;
     constexpr size_t fixedPromptBytes = sizeof("EOS Console [] |> ") - 1;
     const size_t valueBudget = (promptBudget - fixedPromptBytes) / 2;
-    const std::string prompt = textbold + "EOS Console" + textunbold + " [" + textred +
-                               PromptDisplayValue(serveruri, valueBudget) + textnormal +
-                               "] |" + PromptDisplayValue(gPwd, valueBudget) + "> ";
+    const auto label = eos::console::ColorPrompt(
+        "EOS Console", eos::console::TextStyle::Heading, STDOUT_FILENO);
+    const auto endpoint =
+        eos::console::ColorPrompt(PromptDisplayValue(serveruri, valueBudget),
+                                  eos::console::TextStyle::Command, STDOUT_FILENO);
+    const auto directory =
+        eos::console::ColorPrompt(PromptDisplayValue(gPwd, valueBudget),
+                                  eos::console::TextStyle::Argument, STDOUT_FILENO);
+    const std::string prompt = label + " [" + endpoint + "] |" + directory + "> ";
 
     signal(SIGINT, jump_handler);
 

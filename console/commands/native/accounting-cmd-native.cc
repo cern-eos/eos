@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -120,7 +121,7 @@ public:
     CLI::App app;
     ConfigureAccountingApp(app);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace

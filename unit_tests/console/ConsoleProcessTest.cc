@@ -167,7 +167,10 @@ fi
   };
 
   int
-  readlineProcess(const std::vector<PtyStep>& steps)
+  readlineProcess(const std::vector<PtyStep>& steps,
+                  const std::vector<std::string>& options = {"-b"},
+                  const std::map<std::string, std::string>& overrides = {},
+                  bool expectInteractiveStartup = false)
   {
     {
       std::lock_guard<std::mutex> lock(mutex);
@@ -217,6 +220,9 @@ fi
     environment["INPUTRC"] = "/dev/null";
     environment["TERM"] = "dumb";
     environment["LC_ALL"] = "C.UTF-8";
+    for (const auto& [key, value] : overrides) {
+      environment[key] = value;
+    }
     std::vector<std::string> envStrings;
     for (const auto& [key, value] : environment) {
       envStrings.push_back(key + "=" + value);
@@ -226,7 +232,8 @@ fi
       env.push_back(entry.data());
     }
     env.push_back(nullptr);
-    std::vector<std::string> arguments{consoleExecutable(), "-b"};
+    std::vector<std::string> arguments{consoleExecutable()};
+    arguments.insert(arguments.end(), options.begin(), options.end());
     std::vector<char*> argv;
     for (auto& argument : arguments) {
       argv.push_back(argument.data());
@@ -270,6 +277,16 @@ fi
     };
     if (!waitFor("> ", 0)) {
       return -1;
+    }
+    if (expectInteractiveStartup) {
+      std::lock_guard<std::mutex> lock(mutex);
+      const std::vector<std::string> startup{"/proc/user/?mgm.cmd=motd",
+                                             "/proc/user/?mgm.cmd=version"};
+      EXPECT_EQ(requests, startup);
+      if (requests != startup) {
+        return -1;
+      }
+      requests.clear();
     }
     for (const auto& step : steps) {
       const size_t outputStart = lastOutput.size();
@@ -515,6 +532,27 @@ TEST_F(ConsoleProcessTest, CompletionDistinguishesInlineAndPendingOptionValues)
   noRequests();
 }
 
+TEST_F(ConsoleProcessTest, ColorPolicyPreservesNestedCompletionWithoutMgmOrAnsi)
+{
+  for (const auto& prefix : std::vector<std::vector<std::string>>{{"--color", "never"},
+                                                                  {"--color=never"},
+                                                                  {"--color", "always"},
+                                                                  {"--color=always"}}) {
+    SCOPED_TRACE(::testing::PrintToString(prefix));
+    std::vector<std::string> arguments{"__complete"};
+    arguments.insert(arguments.end(), prefix.begin(), prefix.end());
+    arguments.insert(arguments.end(), {"ns", "ca"});
+    ASSERT_EQ(process(arguments), 0) << lastOutput;
+    EXPECT_EQ(lastOutput, "cache\n");
+    noRequests();
+    arguments.insert(arguments.end() - 1, "cache");
+    arguments.back() = "drop-s";
+    ASSERT_EQ(process(arguments), 0) << lastOutput;
+    EXPECT_EQ(lastOutput, "drop-single-container\ndrop-single-file\n");
+    noRequests();
+  }
+}
+
 TEST_F(ConsoleProcessTest, UnknownChildrenAndTerminatedOptionsDoNotFallBackToFlags)
 {
   for (const auto* name : {"ns", "monit", "group", "config"}) {
@@ -542,6 +580,21 @@ TEST_F(ConsoleProcessTest, BashReassemblesEqualsWordBreaksForValueCompletion)
       << lastOutput;
   EXPECT_EQ(outputLines(),
             (std::set<std::string>{"drain", "balance", "fsck", "convert", "all"}));
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, BashReassemblesColorPolicyBeforeCommandCompletion)
+{
+  EXPECT_EQ(bashCompletion("eos --color=a", {"eos", "--color", "=", "a"}, 3), 0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(), (std::set<std::string>{"always", "auto"}));
+  noRequests();
+  EXPECT_EQ(bashCompletion("eos --color=never ns cache drop-s",
+                           {"eos", "--color", "=", "never", "ns", "cache", "drop-s"}, 6),
+            0)
+      << lastOutput;
+  EXPECT_EQ(outputLines(),
+            (std::set<std::string>{"drop-single-container", "drop-single-file"}));
   noRequests();
 }
 
@@ -840,4 +893,24 @@ TEST_F(ConsoleProcessTest, RealReadlineInsertionPreservesOnePathOperand)
     EXPECT_EQ(protobuf(true).record().path(), path) << lastOutput;
     unlink(path.c_str());
   }
+}
+
+TEST_F(ConsoleProcessTest, ColoredReadlineInsertionPreservesOneQuotedPathOperand)
+{
+  const auto path = tempDir + "/colored ' \" \\ café end";
+  {
+    std::ofstream file(path);
+    ASSERT_TRUE(file.good());
+  }
+  EXPECT_EQ(readlineProcess({{"cp \"" + tempDir + "/colored\t", "end"},
+                             {"\001\004\004\004register \n", "> "},
+                             {"quit\n", ""}},
+                            {"--color=always"}, {{"TERM", "xterm"}}, true),
+            0)
+      << lastOutput;
+  EXPECT_TRUE(lastOutput.find("\033[36mEOS Console") != std::string::npos ||
+              lastOutput.find("\033[1;36mEOS Console") != std::string::npos)
+      << lastOutput;
+  EXPECT_EQ(protobuf(true).record().path(), path) << lastOutput;
+  unlink(path.c_str());
 }

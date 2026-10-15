@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -156,8 +157,7 @@ public:
     bool opt_s = false;
     bool opt_h = false;
     ConfigureWhoApp(app, opt_c, opt_n, opt_z, opt_a, opt_m, opt_s, opt_h);
-    const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

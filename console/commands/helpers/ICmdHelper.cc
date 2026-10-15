@@ -48,7 +48,10 @@ ICmdHelper::Execute(bool print_err, bool add_route)
   }
 
   if (print_err && !mOutcome.error.empty()) {
-    std::cerr << GetError();
+    std::cerr << eos::console::Colorize(
+        GetError(), eos::console::TextStyle::Error, STDERR_FILENO,
+        mGlobalOpts.mJsonFormat ? eos::console::OutputKind::Machine
+                                : eos::console::OutputKind::Human);
   }
 
   return retc;
