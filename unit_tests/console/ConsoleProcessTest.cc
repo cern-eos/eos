@@ -222,6 +222,24 @@ TEST_F(ConsoleProcessTest, GlobalOptionsAndOriginalArgvReachProtobufUnchanged)
   EXPECT_NE(wire.find("&eos.rgid=456"), std::string::npos);
 }
 
+TEST_F(ConsoleProcessTest, AttrOriginalArgvReachesCgiWithoutInventedEscapes)
+{
+  for (const std::string& value :
+       {"value\"quote", "\"leading", "\"", "value\\\"quote", "tail\\", "two words"}) {
+    SCOPED_TRACE(value);
+    ASSERT_EQ(
+        process({"-b", "attr", "set", "user.attr.json4=" + value, "/eos/attribute"}),
+        ENOENT)
+        << lastOutput;
+    const auto wire = request();
+    XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+    ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+    std::string decoded;
+    EXPECT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+    EXPECT_EQ(decoded, value);
+  }
+}
+
 TEST_F(ConsoleProcessTest, ScriptSkipsBlankLinesAndRejectsNulBeforeDispatch)
 {
   const auto path = tempDir + "/commands.eosh";

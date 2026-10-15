@@ -7,6 +7,7 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <signal.h>
 #include <sys/stat.h>
 
 namespace {
@@ -72,6 +73,56 @@ protected:
 
 private:
   std::vector<std::string> createdFiles, createdDirectories;
+};
+
+class DuS3CliTest : public DuCliTest {
+protected:
+  void
+  SetUp() override
+  {
+    DuCliTest::SetUp();
+    if (HasFatalFailure()) {
+      return;
+    }
+    bin = directory("bin");
+    capture = tempDir + "/s3-arguments";
+    file(capture, "");
+    setenv("PATH", bin.c_str(), 1);
+    setenv("S3_ACCESS_KEY_ID", "test-id", 1);
+    setenv("S3_SECRET_ACCESS_KEY", "test-secret", 1);
+    setenv("S3_HOSTNAME", "test.invalid", 1);
+    unsetenv("S3_ACCESS_KEY");
+    unsetenv("S3_ACESSS_ID");
+    setenv("EOS_FIND_TEST_CAPTURE", capture.c_str(), 1);
+  }
+  void
+  stub(const std::string& body)
+  {
+    const auto executable = bin + "/s3";
+    file(executable,
+         "#!/bin/sh\n"
+         "printf '%s\\n' \"$#\" \"$1\" \"$2\" \"$S3_ACCESS_KEY_ID\" "
+         "\"$S3_SECRET_ACCESS_KEY\" \"$S3_HOSTNAME\" > \"$EOS_FIND_TEST_CAPTURE\"\n" +
+             body);
+    ASSERT_EQ(chmod(executable.c_str(), 0700), 0);
+  }
+  std::vector<std::string>
+  invocation()
+  {
+    std::ifstream stream(capture);
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(stream, line)) {
+      lines.push_back(line);
+    }
+    return lines;
+  }
+
+private:
+  DuEnvironmentGuard environment{
+      "PATH",          "S3_ACCESS_KEY_ID", "S3_HOSTNAME",          "S3_SECRET_ACCESS_KEY",
+      "S3_ACCESS_KEY", "S3_ACESSS_ID",     "EOS_FIND_TEST_CAPTURE"};
+  std::string bin, capture;
 };
 } // namespace
 
@@ -147,29 +198,128 @@ TEST_F(DuCliTest, ExplicitLocalUriUsesRealFindTraversalWithoutMgm)
   }
 }
 
-TEST_F(DuCliTest, ExplicitS3UriUsesRealFindTraversalWithoutMgm)
+TEST_F(DuS3CliTest, ExplicitS3UriUsesRealFindTraversalWithoutMgm)
 {
-  DuEnvironmentGuard environment{"PATH",          "S3_ACCESS_KEY_ID",
-                                 "S3_HOSTNAME",   "S3_SECRET_ACCESS_KEY",
-                                 "S3_ACCESS_KEY", "S3_ACESSS_ID"};
-  const auto bin = directory("bin");
-  const auto executable = bin + "/s3";
-  file(executable,
-       "#!/bin/sh\n"
-       "[ \"$#\" = 2 ] && [ \"$1\" = list ] && [ \"$2\" = bucket ] || exit 73\n"
-       "printf '%s\\n' 'tree/matching-file 1' 'other-file 1'\n");
-  ASSERT_EQ(chmod(executable.c_str(), 0700), 0);
-  setenv("PATH", (bin + ":/usr/bin:/bin").c_str(), 1);
-  setenv("S3_ACCESS_KEY_ID", "test-id", 1);
-  setenv("S3_SECRET_ACCESS_KEY", "test-secret", 1);
-  setenv("S3_HOSTNAME", "test.invalid", 1);
-  unsetenv("S3_ACCESS_KEY");
-  unsetenv("S3_ACESSS_ID");
+  stub("printf '%s\\n' 'tree/matching-file 1' 'other-file 1'\n");
   ::testing::internal::CaptureStdout();
   run("du", {"-hs", "as3:bucket/tree/*"});
   const auto output = ::testing::internal::GetCapturedStdout();
   EXPECT_EQ(global_retc, 0);
   EXPECT_EQ(output, "as3:bucket/tree/matching-file\n");
+  EXPECT_EQ(invocation(), (std::vector<std::string>{"2", "list", "bucket", "test-id",
+                                                    "test-secret", "test.invalid"}));
+  EXPECT_TRUE(noRequest());
+}
+
+TEST_F(DuS3CliTest, S3ArgumentsAndCredentialsAreLiteralWithoutShell)
+{
+  const std::string bucket = "bucket with 'quotes' \"double\" &;$(unexecuted)";
+  const std::string id = "id with 'quotes' \"double\" &;$(unexecuted)";
+  const std::string key = "key with 'quotes' \"double\" &;$(unexecuted)";
+  const std::string host = "host with 'quotes' \"double\" &;$(unexecuted)";
+  setenv("S3_ACCESS_KEY_ID", id.c_str(), 1);
+  setenv("S3_SECRET_ACCESS_KEY", key.c_str(), 1);
+  setenv("S3_HOSTNAME", host.c_str(), 1);
+  stub("printf '%s\\n' 'matching-file 1'\n");
+  ::testing::internal::CaptureStdout();
+  run("du", {"as3:" + bucket + "/matching"});
+  const auto output = ::testing::internal::GetCapturedStdout();
+  EXPECT_EQ(global_retc, 0);
+  EXPECT_EQ(output, "as3:" + bucket + "/matching-file\n");
+  EXPECT_EQ(invocation(), (std::vector<std::string>{"2", "list", bucket, id, key, host}));
+  EXPECT_TRUE(noRequest());
+}
+
+TEST_F(DuS3CliTest, S3QueryCredentialsAndUriHostPreserveOverridePrecedence)
+{
+  stub("printf '%s\\n' 'matching-file 1'\n");
+  const std::string uri = "as3://uri.invalid/bucket/matching?s3.id=query id 'q';"
+                          "&s3.key=query key \"q\";";
+  ::testing::internal::CaptureStdout();
+  run("du", {uri});
+  const auto output = ::testing::internal::GetCapturedStdout();
+  EXPECT_EQ(global_retc, 0);
+  EXPECT_EQ(output, "as3:bucket/matching-file\n");
+  EXPECT_EQ(invocation(),
+            (std::vector<std::string>{"2", "list", "bucket", "query id 'q';",
+                                      "query key \"q\";", "uri.invalid"}));
+  setenv("S3_ACESSS_ID", "ROOT id &;\"'", 1);
+  setenv("S3_ACCESS_KEY", "ROOT key &;\"'", 1);
+  ::testing::internal::CaptureStdout();
+  run("du", {uri});
+  ::testing::internal::GetCapturedStdout();
+  EXPECT_EQ(global_retc, 0);
+  EXPECT_EQ(invocation(),
+            (std::vector<std::string>{"2", "list", "bucket", "ROOT id &;\"'",
+                                      "ROOT key &;\"'", "uri.invalid"}));
+  EXPECT_TRUE(noRequest());
+}
+
+TEST_F(DuS3CliTest, S3FiltersPreserveEgrepAndHeaderSemantics)
+{
+  stub("printf '%s\\n' 'Bucket metadata' '----------' 'Key size' 'tree/file.ext 1' "
+       "'file.ext 2' 'other.txt 3' 'prefix 4'\n"
+       "printf '%s' 'last-key 5'\n");
+  for (const auto& [filter, expected] : std::vector<std::pair<std::string, std::string>>{
+           {"tree/*", "as3:bucket/tree/file.ext\n"},
+           {"*.txt", "as3:bucket/other.txt\n"},
+           {"(tree/|)file[.]ext", "as3:bucket/tree/file.ext\nas3:bucket/file.ext\n"},
+           {"not-found", ""},
+           {"", "as3:bucket/tree/file.ext\nas3:bucket/file.ext\nas3:bucket/other.txt\n"
+                "as3:bucket/prefix\nas3:bucket/last-key\n"}}) {
+    SCOPED_TRACE(filter);
+    ::testing::internal::CaptureStdout();
+    run("du", {"as3:bucket/" + filter});
+    const auto output = ::testing::internal::GetCapturedStdout();
+    EXPECT_EQ(global_retc, 0);
+    EXPECT_EQ(output, expected);
+    EXPECT_TRUE(noRequest());
+  }
+}
+
+TEST_F(DuS3CliTest, MalformedS3UrisAndFiltersAreRejectedBeforeSpawning)
+{
+  stub("exit 73\n");
+  for (const std::string& uri : {"as3:", "as3://host-only", "as3:/missing-bucket",
+                                 "as3:*/path", "as3:bucket/[invalid"}) {
+    SCOPED_TRACE(uri);
+    expectRejected("du", {uri});
+    EXPECT_TRUE(invocation().empty());
+  }
+}
+
+TEST_F(DuS3CliTest, MissingS3ExecutableReturnsErrorWithoutExiting)
+{
+  ::testing::internal::CaptureStdout();
+  ::testing::internal::CaptureStderr();
+  run("du", {"as3:bucket/"});
+  const auto error = ::testing::internal::GetCapturedStderr();
+  const auto output = ::testing::internal::GetCapturedStdout();
+  EXPECT_EQ(global_retc, ENOENT);
+  EXPECT_TRUE(output.empty());
+  EXPECT_NE(error.find("cannot execute s3"), std::string::npos);
+  EXPECT_EQ(error.find("test-secret"), std::string::npos);
+  EXPECT_TRUE(noRequest());
+}
+
+TEST_F(DuS3CliTest, S3FailuresReturnDecodedChildStatusWithoutCredentials)
+{
+  stub("exit 23\n");
+  ::testing::internal::CaptureStderr();
+  run("du", {"as3:bucket/?s3.key=private-query-key"});
+  const auto error = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(global_retc, 23);
+  EXPECT_NE(error.find("status 23"), std::string::npos);
+  EXPECT_EQ(error.find("private-query-key"), std::string::npos);
+  EXPECT_EQ(error.find("test-id"), std::string::npos);
+  EXPECT_TRUE(noRequest());
+}
+
+TEST_F(DuS3CliTest, S3SignalTerminationReturnsError)
+{
+  stub("kill -TERM $$\n");
+  run("du", {"as3:bucket/"});
+  EXPECT_EQ(global_retc, 128 + SIGTERM);
   EXPECT_TRUE(noRequest());
 }
 

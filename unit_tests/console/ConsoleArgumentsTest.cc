@@ -204,6 +204,42 @@ TEST_F(ConsoleArgumentsTest, ExecuteLineExtractsCommentAsTokenMetadata)
   EXPECT_TRUE(literal.comment().empty());
 }
 
+TEST_F(ConsoleArgumentsTest, AttrOriginalArgvPreservesQuotesAndBackslashes)
+{
+  for (const std::string& value : {"value\"quote", "\"leading", "\"", "\"quoted\"",
+                                   "back\\slash", "tail\\", "two words", ""}) {
+    SCOPED_TRACE(value);
+    run("attr", {"set", "user.attr.json4=" + value, "/eos/attribute"});
+    EXPECT_EQ(global_retc, ENOENT);
+    const auto wire = request();
+    XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+    ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+    std::string decoded;
+    EXPECT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+    EXPECT_EQ(decoded, value);
+  }
+}
+
+TEST_F(ConsoleArgumentsTest, AttrExecuteLineDecodesOnlyCommandLineEscapes)
+{
+  const std::vector<std::pair<std::string, std::string>> cases{
+      {R"(attr set 'user.attr.json4=value"quote' /eos/attribute)", "value\"quote"},
+      {R"(attr set user.attr.json4=value\"quote /eos/attribute)", "value\"quote"},
+      {R"(attr set 'user.attr.json4=value\"quote' /eos/attribute)", "value\\\"quote"},
+      {R"(attr set 'user.attr.json4="leading' /eos/attribute)", "\"leading"}};
+  for (const auto& [line, expected] : cases) {
+    SCOPED_TRACE(line);
+    execute(line);
+    EXPECT_EQ(global_retc, ENOENT);
+    const auto wire = request();
+    XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+    ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+    std::string decoded;
+    EXPECT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+    EXPECT_EQ(decoded, expected);
+  }
+}
+
 TEST_F(ConsoleArgumentsTest, ExecuteLineRejectsMalformedBeforeTransport)
 {
   for (const auto* line : {"evict '/eos/a", "evict \"/eos/a", "evict /eos/a\\",
