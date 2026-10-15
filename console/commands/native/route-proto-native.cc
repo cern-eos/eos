@@ -6,8 +6,9 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
+#include <charconv>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -106,37 +107,31 @@ public:
         return false;
       soption = option;
       std::vector<std::string> endpoints;
-      eos::common::StringConversion::Tokenize(soption, endpoints, ",");
-      if (endpoints.empty())
+      eos::common::StringConversion::EmptyTokenize(soption, endpoints, ",");
+      if (endpoints.empty() || soption.front() == ',') {
         return false;
+      }
       for (const auto& endpoint : endpoints) {
-        eos::console::RouteProto_LinkProto_Endpoint* ep = link->add_endpoints();
         std::vector<std::string> elems;
-        eos::common::StringConversion::Tokenize(endpoint, elems, ":");
-        const std::string fqdn = elems[0];
+        eos::common::StringConversion::EmptyTokenize(endpoint, elems, ":");
+        if (elems.empty() || elems.size() > 3 || endpoint.front() == ':' ||
+            elems[0].empty()) {
+          return false;
+        }
+        const std::string& fqdn = elems[0];
         if (!eos::common::ValidHostnameOrIP(fqdn)) {
           std::cerr << "error: invalid hostname specified" << std::endl;
           return false;
         }
         uint32_t xrd_port = 1094;
         uint32_t http_port = 8000;
-        if (elems.size() == 3) {
-          try {
-            xrd_port = std::stoul(elems[1]);
-            http_port = std::stoul(elems[2]);
-          } catch (...) {
-            std::cerr << "error: failed to parse ports for route" << std::endl;
-            return false;
-          }
-        } else if (elems.size() == 2) {
-          try {
-            xrd_port = std::stoul(elems[1]);
-          } catch (...) {
-            std::cerr << "error: failed to parse xrd port for route"
-                      << std::endl;
-            return false;
-          }
+        if ((elems.size() >= 2 && !ParsePort(elems[1], xrd_port)) ||
+            (elems.size() == 3 && !ParsePort(elems[2], http_port))) {
+          std::cerr << "error: route ports must be integers between 1 and 65535"
+                    << std::endl;
+          return false;
         }
+        auto* ep = link->add_endpoints();
         ep->set_fqdn(fqdn);
         ep->set_xrd_port(xrd_port);
         ep->set_http_port(http_port);
@@ -144,10 +139,18 @@ public:
     } else {
       return false;
     }
-    return true;
+    return tokenizer.GetToken() == nullptr;
   }
 
 private:
+  static bool
+  ParsePort(const std::string& text, uint32_t& port)
+  {
+    const auto result = std::from_chars(text.data(), text.data() + text.size(), port);
+    return result.ec == std::errc{} && result.ptr == text.data() + text.size() &&
+           port > 0 && port <= 65535;
+  }
+
   bool
   ValidatePath(std::string& path) const
   {

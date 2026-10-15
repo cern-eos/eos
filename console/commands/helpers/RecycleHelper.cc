@@ -226,7 +226,7 @@ RecycleHelper::ParseCommand(const char* arg)
 
         soption = option;
 
-        if (soption.empty() && soption[0] != '/') {
+        if (soption.empty() || soption[0] != '/') {
           std::cerr << "error: path specification is not supported" << std::endl;
           return false;
         }
@@ -243,10 +243,9 @@ RecycleHelper::ParseCommand(const char* arg)
         std::cerr << "error: unknown option \"" << soption << "\"" << std::endl;
         return false;
       }
-
-      if (project->path().empty()) {
-        return false;
-      }
+    }
+    if (project->path().empty()) {
+      return false;
     }
   } else if (cmd == "config") {
     eos::console::RecycleProto_ConfigProto* config = recycle->mutable_config();
