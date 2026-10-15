@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleOptions.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "gtest/gtest.h"
@@ -682,4 +683,33 @@ TEST_F(ConsoleColorTest, GlobalColorOptionHasValidatedValues)
   EXPECT_FALSE(ParseConsoleOptions({"--color=never", "--unknown"}, options, error));
   EXPECT_EQ(options.color, ColorMode::Never);
   EXPECT_FALSE(ParseConsoleOptions({"--color"}, options, error));
+}
+
+TEST_F(ConsoleColorTest, StructuredUppercaseSectionHeadingsAreStyledAfterLayout)
+{
+  ConfigureColor(ColorMode::Always, false, false);
+  const std::string text =
+      "USAGE\n  eos ns [<operation>]\n\nOPERATIONS\n  cache  Change metadata caches.\n";
+  const auto result = legacyHelp(text);
+  EXPECT_EQ(plain(result), text);
+  for (const char* heading : {"USAGE", "OPERATIONS"}) {
+    EXPECT_NE(result.find(Colorize(heading, TextStyle::Heading, fileno(file))),
+              std::string::npos);
+  }
+}
+
+TEST_F(ConsoleColorTest, ResponsiveCli11HeadingsKeepSemanticStyling)
+{
+  CLI::App app{"Inspect metadata.", "demo"};
+  app.add_flag("--details", "Include detailed information.");
+  app.add_subcommand("inspect", "Inspect an entry.");
+  const auto text = LayoutCliHelp(app, CLI::AppFormatMode::Normal, 40);
+  ConfigureColor(ColorMode::Always, false, false);
+  const auto result = legacyHelp(text);
+  EXPECT_EQ(plain(result), text);
+  for (const char* heading : {"Usage:", "OPTIONS:", "SUBCOMMANDS:"}) {
+    ASSERT_NE(text.find(heading), std::string::npos);
+    EXPECT_NE(result.find(Colorize(heading, TextStyle::Heading, fileno(file))),
+              std::string::npos);
+  }
 }

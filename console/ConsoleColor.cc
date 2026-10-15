@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <array>
@@ -261,6 +262,14 @@ colorHelpText(std::string_view text, int descriptor,
       if (first == 0 || shortTitle) {
         mark(first, last + 1, TextStyle::Heading);
       }
+    }
+    if (first == 0 && line.size() <= 48 &&
+        std::any_of(line.begin(), line.end(),
+                    [](unsigned char value) { return value >= 'A' && value <= 'Z'; }) &&
+        std::all_of(line.begin(), line.end(), [](unsigned char value) {
+          return (value >= 'A' && value <= 'Z') || value == ' ';
+        })) {
+      mark(0, line.size(), TextStyle::Heading);
     }
     for (const auto label : {"Note:", "Warning:", "Deprecated:"}) {
       const std::string_view prefix(label);
@@ -569,7 +578,7 @@ PrintLegacyHelp(std::string_view text, std::FILE* stream)
 {
   if (!text.empty()) {
     const auto help = colorHelpText(text, fileno(stream));
-    fwrite(help.data(), 1, help.size(), stream);
+    WriteHelpOutput(help, stream);
   }
 }
 
@@ -578,14 +587,14 @@ PrintCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::FILE* stream)
 {
   // CLI11 selects parsed subcommands and finishes layout before decoration.
   // Keeping formatters untouched also covers custom child formatters.
-  const auto text = app.help("", mode);
+  const auto text = LayoutCliHelp(app, mode, HelpWidth(fileno(stream)));
   std::set<std::string> options;
   HelpCommand command;
   if (ColorEnabled(fileno(stream))) {
     collectHelpWords(app, options, command);
   }
   const auto help = colorHelpText(text, fileno(stream), options, {std::move(command)});
-  fwrite(help.data(), 1, help.size(), stream);
+  WriteHelpOutput(help, stream);
 }
 
 } // namespace eos::console

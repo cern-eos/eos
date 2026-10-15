@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <algorithm>
 #include <memory>
@@ -33,16 +34,27 @@ public:
   {
     if (args.empty()) {
       auto& all = CommandRegistry::instance().all();
-      fprintf(stderr, "%s\n",
-              eos::console::Colorize(
-                  "Available commands:", eos::console::TextStyle::Heading, STDERR_FILENO)
-                  .c_str());
       // Make a copy and sort by command name
       std::vector<IConsoleCommand*> sorted(all.begin(), all.end());
       std::sort(sorted.begin(), sorted.end(),
                 [](const IConsoleCommand* a, const IConsoleCommand* b) {
                   return std::string(a->name()) < std::string(b->name());
                 });
+      if (eos::console::HelpWidth(STDERR_FILENO)) {
+        eos::console::HelpPage page;
+        page.blocks.push_back(
+            {eos::console::HelpBlockKind::Section, "Available commands:", {}});
+        for (const auto* command : sorted) {
+          page.blocks.push_back({eos::console::HelpBlockKind::Definition, command->name(),
+                                 command->description()});
+        }
+        eos::console::PrintHelpPage(page);
+        return 0;
+      }
+      fprintf(stderr, "%s\n",
+              eos::console::Colorize(
+                  "Available commands:", eos::console::TextStyle::Heading, STDERR_FILENO)
+                  .c_str());
       for (auto* c : sorted) {
         const std::string name = c->name();
         fprintf(
@@ -60,7 +72,7 @@ public:
       fprintf(stderr, "error: unknown command '%s'\n", args[0].c_str());
       return (global_retc = EINVAL);
     }
-    cmd->printHelp();
+    cmd->printHelp(std::vector<std::string>(args.begin() + 1, args.end()));
     return 0;
   }
   void
@@ -100,6 +112,7 @@ public:
       ::json = (!::json);
       gGlobalOpts.mJsonFormat = ::json;
       eos::console::SetJsonColorOutput(::json);
+      eos::console::SetJsonHelpOutput(::json);
       if (::json) {
         ::interactive = false;
       }

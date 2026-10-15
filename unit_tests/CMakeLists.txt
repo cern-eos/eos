@@ -38,6 +38,8 @@ set(CONSOLE_UT_SRCS
   console/ConsoleColorTest.cc
   console/ConsoleColorRequestTest.cc
   console/ConsoleColorProcessTest.cc
+  console/ConsoleHelpTest.cc
+  console/ConsoleHelpProcessTest.cc
   console/AclCmdTest.cc
   console/AliasCliValidationTest.cc
   console/CommandDispatchTest.cc
@@ -227,7 +229,7 @@ set(UT_FST_SRCS
 #-------------------------------------------------------------------------------
 add_executable(eos-unit-tests ${UT_SRCS})
 add_dependencies(eos-unit-tests eos)
-set_source_files_properties(console/ConsoleProcessTest.cc console/ConsoleColorProcessTest.cc PROPERTIES
+set_source_files_properties(console/ConsoleProcessTest.cc console/ConsoleColorProcessTest.cc console/ConsoleHelpProcessTest.cc PROPERTIES
   COMPILE_DEFINITIONS
   "EOS_CONSOLE_COMPLETION_SCRIPT=\"${CMAKE_SOURCE_DIR}/misc/etc/bash_completion.d/eos\";EOS_CONSOLE_EXECUTABLE=\"$<TARGET_FILE:eos>\";EOS_CONSOLE_INSTALLED_EXECUTABLE=\"${CMAKE_INSTALL_FULL_BINDIR}/eos\"")
 

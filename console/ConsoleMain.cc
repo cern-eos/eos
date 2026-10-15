@@ -25,6 +25,7 @@
 #include "CommandFramework.hh"
 #include "ConsoleColor.hh"
 #include "ConsoleCompletion.hh"
+#include "ConsoleHelp.hh"
 #include "ConsoleMetadata.hh"
 #include "ConsoleOptions.hh"
 #include "License"
@@ -556,6 +557,67 @@ read_pwdfile()
 void
 usage()
 {
+  if (eos::console::HelpWidth(STDERR_FILENO)) {
+    using eos::console::HelpBlockKind;
+    eos::console::HelpPage page;
+    page.blocks = {
+        {HelpBlockKind::Paragraph, "EOS storage system command line interface", {}},
+        {HelpBlockKind::Section, "USAGE", {}},
+        {HelpBlockKind::Usage,
+         "eos [options] [<mgm-url>] [<command> [<arguments>...]]",
+         {}},
+        {HelpBlockKind::Usage, "eos [options] <filename>.eosh", {}},
+        {HelpBlockKind::Section, "OPTIONS", {}},
+        {HelpBlockKind::Definition, "-r, --role <uid> <gid>",
+         "Select user and group roles."},
+        {HelpBlockKind::Definition, "-a, --app <application>",
+         "Set the application name."},
+        {HelpBlockKind::Definition, "-b, --batch",
+         "Run in batch mode without terminal formatting."},
+        {HelpBlockKind::Definition, "--color <auto|always|never>",
+         "Control human-readable terminal styling."},
+        {HelpBlockKind::Definition, "--no-pager", "Disable the configured help pager."},
+        {HelpBlockKind::Definition, "-j, --json", "Select JSON output."},
+        {HelpBlockKind::Definition, "-h, --help", "Show help."},
+        {HelpBlockKind::Definition, "-v, --version", "Print version information."},
+        {HelpBlockKind::Definition, "-s", "Run the status command."},
+        {HelpBlockKind::Section, "ENVIRONMENT", {}},
+        {HelpBlockKind::Definition, "EOS_HELP_WIDTH",
+         "Override interactive help width (20 to 1000 columns). Automatic width is "
+         "capped at 120 columns."},
+        {HelpBlockKind::Definition, "EOS_PAGER",
+         "Optional pager for long interactive help, for example 'less -FRX'. Quoted "
+         "arguments are supported; shell expressions are not evaluated. Unset or empty "
+         "disables paging."},
+        {HelpBlockKind::Definition, "NO_COLOR", "Disable automatic color when nonempty."},
+        {HelpBlockKind::Definition, "EOS_MGM_URL",
+         "Set the management server URL, including root://<hostname>[:<port>] or "
+         "ipc://<path>."},
+        {HelpBlockKind::Definition, "EOS_HISTORY_FILE",
+         "Set the history file (default: $HOME/.eos_history)."},
+        {HelpBlockKind::Definition, "EOS_PWD_FILE",
+         "Set the saved working directory file (default: $HOME/.eos_pwd)."},
+        {HelpBlockKind::Definition, "EOS_NEWGRP",
+         "Request the current shell's group ID for each command."},
+        {HelpBlockKind::Section, "EXAMPLES", {}},
+        {HelpBlockKind::Example, "eos help", {}},
+        {HelpBlockKind::Example, "eos ns cache set --help", {}},
+        {HelpBlockKind::Example, "eos ns --help-all", {}},
+        {HelpBlockKind::Example, "eos -b whoami", {}},
+        {HelpBlockKind::Example, "eos root://myeos", {}},
+        {HelpBlockKind::Section, "INTERACTIVE SHELL", {}},
+        {HelpBlockKind::Paragraph,
+         "Run eos without a command to start the interactive shell. Control-D exits. "
+         "Control-C clears the current line or interrupts the running command.",
+         {}},
+        {HelpBlockKind::Section, "EXIT STATUS", {}},
+        {HelpBlockKind::Paragraph,
+         "The last command's status is returned: 0 on success, otherwise errno. Report "
+         "bugs to eos-dev@cern.ch.",
+         {}}};
+    eos::console::PrintHelpPage(page);
+    return;
+  }
   eos::console::PrintLegacyHelp(
       "`eos' is the command line interface (CLI) of the EOS storage system.\n"
       "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] "
@@ -748,6 +810,7 @@ Run(int argc, char* argv[])
     return EINVAL;
   }
   eos::console::ConfigureColor(options.color, options.batch, options.json);
+  eos::console::ConfigureHelp(options.batch, options.json, options.noPager);
   if (options.help) {
     usage();
     return -1;

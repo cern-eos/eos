@@ -122,8 +122,9 @@ filter_candidates(const std::vector<std::string>& candidates, const std::string&
 std::vector<std::string>
 global_option_candidates()
 {
-  return {"--color", "--app", "--batch", "--help", "--json", "--role", "--version",
-          "-a",      "-b",    "-h",      "-j",     "-r",     "-s",     "-v"};
+  return {"--color", "--app",     "--batch",    "--help", "--json",
+          "--role",  "--version", "--no-pager", "-a",     "-b",
+          "-h",      "-j",        "-r",         "-s",     "-v"};
 }
 
 size_t

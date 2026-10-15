@@ -29,6 +29,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 add_library(EosConsoleHelpers-Objects OBJECT
   CliCompletion.cc CommandCompletion.hh
   ConsoleColor.cc ConsoleColor.hh
+  ConsoleHelp.cc ConsoleHelp.hh ConsoleHelpOutput.cc
   commands/helpers/ICmdHelper.cc    commands/helpers/ICmdHelper.hh
   commands/helpers/FileHelper.cc    commands/helpers/FileHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh

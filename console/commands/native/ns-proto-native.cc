@@ -6,12 +6,15 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
-#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <utility>
 
 // Native helper implementing the protobuf request (ported from legacy)
 class NsNativeHelper : public ICmdHelper {
@@ -650,16 +653,374 @@ std::string MakeNsHelp()
   return oss.str();
 }
 
-void ConfigureNsApp(CLI::App& app)
+struct NsHelpTopic {
+  std::string name;
+  std::string summary;
+  std::string arguments;
+  std::vector<std::pair<std::string, std::string>> definitions;
+  std::vector<std::string> notes;
+  std::vector<std::string> examples;
+  std::vector<NsHelpTopic> children;
+};
+
+const NsHelpTopic&
+NamespaceHelp()
 {
-  app.name("ns");
-  app.description("Namespace Interface");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeNsHelp();
-      }));
+  static const NsHelpTopic help{
+      "ns",
+      "Print or configure namespace parameters.",
+      "[<operation>]",
+      {},
+      {"With no operation, print a namespace summary."},
+      {},
+      {{"stat",
+        "Print namespace statistics.",
+        "[-a] [-x] [-m] [-n] [--reset]",
+        {{"-a", "Break down statistics by user and group."},
+         {"-x", "Break down statistics by application."},
+         {"-m", "Use monitoring format: <key>=<value>."},
+         {"-n", "Display numerical user and group IDs."},
+         {"--reset", "Reset namespace counters."}},
+        {},
+        {"eos ns stat -m"},
+        {}},
+       {"mutex",
+        "Inspect or configure mutex monitoring.",
+        "[<option>...]",
+        {{"--toggletime", "Toggle timing."},
+         {"--toggleorder", "Toggle lock order monitoring."},
+         {"--toggledeadlock", "Toggle deadlock checks."},
+         {"--smplrate1", "Sample 1% of timings (default; no slowdown)."},
+         {"--smplrate10", "Sample 10% of timings (medium slowdown)."},
+         {"--smplrate100", "Sample all timings (severe slowdown)."},
+         {"--setblockedtime <ms>", "Log locks held longer than this threshold, in "
+                                   "milliseconds (default: 10000)."}},
+        {"With no option, list the current monitoring configuration. Monitoring requires "
+         "an MGM built with instrumented RW mutex support."},
+        {"eos ns mutex"},
+        {}},
+       {"compact",
+        "Legacy namespace compaction interface (unsupported).",
+        "<operation>",
+        {},
+        {"The current MGM does not support this legacy operation and returns ENOTSUP."},
+        {},
+        {{"off",
+          "Disable online compaction (unsupported).",
+          "",
+          {},
+          {"The current MGM returns ENOTSUP."},
+          {},
+          {}},
+         {"on",
+          "Enable online compaction (unsupported).",
+          "[<delay> [<interval> [<type>]]]",
+          {{"<delay>", "Delay before compaction, in seconds."},
+           {"<interval>",
+            "Repeat compaction after this many seconds when greater than zero."},
+           {"<type>", "files, directories, all, files-repair, directories-repair or "
+                      "all-repair. The default compacts files."}},
+          {"The current MGM does not support this legacy operation and returns ENOTSUP."},
+          {},
+          {}}}},
+       {"master",
+        "Inspect or configure master and slave supervision.",
+        "[<hostname>|<option>]",
+        {{"<hostname>", "Set the hostname of the read-write MGM master."},
+         {"--log", "Show the master log (the default operation)."},
+         {"--log-clear", "Clear the master log."},
+         {"--enable",
+          "Deprecated supervisor operation; the current MGM returns ENOTSUP."},
+         {"--disable",
+          "Deprecated supervisor operation; the current MGM returns ENOTSUP."}},
+        {},
+        {"eos ns master --log"},
+        {}},
+       {"recompute_tree_size",
+        "Recompute a directory's tree size, including its subdirectories.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <value>]",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>",
+          "Identify the directory by path, decimal container ID or hexadecimal container "
+          "ID."},
+         {"--depth <value>", "Maximum recursion depth; zero means unlimited (default)."}},
+        {},
+        {},
+        {}},
+       {"recompute_quotanode",
+        "Recompute the specified quota node.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id>",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>",
+          "Identify the quota node by path, decimal container ID or hexadecimal "
+          "container ID."}},
+        {},
+        {},
+        {}},
+       {"update_quotanode",
+        "Update a quota node using the supplied accounting values.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> "
+        "physicalbytes:<bytes> inodes:<inodes>",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>", "Identify the quota node."},
+         {"uid:<uid>|gid:<gid>",
+          "Identify the user or group whose accounting is updated."},
+         {"bytes:<bytes>", "Logical bytes used."},
+         {"physicalbytes:<bytes>", "Physical bytes used."},
+         {"inodes:<inodes>", "Inodes used."}},
+        {"Values are applied without checking their consistency. Supply all three "
+         "accounting values together.",
+         "Project quotas require a user ID because accounting accumulates the quotas of "
+         "users registered with the quota node."},
+        {},
+        {}},
+       {"cache",
+        "Inspect or change namespace metadata caches.",
+        "<operation>",
+        {},
+        {"Use 'eos ns stat' to inspect the current cache values."},
+        {},
+        {{"set",
+          "Set a metadata cache's entry limit.",
+          "-f|-d <max_num> [<max_size>]",
+          {{"-f", "Control the file metadata cache."},
+           {"-d", "Control the directory metadata cache."},
+           {"<max_num>",
+            "Maximum number of cache entries. The MGM applies values greater than 100."},
+           {"<max_size>", "Optional size with a K, M or G suffix; the size limit is not "
+                          "implemented yet."}},
+          {"Choose exactly one of -f and -d. Use 'eos ns stat' to inspect current "
+           "values."},
+          {"eos ns cache set -f 1000000"},
+          {}},
+         {"drop",
+          "Drop cached namespace metadata.",
+          "[-f|-d]",
+          {{"-f", "Drop file metadata entries."},
+           {"-d", "Drop directory metadata entries."}},
+          {"Without -f or -d, drop both caches."},
+          {},
+          {}},
+         {"drop-single-file",
+          "Drop one cached file to force a metadata refresh.",
+          "<file_id>",
+          {{"<file_id>", "Decimal ID of the file to drop from the cache."}},
+          {},
+          {},
+          {}},
+         {"drop-single-container",
+          "Drop one cached directory to force a metadata refresh.",
+          "<container_id>",
+          {{"<container_id>", "Decimal ID of the container to drop from the cache."}},
+          {},
+          {},
+          {}}}},
+       {"drain",
+        "Inspect or configure global drain parameters.",
+        "<operation>",
+        {},
+        {},
+        {},
+        {{"list",
+          "List global drain configuration parameters.",
+          "",
+          {},
+          {},
+          {"eos ns drain list"},
+          {}},
+         {"set",
+          "Set one global drain configuration parameter.",
+          "<key>=<value>",
+          {{"max-thread-pool-size=<value>",
+            "Maximum threads in the drain pool (default: 100; minimum: 5)."},
+           {"max-fs-per-node=<value>",
+            "Maximum file systems per node drained in parallel (default: 5)."}},
+          {},
+          {},
+          {}}}},
+       {"reserve-ids",
+        "Reserve file and container IDs up to the given thresholds.",
+        "<file_id> <container_id>",
+        {{"<file_id>", "Nonnegative file ID threshold."},
+         {"<container_id>", "Nonnegative container ID threshold."}},
+        {"The namespace will not allocate IDs less than or equal to these thresholds."},
+        {},
+        {}},
+       {"benchmark",
+        "Run a metadata benchmark inside the MGM.",
+        "<threads> <subdirs> <subfiles> [<prefix>]",
+        {{"<threads>", "Number of parallel benchmark threads (capped at 1024)."},
+         {"<subdirs>", "Directories created by each thread."},
+         {"<subfiles>", "Files created in each subdirectory."},
+         {"<prefix>",
+          "Parent directory of benchmark/; the default writes to /benchmark."}},
+        {"Results are printed to the MGM log and the console."},
+        {},
+        {}},
+       {"tracker",
+        "List or clear file identifier trackers.",
+        "<operation> --name <type>",
+        {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
+        {"Without --name, no tracker is selected."},
+        {},
+        {{"list",
+          "List tracked file identifiers.",
+          "--name <type>",
+          {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
+          {"Without --name, no tracker is selected."},
+          {"eos ns tracker list --name all"},
+          {}},
+         {"clear",
+          "Clear tracked file identifiers.",
+          "--name <type>",
+          {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
+          {"Without --name, no tracker is selected."},
+          {},
+          {}}}},
+       {"behaviour",
+        "Inspect or change manager behaviour settings.",
+        "<operation>",
+        {},
+        {"Settings are saved in the MGM configuration.",
+         "rain_min_fsid_entry selects the lowest file system ID as the entry server for "
+         "RAIN files. disable_access_log suppresses INFO lines for access checks. Both "
+         "accept on or off and default to off."},
+        {},
+        {{"list",
+          "List enforced behaviour changes.",
+          "",
+          {},
+          {},
+          {"eos ns behaviour list"},
+          {}},
+         {"set",
+          "Set a manager behaviour.",
+          "<name> <on|off>",
+          {{"<name>", "rain_min_fsid_entry or disable_access_log."},
+           {"<on|off>", "Enable or disable the behaviour."}},
+          {},
+          {},
+          {}},
+         {"get",
+          "Get a manager behaviour's configuration.",
+          "<name>",
+          {{"<name>", "rain_min_fsid_entry or disable_access_log."}},
+          {},
+          {"eos ns behaviour get disable_access_log"},
+          {}},
+         {"clear",
+          "Remove enforced behaviour settings.",
+          "<name>|all",
+          {{"<name>|all",
+            "Select rain_min_fsid_entry, disable_access_log or all settings."}},
+          {},
+          {},
+          {}}}}}};
+  return help;
+}
+
+void
+AppendNamespaceHelp(eos::console::HelpPage& page, const NsHelpTopic& topic,
+                    const std::string& path, bool all)
+{
+  using eos::console::HelpBlockKind;
+  page.blocks.push_back(
+      {HelpBlockKind::Section, all && path != "eos ns" ? path : "USAGE", {}});
+  page.blocks.push_back({HelpBlockKind::Usage,
+                         path + (topic.arguments.empty() ? "" : " " + topic.arguments),
+                         {}});
+  page.blocks.push_back({HelpBlockKind::Paragraph, topic.summary, {}});
+  if (!topic.children.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "OPERATIONS", {}});
+    for (const auto& child : topic.children) {
+      page.blocks.push_back({HelpBlockKind::Definition, child.name, child.summary});
+    }
+  }
+  if (!topic.definitions.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "ARGUMENTS AND OPTIONS", {}});
+    for (const auto& definition : topic.definitions) {
+      page.blocks.push_back(
+          {HelpBlockKind::Definition, definition.first, definition.second});
+    }
+  }
+  if (!topic.notes.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "DETAILS", {}});
+    for (const auto& note : topic.notes) {
+      page.blocks.push_back({HelpBlockKind::Paragraph, note, {}});
+    }
+  }
+  if (!topic.examples.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "EXAMPLES", {}});
+    for (const auto& example : topic.examples) {
+      page.blocks.push_back({HelpBlockKind::Example, example, {}});
+    }
+  }
+  if (all) {
+    for (const auto& child : topic.children) {
+      AppendNamespaceHelp(page, child, path + " " + child.name, true);
+    }
+  } else {
+    page.blocks.push_back({HelpBlockKind::Section, "LEARN MORE", {}});
+    if (!topic.children.empty()) {
+      page.blocks.push_back(
+          {HelpBlockKind::Paragraph,
+           "Run '" + path + " <operation> --help' for operation details.",
+           {}});
+    }
+    page.blocks.push_back({HelpBlockKind::Paragraph,
+                           "Run 'eos ns --help-all' for the complete namespace manual.",
+                           {}});
+  }
+}
+
+void
+PrintNamespaceHelp(const std::vector<std::string>& args)
+{
+  if (!eos::console::HelpWidth(fileno(stderr))) {
+    eos::console::PrintLegacyHelp(MakeNsHelp());
+    return;
+  }
+  const auto* topic = &NamespaceHelp();
+  std::string path = "eos ns";
+  bool all = false;
+  for (const auto& arg : args) {
+    if (arg == "--") {
+      break;
+    }
+    if (arg == "--help-all") {
+      all = true;
+      break;
+    }
+  }
+  if (!all) {
+    for (const auto& arg : args) {
+      if (arg == "--") {
+        break;
+      }
+      const auto child =
+          std::find_if(topic->children.begin(), topic->children.end(),
+                       [&arg](const NsHelpTopic& entry) { return entry.name == arg; });
+      if (child == topic->children.end()) {
+        break;
+      }
+      topic = &*child;
+      path += " " + topic->name;
+    }
+  }
+  eos::console::HelpPage page;
+  AppendNamespaceHelp(page, *topic, path, all);
+  eos::console::PrintHelpPage(page);
+}
+
+bool
+WantsNamespaceHelp(const std::vector<std::string>& args)
+{
+  for (const auto& argument : args) {
+    if (argument == "--") {
+      break;
+    }
+    if (argument == "--help" || argument == "--help-all" || argument == "-h") {
+      return true;
+    }
+  }
+  return false;
 }
 
 class NsProtoCommand : public IConsoleCommand {
@@ -677,7 +1038,7 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    return !WantsNamespaceHelp(eos::console::TokenizeArguments(args.c_str()));
   }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
@@ -689,14 +1050,14 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
+    if (WantsNamespaceHelp(args)) {
+      printHelp(args);
       global_retc = EINVAL;
       return 0;
     }
     NsNativeHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
-      printHelp();
+      printHelp(args);
       global_retc = EINVAL;
       return 0;
     }
@@ -706,9 +1067,12 @@ public:
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureNsApp(app);
-    eos::console::PrintLegacyHelp(app.help());
+    PrintNamespaceHelp({});
+  }
+  void
+  printHelp(const std::vector<std::string>& args) const override
+  {
+    PrintNamespaceHelp(args);
   }
 };
 } // namespace

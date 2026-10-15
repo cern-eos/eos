@@ -21,7 +21,8 @@ targets. These shared dependencies must be considered when changing a helper.
 ### Commands and arguments
 
 `IConsoleCommand` exposes `name()`, `description()`, `requiresMgm(args)`,
-`run(args, context)`, and `printHelp()`. Commands can also provide `helpText()`
+`run(args, context)`, and `printHelp()`. Override `printHelp(args)` for focused
+subcommand pages reached through `eos help command subcommand`. Commands can also provide `helpText()`
 and `complete(args)` for completion. `CommandContext` supplies global protobuf
 options, JSON/silent output settings, and the request/output callbacks.
 
@@ -88,6 +89,24 @@ the matching `eos` executable, with an IPC responder and temporary files. In an
 installed test package they use the installed console. They cover the process
 option parser as well as the command registry; neither layer substitutes for
 the other. Run console tests in shuffled order when changing shared globals.
+
+### Help layout
+
+Use `ConsoleHelp::HelpPage` blocks for new static help rather than embedding
+screen-width line breaks in strings. Sections, paragraphs, usage, definitions
+and literal examples have explicit roles. Layout measures UTF-8 display cells,
+wraps prose and usage at word boundaries, and keeps literal examples and long
+tokens intact. Color is added after layout. Standard CLI11 help uses its option
+and command metadata with a copied formatter; custom formatters stay untouched.
+
+The console entry point activates layout independently from color. Only a
+terminal destination uses adaptive layout, with `EOS_HELP_WIDTH` as an explicit
+override. Batch, JSON and redirected output retain the previous layout.
+Namespace root help becomes an operation index on terminals, with focused
+subcommand pages and `--help-all` for the full manual. Existing legacy pages
+are not heuristically reflowed. `EOS_PAGER` enables optional direct-exec paging
+for long interactive help; `--no-pager` disables it. Data output never goes
+through this renderer.
 
 ### Validation contracts
 

@@ -365,11 +365,13 @@ TEST_F(ConsoleColorProcessTest, NamespaceHelpHonorsColorWithoutChangingItsContra
   EXPECT_TRUE(output.empty());
   ASSERT_EQ(process({"ns", "--help"}, false, true, environment), EINVAL);
   EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
-  EXPECT_EQ(plain(terminalOutput), baseline);
+  const auto interactiveHelp = plain(terminalOutput);
+  EXPECT_NE(interactiveHelp.find("--help-all"), std::string::npos);
+  EXPECT_NE(interactiveHelp.find("cache"), std::string::npos);
   auto noColor = environment;
   noColor["NO_COLOR"] = "1";
   ASSERT_EQ(process({"ns", "--help"}, false, true, noColor), EINVAL);
-  EXPECT_EQ(terminalOutput, baseline);
+  EXPECT_EQ(terminalOutput, interactiveHelp);
   for (const char* mode : {"-b", "-j"}) {
     ASSERT_EQ(process({"--color=always", mode, "ns", "--help"}, false, true, environment),
               EINVAL);
