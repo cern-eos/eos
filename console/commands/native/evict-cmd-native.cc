@@ -2,12 +2,15 @@
 // File: evict-native.cc
 // ----------------------------------------------------------------------
 
+#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 
 namespace {
 std::string MakeEvictHelp()
@@ -21,9 +24,9 @@ std::string MakeEvictHelp()
       << "    --ignore-evict-counter  : Force eviction by bypassing evict "
          "counter\n"
       << "    --fsid <fsid>           : Evict disk copy only from a single "
-         "fsid\n"
+         "fsid (requires --ignore-evict-counter)\n"
       << "    --ignore-removal-on-fst : Ignore file removal on fst, "
-         "namespace-only operation\n\n"
+         "namespace-only operation (requires --fsid)\n\n"
       << "    This command requires 'write' and 'p' acl flag permission\n";
   return oss.str();
 }
@@ -46,6 +49,83 @@ void ConfigureEvictApp(CLI::App& app,
   app.add_option("--fsid", fsid, "single fsid");
   app.add_option("paths", paths);
 }
+
+class EvictHelper : public ICmdHelper {
+public:
+  explicit EvictHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
+  bool
+  ParseCommand(const char* arg) override
+  {
+    eos::common::StringTokenizer tokenizer(arg);
+    tokenizer.GetLine();
+    std::vector<std::string> args;
+    while (const char* token = tokenizer.GetTokenUnquoted(false)) {
+      args.emplace_back(token);
+    }
+    return ParseArguments(args);
+  }
+  bool
+  ParseArguments(const std::vector<std::string>& args)
+  {
+    mReq.clear_evict();
+    CLI::App app;
+    app.allow_extras(false);
+    bool opt_ignore_evict_counter = false;
+    bool opt_ignore_removal_on_fst = false;
+    std::string fsid;
+    std::vector<std::string> pos;
+    ConfigureEvictApp(app, opt_ignore_evict_counter, opt_ignore_removal_on_fst, fsid,
+                      pos);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      return false;
+    }
+    if (pos.empty() ||
+        std::any_of(pos.begin(), pos.end(),
+                    [](const std::string& path) { return path.empty(); }) ||
+        (app.get_option("--fsid")->count() && fsid.empty())) {
+      return false;
+    }
+    if ((!fsid.empty() && !opt_ignore_evict_counter) ||
+        (fsid.empty() && opt_ignore_removal_on_fst)) {
+      return false;
+    }
+
+    auto* evict = mReq.mutable_evict();
+    evict->set_ignoreevictcounter(opt_ignore_evict_counter);
+    evict->set_ignoreremovalonfst(opt_ignore_removal_on_fst);
+    if (!fsid.empty()) {
+      try {
+        if (!std::all_of(fsid.begin(), fsid.end(),
+                         [](char c) { return c >= '0' && c <= '9'; })) {
+          throw std::invalid_argument("invalid fsid");
+        }
+        const auto value = std::stoull(fsid);
+        evict->mutable_evictsinglereplica()->set_fsid(value);
+      } catch (const std::exception&) {
+        return false;
+      }
+    }
+    for (const auto& a : pos) {
+      XrdOucString path = a.c_str();
+      unsigned long long fid = 0ull;
+      auto* file = evict->add_file();
+      if (Path2FileDenominator(path, fid)) {
+        file->set_fid(fid);
+      } else {
+        file->set_path(abspath(path.c_str()));
+      }
+    }
+    return true;
+  }
+};
 
 class EvictCommand : public IConsoleCommand {
 public:
@@ -80,54 +160,13 @@ public:
       return 0;
     }
 
-    CLI::App app;
-    app.allow_extras();
-    bool opt_ignore_evict_counter = false;
-    bool opt_ignore_removal_on_fst = false;
-    std::string fsid;
-    std::vector<std::string> pos;
-    ConfigureEvictApp(app, opt_ignore_evict_counter, opt_ignore_removal_on_fst,
-                      fsid, pos);
-
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
-    try {
-      app.parse(cli_args);
-    } catch (const CLI::ParseError&) {
+    EvictHelper helper(*ctx.globalOpts);
+    if (!helper.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    if (pos.empty()) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-    XrdOucString in = "mgm.cmd=evict"; // using proto interface
-    // Build protobuf-like request via client_command wrapper
-    // Fallback to legacy: use com_evict style mgm.cmd if available
-    // Here, we map to mgm.cmd=evict helper expected by backend
-    if (opt_ignore_evict_counter)
-      in += "&mgm.evict.ignoreevictcounter=1";
-    if (opt_ignore_removal_on_fst)
-      in += "&mgm.evict.ignoreremovalonfst=1";
-    if (!fsid.empty()) {
-      in += "&mgm.evict.fsid=";
-      in += fsid.c_str();
-    }
-    for (const auto& a : pos) {
-      XrdOucString path = a.c_str();
-      unsigned long long fid = 0ull;
-      if (Path2FileDenominator(path, fid)) {
-        in += "&mgm.evict.fid=";
-        in += std::to_string(fid).c_str();
-      } else {
-        XrdOucString ap = abspath(path.c_str());
-        in += "&mgm.evict.path=";
-        in += ap;
-      }
-    }
-    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
+    global_retc = helper.Execute();
     return 0;
   }
   void

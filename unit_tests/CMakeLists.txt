@@ -36,6 +36,7 @@ set(EOS_UT_RPATH
 
 set(CONSOLE_UT_SRCS
   console/AclCmdTest.cc
+  console/CommandDispatchTest.cc
   console/ConsoleCompletionTest.cc
   console/FileHelperTest.cc
   console/FusexCommandTest.cc
