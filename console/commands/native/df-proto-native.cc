@@ -69,26 +69,22 @@ public:
       dfproto->set_si(false);
       dfproto->set_readable(false);
     } else {
-      if (token.substr(0, 1) != "/") {
+      if (token.empty() || token.front() != '/') {
         return false;
       }
+      dfproto->set_path(token);
+      return !tokenizer.NextToken(token);
     }
 
-    std::string path = token;
     if (tokenizer.NextToken(token)) {
-      if (token.substr(0, 1) == "-") {
+      if (token.empty() || token.front() != '/') {
         return false;
       }
-      if (token.substr(0, 1) != "/") {
-        return false;
-      }
-      path = token;
+      dfproto->set_path(token);
     }
-
     if (tokenizer.NextToken(token)) {
       return false;
     }
-    dfproto->set_path(path);
     return true;
   }
 };

@@ -1009,3 +1009,91 @@ INSTANTIATE_TEST_SUITE_P(
     }),
     [](const ::testing::TestParamInfo<LegacyFieldsCase>& info) { return info.param.id; });
 } // namespace
+
+TEST_F(CommandDispatchTest, DfFormattingFlagsDoNotBecomePaths)
+{
+  for (const auto* flag : {"-m", "-H", "-b"}) {
+    SCOPED_TRACE(flag);
+    run("df", {flag});
+    EXPECT_EQ(global_retc, ENOENT);
+    const auto proto = protobuf(false);
+    ASSERT_TRUE(proto.has_df());
+    EXPECT_TRUE(proto.df().path().empty());
+    EXPECT_EQ(proto.df().monitoring(), std::string(flag) == "-m");
+    EXPECT_EQ(proto.df().si(), std::string(flag) == "-m");
+    EXPECT_EQ(proto.df().readable(), std::string(flag) == "-H");
+  }
+}
+
+TEST_F(CommandDispatchTest, DfRejectsMultiplePathsWithoutFormattingFlag)
+{
+  expectRejected("df", {"/eos/first", "/eos/second"});
+}
+
+TEST_F(CommandDispatchTest, RoutePortBounds)
+{
+  for (const auto* ports : {"1:65535", "65535:1"}) {
+    SCOPED_TRACE(ports);
+    run("route", {"link", "/eos/test", std::string("mgm.example.org:") + ports});
+    EXPECT_EQ(global_retc, ENOENT);
+    const auto proto = protobuf(false);
+    ASSERT_EQ(proto.route().link().endpoints_size(), 1);
+    const auto& endpoint = proto.route().link().endpoints(0);
+    EXPECT_EQ(endpoint.xrd_port(), std::string(ports) == "1:65535" ? 1u : 65535u);
+    EXPECT_EQ(endpoint.http_port(), std::string(ports) == "1:65535" ? 65535u : 1u);
+  }
+}
+
+TEST_F(CommandDispatchTest, RouteRejectsMalformedEndpointsBeforeSending)
+{
+  for (const auto* endpoint : {":",
+                               ",",
+                               "",
+                               "mgm.example.org:0",
+                               "mgm.example.org:65536",
+                               "mgm.example.org:-1",
+                               "mgm.example.org:+1094",
+                               "mgm.example.org:1094junk",
+                               "mgm.example.org:4294967297",
+                               "mgm.example.org:18446744073709551616",
+                               "mgm.example.org:1094:0",
+                               "mgm.example.org:1094:65536",
+                               "mgm.example.org:1094:-1",
+                               "mgm.example.org:1094:8000junk",
+                               "mgm.example.org:1094:4294967297",
+                               "mgm.example.org:",
+                               "mgm.example.org::8000",
+                               "mgm.example.org:1094:",
+                               "mgm.example.org:1094:8000:9000",
+                               ":1094:8000",
+                               ",mgm.example.org",
+                               "mgm.example.org,",
+                               "mgm.example.org,,other.example.org"}) {
+    SCOPED_TRACE(endpoint);
+    expectRejected("route", {"link", "/eos/test", endpoint});
+  }
+}
+
+TEST_F(CommandDispatchTest, RouteRejectsTrailingArguments)
+{
+  expectRejected("route", {"ls", "/eos/test", "unexpected"});
+  expectRejected("route", {"unlink", "/eos/test", "unexpected"});
+  expectRejected("route", {"link", "/eos/test", "mgm.example.org", "unexpected"});
+}
+
+TEST_F(CommandDispatchTest, RecycleProjectRequiresAbsolutePath)
+{
+  expectRejected("recycle", {"project"});
+  expectRejected("recycle", {"project", "--path", "relative"});
+  expectRejected("recycle", {"project", "--path", ""});
+  expectRejected("recycle", {"project", "--acl", "u:123=rx"});
+}
+
+TEST_F(CommandDispatchTest, RecycleProjectAcceptsAclBeforePath)
+{
+  run("recycle", {"project", "--acl", "u:123=rx", "--path", "/eos/test"});
+  EXPECT_EQ(global_retc, ENOENT);
+  const auto proto = protobuf(false);
+  EXPECT_EQ(proto.recycle().project().path(), "/eos/test");
+  EXPECT_EQ(proto.recycle().project().acl(), "u:123=rx");
+}
