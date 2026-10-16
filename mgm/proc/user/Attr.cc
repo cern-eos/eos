@@ -63,6 +63,12 @@ ProcCommand::Attr()
   PROC_BOUNCE_NOT_ALLOWED;
   WAIT_BOOT;
 
+  // NAMESPACEMAP decodes its own copy; inspect the decoded operand for IDs
+  // while keeping the mapped path for ordinary pathname requests below.
+  if (HasEncodePathCgi(ininfo)) {
+    spath = eos::common::StringConversion::curl_unescaped(spath.c_str()).c_str();
+  }
+
   if ((spath.beginswith("fid:") || spath.beginswith("fxid:"))) {
     identifier = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
     spath = "";

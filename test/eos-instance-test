@@ -363,6 +363,153 @@ eosj() {
     echo eos -j -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -j -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
+recycle_config_path_encoding() (
+    local operation=$1
+    local base="/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle-path-${operation#--}-$$"
+    local expected="/eos/$EOS_TEST_INSTANCE/proc/recycle/"
+    local sentinel="recycle-path-neighbour"
+    local suffix path target neighbour actual attributes request response operand identifier idtype index=0
+    local targets=()
+    # EXIT must also see these arrays after a failed function unwinds its locals.
+    recycle_path_created=()
+    recycle_path_created_files=()
+
+    # Keep literal ampersands out of the eval-based eos() wrapper.
+    recycle_path_eos() {
+        command eos -b -r 0 0 "root://$EOS_TEST_REDIRECTOR" "$@"
+    }
+
+    recycle_path_value() {
+        actual=$(recycle_path_eos attr -V get sys.recycle "$1" 2>> "$EOSCERTLOG") || return 1
+        if [ "$actual" != "$2" ]; then
+            echo "error: sys.recycle on '$1': expected '$2', got '$actual'" >> "$EOSCERTLOG"
+            return 1
+        fi
+    }
+
+    recycle_path_cleanup() {
+        local result=$? i
+        trap - EXIT
+        # These are metadata-only files created by this test. Disable recycling
+        # before removing them so cleanup does not populate the recycle bin.
+        for path in "${recycle_path_created_files[@]}"; do
+            if attributes=$(recycle_path_eos attr ls "$path" 2>> "$EOSCERTLOG"); then
+                if printf '%s\n' "$attributes" | grep -q '^sys[.]recycle='; then
+                    recycle_path_eos attr rm sys.recycle "$path" >> "$EOSCERTLOG" 2>&1 || result=1
+                fi
+            else
+                result=1
+            fi
+            recycle_path_eos rm -F "$path" >> "$EOSCERTLOG" 2>&1 || result=1
+        done
+        # Remove only the empty directories created by this test, deepest first.
+        for ((i=${#recycle_path_created[@]}-1; i>=0; --i)); do
+            path=${recycle_path_created[i]}
+            if attributes=$(recycle_path_eos attr ls "$path" 2>> "$EOSCERTLOG"); then
+                if printf '%s\n' "$attributes" | grep -q '^sys[.]recycle='; then
+                    recycle_path_eos attr rm sys.recycle "$path" >> "$EOSCERTLOG" 2>&1 || result=1
+                fi
+            else
+                result=1
+            fi
+            recycle_path_eos rmdir "$path" >> "$EOSCERTLOG" 2>&1 || result=1
+        done
+        exit "$result"
+    }
+
+    echo "recycle config $operation: literal subtree paths, identifiers and untouched neighbours" > "$EOSLASTLOG"
+    trap recycle_path_cleanup EXIT
+    recycle_path_eos mkdir "$base" >> "$EOSCERTLOG" 2>&1 || exit 1
+    recycle_path_created+=("$base")
+
+    for suffix in '-bin' AND '&' '&mgm.fixture=value' '&eos.fixture=value' '&xrd.fixture=value' '&callback=value' '&authz=value' '%26mgm.fixture=value' '&mgm.fixture=value&eos.fixture=other' cid cxid pid pxid fid fxid cid-injected legacy; do
+        index=$((index+1))
+        neighbour="$base/case-$index"
+        case "$suffix" in
+            cid|cxid|pid|pxid|fid|fxid|cid-injected) target="$neighbour-bin" ;;
+            AND|'&') target="$base/$suffix" ;;
+            legacy) target="$neighbour&legacy=value" ;;
+            *) target="$neighbour$suffix" ;;
+        esac
+        # Seed removal fixtures directly, independently of the add-bin test.
+        for path in "$neighbour" "$neighbour/child"; do
+            recycle_path_eos mkdir "$path" >> "$EOSCERTLOG" 2>&1 || exit 1
+            recycle_path_created+=("$path")
+            recycle_path_eos attr set "sys.recycle=$sentinel" "$path" >> "$EOSCERTLOG" 2>&1 || exit 1
+        done
+        targets=("$target")
+        case "$suffix" in
+            fid|fxid)
+                recycle_path_eos touch -n "$target" >> "$EOSCERTLOG" 2>&1 || exit 1
+                recycle_path_created_files+=("$target")
+                ;;
+            *)
+                targets+=("$target/child")
+                for path in "${targets[@]}"; do
+                    recycle_path_eos mkdir "$path" >> "$EOSCERTLOG" 2>&1 || exit 1
+                    recycle_path_created+=("$path")
+                done
+                ;;
+        esac
+        for path in "${targets[@]}"; do
+            recycle_path_eos attr set "sys.recycle=$sentinel" "$path" >> "$EOSCERTLOG" 2>&1 || exit 1
+            if [ "$suffix" = cid-injected ]; then
+                recycle_path_eos attr set "user.fixture=$sentinel" "$path" >> "$EOSCERTLOG" 2>&1 || exit 1
+            fi
+        done
+        operand=$target
+        case "$suffix" in
+            cid|cxid|pid|pxid|fid|fxid|cid-injected)
+                attributes=$(command eos -b -j -r 0 0 "root://$EOS_TEST_REDIRECTOR" fileinfo "$target" 2>> "$EOSCERTLOG") || exit 1
+                identifier=$(printf '%s\n' "$attributes" | jq -er '.id | tostring | select(test("^[1-9][0-9]*$"))' 2>> "$EOSCERTLOG") || exit 1
+                idtype=${suffix%-injected}
+                case "$idtype" in
+                    cxid|pxid|fxid) printf -v operand '%s:%x' "$idtype" "$identifier" ;;
+                    *) operand="$idtype:$identifier" ;;
+                esac
+                # The existing identifier resolver permits a suffix. It must not
+                # become another CGI field while crossing the recycle boundary.
+                if [ "$suffix" = cid-injected ]; then
+                    operand="$operand&mgm.attr.key=user.fixture"
+                fi
+                ;;
+            legacy) operand=${target//&/#AND#} ;;
+        esac
+        echo "recycle config $operation: '$operand' resolves to '$target'" >> "$EOSCERTLOG"
+
+        # The console's legacy tokenizer seals ampersands. Send a raw protobuf
+        # subtree so this reaches the MGM encoding boundary without that help.
+        request=$(command eos-recycle-config-request "$operation" "$operand" 2>> "$EOSCERTLOG") || exit 1
+        response=$(command xrdcp -np "root://$EOS_TEST_REDIRECTOR//proc/user/?mgm.cmd.proto=$request&eos.ruid=0&eos.rgid=0" - 2>> "$EOSCERTLOG") || exit 1
+        printf '%s\n' "$response" >> "$EOSCERTLOG"
+        case "$response" in
+            *'&mgm.proc.retc=0') ;;
+            *) echo "error: recycle config $operation failed for '$operand'" >> "$EOSCERTLOG"; exit 1;;
+        esac
+        for path in "${targets[@]}"; do
+            if [ "$suffix" = cid-injected ]; then
+                actual=$(recycle_path_eos attr -V get user.fixture "$path" 2>> "$EOSCERTLOG") || exit 1
+                if [ "$actual" != "$sentinel" ]; then
+                    echo "error: identifier suffix changed user.fixture on '$path'" >> "$EOSCERTLOG"
+                    exit 1
+                fi
+            fi
+            if [ "$operation" = --add-bin ]; then
+                recycle_path_value "$path" "$expected" || exit 1
+            else
+                # A failed attr request must not masquerade as an absent key.
+                attributes=$(recycle_path_eos attr ls "$path" 2>> "$EOSCERTLOG") || exit 1
+                if printf '%s\n' "$attributes" | grep -q '^sys[.]recycle='; then
+                    echo "error: sys.recycle remains on '$path' after --remove-bin" >> "$EOSCERTLOG"
+                    exit 1
+                fi
+            fi
+        done
+        recycle_path_value "$neighbour" "$sentinel" || exit 1
+        recycle_path_value "$neighbour/child" "$sentinel" || exit 1
+    done
+)
+
 tpc1() {
     src=$1
     dst=$2
@@ -1287,6 +1434,8 @@ fi
 # ------------------------------------------------------------------------------
 categorie="recycle"
 # ------------------------------------------------------------------------------
+runtest "### RecycleAdd" unix SUCCESS "" recycle_config_path_encoding --add-bin
+runtest "### RecycleRm " unix SUCCESS "" recycle_config_path_encoding --remove-bin
 recyclesize=`command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep maxbytes | awk '{print $3}' | sed s/maxbytes=//`
 recycletime=`command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep lifetime | awk '{print $6}' | sed s/lifetime=//`
 test -z $recyclesize && recyclesize=0
