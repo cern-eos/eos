@@ -413,7 +413,7 @@ XrdMgmOfs::_touch(const char* path,
       if (xs_binary == nullptr) {
         if (errmsg) {
           *errmsg += "error: failed to store checksum extended attributes on '";
-          *errmsg += linkpath;
+          *errmsg += fullpath;
           *errmsg += "'\n";
         }
       } else {

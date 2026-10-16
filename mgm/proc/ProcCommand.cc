@@ -21,14 +21,15 @@
  ************************************************************************/
 
 #include "ProcCommand.hh"
-#include "common/Path.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/CommentLog.hh"
-#include <XrdOuc/XrdOucTokenizer.hh>
-#include <XrdOuc/XrdOucEnv.hh>
-#include "namespace/interface/IView.hh"
+#include "common/Path.hh"
+#include "common/StringConversion.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "json/json.h"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -195,7 +196,9 @@ ProcCommand::open(const char* inpath, const char* info,
   }
 
   mSelection = pOpaque->Get("mgm.selection");
-  mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
+  mComment = eos::common::StringConversion::curl_unescaped(
+                 pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "")
+                 .c_str();
   mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
   mSendRetc = pOpaque->Get("mgm.retc") ? true : false;
   eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(),

@@ -453,14 +453,14 @@ StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size,
   }
 
   memset(buf.get(), 0, nominal_len);
-  char hex[3];
-
-  for (size_t i = 0;
-       ((i < shex.length() - 1) && (i / 2 < nominal_len)); i += 2) {
-    hex[0] = shex.at(i);
-    hex[1] = shex.at(i + 1);
-    hex[2] = '\0';
-    buf.get()[i / 2] = std::stol(hex, 0, 16);
+  for (size_t i = 0; ((i + 1 < shex.length()) && (i / 2 < nominal_len)); i += 2) {
+    const int upper = char_to_int(shex[i]);
+    const int lower = char_to_int(shex[i + 1]);
+    if (upper < 0 || lower < 0) {
+      out_size = 0;
+      return nullptr;
+    }
+    buf.get()[i / 2] = static_cast<char>((upper << 4) | lower);
     ++out_size;
   }
 

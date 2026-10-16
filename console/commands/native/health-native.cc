@@ -35,6 +35,11 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
+    if (wants_help(joined.c_str())) {
+      printHelp();
+      global_retc = 0;
+      return 0;
+    }
     ::HealthCommand cmd(joined.c_str());
     cmd.Execute();
     global_retc = 0;
@@ -43,6 +48,7 @@ public:
   void
   printHelp() const override
   {
+    ::HealthCommand("").PrintHelp();
   }
 };
 } // namespace

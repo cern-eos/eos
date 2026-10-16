@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleMetadata.hh"
 #include <memory>
 #include <sstream>
 
@@ -37,7 +38,10 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext&) override
   {
-    if (args.empty() || wants_help(args[0].c_str())) {
+    if (args.empty() || args.size() > 2 || args[0].empty() || args[0].front() == '-' ||
+        !eos::console::IsSafeCgiMetadata(args[0]) ||
+        (args.size() == 2 && (!eos::console::IsSafeCgiMetadata(args[1]) ||
+                              (!args[1].empty() && args[1].front() == '-')))) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -47,11 +51,6 @@ public:
       group_role = args[1].c_str();
     else
       group_role = "";
-    if (user_role.beginswith("-")) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
     if (!silent)
       fprintf(stdout,
               "=> selected user role ruid=<%s> and group role rgid=<%s>\n",

@@ -342,19 +342,6 @@ public:
         value.clear();
       }
 
-      if (!value.empty() && value.rfind("\"", 0) == 0 &&
-          value.size() >= 1 && value.back() != '"') {
-        while (idx < remaining.size()) {
-          value += " ";
-          value += remaining[idx];
-          if (!remaining[idx].empty() && remaining[idx].back() == '"') {
-            ++idx;
-            break;
-          }
-          ++idx;
-        }
-      }
-
       if (value.empty() && !has_equals) {
         printHelp();
         global_retc = EINVAL;

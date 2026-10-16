@@ -3,6 +3,7 @@
 //! @brief Exercise the real console entry point without an EOS instance.
 //------------------------------------------------------------------------------
 
+#include "common/StringConversion.hh"
 #include "unit_tests/console/ConsoleTestFixture.hh"
 #include <cerrno>
 #include <chrono>
@@ -211,4 +212,163 @@ TEST_F(ConsoleProcessTest, BashHandlesLocalFileSchemeAndQuotedOrEscapedSpaces)
     noRequests();
   }
   unlink(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, HealthHelpDoesNotContactMgm)
+{
+  for (const auto* option : {"--help", "-h"}) {
+    SCOPED_TRACE(option);
+    EXPECT_EQ(process({"-b", "health", option}), 0) << lastOutput;
+    EXPECT_NE(lastOutput.find("Usage: eos health"), std::string::npos);
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, MalformedRootListingReturnsAnErrorWithoutCrashing)
+{
+  for (const auto* path : {"root:malformed", "root:/malformed"}) {
+    SCOPED_TRACE(path);
+    EXPECT_EQ(process({"-b", "ls", path}), EINVAL) << lastOutput;
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, AttributeValuesPreserveExecutableArguments)
+{
+  responseRetc = 0;
+  for (const std::string& value :
+       {std::string("value\"quote"), std::string("back\\slash"),
+        std::string("value\\\"quote"), std::string("\"leading"),
+        std::string("trailing\""), std::string("\"quoted\""), std::string("two words"),
+        std::string(""), std::string("apostrophe's"), std::string("tab\tvalue")}) {
+    SCOPED_TRACE(value);
+    ASSERT_EQ(
+        process({"-b", "attr", "set", "user.attr.value=" + value, "/eos/test/file"}), 0)
+        << lastOutput;
+    const auto wire = request();
+    XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+    ASSERT_STREQ(env.Get("mgm.cmd"), "attr");
+    ASSERT_STREQ(env.Get("mgm.subcmd"), "set");
+    ASSERT_STREQ(env.Get("mgm.attr.key"), "user.attr.value");
+    ASSERT_STREQ(env.Get("mgm.path"), "/eos/test/file");
+    ASSERT_STREQ(env.Get("mgm.enc"), "b64");
+    ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+    std::string decoded;
+    ASSERT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+    EXPECT_EQ(decoded, value);
+  }
+}
+
+TEST_F(ConsoleProcessTest, AttributeCommentTextRemainsLiteralValueData)
+{
+  responseRetc = 0;
+  const std::string value = "literal --comment \"quoted\" &mgm.option=p";
+  ASSERT_EQ(process({"-b", "attr", "set", "user.attr.value=" + value, "/eos/test/file"}),
+            0)
+      << lastOutput;
+  const auto wire = request();
+  XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+  ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+  std::string decoded;
+  ASSERT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+  EXPECT_EQ(decoded, value);
+  EXPECT_EQ(env.Get("mgm.comment"), nullptr);
+  EXPECT_EQ(env.Get("mgm.option"), nullptr);
+}
+
+TEST_F(ConsoleProcessTest, ExecutableCommentPreservesLiteralValueAndCannotInjectOptions)
+{
+  responseRetc = 0;
+  const std::string value = "value\\\"quote";
+  const std::string comment = "audit \"quote\"\\line&mgm.option=p&eos.ruid=0";
+  ASSERT_EQ(process({"-b", "attr", "set", "user.attr.value=" + value, "/eos/test/file",
+                     "--comment", comment}),
+            0)
+      << lastOutput;
+  const auto wire = request();
+  XrdOucEnv env(wire.substr(wire.find('?') + 1).c_str());
+  ASSERT_NE(env.Get("mgm.attr.value"), nullptr);
+  std::string decoded;
+  ASSERT_TRUE(eos::common::SymKey::DeBase64(env.Get("mgm.attr.value"), decoded));
+  EXPECT_EQ(decoded, value);
+  ASSERT_NE(env.Get("mgm.comment"), nullptr);
+  EXPECT_EQ(eos::common::StringConversion::curl_unescaped(env.Get("mgm.comment")),
+            comment);
+  EXPECT_EQ(env.Get("mgm.option"), nullptr);
+  EXPECT_EQ(env.Get("eos.ruid"), nullptr);
+}
+
+TEST_F(ConsoleProcessTest, MissingOrEmptyExecutableCommentIsRejectedLocally)
+{
+  for (const auto& arguments : std::vector<std::vector<std::string>>{
+           {"-b", "attr", "set", "user.attr.value=value", "/eos/test/file", "--comment"},
+           {"-b", "attr", "set", "user.attr.value=value", "/eos/test/file", "--comment",
+            ""}}) {
+    SCOPED_TRACE(::testing::PrintToString(arguments));
+    EXPECT_EQ(process(arguments), EINVAL) << lastOutput;
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, ProtobufPathsAndCommentsPreserveExecutableArguments)
+{
+  responseRetc = 0;
+  const std::string path = "/eos/test/a b'c\"d\\e";
+  const std::string comment = "audit \"quote\"\\line&mgm.option=p";
+  ASSERT_EQ(process({"-b", "evict", path, "--comment", comment}), 0) << lastOutput;
+  const auto proto = protobuf(false);
+  ASSERT_TRUE(proto.has_evict());
+  ASSERT_EQ(proto.evict().file_size(), 1);
+  EXPECT_EQ(proto.evict().file(0).path(), path);
+  EXPECT_EQ(proto.comment(), comment);
+}
+
+TEST_F(ConsoleProcessTest, CommentOptionAfterTerminatorRemainsAPositionalArgument)
+{
+  responseRetc = 0;
+  ASSERT_EQ(process({"-b", "evict", "--", "/eos/test/one", "--comment", "/eos/test/two"}),
+            0)
+      << lastOutput;
+  const auto proto = protobuf(false);
+  ASSERT_TRUE(proto.has_evict());
+  ASSERT_EQ(proto.evict().file_size(), 3);
+  EXPECT_EQ(proto.evict().file(0).path(), "/eos/test/one");
+  const auto& literalOption = proto.evict().file(1).path();
+  const std::string suffix = "/--comment";
+  ASSERT_GE(literalOption.size(), suffix.size());
+  EXPECT_EQ(literalOption.substr(literalOption.size() - suffix.size()), suffix);
+  EXPECT_EQ(proto.evict().file(2).path(), "/eos/test/two");
+  EXPECT_TRUE(proto.comment().empty());
+}
+
+TEST_F(ConsoleProcessTest, LongPromptsRemainSafeInWideAndNarrowTerminals)
+{
+  const std::string endpoint =
+      "root://127.0.0.1/" + std::string(65536, 'a') + "prompt-end";
+  for (const auto* columns : {"4096", "2"}) {
+    SCOPED_TRACE(columns);
+    EXPECT_EQ(
+        process({"-b"},
+                {{"EOS_MGM_URL", endpoint}, {"COLUMNS", columns}, {"TERM", "dumb"}}),
+        0)
+        << lastOutput;
+    if (std::string(columns) == "4096") {
+      EXPECT_NE(lastOutput.find("EOS Console [root://127.0.0.1/"), std::string::npos);
+      EXPECT_NE(lastOutput.find("..."), std::string::npos);
+      EXPECT_NE(lastOutput.find("prompt-end] |/> "), std::string::npos);
+      EXPECT_LT(lastOutput.size(), 4096u);
+    }
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, OrdinaryPromptsKeepTheirExistingDisplay)
+{
+  const std::string endpoint = "root://127.0.0.1/ordinary";
+  EXPECT_EQ(
+      process({"-b"}, {{"EOS_MGM_URL", endpoint}, {"COLUMNS", "4096"}, {"TERM", "dumb"}}),
+      0)
+      << lastOutput;
+  EXPECT_NE(lastOutput.find("EOS Console [" + endpoint + "] |/> "), std::string::npos);
+  noRequests();
 }

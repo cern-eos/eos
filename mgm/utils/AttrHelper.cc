@@ -1,10 +1,24 @@
 #include "mgm/utils/AttrHelper.hh"
-#include "mgm/misc/Constants.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
+#include "mgm/misc/Constants.hh"
+#include <iomanip>
+#include <sstream>
 
 namespace eos::mgm::attr
 {
+
+std::string
+formatQuotedValue(const std::string& value, bool json)
+{
+  if (!json) {
+    return '"' + value + '"';
+  }
+  // TokenizeQuoted decodes escapes before ConvertOutputToJsonFormat runs.
+  std::ostringstream output;
+  output << std::quoted(value);
+  return output.str();
+}
 
 bool
 checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,

@@ -21,14 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
-#include "common/Path.hh"
-#include "common/LayoutId.hh"
-#include "namespace/interface/IView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "namespace/Resolver.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -199,15 +200,15 @@ ProcCommand::Attr()
                   if (option.find("V") == STR_NPOS) {
                     if (it->first != "sys.file.buffer") {
                       partialStdOut += "=";
-                      partialStdOut += "\"";
-                      partialStdOut += (it->second).c_str();
+                      partialStdOut +=
+                          attr::formatQuotedValue(it->second, mJsonFormat).c_str();
                     } else {
                       partialStdOut += "=\"[";
                       partialStdOut += (std::to_string(it->second.size()).c_str());
                       partialStdOut += "] bytes";
+                      partialStdOut += "\"";
                     }
 
-                    partialStdOut += "\"";
                     partialStdOut += "\n";
                   } else {
                     partialStdOut += "\n";
@@ -295,9 +296,9 @@ ProcCommand::Attr()
                   stdOut += val.c_str();
                 } else {
                   stdOut += key.c_str();
-                  stdOut += "=\"";
-                  stdOut += val.c_str();
-                  stdOut += "\"\n";
+                  stdOut += "=";
+                  stdOut += attr::formatQuotedValue(val.c_str(), mJsonFormat).c_str();
+                  stdOut += "\n";
                 }
               }
             }

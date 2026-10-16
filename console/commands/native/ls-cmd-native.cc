@@ -322,6 +322,10 @@ public:
     // Local file or plain XRootD path handling
     if (xpath.beginswith("file:") || xpath.beginswith("root:")) {
       bool isXrd = xpath.beginswith("root:");
+      if (isXrd && !xpath.beginswith("root://")) {
+        global_retc = EINVAL;
+        return 0;
+      }
       XrdOucString protocol;
       XrdOucString hostport;
       XrdOucString sPath;
