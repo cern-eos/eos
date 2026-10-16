@@ -92,6 +92,8 @@ set_target_properties(eos-checksum-benchmark PROPERTIES POSITION_INDEPENDENT_COD
 add_executable(threadpooltest ThreadPoolTest.cc)
 set_target_properties(threadpooltest PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(eos-idmap-benchmark EosIdMapBenchmark.cc)
+add_executable(eos-recycle-config-request EosRecycleConfigRequest.cc)
+target_link_libraries(eos-recycle-config-request PRIVATE EosCliProto-Objects EosCommon)
 
 target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
@@ -158,7 +160,7 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpextend xrdcpshrink xrdcpappend xrdcpappendoverlap xrdcptruncate
   xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
   xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming eos-checksum-benchmark
-  eos-udp-dumper eos-mmap eos-io-tool
+  eos-udp-dumper eos-mmap eos-io-tool eos-recycle-config-request
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
