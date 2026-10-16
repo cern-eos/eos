@@ -71,6 +71,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   CommandCompletion.cc CommandCompletion.hh
   CompletionAdminSchemas.cc CompletionStorageSchemas.cc
   ConsoleCompletion.cc ConsoleCompletion.hh
+  IoShapingOutput.cc IoShapingOutput.hh
   RegexUtil.cc RegexUtil.hh
 
   # Core/native base

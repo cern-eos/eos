@@ -38,6 +38,7 @@ set(CONSOLE_UT_SRCS
   console/ConsoleColorTest.cc
   console/ConsoleColorRequestTest.cc
   console/ConsoleColorProcessTest.cc
+  console/IoShapingOutputTest.cc
   console/ConsoleHelpTest.cc
   console/ConsoleHelpProcessTest.cc
   console/AclCmdTest.cc

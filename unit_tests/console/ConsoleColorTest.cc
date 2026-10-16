@@ -540,9 +540,30 @@ TEST_F(ConsoleColorTest, SemanticHelpRolesDistinguishLiteralsIdentifiersAndPlace
   }
 }
 
+TEST_F(ConsoleColorTest, ShapingRolesSeparateEntityTypesReadAndWrite)
+{
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const char* term : {"xterm", "dumb"}) {
+    SCOPED_TRACE(term);
+    setenv("TERM", term, 1);
+    const auto entity = Colorize("token", TextStyle::EntityType, fileno(file));
+    const auto read = Colorize("token", TextStyle::Read, fileno(file));
+    const auto write = Colorize("token", TextStyle::Write, fileno(file));
+    EXPECT_NE(entity, read);
+    EXPECT_NE(entity, write);
+    EXPECT_NE(read, write);
+    EXPECT_NE(read.find("\033[34m"), std::string::npos);
+    EXPECT_NE(write.find("\033[35m"), std::string::npos);
+    for (const auto& output : {entity, read, write}) {
+      EXPECT_EQ(plain(output), "token");
+    }
+  }
+}
+
 TEST_F(ConsoleColorTest, SemanticHelpRolesRespectColorPoliciesAndRejectInvalidRoles)
 {
-  for (const auto style : {TextStyle::Literal, TextStyle::Identifier, TextStyle::Path}) {
+  for (const auto style : {TextStyle::Literal, TextStyle::Identifier, TextStyle::Path,
+                           TextStyle::EntityType, TextStyle::Read, TextStyle::Write}) {
     for (const auto policy : {ColorMode::Auto, ColorMode::Never}) {
       ConfigureColor(policy, false, false);
       EXPECT_EQ(Colorize("token", style, fileno(file)), "token");

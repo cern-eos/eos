@@ -179,7 +179,7 @@ overrides that preference and supports redirected human output, such as a pager.
 Batch (`-b`), JSON (`-j`), shell-completion records and raw data remain unstyled,
 including when `always` is requested. Existing monitoring formats retain their
 plain representation. Exit codes, whitespace, stream selection and field values
-are unaffected. Use `--color=never` in scripts which explicitly need plain human
+are unaffected by styling alone. Use `--color=never` in scripts which explicitly need plain human
 output; scripts supporting older EOS versions must not require the new option.
 
 `ConsoleColor` owns this policy, activated by the console entry point. Shared
@@ -204,3 +204,30 @@ should use semantic fields rather than replacements in arbitrary server text.
 `ConsoleColorTest`, `ConsoleColorRequest` and `ConsoleColorProcessTest` cover the
 policy, the existing wire flag, exact plain help, real pseudo-terminals, mixed
 stream redirection, environment overrides and machine-output precedence.
+
+### Traffic shaping display
+
+Human `io shaping ls`, `policy ls`, `pressure ls`, and `config ls` output is
+rendered in the console from the existing JSON reply. It uses aligned tables
+when they fit and stacked details on narrow terminals. Identities remain
+complete, rates carry SI units, and unavailable pressure values are distinct
+from measured zero. System statistics, controller feedback, protected cohorts,
+and published FST actuator values have separate sections. No engine-wide total
+is inferred by adding rows from a particular projection.
+
+Headings, identities, enabled states, warnings, and pressure indicators use the
+shared semantic color policy. Entity-type labels and values are yellow; read
+fields and operations are blue, and write fields and operations are magenta.
+These roles apply to table headings, values, and wrapped detail labels. Warning
+and status colors take precedence, and unavailable or unlimited values remain
+dimmed. Layout measures terminal cells before adding styles. Control characters
+in structured field values are escaped so a label
+cannot inject terminal formatting. Successful shaping mutations retain their
+message text and style only the `success:` label.
+
+This human layout intentionally changes. Explicit shaping `--json` and global
+`-j` keep their existing requests and output, and `io stat -m` and `io ns -m`
+retain their monitoring representation. Other IO commands use their existing
+printing path. Rendering uses a single request; malformed or unsupported replies
+fall back to the original response without retrying an operation. It uses the
+existing JsonCpp and console layout/color helpers, with no new dependencies.

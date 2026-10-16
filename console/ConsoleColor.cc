@@ -49,7 +49,10 @@ constexpr std::array<StyleDefinition, styleCount> styleDefinitions{{
     {-1, false}, // Syntax
     {5, false},  // Literal
     {4, true},   // Identifier
-    {4, true}    // Path
+    {4, true},   // Path
+    {3, true},   // EntityType
+    {4, false},  // Read
+    {5, false}   // Write
 }};
 
 struct Palette {

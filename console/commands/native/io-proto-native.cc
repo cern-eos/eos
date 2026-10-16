@@ -5,7 +5,9 @@
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
+#include "console/IoShapingOutput.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
 #include <iomanip>
@@ -659,6 +661,46 @@ public:
   {
     return BuildAndParseIoApp(arg, mReq.mutable_io());
   }
+
+  int
+  ExecuteAndPrint()
+  {
+    const bool renderTable =
+        eos::console::PrepareIoShapingHumanOutput(mReq, mGlobalOpts.mJsonFormat);
+    const auto& shaping = mReq.io().shaping();
+    const bool renderSuccess =
+        !mGlobalOpts.mJsonFormat &&
+        (shaping.has_enable() || shaping.has_disable() || shaping.policy().has_set() ||
+         shaping.policy().has_remove() || shaping.config().has_set());
+    if (!renderTable && !renderSuccess) {
+      return Execute();
+    }
+
+    const int retc = ExecuteWithoutPrint();
+    if (!mIsSilent && !mOutcome.result.empty()) {
+      std::optional<std::string> rendered;
+      if (renderTable && retc == 0) {
+        const auto width = eos::console::HelpWidth(STDOUT_FILENO);
+        rendered = eos::console::RenderIoShapingOutput(
+            shaping, mOutcome.result, width ? width : 120, STDOUT_FILENO);
+      }
+      if (rendered) {
+        std::cout << *rendered;
+      } else if (renderSuccess && retc == 0 &&
+                 mOutcome.result.compare(0, 8, "success:") == 0) {
+        std::cout << eos::console::Colorize("success:", eos::console::TextStyle::Success,
+                                            STDOUT_FILENO)
+                  << GetResult().substr(8);
+      } else {
+        std::cout << GetResult();
+      }
+    }
+    if (!mOutcome.error.empty()) {
+      std::cerr << eos::console::Colorize(GetError(), eos::console::TextStyle::Error,
+                                          STDERR_FILENO);
+    }
+    return retc;
+  }
 };
 
 class IoProtoCommand : public IConsoleCommand {
@@ -707,7 +749,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    global_retc = helper.Execute();
+    global_retc = helper.ExecuteAndPrint();
     return 0;
   }
   void
