@@ -26,15 +26,13 @@
 #include <cerrno>
 #include <utility>
 
-void RegisterFusexNativeCommand();
-
 namespace {
 class FusexCommandTest : public ::testing::Test {
 protected:
   static void
   SetUpTestSuite()
   {
-    RegisterFusexNativeCommand();
+    EnsureNativeCommandRegistryInitialized();
   }
 
   void

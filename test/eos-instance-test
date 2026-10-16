@@ -1416,6 +1416,7 @@ runtest "### Attr Get  " unix SUCCESS "" eosj attr get user.attr.json "/eos/$EOS
 runtest "### Attr Get  " unix SUCCESS "" eosj attr get user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json2' | grep -w '2ndvalue'"
 runtest "### Attr Get  " unix SUCCESS "" eosj attr get user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json3' | grep -w '3'"
 runtest "### Attr Get  " unix SUCCESS "" eosj attr get user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json4' | grep -w 'value\"quote'"
+runtest "### Attr Ls   " unix SUCCESS "" eosj attr ls "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.ls[].user.attr.json4 // empty' | grep -w 'value\"quote'"
 runtest "### Attr Get  " unix SUCCESS "" eosj attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json5' | grep -w 'value1\&value2\&value3'"
 runtest "### Attr Ls   " unix ERROR "" eosj attr ls "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.ls[].user.attr.json5' | grep -w 'nullvalues'"
 runtest "### Attr Rm   " unix SUCCESS "" eos attr rm user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file"
