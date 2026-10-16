@@ -1208,8 +1208,8 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     ProcCommand Cmd;
     XrdOucString info;
     info = "eos.rgid=0&eos.ruid=0&mgm.cmd=attr&mgm.subcmd=set&mgm.option=r&mgm.path=";
-    info += value.c_str();
-    info += "&mgm.attr.key=";
+    info += eos::common::StringConversion::curl_escaped(value).c_str();
+    info += "&eos.encodepath=1&mgm.attr.key=";
     info += Recycle::gRecyclingAttribute.c_str();
     info += "&mgm.attr.value=";
     info += Recycle::gRecyclingPrefix.c_str();
@@ -1229,8 +1229,8 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     ProcCommand Cmd;
     XrdOucString info;
     info = "eos.rgid=0&eos.ruid=0&mgm.cmd=attr&mgm.subcmd=rm&mgm.option=r&mgm.path=";
-    info += value.c_str();
-    info += "&mgm.attr.key=";
+    info += eos::common::StringConversion::curl_escaped(value).c_str();
+    info += "&eos.encodepath=1&mgm.attr.key=";
     info += Recycle::gRecyclingAttribute.c_str();
     int result = Cmd.open("/proc/user", info.c_str(), mRootVid, &lerror);
     Cmd.AddOutput(std_out, std_err);
