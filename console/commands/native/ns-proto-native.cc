@@ -653,19 +653,41 @@ std::string MakeNsHelp()
   return oss.str();
 }
 
+using eos::console::HelpCommandText;
+using eos::console::HelpSyntax;
+using eos::console::HelpText;
+using eos::console::StyledHelpText;
+using eos::console::TextStyle;
+
 struct NsHelpTopic {
   std::string name;
   std::string summary;
   std::string arguments;
-  std::vector<std::pair<std::string, std::string>> definitions;
-  std::vector<std::string> notes;
-  std::vector<std::string> examples;
+  std::vector<std::pair<HelpText, HelpText>> definitions;
+  std::vector<HelpText> notes;
+  std::vector<HelpText> examples;
   std::vector<NsHelpTopic> children;
 };
 
 const NsHelpTopic&
 NamespaceHelp()
 {
+  static const HelpText trackerTypes = HelpText("Select ")
+                                           .append("drain", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("balance", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("fsck", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("convert", TextStyle::Literal)
+                                           .append(" or ")
+                                           .append("all", TextStyle::Literal)
+                                           .append(".");
+  static const HelpText behaviourNames =
+      StyledHelpText("rain_min_fsid_entry", TextStyle::Identifier)
+          .append(" or ")
+          .append("disable_access_log", TextStyle::Identifier)
+          .append(".");
   static const NsHelpTopic help{
       "ns",
       "Print or configure namespace parameters.",
@@ -682,7 +704,7 @@ NamespaceHelp()
          {"-n", "Display numerical user and group IDs."},
          {"--reset", "Reset namespace counters."}},
         {},
-        {"eos ns stat -m"},
+        {HelpCommandText("eos ns stat").append(HelpSyntax(" -m"))},
         {}},
        {"mutex",
         "Inspect or configure mutex monitoring.",
@@ -697,7 +719,7 @@ NamespaceHelp()
                                    "milliseconds (default: 10000)."}},
         {"With no option, list the current monitoring configuration. Monitoring requires "
          "an MGM built with instrumented RW mutex support."},
-        {"eos ns mutex"},
+        {HelpCommandText("eos ns mutex")},
         {}},
        {"compact",
         "Legacy namespace compaction interface (unsupported).",
@@ -718,8 +740,20 @@ NamespaceHelp()
           {{"<delay>", "Delay before compaction, in seconds."},
            {"<interval>",
             "Repeat compaction after this many seconds when greater than zero."},
-           {"<type>", "files, directories, all, files-repair, directories-repair or "
-                      "all-repair. The default compacts files."}},
+           {"<type>", StyledHelpText("files", TextStyle::Literal)
+                          .append(", ")
+                          .append("directories", TextStyle::Literal)
+                          .append(", ")
+                          .append("all", TextStyle::Literal)
+                          .append(", ")
+                          .append("files-repair", TextStyle::Literal)
+                          .append(", ")
+                          .append("directories-repair", TextStyle::Literal)
+                          .append(" or ")
+                          .append("all-repair", TextStyle::Literal)
+                          .append(". The default compacts ")
+                          .append("files", TextStyle::Literal)
+                          .append(".")}},
           {"The current MGM does not support this legacy operation and returns ENOTSUP."},
           {},
           {}}}},
@@ -734,7 +768,7 @@ NamespaceHelp()
          {"--disable",
           "Deprecated supervisor operation; the current MGM returns ENOTSUP."}},
         {},
-        {"eos ns master --log"},
+        {HelpCommandText("eos ns master").append(HelpSyntax(" --log"))},
         {}},
        {"recompute_tree_size",
         "Recompute a directory's tree size, including its subdirectories.",
@@ -775,7 +809,9 @@ NamespaceHelp()
         "Inspect or change namespace metadata caches.",
         "<operation>",
         {},
-        {"Use 'eos ns stat' to inspect the current cache values."},
+        {HelpText("Use '")
+             .append(HelpCommandText("eos ns stat"))
+             .append("' to inspect the current cache values.")},
         {},
         {{"set",
           "Set a metadata cache's entry limit.",
@@ -786,16 +822,25 @@ NamespaceHelp()
             "Maximum number of cache entries. The MGM applies values greater than 100."},
            {"<max_size>", "Optional size with a K, M or G suffix; the size limit is not "
                           "implemented yet."}},
-          {"Choose exactly one of -f and -d. Use 'eos ns stat' to inspect current "
-           "values."},
-          {"eos ns cache set -f 1000000"},
+          {HelpText("Choose exactly one of ")
+               .append("-f", TextStyle::Option)
+               .append(" and ")
+               .append("-d", TextStyle::Option)
+               .append(". Use '")
+               .append(HelpCommandText("eos ns stat"))
+               .append("' to inspect current values.")},
+          {HelpCommandText("eos ns cache set").append(HelpSyntax(" -f 1000000"))},
           {}},
          {"drop",
           "Drop cached namespace metadata.",
           "[-f|-d]",
           {{"-f", "Drop file metadata entries."},
            {"-d", "Drop directory metadata entries."}},
-          {"Without -f or -d, drop both caches."},
+          {HelpText("Without ")
+               .append("-f", TextStyle::Option)
+               .append(" or ")
+               .append("-d", TextStyle::Option)
+               .append(", drop both caches.")},
           {},
           {}},
          {"drop-single-file",
@@ -823,14 +868,15 @@ NamespaceHelp()
           "",
           {},
           {},
-          {"eos ns drain list"},
+          {HelpCommandText("eos ns drain list")},
           {}},
          {"set",
           "Set one global drain configuration parameter.",
           "<key>=<value>",
-          {{"max-thread-pool-size=<value>",
+          {{StyledHelpText("max-thread-pool-size", TextStyle::Identifier)
+                .append("=<value>"),
             "Maximum threads in the drain pool (default: 100; minimum: 5)."},
-           {"max-fs-per-node=<value>",
+           {StyledHelpText("max-fs-per-node", TextStyle::Identifier).append("=<value>"),
             "Maximum file systems per node drained in parallel (default: 5)."}},
           {},
           {},
@@ -849,29 +895,39 @@ NamespaceHelp()
         {{"<threads>", "Number of parallel benchmark threads (capped at 1024)."},
          {"<subdirs>", "Directories created by each thread."},
          {"<subfiles>", "Files created in each subdirectory."},
-         {"<prefix>",
-          "Parent directory of benchmark/; the default writes to /benchmark."}},
+         {"<prefix>", HelpText("Parent directory of ")
+                          .append("benchmark/", TextStyle::Path)
+                          .append("; the default writes to ")
+                          .append("/benchmark", TextStyle::Path)
+                          .append(".")}},
         {"Results are printed to the MGM log and the console."},
         {},
         {}},
        {"tracker",
         "List or clear file identifier trackers.",
         "<operation> --name <type>",
-        {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
-        {"Without --name, no tracker is selected."},
+        {{"--name <type>", trackerTypes}},
+        {HelpText("Without ")
+             .append("--name", TextStyle::Option)
+             .append(", no tracker is selected.")},
         {},
         {{"list",
           "List tracked file identifiers.",
           "--name <type>",
-          {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
-          {"Without --name, no tracker is selected."},
-          {"eos ns tracker list --name all"},
+          {{"--name <type>", trackerTypes}},
+          {HelpText("Without ")
+               .append("--name", TextStyle::Option)
+               .append(", no tracker is selected.")},
+          {HelpCommandText("eos ns tracker list")
+               .append(HelpSyntax(" --name all", {"all"}))},
           {}},
          {"clear",
           "Clear tracked file identifiers.",
           "--name <type>",
-          {{"--name <type>", "Select drain, balance, fsck, convert or all."}},
-          {"Without --name, no tracker is selected."},
+          {{"--name <type>", trackerTypes}},
+          {HelpText("Without ")
+               .append("--name", TextStyle::Option)
+               .append(", no tracker is selected.")},
           {},
           {}}}},
        {"behaviour",
@@ -879,37 +935,51 @@ NamespaceHelp()
         "<operation>",
         {},
         {"Settings are saved in the MGM configuration.",
-         "rain_min_fsid_entry selects the lowest file system ID as the entry server for "
-         "RAIN files. disable_access_log suppresses INFO lines for access checks. Both "
-         "accept on or off and default to off."},
+         StyledHelpText("rain_min_fsid_entry", TextStyle::Identifier)
+             .append(" selects the lowest file system ID as the entry server for RAIN "
+                     "files. ")
+             .append("disable_access_log", TextStyle::Identifier)
+             .append(" suppresses INFO lines for access checks. Both accept ")
+             .append("on", TextStyle::Literal)
+             .append(" or ")
+             .append("off", TextStyle::Literal)
+             .append(" and default to ")
+             .append("off", TextStyle::Literal)
+             .append(".")},
         {},
         {{"list",
           "List enforced behaviour changes.",
           "",
           {},
           {},
-          {"eos ns behaviour list"},
+          {HelpCommandText("eos ns behaviour list")},
           {}},
          {"set",
           "Set a manager behaviour.",
           "<name> <on|off>",
-          {{"<name>", "rain_min_fsid_entry or disable_access_log."},
-           {"<on|off>", "Enable or disable the behaviour."}},
+          {{"<name>", behaviourNames}, {"<on|off>", "Enable or disable the behaviour."}},
           {},
           {},
           {}},
          {"get",
           "Get a manager behaviour's configuration.",
           "<name>",
-          {{"<name>", "rain_min_fsid_entry or disable_access_log."}},
+          {{"<name>", behaviourNames}},
           {},
-          {"eos ns behaviour get disable_access_log"},
+          {HelpCommandText("eos ns behaviour get")
+               .append(" ")
+               .append("disable_access_log", TextStyle::Identifier)},
           {}},
          {"clear",
           "Remove enforced behaviour settings.",
           "<name>|all",
-          {{"<name>|all",
-            "Select rain_min_fsid_entry, disable_access_log or all settings."}},
+          {{"<name>|all", HelpText("Select ")
+                              .append("rain_min_fsid_entry", TextStyle::Identifier)
+                              .append(", ")
+                              .append("disable_access_log", TextStyle::Identifier)
+                              .append(" or ")
+                              .append("all", TextStyle::Literal)
+                              .append(" settings.")}},
           {},
           {},
           {}}}}}};
@@ -922,22 +992,31 @@ AppendNamespaceHelp(eos::console::HelpPage& page, const NsHelpTopic& topic,
 {
   using eos::console::HelpBlockKind;
   page.blocks.push_back(
-      {HelpBlockKind::Section, all && path != "eos ns" ? path : "USAGE", {}});
-  page.blocks.push_back({HelpBlockKind::Usage,
-                         path + (topic.arguments.empty() ? "" : " " + topic.arguments),
-                         {}});
+      {HelpBlockKind::Section,
+       all && path != "eos ns" ? HelpCommandText(path) : HelpText("USAGE"),
+       {}});
+  auto usage = HelpCommandText(path);
+  if (!topic.arguments.empty()) {
+    usage.append(" ").append(HelpSyntax(topic.arguments, {"on", "off", "all"}));
+  }
+  page.blocks.push_back({HelpBlockKind::Usage, std::move(usage), {}});
   page.blocks.push_back({HelpBlockKind::Paragraph, topic.summary, {}});
   if (!topic.children.empty()) {
     page.blocks.push_back({HelpBlockKind::Section, "OPERATIONS", {}});
     for (const auto& child : topic.children) {
-      page.blocks.push_back({HelpBlockKind::Definition, child.name, child.summary});
+      page.blocks.push_back(
+          {HelpBlockKind::Definition, HelpCommandText(child.name), child.summary});
     }
   }
   if (!topic.definitions.empty()) {
     page.blocks.push_back({HelpBlockKind::Section, "ARGUMENTS AND OPTIONS", {}});
     for (const auto& definition : topic.definitions) {
+      auto label = HelpSyntax(definition.first.text, {"on", "off", "all"});
+      for (const auto& span : definition.first.spans) {
+        label.mark(span.offset, span.length, span.style);
+      }
       page.blocks.push_back(
-          {HelpBlockKind::Definition, definition.first, definition.second});
+          {HelpBlockKind::Definition, std::move(label), definition.second});
     }
   }
   if (!topic.notes.empty()) {
@@ -959,13 +1038,18 @@ AppendNamespaceHelp(eos::console::HelpPage& page, const NsHelpTopic& topic,
   } else {
     page.blocks.push_back({HelpBlockKind::Section, "LEARN MORE", {}});
     if (!topic.children.empty()) {
-      page.blocks.push_back(
-          {HelpBlockKind::Paragraph,
-           "Run '" + path + " <operation> --help' for operation details.",
-           {}});
+      page.blocks.push_back({HelpBlockKind::Paragraph,
+                             HelpText("Run '")
+                                 .append(HelpCommandText(path))
+                                 .append(HelpSyntax(" <operation> --help"))
+                                 .append("' for operation details."),
+                             {}});
     }
     page.blocks.push_back({HelpBlockKind::Paragraph,
-                           "Run 'eos ns --help-all' for the complete namespace manual.",
+                           HelpText("Run '")
+                               .append(HelpCommandText("eos ns"))
+                               .append(HelpSyntax(" --help-all"))
+                               .append("' for the complete namespace manual."),
                            {}});
   }
 }

@@ -27,7 +27,11 @@ enum class TextStyle {
   Error,
   Success,
   Argument,
-  Syntax
+  Syntax,
+  Literal,
+  Identifier,
+  Path,
+  Count
 };
 
 struct HelpCommand {

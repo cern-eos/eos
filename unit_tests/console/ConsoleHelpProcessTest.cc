@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <regex>
 #include <signal.h>
 #include <spawn.h>
@@ -25,6 +26,35 @@
 extern char** environ;
 
 namespace {
+std::string
+styled(std::string_view text, eos::console::TextStyle style)
+{
+  struct Restore {
+    std::optional<std::string> term;
+    ~Restore()
+    {
+      if (term) {
+        setenv("TERM", term->c_str(), 1);
+      } else {
+        unsetenv("TERM");
+      }
+      eos::console::ConfigureColor(eos::console::ColorMode::Auto, false, false);
+    }
+  } restore;
+  if (const char* term = getenv("TERM")) {
+    restore.term = term;
+  }
+  setenv("TERM", "xterm", 1);
+  eos::console::ConfigureColor(eos::console::ColorMode::Always, false, false);
+  return eos::console::Colorize(text, style, STDERR_FILENO);
+}
+
+std::string
+styledCommand(std::string_view text)
+{
+  return styled(text, eos::console::TextStyle::Command);
+}
+
 class ConsoleHelpProcessTest : public ::testing::Test {
 protected:
   void
@@ -229,6 +259,28 @@ protected:
     }
   }
 
+  static std::string
+  operationSection(const std::string& text, const std::string& context = "")
+  {
+    std::istringstream lines(text);
+    std::string line, result;
+    bool foundContext = context.empty(), foundSection = false;
+    while (std::getline(lines, line)) {
+      const auto uncolored = plain(line);
+      if (!foundContext) {
+        foundContext = uncolored == context;
+      } else if (!foundSection) {
+        foundSection = uncolored == "OPERATIONS";
+      } else {
+        if (!uncolored.empty() && uncolored.front() != ' ') {
+          break;
+        }
+        result += line + '\n';
+      }
+    }
+    return result;
+  }
+
   std::string
   pager(const std::string& body = "cat\n")
   {
@@ -267,6 +319,113 @@ TEST_F(ConsoleHelpProcessTest, NamespaceIndexFitsRealTerminalWidthsWithEveryColo
     ASSERT_EQ(process({"ns", "--help"}, width, false, true, false, {{"NO_COLOR", "1"}}),
               EINVAL);
     EXPECT_EQ(terminalOutput, baseline);
+  }
+}
+
+TEST_F(ConsoleHelpProcessTest, NamespaceIndexStylesEveryOperationWithItsCommandColor)
+{
+  for (unsigned short width : {40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    ASSERT_EQ(process({"--color=never", "ns", "--help"}, width, false, true), EINVAL);
+    const auto baseline = terminalOutput;
+    for (const auto* mode : {"--color=auto", "--color=always"}) {
+      SCOPED_TRACE(mode);
+      ASSERT_EQ(process({mode, "ns", "--help"}, width, false, true), EINVAL);
+      EXPECT_EQ(plain(terminalOutput), baseline);
+      for (const auto* operation :
+           {"stat", "mutex", "compact", "master", "recompute_tree_size",
+            "recompute_quotanode", "update_quotanode", "cache", "drain", "reserve-ids",
+            "benchmark", "tracker", "behaviour"}) {
+        EXPECT_NE(terminalOutput.find("\n  " + styledCommand(operation)),
+                  std::string::npos)
+            << operation;
+      }
+    }
+  }
+}
+
+TEST_F(ConsoleHelpProcessTest, NestedNamespaceOperationTablesStyleEveryChildInContext)
+{
+  const std::map<std::string, std::vector<std::string>> groups{
+      {"compact", {"off", "on"}},
+      {"cache", {"set", "drop", "drop-single-file", "drop-single-container"}},
+      {"drain", {"list", "set"}},
+      {"tracker", {"list", "clear"}},
+      {"behaviour", {"list", "set", "get", "clear"}}};
+  for (const unsigned short width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    for (const auto& [group, children] : groups) {
+      SCOPED_TRACE(group);
+      ASSERT_EQ(process({"--color=never", "ns", group, "--help"}, width, false, true),
+                EINVAL);
+      const auto baseline = terminalOutput;
+      for (const auto* mode : {"--color=auto", "--color=always"}) {
+        SCOPED_TRACE(mode);
+        ASSERT_EQ(process({mode, "ns", group, "--help"}, width, false, true), EINVAL);
+        EXPECT_EQ(plain(terminalOutput), baseline);
+        const auto definitions = operationSection(terminalOutput);
+        ASSERT_FALSE(definitions.empty());
+        for (const auto& child : children) {
+          EXPECT_NE(definitions.find("  " + styledCommand(child)), std::string::npos)
+              << child;
+        }
+      }
+      ASSERT_EQ(process({"ns", group, "--help"}, width, false, true, false,
+                        {{"NO_COLOR", "1"}}),
+                EINVAL);
+      EXPECT_EQ(terminalOutput, baseline);
+    }
+    ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, width, false, true), EINVAL);
+    const auto expanded = terminalOutput;
+    for (const auto* mode : {"--color=auto", "--color=always"}) {
+      SCOPED_TRACE(mode);
+      ASSERT_EQ(process({mode, "ns", "--help-all"}, width, false, true), EINVAL);
+      EXPECT_EQ(plain(terminalOutput), expanded);
+      for (const auto& [group, children] : groups) {
+        SCOPED_TRACE(group);
+        const auto definitions = operationSection(terminalOutput, "eos ns " + group);
+        ASSERT_FALSE(definitions.empty());
+        for (const auto& child : children) {
+          EXPECT_NE(definitions.find("  " + styledCommand(child)), std::string::npos)
+              << child;
+        }
+      }
+    }
+  }
+}
+
+TEST_F(ConsoleHelpProcessTest, BehaviourHelpSeparatesConfigurationNamesAndLiteralValues)
+{
+  using eos::console::TextStyle;
+  for (const unsigned short width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    ASSERT_EQ(
+        process({"--color=never", "ns", "behaviour", "--help-all"}, width, false, true),
+        EINVAL);
+    const auto baseline = terminalOutput;
+    ASSERT_EQ(
+        process({"--color=always", "ns", "behaviour", "--help-all"}, width, false, true),
+        EINVAL);
+    EXPECT_EQ(plain(terminalOutput), baseline);
+    for (const auto* identifier : {"rain_min_fsid_entry", "disable_access_log"}) {
+      EXPECT_NE(terminalOutput.find(styled(identifier, TextStyle::Identifier)),
+                std::string::npos)
+          << identifier;
+    }
+    for (const auto* value : {"on", "off", "all"}) {
+      EXPECT_NE(terminalOutput.find(styled(value, TextStyle::Literal)), std::string::npos)
+          << value;
+      EXPECT_EQ(terminalOutput.find(styled(value, TextStyle::Error)), std::string::npos)
+          << value;
+    }
+    EXPECT_NE(terminalOutput.find(styled("<name>", TextStyle::Argument)),
+              std::string::npos);
+    const auto example = styledCommand("eos") + " " + styledCommand("ns") + " " +
+                         styledCommand("behaviour") + " " + styledCommand("get") + " " +
+                         styled("disable_access_log", TextStyle::Identifier);
+    EXPECT_NE(terminalOutput.find("  " + example + "\n"), std::string::npos);
+    EXPECT_EQ(terminalOutput.find(styled("Inspect", TextStyle::Command)),
+              std::string::npos);
   }
 }
 

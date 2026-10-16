@@ -138,6 +138,6 @@ void
 PrintHelpPage(const HelpPage& page, std::FILE* stream)
 {
   const auto width = HelpWidth(fileno(stream));
-  PrintLegacyHelp(page.render(width ? width : 80), stream);
+  WriteHelpOutput(page.render(width ? width : 80, fileno(stream)), stream);
 }
 } // namespace eos::console

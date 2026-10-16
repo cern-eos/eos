@@ -31,8 +31,29 @@ helpCommands()
   return commands;
 }
 
+constexpr auto styleCount = static_cast<std::size_t>(TextStyle::Count);
+
+struct StyleDefinition {
+  long foreground;
+  bool bold;
+};
+
+constexpr std::array<StyleDefinition, styleCount> styleDefinitions{{
+    {6, true},   // Heading
+    {2, true},   // Command
+    {6, false},  // Option
+    {3, true},   // Warning
+    {1, true},   // Error
+    {2, false},  // Success
+    {3, false},  // Argument
+    {-1, false}, // Syntax
+    {5, false},  // Literal
+    {4, true},   // Identifier
+    {4, true}    // Path
+}};
+
 struct Palette {
-  std::array<std::string, 8> styles;
+  std::array<std::string, styleCount> styles;
   std::string reset;
   bool capable = false;
 };
@@ -61,27 +82,26 @@ loadPalette(const std::string& terminal, int descriptor)
     // Direct-color capabilities can interpret small indexes as near-black RGB.
     if (availableColors >= 8 && availableColors <= 256 && !foreground.empty() &&
         !result.reset.empty()) {
-      const std::array<long, 7> colorIndexes{6, 2, 6, 3, 1, 2, 3};
-      for (size_t i = 0; i < colorIndexes.size(); ++i) {
-        const char* sequence =
-            tparm(const_cast<char*>(foreground.c_str()), colorIndexes[i]);
-        if (!sequence) {
-          break;
-        }
-        result.styles[i] = sequence;
-      }
       const auto bold = capability("bold");
-      result.styles[0] = bold + result.styles[0];
-      result.styles[1] = bold + result.styles[1];
-      result.styles[7] = capability("dim");
-      result.capable =
-          std::all_of(result.styles.begin(), result.styles.begin() + 7,
-                      [](const std::string& value) {
-                        return !value.empty() && value.find("$<") == std::string::npos;
-                      }) &&
-          result.reset.find("$<") == std::string::npos;
-      if (result.styles[7].find("$<") != std::string::npos) {
-        result.styles[7].clear();
+      result.capable = result.reset.find("$<") == std::string::npos;
+      for (size_t i = 0; i < styleDefinitions.size(); ++i) {
+        const auto definition = styleDefinitions[i];
+        if (definition.foreground < 0) {
+          result.styles[i] = capability("dim");
+          if (result.styles[i].find("$<") != std::string::npos) {
+            result.styles[i].clear();
+          }
+          continue;
+        }
+        const char* sequence =
+            tparm(const_cast<char*>(foreground.c_str()), definition.foreground);
+        if (!sequence || !*sequence) {
+          result.capable = false;
+          continue;
+        }
+        result.styles[i] = definition.bold ? bold + sequence : sequence;
+        result.capable =
+            result.capable && result.styles[i].find("$<") == std::string::npos;
       }
     }
   }
@@ -108,8 +128,13 @@ palette(int descriptor)
   auto result = it->second;
   if (!result.capable && colorMode == ColorMode::Always) {
     // Explicit forcing also supports pagers when TERM is unavailable.
-    result.styles = {"\033[1;36m", "\033[1;32m", "\033[36m", "\033[33m",
-                     "\033[31m",   "\033[32m",   "\033[33m", "\033[2m"};
+    for (size_t i = 0; i < styleDefinitions.size(); ++i) {
+      const auto definition = styleDefinitions[i];
+      result.styles[i] = definition.foreground < 0
+                             ? "\033[2m"
+                             : std::string(definition.bold ? "\033[1;3" : "\033[3") +
+                                   std::to_string(definition.foreground) + "m";
+    }
     result.reset = "\033[0m";
   }
   return result;
@@ -319,11 +344,12 @@ colorHelpText(std::string_view text, int descriptor,
     HelpLevels levels{&roots};
     std::vector<const HelpCommand*> matched;
     size_t position = syntax;
-    bool command = markHelpCommand(line, position, levels, matched, styles);
+    bool command = false;
     bool rootless = false;
     size_t sectionDepth = 0;
-    if (!command && page) {
-      // Rootless synopsis rows and aligned definitions use the current grammar.
+    if (page) {
+      // A subcommand can also name a top-level command (for example ns stat).
+      // Keep synopsis rows and aligned definitions in the current grammar first.
       const bool definition = line.find(" :", syntax) != std::string_view::npos;
       const auto wordEnd = line.find_first_of(" \t,", syntax);
       const bool tableRow = wordEnd == std::string_view::npos || line[wordEnd] == ',' ||
@@ -358,6 +384,11 @@ colorHelpText(std::string_view text, int descriptor,
           break;
         }
       }
+    }
+    if (!command) {
+      levels = {&roots};
+      position = syntax;
+      command = markHelpCommand(line, position, levels, matched, styles);
     }
     if (command) {
       const bool synopsis = labelled || first <= commandIndent;
@@ -553,10 +584,11 @@ Colorize(std::string_view text, TextStyle style, int descriptor, OutputKind kind
     return std::string(text);
   }
   const auto selected = palette(descriptor);
-  if (selected.styles[static_cast<size_t>(style)].empty()) {
+  const auto index = static_cast<size_t>(style);
+  if (index >= selected.styles.size() || selected.styles[index].empty()) {
     return std::string(text);
   }
-  return selected.styles[static_cast<size_t>(style)] + std::string(text) + selected.reset;
+  return selected.styles[index] + std::string(text) + selected.reset;
 }
 
 std::string
@@ -566,11 +598,12 @@ ColorPrompt(std::string_view text, TextStyle style, int descriptor)
     return std::string(text);
   }
   const auto selected = palette(descriptor);
-  if (selected.styles[static_cast<size_t>(style)].empty()) {
+  const auto index = static_cast<size_t>(style);
+  if (index >= selected.styles.size() || selected.styles[index].empty()) {
     return std::string(text);
   }
-  return "\001" + selected.styles[static_cast<size_t>(style)] + "\002" +
-         std::string(text) + "\001" + selected.reset + "\002";
+  return "\001" + selected.styles[index] + "\002" + std::string(text) + "\001" +
+         selected.reset + "\002";
 }
 
 void
@@ -585,9 +618,16 @@ PrintLegacyHelp(std::string_view text, std::FILE* stream)
 void
 PrintCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::FILE* stream)
 {
-  // CLI11 selects parsed subcommands and finishes layout before decoration.
-  // Keeping formatters untouched also covers custom child formatters.
-  const auto text = LayoutCliHelp(app, mode, HelpWidth(fileno(stream)));
+  const int descriptor = fileno(stream);
+  const auto width = HelpWidth(descriptor);
+  if (width > 0) {
+    if (const auto page = BuildCliHelpPage(app, mode)) {
+      WriteHelpOutput(page->render(width, descriptor), stream);
+      return;
+    }
+  }
+  // Custom formatters and nonterminal output preserve their original layout.
+  const auto text = LayoutCliHelp(app, mode, width);
   std::set<std::string> options;
   HelpCommand command;
   if (ColorEnabled(fileno(stream))) {

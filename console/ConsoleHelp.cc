@@ -7,8 +7,10 @@
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <locale.h>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 #include <utility>
@@ -161,38 +163,49 @@ Words(std::string_view text)
   return words;
 }
 
-void
-BlankLine(std::vector<std::string>& lines)
+using HelpLines = std::vector<HelpText>;
+
+HelpText
+TrimHelp(const HelpText& text)
 {
-  if (!lines.empty() && !lines.back().empty()) {
+  const auto trimmed = Trim(text.text);
+  return text.slice(static_cast<std::size_t>(trimmed.data() - text.text.data()),
+                    trimmed.size());
+}
+
+void
+BlankLine(HelpLines& lines)
+{
+  if (!lines.empty() && !lines.back().text.empty()) {
     lines.emplace_back();
   }
 }
 
 void
-Wrap(std::vector<std::string>& lines, std::string_view text, std::size_t width,
-     std::string firstIndent, const std::string& nextIndent)
+Wrap(HelpLines& lines, const HelpText& text, std::size_t width, HelpText firstIndent,
+     const HelpText& nextIndent)
 {
-  const auto words = Words(text);
+  const auto words = Words(text.text);
   if (words.empty()) {
     return;
   }
   auto line = std::move(firstIndent);
-  auto cells = HelpDisplayWidth(line);
+  auto cells = HelpDisplayWidth(line.text);
   bool hasWord = false;
   for (const auto word : words) {
     const auto wordCells = HelpDisplayWidth(word);
     if (hasWord && cells + 1 + wordCells > width) {
       lines.push_back(std::move(line));
       line = nextIndent;
-      cells = HelpDisplayWidth(line);
+      cells = HelpDisplayWidth(line.text);
       hasWord = false;
     }
     if (hasWord) {
-      line += ' ';
+      line.append(" ");
       ++cells;
     }
-    line.append(word.data(), word.size());
+    line.append(text.slice(static_cast<std::size_t>(word.data() - text.text.data()),
+                           word.size()));
     cells += wordCells;
     hasWord = true;
   }
@@ -200,27 +213,28 @@ Wrap(std::vector<std::string>& lines, std::string_view text, std::size_t width,
 }
 
 void
-Paragraphs(std::vector<std::string>& lines, std::string_view text, std::size_t width,
-           const std::string& indent, const std::string& firstIndent = {})
+Paragraphs(HelpLines& lines, const HelpText& text, std::size_t width,
+           const HelpText& indent, const HelpText& firstIndent = {})
 {
+  const std::string_view view = text.text;
   std::size_t start = 0;
   std::size_t offset = 0;
   bool first = true;
-  while (offset < text.size()) {
-    if (text[offset] != '\n') {
+  while (offset < view.size()) {
+    if (view[offset] != '\n') {
       ++offset;
       continue;
     }
     auto next = offset + 1;
-    while (next < text.size() &&
-           (text[next] == ' ' || text[next] == '\t' || text[next] == '\r')) {
+    while (next < view.size() &&
+           (view[next] == ' ' || view[next] == '\t' || view[next] == '\r')) {
       ++next;
     }
-    if (next < text.size() && text[next] == '\n') {
-      const auto paragraph = Trim(text.substr(start, offset - start));
-      if (!paragraph.empty()) {
+    if (next < view.size() && view[next] == '\n') {
+      const auto paragraph = TrimHelp(text.slice(start, offset - start));
+      if (!paragraph.text.empty()) {
         Wrap(lines, paragraph, width,
-             first && !firstIndent.empty() ? firstIndent : indent, indent);
+             first && !firstIndent.text.empty() ? firstIndent : indent, indent);
         first = false;
       }
       BlankLine(lines);
@@ -230,22 +244,24 @@ Paragraphs(std::vector<std::string>& lines, std::string_view text, std::size_t w
       ++offset;
     }
   }
-  Wrap(lines, text.substr(start), width,
-       first && !firstIndent.empty() ? firstIndent : indent, indent);
+  Wrap(lines, text.slice(start), width,
+       first && !firstIndent.text.empty() ? firstIndent : indent, indent);
 }
 
 void
-LiteralLines(std::vector<std::string>& lines, std::string_view text)
+LiteralLines(HelpLines& lines, const HelpText& text)
 {
   std::size_t offset = 0;
-  while (offset < text.size()) {
-    const auto end = text.find('\n', offset);
+  while (offset < text.text.size()) {
+    const auto end = text.text.find('\n', offset);
     const auto line =
-        text.substr(offset, end == std::string_view::npos ? end : end - offset);
-    if (Trim(line).empty()) {
+        text.slice(offset, end == std::string_view::npos ? end : end - offset);
+    if (Trim(line.text).empty()) {
       BlankLine(lines);
     } else {
-      lines.emplace_back("  " + std::string(line));
+      HelpText indented("  ");
+      indented.append(line);
+      lines.push_back(std::move(indented));
     }
     if (end == std::string_view::npos) {
       break;
@@ -298,7 +314,20 @@ public:
       if (usage.compare(0, prefix.size(), prefix) == 0) {
         usage = std::string(Trim(std::string_view(usage).substr(prefix.size())));
       }
-      page.blocks.push_back({HelpBlockKind::Usage, std::move(usage), {}});
+      HelpText synopsis;
+      auto arguments = HelpSyntax(usage);
+      if (!name.empty() && usage.compare(0, name.size(), name) == 0 &&
+          (usage.size() == name.size() || IsSpace(usage[name.size()]))) {
+        synopsis.append(HelpCommandText(name));
+        arguments = HelpSyntax(std::string_view(usage).substr(name.size()));
+      }
+      for (const auto* option : app->get_options({})) {
+        if (option->get_positional()) {
+          markValue(arguments, make_option_name(option, true), TextStyle::Argument);
+        }
+      }
+      synopsis.append(arguments);
+      page.blocks.push_back({HelpBlockKind::Usage, std::move(synopsis), {}});
     }
 
     const auto positionals = app->get_options([](const CLI::Option* option) {
@@ -346,17 +375,20 @@ public:
         }
         if (mode == CLI::AppFormatMode::All) {
           page.blocks.push_back(
-              {HelpBlockKind::Section, name + " " + child->get_display_name(true), {}});
+              {HelpBlockKind::Section,
+               HelpCommandText(name + " " + child->get_display_name(true)),
+               {}});
           const auto childFormatter =
               std::static_pointer_cast<CLI::Formatter>(child->get_formatter());
           HelpFormatter(*childFormatter)
               .append(page, child, name + " " + child->get_name(), mode, true);
         } else {
+          auto label = HelpCommandText(child->get_display_name(true));
+          if (child->get_required()) {
+            label.append(" ").append(get_label("REQUIRED"), TextStyle::Warning);
+          }
           page.blocks.push_back(
-              {HelpBlockKind::Definition,
-               child->get_display_name(true) +
-                   (child->get_required() ? " " + get_label("REQUIRED") : ""),
-               child->get_description()});
+              {HelpBlockKind::Definition, std::move(label), child->get_description()});
         }
       }
     }
@@ -377,6 +409,26 @@ public:
   }
 
 private:
+  static void
+  markValue(HelpText& text, std::string_view value, TextStyle style)
+  {
+    if (value.empty()) {
+      return;
+    }
+    const auto word = [](unsigned char ch) {
+      return std::isalnum(ch) || ch == '_' || ch == '-';
+    };
+    for (std::size_t offset = 0;
+         (offset = text.text.find(value, offset)) != std::string::npos;
+         offset += value.size()) {
+      if ((offset == 0 || !word(text.text[offset - 1])) &&
+          (offset + value.size() == text.text.size() ||
+           !word(text.text[offset + value.size()]))) {
+        text.mark(offset, value.size(), style);
+      }
+    }
+  }
+
   void
   appendOptions(HelpPage& page, const std::string& group,
                 const std::vector<const CLI::Option*>& options, bool positional) const
@@ -386,15 +438,224 @@ private:
     }
     page.blocks.push_back({HelpBlockKind::Section, group + ":", {}});
     for (const auto* option : options) {
+      auto label =
+          positional ? StyledHelpText(make_option_name(option, true), TextStyle::Argument)
+                     : HelpSyntax(make_option_name(option, false));
+      if (!positional) {
+        for (const auto& name : option->get_snames()) {
+          markValue(label, "-" + name, TextStyle::Option);
+        }
+        for (const auto& name : option->get_lnames()) {
+          markValue(label, "--" + name, TextStyle::Option);
+        }
+      }
+      auto attributes = HelpSyntax(make_option_opts(option));
+      const auto type = get_label(option->get_type_name());
+      const auto typeEnd = type.find_first_of(": [{");
+      markValue(attributes, std::string_view(type).substr(0, typeEnd),
+                TextStyle::Argument);
+      markValue(attributes, option->get_default_str(), TextStyle::Literal);
+      markValue(attributes, get_label("REQUIRED"), TextStyle::Warning);
+      markValue(attributes, option->get_envname(), TextStyle::Identifier);
+      for (const auto* dependency : option->get_needs()) {
+        markValue(attributes, dependency->get_name(), TextStyle::Option);
+      }
+      for (const auto* excluded : option->get_excludes()) {
+        markValue(attributes, excluded->get_name(), TextStyle::Option);
+      }
+      label.append(attributes);
       page.blocks.push_back(
-          {HelpBlockKind::Definition,
-           make_option_name(option, positional) + make_option_opts(option),
-           make_option_desc(option)});
+          {HelpBlockKind::Definition, std::move(label), make_option_desc(option)});
     }
   }
 };
 
 } // namespace
+
+HelpText&
+HelpText::append(std::string_view value, std::optional<TextStyle> style)
+{
+  const auto offset = text.size();
+  text.append(value);
+  if (style && !value.empty()) {
+    spans.push_back({offset, value.size(), *style});
+  }
+  return *this;
+}
+
+HelpText&
+HelpText::append(const HelpText& value)
+{
+  if (&value == this) {
+    return append(HelpText(value));
+  }
+  const auto offset = text.size();
+  text += value.text;
+  for (const auto& span : value.spans) {
+    spans.push_back({offset + span.offset, span.length, span.style});
+  }
+  return *this;
+}
+
+HelpText&
+HelpText::mark(std::size_t offset, std::size_t length, TextStyle style)
+{
+  if (offset > text.size() || length > text.size() - offset) {
+    throw std::out_of_range("Help style span exceeds its text");
+  }
+  if (length) {
+    spans.push_back({offset, length, style});
+  }
+  return *this;
+}
+
+HelpText
+HelpText::slice(std::size_t offset, std::size_t length) const
+{
+  HelpText result(text.substr(offset, length));
+  const auto end = offset + result.text.size();
+  for (const auto& span : spans) {
+    if (span.offset >= text.size()) {
+      continue;
+    }
+    const auto from = std::max(offset, span.offset);
+    const auto to = span.offset + std::min(span.length, text.size() - span.offset);
+    if (from < std::min(end, to)) {
+      result.spans.push_back({from - offset, std::min(end, to) - from, span.style});
+    }
+  }
+  return result;
+}
+
+std::string
+HelpText::render(int descriptor) const
+{
+  if (spans.empty() || !ColorEnabled(descriptor)) {
+    return text;
+  }
+  std::vector<std::optional<TextStyle>> styles(text.size());
+  for (const auto& span : spans) {
+    if (span.offset < text.size()) {
+      std::fill_n(styles.begin() + span.offset,
+                  std::min(span.length, text.size() - span.offset), span.style);
+    }
+  }
+  std::string result;
+  for (std::size_t begin = 0; begin < text.size();) {
+    auto end = begin + 1;
+    while (end < text.size() && styles[end] == styles[begin]) {
+      ++end;
+    }
+    const std::string_view part(text.data() + begin, end - begin);
+    result +=
+        styles[begin] ? Colorize(part, *styles[begin], descriptor) : std::string(part);
+    begin = end;
+  }
+  return result;
+}
+
+HelpText
+StyledHelpText(std::string_view text, TextStyle style)
+{
+  HelpText result;
+  result.append(text, style);
+  return result;
+}
+
+HelpText
+HelpCommandText(std::string_view command)
+{
+  HelpText result;
+  for (std::size_t begin = 0; begin < command.size();) {
+    const bool space = IsSpace(command[begin]);
+    const bool comma = command[begin] == ',';
+    auto end = begin + 1;
+    while (end < command.size() && IsSpace(command[end]) == space &&
+           (command[end] == ',') == comma) {
+      ++end;
+    }
+    result.append(command.substr(begin, end - begin),
+                  space ? std::nullopt
+                        : std::optional(comma ? TextStyle::Syntax : TextStyle::Command));
+    begin = end;
+  }
+  return result;
+}
+
+HelpText
+HelpSyntax(std::string_view text, std::initializer_list<std::string_view> literalChoices)
+{
+  HelpText result;
+  const auto literal = [&](std::string_view value) {
+    return std::find(literalChoices.begin(), literalChoices.end(), value) !=
+           literalChoices.end();
+  };
+  const std::string_view punctuation("[]{}|(),=!");
+  for (std::size_t begin = 0; begin < text.size();) {
+    if (IsSpace(text[begin])) {
+      result.append(text.substr(begin++, 1));
+      continue;
+    }
+    if (punctuation.find(text[begin]) != std::string_view::npos) {
+      result.append(text.substr(begin++, 1), TextStyle::Syntax);
+      continue;
+    }
+    if (text[begin] == '<') {
+      const auto close = text.find('>', begin + 1);
+      if (close != std::string_view::npos) {
+        const auto inside = text.substr(begin + 1, close - begin - 1);
+        bool choices = !inside.empty();
+        for (std::size_t part = 0; part < inside.size();) {
+          const auto bar = inside.find('|', part);
+          const auto end = bar == std::string_view::npos ? inside.size() : bar;
+          choices = choices && literal(inside.substr(part, end - part));
+          part = end + 1;
+        }
+        if (choices) {
+          result.append("<", TextStyle::Syntax);
+          for (std::size_t part = 0; part < inside.size();) {
+            const auto bar = inside.find('|', part);
+            const auto end = bar == std::string_view::npos ? inside.size() : bar;
+            result.append(inside.substr(part, end - part), TextStyle::Literal);
+            if (bar != std::string_view::npos) {
+              result.append("|", TextStyle::Syntax);
+            }
+            part = end + 1;
+          }
+          result.append(">", TextStyle::Syntax);
+        } else {
+          result.append(text.substr(begin, close + 1 - begin), TextStyle::Argument);
+        }
+        begin = close + 1;
+        continue;
+      }
+    }
+    auto end = begin + 1;
+    while (end < text.size() && !IsSpace(text[end]) && text[end] != '<' &&
+           punctuation.find(text[end]) == std::string_view::npos) {
+      ++end;
+    }
+    const auto word = text.substr(begin, end - begin);
+    const bool option = word.front() == '-' &&
+                        std::any_of(word.begin(), word.end(), [](unsigned char value) {
+                          return std::isalpha(value) || value == '?';
+                        });
+    const auto style = option ? TextStyle::Option
+                       : word.front() == '/' || word.substr(0, 2) == "./" ||
+                               word.substr(0, 3) == "../" ||
+                               word.find("://") != std::string_view::npos
+                           ? TextStyle::Path
+                       : word.back() == ':' ? TextStyle::Identifier
+                       : word == "options" || word == "OPTIONS" || word == "SUBCOMMAND" ||
+                               word == "SUBCOMMANDS"
+                           ? TextStyle::Argument
+                       : word == "..." ? TextStyle::Syntax
+                                       : TextStyle::Literal;
+    result.append(word, style);
+    begin = end;
+  }
+  return result;
+}
 
 std::size_t
 HelpDisplayWidth(std::string_view text)
@@ -426,10 +687,10 @@ HelpDisplayWidth(std::string_view text)
 }
 
 std::string
-HelpPage::render(std::size_t width) const
+HelpPage::render(std::size_t width, std::optional<int> descriptor) const
 {
   width = width == 0 ? 80 : width;
-  std::vector<std::string> lines;
+  HelpLines lines;
   auto previous = HelpBlockKind::Section;
   for (const auto& block : blocks) {
     if (Trim(block.text).empty()) {
@@ -438,7 +699,10 @@ HelpPage::render(std::size_t width) const
     switch (block.kind) {
     case HelpBlockKind::Section:
       BlankLine(lines);
-      Wrap(lines, block.text, width, "", "");
+      Wrap(lines,
+           block.text.spans.empty() ? StyledHelpText(block.text.text, TextStyle::Heading)
+                                    : block.text,
+           width, "", "");
       break;
     case HelpBlockKind::Paragraph:
       if (previous != HelpBlockKind::Section) {
@@ -456,8 +720,8 @@ HelpPage::render(std::size_t width) const
       if (previous != HelpBlockKind::Section && previous != HelpBlockKind::Definition) {
         BlankLine(lines);
       }
-      const auto label = std::string(Trim(block.text));
-      const auto labelWidth = HelpDisplayWidth(label) + 2;
+      const auto label = TrimHelp(block.text);
+      const auto labelWidth = HelpDisplayWidth(label.text) + 2;
       const auto column = std::clamp<std::size_t>(width / 3, 20, 32);
       if (Trim(block.description).empty()) {
         Wrap(lines, label, width, "  ", "    ");
@@ -465,8 +729,10 @@ HelpPage::render(std::size_t width) const
         Wrap(lines, label, width, "  ", "    ");
         Paragraphs(lines, block.description, width, "    ");
       } else {
+        HelpText firstIndent("  ");
+        firstIndent.append(label).append(std::string(column - labelWidth, ' '));
         Paragraphs(lines, block.description, width, std::string(column, ' '),
-                   "  " + label + std::string(column - labelWidth, ' '));
+                   firstIndent);
       }
       break;
     }
@@ -479,12 +745,12 @@ HelpPage::render(std::size_t width) const
     }
     previous = block.kind;
   }
-  while (!lines.empty() && lines.back().empty()) {
+  while (!lines.empty() && lines.back().text.empty()) {
     lines.pop_back();
   }
   std::string output;
   for (const auto& line : lines) {
-    output += line;
+    output += descriptor ? line.render(*descriptor) : line.text;
     output += '\n';
   }
   return output;
@@ -493,9 +759,17 @@ HelpPage::render(std::size_t width) const
 std::string
 LayoutCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::size_t width)
 {
-  if (width == 0) {
-    return app.help("", mode);
+  if (width) {
+    if (const auto page = BuildCliHelpPage(app, mode)) {
+      return page->render(width);
+    }
   }
+  return app.help("", mode);
+}
+
+std::optional<HelpPage>
+BuildCliHelpPage(CLI::App& app, CLI::AppFormatMode mode)
+{
   const CLI::App* selected = &app;
   auto name = app.get_name();
   while (!selected->get_subcommands().empty()) {
@@ -506,14 +780,14 @@ LayoutCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::size_t width)
     name += selected->get_name();
   }
   if (!IsDefaultFormatter(selected)) {
-    return app.help("", mode);
+    return std::nullopt;
   }
   const auto formatter =
       std::static_pointer_cast<CLI::Formatter>(selected->get_formatter());
   HelpFormatter responsive(*formatter);
   HelpPage page;
   responsive.append(page, selected, name, mode, mode == CLI::AppFormatMode::Sub);
-  return page.render(width);
+  return page;
 }
 
 } // namespace eos::console

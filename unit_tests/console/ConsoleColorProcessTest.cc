@@ -559,6 +559,38 @@ TEST_F(ConsoleColorProcessTest, GlobalSyntaxErrorsRemainPlainBeforeAcceptingAPol
   }
 }
 
+TEST_F(ConsoleColorProcessTest, LocalMetadataErrorsHonorTheAcceptedColorPolicy)
+{
+  const std::map<std::string, std::string> environment{{"EOSAPP", "invalid&app"}};
+  ASSERT_EQ(process({"--color=never", "pwd"}, false, false, environment), EINVAL);
+  const auto baseline = error;
+  EXPECT_EQ(baseline, "error: EOSAPP cannot contain '&' or control characters\n");
+  EXPECT_TRUE(output.empty());
+  ASSERT_EQ(process({"--color=always", "pwd"}, false, false, environment), EINVAL);
+  EXPECT_EQ(error, styled("error:", eos::console::TextStyle::Error) +
+                       " EOSAPP cannot contain '&' or control characters\n");
+  EXPECT_EQ(plain(error), baseline);
+  EXPECT_TRUE(output.empty());
+  ASSERT_EQ(process({"pwd"}, false, true, environment), EINVAL);
+  EXPECT_EQ(terminalOutput, styled("error:", eos::console::TextStyle::Error) +
+                                " EOSAPP cannot contain '&' or control characters\n");
+  EXPECT_EQ(plain(terminalOutput), baseline);
+  ASSERT_EQ(process({"pwd"}, false, false, environment), EINVAL);
+  EXPECT_EQ(error, baseline);
+  auto noColor = environment;
+  noColor["NO_COLOR"] = "1";
+  ASSERT_EQ(process({"pwd"}, false, true, noColor), EINVAL);
+  EXPECT_EQ(terminalOutput, baseline);
+  for (const auto& args :
+       std::vector<std::vector<std::string>>{{"--color=never", "pwd"},
+                                             {"--color=always", "-b", "pwd"},
+                                             {"--color=always", "-j", "pwd"}}) {
+    ASSERT_EQ(process(args, false, true, environment), EINVAL);
+    EXPECT_EQ(terminalOutput, baseline);
+    EXPECT_TRUE(output.empty());
+  }
+}
+
 TEST_F(ConsoleColorProcessTest, JsonResponseIsParseableOnATerminalEvenWhenForced)
 {
   ColorTestMgm mgm(directory + "/mgm",

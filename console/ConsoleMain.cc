@@ -107,8 +107,9 @@ static int RunRegisteredCommand(const std::string& cmdName,
   }
 
   if (icmd->requiresMgmArguments(argsVec) && !CheckMgmOnline(serveruri.c_str())) {
-    std::cerr << "error: MGM " << serveruri.c_str()
-              << " not online/reachable" << std::endl;
+    std::cerr << eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                        STDERR_FILENO)
+              << " MGM " << serveruri.c_str() << " not online/reachable" << std::endl;
     exit(ENONET);
   }
 
@@ -265,7 +266,10 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
   string_vector.clear();
 
   if (!CommandEnv) {
-    fprintf(stderr, "error: command env is 0!\n");
+    fprintf(
+        stderr, "%s command env is 0!\n",
+        eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+            .c_str());
     return;
   }
 
@@ -393,8 +397,10 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
           std::string_view(user_role.c_str(), user_role.length())) ||
       !eos::console::IsSafeCgiMetadata(
           std::string_view(group_role.c_str(), group_role.length()))) {
-    fprintf(stderr,
-            "error: app and role values cannot contain '&' or control characters\n");
+    fprintf(
+        stderr, "%s app and role values cannot contain '&' or control characters\n",
+        eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+            .c_str());
     global_retc = EINVAL;
     return nullptr;
   }
@@ -559,56 +565,95 @@ usage()
 {
   if (eos::console::HelpWidth(STDERR_FILENO)) {
     using eos::console::HelpBlockKind;
+    using eos::console::HelpCommandText;
+    using eos::console::HelpSyntax;
+    using eos::console::HelpText;
+    using eos::console::StyledHelpText;
+    using eos::console::TextStyle;
     eos::console::HelpPage page;
     page.blocks = {
         {HelpBlockKind::Paragraph, "EOS storage system command line interface", {}},
         {HelpBlockKind::Section, "USAGE", {}},
         {HelpBlockKind::Usage,
-         "eos [options] [<mgm-url>] [<command> [<arguments>...]]",
+         HelpCommandText("eos").append(
+             HelpSyntax(" [options] [<mgm-url>] [<command> [<arguments>...]]")),
          {}},
-        {HelpBlockKind::Usage, "eos [options] <filename>.eosh", {}},
+        {HelpBlockKind::Usage,
+         HelpCommandText("eos").append(HelpSyntax(" [options] <filename>.eosh")),
+         {}},
         {HelpBlockKind::Section, "OPTIONS", {}},
-        {HelpBlockKind::Definition, "-r, --role <uid> <gid>",
+        {HelpBlockKind::Definition, HelpSyntax("-r, --role <uid> <gid>"),
          "Select user and group roles."},
-        {HelpBlockKind::Definition, "-a, --app <application>",
+        {HelpBlockKind::Definition, HelpSyntax("-a, --app <application>"),
          "Set the application name."},
-        {HelpBlockKind::Definition, "-b, --batch",
+        {HelpBlockKind::Definition, HelpSyntax("-b, --batch"),
          "Run in batch mode without terminal formatting."},
-        {HelpBlockKind::Definition, "--color <auto|always|never>",
+        {HelpBlockKind::Definition,
+         HelpSyntax("--color <auto|always|never>", {"auto", "always", "never"}),
          "Control human-readable terminal styling."},
-        {HelpBlockKind::Definition, "--no-pager", "Disable the configured help pager."},
-        {HelpBlockKind::Definition, "-j, --json", "Select JSON output."},
-        {HelpBlockKind::Definition, "-h, --help", "Show help."},
-        {HelpBlockKind::Definition, "-v, --version", "Print version information."},
-        {HelpBlockKind::Definition, "-s", "Run the status command."},
+        {HelpBlockKind::Definition, HelpSyntax("--no-pager"),
+         "Disable the configured help pager."},
+        {HelpBlockKind::Definition, HelpSyntax("-j, --json"), "Select JSON output."},
+        {HelpBlockKind::Definition, HelpSyntax("-h, --help"), "Show help."},
+        {HelpBlockKind::Definition, HelpSyntax("-v, --version"),
+         "Print version information."},
+        {HelpBlockKind::Definition, HelpSyntax("-s"),
+         HelpText("Run the ").append(HelpCommandText("status")).append(" command.")},
         {HelpBlockKind::Section, "ENVIRONMENT", {}},
-        {HelpBlockKind::Definition, "EOS_HELP_WIDTH",
+        {HelpBlockKind::Definition,
+         StyledHelpText("EOS_HELP_WIDTH", TextStyle::Identifier),
          "Override interactive help width (20 to 1000 columns). Automatic width is "
          "capped at 120 columns."},
-        {HelpBlockKind::Definition, "EOS_PAGER",
-         "Optional pager for long interactive help, for example 'less -FRX'. Quoted "
-         "arguments are supported; shell expressions are not evaluated. Unset or empty "
-         "disables paging."},
-        {HelpBlockKind::Definition, "NO_COLOR", "Disable automatic color when nonempty."},
-        {HelpBlockKind::Definition, "EOS_MGM_URL",
-         "Set the management server URL, including root://<hostname>[:<port>] or "
-         "ipc://<path>."},
-        {HelpBlockKind::Definition, "EOS_HISTORY_FILE",
-         "Set the history file (default: $HOME/.eos_history)."},
-        {HelpBlockKind::Definition, "EOS_PWD_FILE",
-         "Set the saved working directory file (default: $HOME/.eos_pwd)."},
-        {HelpBlockKind::Definition, "EOS_NEWGRP",
+        {HelpBlockKind::Definition, StyledHelpText("EOS_PAGER", TextStyle::Identifier),
+         HelpText("Optional pager for long interactive help, for example '")
+             .append(HelpCommandText("less"))
+             .append(HelpSyntax(" -FRX"))
+             .append("'. Quoted arguments are supported; shell expressions are not "
+                     "evaluated. Unset or empty disables paging.")},
+        {HelpBlockKind::Definition, StyledHelpText("NO_COLOR", TextStyle::Identifier),
+         "Disable automatic color when nonempty."},
+        {HelpBlockKind::Definition, StyledHelpText("EOS_MGM_URL", TextStyle::Identifier),
+         HelpText("Set the management server URL, including ")
+             .append("root://", TextStyle::Path)
+             .append(HelpSyntax("<hostname>[:<port>]"))
+             .append(" or ")
+             .append("ipc://", TextStyle::Path)
+             .append(HelpSyntax("<path>"))
+             .append(".")},
+        {HelpBlockKind::Definition,
+         StyledHelpText("EOS_HISTORY_FILE", TextStyle::Identifier),
+         HelpText("Set the history file (default: ")
+             .append("$HOME/.eos_history", TextStyle::Path)
+             .append(").")},
+        {HelpBlockKind::Definition, StyledHelpText("EOS_PWD_FILE", TextStyle::Identifier),
+         HelpText("Set the saved working directory file (default: ")
+             .append("$HOME/.eos_pwd", TextStyle::Path)
+             .append(").")},
+        {HelpBlockKind::Definition, StyledHelpText("EOS_NEWGRP", TextStyle::Identifier),
          "Request the current shell's group ID for each command."},
         {HelpBlockKind::Section, "EXAMPLES", {}},
-        {HelpBlockKind::Example, "eos help", {}},
-        {HelpBlockKind::Example, "eos ns cache set --help", {}},
-        {HelpBlockKind::Example, "eos ns --help-all", {}},
-        {HelpBlockKind::Example, "eos -b whoami", {}},
-        {HelpBlockKind::Example, "eos root://myeos", {}},
+        {HelpBlockKind::Example, HelpCommandText("eos help"), {}},
+        {HelpBlockKind::Example,
+         HelpCommandText("eos ns cache set").append(HelpSyntax(" --help")),
+         {}},
+        {HelpBlockKind::Example,
+         HelpCommandText("eos ns").append(HelpSyntax(" --help-all")),
+         {}},
+        {HelpBlockKind::Example,
+         HelpCommandText("eos")
+             .append(HelpSyntax(" -b "))
+             .append(HelpCommandText("whoami")),
+         {}},
+        {HelpBlockKind::Example,
+         HelpCommandText("eos").append(" ").append("root://myeos", TextStyle::Path),
+         {}},
         {HelpBlockKind::Section, "INTERACTIVE SHELL", {}},
         {HelpBlockKind::Paragraph,
-         "Run eos without a command to start the interactive shell. Control-D exits. "
-         "Control-C clears the current line or interrupts the running command.",
+         HelpText("Run ")
+             .append(HelpCommandText("eos"))
+             .append(
+                 " without a command to start the interactive shell. Control-D exits. "
+                 "Control-C clears the current line or interrupts the running command."),
          {}},
         {HelpBlockKind::Section, "EXIT STATUS", {}},
         {HelpBlockKind::Paragraph,
@@ -837,7 +882,10 @@ Run(int argc, char* argv[])
   }
   const char* configured_app = getenv("EOSAPP");
   if (configured_app && !eos::console::IsSafeCgiMetadata(configured_app)) {
-    fprintf(stderr, "error: EOSAPP cannot contain '&' or control characters\n");
+    fprintf(
+        stderr, "%s EOSAPP cannot contain '&' or control characters\n",
+        eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+            .c_str());
     return EINVAL;
   }
   app = configured_app ? configured_app : "";
@@ -868,18 +916,28 @@ Run(int argc, char* argv[])
     if (command.size() > 5 && command.compare(command.size() - 5, 5, ".eosh") == 0 &&
         access(command.c_str(), R_OK) == 0) {
       if (options.command.size() != 1) {
-        fprintf(stderr, "error: EOS scripts do not accept positional arguments\n");
+        fprintf(stderr, "%s EOS scripts do not accept positional arguments\n",
+                eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                       STDERR_FILENO)
+                    .c_str());
         return EINVAL;
       }
       std::ifstream script(command);
       if (!script) {
-        fprintf(stderr, "error: cannot open EOS script '%s'\n", command.c_str());
+        fprintf(stderr, "%s cannot open EOS script '%s'\n",
+                eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                       STDERR_FILENO)
+                    .c_str(),
+                command.c_str());
         return EIO;
       }
       std::string script_line;
       while (std::getline(script, script_line)) {
         if (script_line.find('\0') != std::string::npos) {
-          fprintf(stderr, "error: embedded NUL byte in EOS script '%s'\n",
+          fprintf(stderr, "%s embedded NUL byte in EOS script '%s'\n",
+                  eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                         STDERR_FILENO)
+                      .c_str(),
                   command.c_str());
           return EINVAL;
         }
@@ -888,7 +946,11 @@ Run(int argc, char* argv[])
         }
       }
       if (script.bad()) {
-        fprintf(stderr, "error: cannot read EOS script '%s'\n", command.c_str());
+        fprintf(stderr, "%s cannot read EOS script '%s'\n",
+                eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                       STDERR_FILENO)
+                    .c_str(),
+                command.c_str());
         return EIO;
       }
       return global_retc;
@@ -926,8 +988,12 @@ Run(int argc, char* argv[])
     newrlimit.rlim_max = fdlimit;
 
     if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
-      fprintf(stderr, "warning: unable to set fd limit to %d - errno %d\n",
-              fdlimit, errno);
+      const int error = errno;
+      fprintf(stderr, "%s unable to set fd limit to %d - errno %d\n",
+              eos::console::Colorize("warning:", eos::console::TextStyle::Warning,
+                                     STDERR_FILENO)
+                  .c_str(),
+              fdlimit, error);
     }
   }
   // Bind our completer
@@ -1036,7 +1102,11 @@ execute_line(char* line)
   gGlobalOpts.mComment.clear();
   if (!eos::console::TokenizeArguments(line, arguments, &error) ||
       !eos::console::ExtractConsoleComment(arguments, comment, error)) {
-    fprintf(stderr, "error: %s\n", error.c_str());
+    fprintf(
+        stderr, "%s %s\n",
+        eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+            .c_str(),
+        error.c_str());
     global_retc = -1;
     return -1;
   }
@@ -1163,7 +1233,9 @@ bool CheckMgmOnline(const std::string& uri)
   XrdCl::URL url(uri);
 
   if (!url.IsValid()) {
-    std::cerr << "error: " << uri << " not a valid URL" << std::endl;
+    std::cerr << eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                        STDERR_FILENO)
+              << " " << uri << " not a valid URL" << std::endl;
     return false;
   }
 
@@ -1445,8 +1517,11 @@ int files::Lookup(filesystems& fsmap, bool verbose)
                             stat_timeout);
 
       if (!status.IsOK()) {
-        fprintf(stderr, "error: failed to send path=%s to %d : %s\n", cb->GetPath(),
-                cb->GetFsid(), status.ToString().c_str());
+        fprintf(stderr, "%s failed to send path=%s to %d : %s\n",
+                eos::console::Colorize("error:", eos::console::TextStyle::Error,
+                                       STDERR_FILENO)
+                    .c_str(),
+                cb->GetPath(), cb->GetFsid(), status.ToString().c_str());
         callback_queue.pop_back();
         callbacks.erase((uint64_t)cb);
       }

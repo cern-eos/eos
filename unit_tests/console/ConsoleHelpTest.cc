@@ -13,6 +13,7 @@
 #include <locale.h>
 #include <map>
 #include <optional>
+#include <regex>
 #include <sstream>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -34,10 +35,17 @@ words(const std::string& text)
   return result;
 }
 
+std::string
+plain(const std::string& text)
+{
+  static const std::regex escapes("\033\\[[0-?]*[ -/]*[@-~]|\033[()][0-2A-Z]");
+  return std::regex_replace(text, escapes, "");
+}
+
 void
 expectWidth(const std::string& text, size_t width)
 {
-  std::istringstream input(text);
+  std::istringstream input(plain(text));
   std::string line;
   while (std::getline(input, line)) {
     EXPECT_LE(HelpDisplayWidth(line), width) << line;
@@ -344,4 +352,305 @@ TEST_F(ConsoleHelpTest, CustomCliFormatterRemainsVerbatimAtEveryWidth)
     EXPECT_EQ(LayoutCliHelp(app, CLI::AppFormatMode::All, width), custom);
     EXPECT_EQ(app.get_formatter(), formatter);
   }
+}
+
+TEST_F(ConsoleHelpTest, TypedCommandDefinitionsDoNotDependOnTheLegacyVocabulary)
+{
+  struct RestoreCommands {
+    std::vector<HelpCommand> commands = SetHelpCommands({{"clear", {}}, {"stat", {}}});
+    ~RestoreCommands() { SetHelpCommands(std::move(commands)); }
+  } restore;
+  HelpPage page{{{HelpBlockKind::Section, "OPERATIONS", {}},
+                 {HelpBlockKind::Definition, HelpCommandText("stat"),
+                  "stat and clear remain ordinary prose here."},
+                 {HelpBlockKind::Definition, HelpCommandText("unregistered-operation"),
+                  "This command is absent from the global command registry."},
+                 {HelpBlockKind::Definition, HelpCommandText("clear"),
+                  "Clear the selected setting."}}};
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const size_t width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto uncolored = page.render(width);
+    const auto colored = page.render(width, terminal);
+    EXPECT_EQ(plain(colored), uncolored);
+    for (const auto* command : {"stat", "unregistered-operation", "clear"}) {
+      EXPECT_NE(colored.find("  " + Colorize(command, TextStyle::Command, terminal)),
+                std::string::npos)
+          << command;
+    }
+    EXPECT_EQ(colored.find(Colorize("stat", TextStyle::Command, terminal) + " and"),
+              std::string::npos);
+    EXPECT_EQ(colored.find(Colorize("clear", TextStyle::Command, terminal) + " remain"),
+              std::string::npos);
+  }
+}
+
+TEST_F(ConsoleHelpTest, TypedSpansSurviveUnicodeWrappingAndDefinitionContinuations)
+{
+  HelpText description{"Inspect "};
+  description.append(u8"目录", TextStyle::Path);
+  description.append(" and ");
+  description.append(u8"résumé", TextStyle::Identifier);
+  description.append(" metadata, preserving ");
+  description.append("e\xcc\x81", TextStyle::Identifier);
+  description.append(" accents and the selected identifier ");
+  description.append("disable_access_log", TextStyle::Identifier);
+  description.append(" across every continuation line.");
+  HelpText label = StyledHelpText("inspect", TextStyle::Command);
+  label.append(" ");
+  label.append(HelpSyntax("<directory> [--details]"));
+  HelpPage page{{{HelpBlockKind::Section, "OPTIONS", {}},
+                 {HelpBlockKind::Definition, label, description}}};
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const size_t width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto baseline = page.render(width);
+    const auto colored = page.render(width, terminal);
+    EXPECT_EQ(plain(colored), baseline);
+    if (width >= 40) {
+      expectWidth(colored, width);
+    }
+    for (const auto& [token, style] : std::vector<std::pair<std::string, TextStyle>>{
+             {"inspect", TextStyle::Command},
+             {"<directory>", TextStyle::Argument},
+             {"--details", TextStyle::Option},
+             {u8"目录", TextStyle::Path},
+             {u8"résumé", TextStyle::Identifier},
+             {"e\xcc\x81", TextStyle::Identifier},
+             {"disable_access_log", TextStyle::Identifier}}) {
+      EXPECT_NE(colored.find(Colorize(token, style, terminal)), std::string::npos)
+          << token;
+    }
+    EXPECT_EQ(colored.find(Colorize("metadata", TextStyle::Identifier, terminal)),
+              std::string::npos);
+  }
+}
+
+TEST_F(ConsoleHelpTest, SyntaxSeparatesPlaceholdersLiteralChoicesAndProse)
+{
+  HelpText usage = HelpCommandText("eos ns behaviour set");
+  usage.append(" ");
+  usage.append(HelpSyntax("<name> <on|off> [all]", {"on", "off", "all"}));
+  HelpPage page{{{HelpBlockKind::Section, "USAGE", {}},
+                 {HelpBlockKind::Usage, usage, {}},
+                 {HelpBlockKind::Paragraph,
+                  "The words on, off and all in this sentence stay ordinary prose.",
+                  {}},
+                 {HelpBlockKind::Definition, HelpSyntax("<name>|all", {"all"}),
+                  "Select one setting or every setting."}}};
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const size_t width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto colored = page.render(width, terminal);
+    EXPECT_EQ(plain(colored), page.render(width));
+    for (const auto* token : {"on", "off", "all"}) {
+      EXPECT_NE(colored.find(Colorize(token, TextStyle::Literal, terminal)),
+                std::string::npos)
+          << token;
+      EXPECT_EQ(colored.find(Colorize(token, TextStyle::Error, terminal)),
+                std::string::npos);
+    }
+    EXPECT_NE(colored.find(Colorize("<name>", TextStyle::Argument, terminal)),
+              std::string::npos);
+    EXPECT_EQ(colored.find(Colorize("on,", TextStyle::Literal, terminal)),
+              std::string::npos);
+    EXPECT_EQ(colored.find(Colorize("off and", TextStyle::Literal, terminal)),
+              std::string::npos);
+  }
+}
+
+TEST_F(ConsoleHelpTest, MarkedReferencesKeepTheirRoleWhenAppendedToPlainProse)
+{
+  const std::string text = "Use disable_access_log for access-check logging.";
+  HelpText note{text};
+  note.mark(text.find("disable_access_log"), std::string("disable_access_log").size(),
+            TextStyle::Identifier);
+  HelpText paragraph{"Configuration: "};
+  paragraph.append(note);
+  paragraph.append(" See ");
+  paragraph.append(StyledHelpText("https://example.invalid/eos", TextStyle::Path));
+  paragraph.append(" for details.");
+  HelpPage page{{{HelpBlockKind::Paragraph, paragraph, {}}}};
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const size_t width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto colored = page.render(width, terminal);
+    EXPECT_EQ(plain(colored), page.render(width));
+    EXPECT_NE(
+        colored.find(Colorize("disable_access_log", TextStyle::Identifier, terminal)),
+        std::string::npos);
+    EXPECT_NE(
+        colored.find(Colorize("https://example.invalid/eos", TextStyle::Path, terminal)),
+        std::string::npos);
+  }
+}
+
+TEST_F(ConsoleHelpTest, MultiwordRolesResumeAfterEveryWrappedLine)
+{
+  const std::string marked = u8"alpha résumé 目录 metadata omega";
+  HelpPage page{
+      {{HelpBlockKind::Paragraph, StyledHelpText(marked, TextStyle::Identifier), {}}}};
+  ConfigureColor(ColorMode::Always, false, false);
+  const auto probe = Colorize("probe", TextStyle::Identifier, terminal);
+  const auto start = probe.substr(0, probe.find("probe"));
+  const auto reset = probe.substr(probe.find("probe") + 5);
+  ASSERT_FALSE(start.empty());
+  ASSERT_FALSE(reset.empty());
+  for (const size_t width : {20, 40, 60, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto colored = page.render(width, terminal);
+    EXPECT_EQ(plain(colored), page.render(width));
+    expectWidth(colored, width);
+    for (const auto* word : {"alpha", u8"résumé", u8"目录", "metadata", "omega"}) {
+      SCOPED_TRACE(word);
+      const auto position = colored.find(word);
+      ASSERT_NE(position, std::string::npos);
+      const auto active = colored.rfind(start, position);
+      ASSERT_NE(active, std::string::npos);
+      EXPECT_EQ(colored.find(reset, active), colored.find(reset, position));
+    }
+  }
+}
+
+TEST_F(ConsoleHelpTest, SemanticRenderingHonorsPlainDestinationAndMachinePolicies)
+{
+  HelpPage page{{{HelpBlockKind::Section, "OPERATIONS", {}},
+                 {HelpBlockKind::Definition, HelpCommandText("clear"),
+                  StyledHelpText("disable_access_log", TextStyle::Identifier)}}};
+  const auto baseline = page.render(40);
+  ConfigureColor(ColorMode::Auto, false, false);
+  EXPECT_EQ(page.render(40, fileno(redirected)), baseline);
+  EXPECT_NE(page.render(40, terminal).find('\033'), std::string::npos);
+  setenv("NO_COLOR", "1", 1);
+  EXPECT_EQ(page.render(40, terminal), baseline);
+  unsetenv("NO_COLOR");
+  ConfigureColor(ColorMode::Never, false, false);
+  EXPECT_EQ(page.render(40, terminal), baseline);
+  for (const auto& [batch, json] :
+       {std::pair{true, false}, std::pair{false, true}, std::pair{true, true}}) {
+    ConfigureColor(ColorMode::Always, batch, json);
+    EXPECT_EQ(page.render(40, terminal), baseline);
+  }
+  ConfigureColor(ColorMode::Always, false, false);
+  EXPECT_EQ(page.render(40), baseline);
+  EXPECT_EQ(plain(page.render(40, fileno(redirected))), baseline);
+}
+
+TEST_F(ConsoleHelpTest, Cli11SemanticLabelsUseEachAppsMetadataAtEveryDepth)
+{
+  CLI::App app{"stat and clear are ordinary words in this description.", "unregistered"};
+  auto* stat = app.add_subcommand("stat", "Inspect namespace statistics.");
+  stat->alias("s");
+  stat->required();
+  auto* nested = stat->add_subcommand("unregistered-child", "Inspect nested state.");
+  nested->alias("u");
+  nested->add_subcommand("clear", "Remove selected settings.");
+  std::string value;
+  nested->add_option("--name", value, "The required setting name.")->required();
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const auto mode : {CLI::AppFormatMode::Normal, CLI::AppFormatMode::All}) {
+    const auto page = BuildCliHelpPage(app, mode);
+    ASSERT_TRUE(page);
+    for (const size_t width : {20, 40, 60, 80, 120}) {
+      SCOPED_TRACE(width);
+      SCOPED_TRACE(static_cast<int>(mode));
+      const auto colored = page->render(width, terminal);
+      EXPECT_EQ(plain(colored), page->render(width));
+      for (const auto* token : {"stat", "s"}) {
+        EXPECT_NE(colored.find(Colorize(token, TextStyle::Command, terminal)),
+                  std::string::npos)
+            << token;
+      }
+      EXPECT_EQ(colored.find(Colorize("REQUIRED", TextStyle::Command, terminal)),
+                std::string::npos);
+      if (mode == CLI::AppFormatMode::All) {
+        for (const auto* token : {"unregistered-child", "u", "clear"}) {
+          EXPECT_NE(colored.find(Colorize(token, TextStyle::Command, terminal)),
+                    std::string::npos)
+              << token;
+        }
+        EXPECT_NE(colored.find(Colorize("--name", TextStyle::Option, terminal)),
+                  std::string::npos);
+      }
+      EXPECT_EQ(colored.find(Colorize("stat", TextStyle::Command, terminal) + " and"),
+                std::string::npos);
+    }
+  }
+}
+
+TEST_F(ConsoleHelpTest, CustomCli11FormatterDoesNotClaimSemanticMetadata)
+{
+  CLI::App app{"", "custom"};
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) { return "CUSTOM HELP\n"; }));
+  EXPECT_FALSE(BuildCliHelpPage(app, CLI::AppFormatMode::Normal));
+  EXPECT_FALSE(BuildCliHelpPage(app, CLI::AppFormatMode::All));
+}
+
+TEST_F(ConsoleHelpTest, Cli11PositionalNamesDoNotOverwriteMatchingCommandNames)
+{
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const bool nested : {false, true}) {
+    SCOPED_TRACE(nested);
+    CLI::App app{"Inspect a file.", nested ? "eos" : "file"};
+    auto* selected = nested ? app.add_subcommand("file", "Inspect a file.") : &app;
+    std::string file;
+    selected->add_option("file", file, "The selected file.")->required();
+    selected->add_subcommand("inspect", "Inspect metadata.");
+    selected->require_subcommand(0, nested ? 1 : 0);
+    if (nested) {
+      EXPECT_THROW(app.parse("file --help"), CLI::CallForHelp);
+    }
+    const auto page = BuildCliHelpPage(app, CLI::AppFormatMode::Normal);
+    ASSERT_TRUE(page);
+    for (const size_t width : {20, 40, 80, 120}) {
+      SCOPED_TRACE(width);
+      const auto colored = page->render(width, terminal);
+      EXPECT_EQ(plain(colored), page->render(width));
+      const auto heading = colored.find(Colorize("Usage:", TextStyle::Heading, terminal));
+      ASSERT_NE(heading, std::string::npos);
+      const auto start = colored.find('\n', heading) + 1;
+      const auto synopsis = colored.substr(start, colored.find("\n\n", start) - start);
+      EXPECT_NE(synopsis.find(Colorize("file", TextStyle::Command, terminal)),
+                std::string::npos);
+      EXPECT_NE(synopsis.find(Colorize("file", TextStyle::Argument, terminal)),
+                std::string::npos);
+      EXPECT_NE(synopsis.find(Colorize(nested ? "SUBCOMMAND" : "SUBCOMMANDS",
+                                       TextStyle::Argument, terminal)),
+                std::string::npos);
+    }
+  }
+}
+
+TEST_F(ConsoleHelpTest, Cli11NumericFlagMetadataIsDistinctFromNegativeValues)
+{
+  CLI::App app{"Choose a report limit.", "report"};
+  app.allow_non_standard_option_names();
+  for (const auto* name : {"-100", "-1000", "-10000"}) {
+    app.add_flag(name, "Select a declared report limit.");
+  }
+  int limit = -1;
+  app.add_option("--limit", limit, "Maximum entries.")->default_val(-1);
+  ConfigureColor(ColorMode::Always, false, false);
+  const auto page = BuildCliHelpPage(app, CLI::AppFormatMode::Normal);
+  ASSERT_TRUE(page);
+  for (const size_t width : {20, 40, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto colored = page->render(width, terminal);
+    EXPECT_EQ(plain(colored), page->render(width));
+    for (const auto* name : {"-100", "-1000", "-10000"}) {
+      EXPECT_NE(colored.find(Colorize(name, TextStyle::Option, terminal)),
+                std::string::npos)
+          << name;
+    }
+    EXPECT_NE(colored.find(Colorize("-1", TextStyle::Literal, terminal)),
+              std::string::npos);
+    EXPECT_EQ(colored.find(Colorize("-1", TextStyle::Option, terminal)),
+              std::string::npos);
+  }
+  const auto negative = HelpSyntax("--limit -1").render(terminal);
+  EXPECT_NE(negative.find(Colorize("-1", TextStyle::Literal, terminal)),
+            std::string::npos);
+  EXPECT_EQ(negative.find(Colorize("-1", TextStyle::Option, terminal)),
+            std::string::npos);
 }

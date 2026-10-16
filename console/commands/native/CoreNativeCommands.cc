@@ -45,7 +45,8 @@ public:
         page.blocks.push_back(
             {eos::console::HelpBlockKind::Section, "Available commands:", {}});
         for (const auto* command : sorted) {
-          page.blocks.push_back({eos::console::HelpBlockKind::Definition, command->name(),
+          page.blocks.push_back({eos::console::HelpBlockKind::Definition,
+                                 eos::console::HelpCommandText(command->name()),
                                  command->description()});
         }
         eos::console::PrintHelpPage(page);
@@ -69,7 +70,11 @@ public:
     // Print detailed help for a specific command
     IConsoleCommand* cmd = CommandRegistry::instance().find(args[0].c_str());
     if (!cmd) {
-      fprintf(stderr, "error: unknown command '%s'\n", args[0].c_str());
+      fprintf(
+          stderr, "%s unknown command '%s'\n",
+          eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+              .c_str(),
+          args[0].c_str());
       return (global_retc = EINVAL);
     }
     cmd->printHelp(std::vector<std::string>(args.begin() + 1, args.end()));

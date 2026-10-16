@@ -227,7 +227,7 @@ TEST_F(ConsoleColorTest, ExplicitAlwaysOverridesEnvironmentAndRedirection)
   setenv("NO_COLOR", "1", 1);
   EXPECT_TRUE(ColorEnabled(fileno(file)));
   const auto output = Colorize("warning", TextStyle::Warning, fileno(file));
-  EXPECT_EQ(output, "\033[33mwarning\033[0m");
+  EXPECT_EQ(output, "\033[1;33mwarning\033[0m");
   EXPECT_EQ(Colorize("", TextStyle::Error, fileno(file)), "");
 }
 
@@ -518,6 +518,48 @@ TEST_F(ConsoleColorTest, HelpRolesHaveDistinctCommandOptionAndArgumentStyles)
   }
 }
 
+TEST_F(ConsoleColorTest, SemanticHelpRolesDistinguishLiteralsIdentifiersAndPlaceholders)
+{
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const char* term : {"xterm", "dumb"}) {
+    SCOPED_TRACE(term);
+    setenv("TERM", term, 1);
+    const auto literal = Colorize("token", TextStyle::Literal, fileno(file));
+    const auto identifier = Colorize("token", TextStyle::Identifier, fileno(file));
+    const auto path = Colorize("token", TextStyle::Path, fileno(file));
+    const auto argument = Colorize("token", TextStyle::Argument, fileno(file));
+    EXPECT_NE(literal, identifier);
+    EXPECT_NE(literal, argument);
+    EXPECT_NE(identifier, argument);
+    for (const auto& output : {literal, identifier, path, argument}) {
+      EXPECT_NE(output.find('\033'), std::string::npos);
+      EXPECT_EQ(plain(output), "token");
+      EXPECT_EQ(output.find('\001'), std::string::npos);
+      EXPECT_EQ(output.find('\002'), std::string::npos);
+    }
+  }
+}
+
+TEST_F(ConsoleColorTest, SemanticHelpRolesRespectColorPoliciesAndRejectInvalidRoles)
+{
+  for (const auto style : {TextStyle::Literal, TextStyle::Identifier, TextStyle::Path}) {
+    for (const auto policy : {ColorMode::Auto, ColorMode::Never}) {
+      ConfigureColor(policy, false, false);
+      EXPECT_EQ(Colorize("token", style, fileno(file)), "token");
+    }
+    for (const auto& [batch, json] :
+         {std::pair{true, false}, std::pair{false, true}, std::pair{true, true}}) {
+      ConfigureColor(ColorMode::Always, batch, json);
+      EXPECT_EQ(Colorize("token", style, terminal), "token");
+    }
+  }
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const auto style : {TextStyle::Count, static_cast<TextStyle>(-1)}) {
+    EXPECT_EQ(Colorize("token", style, terminal), "token");
+    EXPECT_EQ(ColorPrompt("token", style, terminal), "token");
+  }
+}
+
 TEST_F(ConsoleColorTest, LegacyNamespaceHelpDistinguishesCommandPathsAndArguments)
 {
   const std::string text =
@@ -695,6 +737,42 @@ TEST_F(ConsoleColorTest, StructuredUppercaseSectionHeadingsAreStyledAfterLayout)
   for (const char* heading : {"USAGE", "OPERATIONS"}) {
     EXPECT_NE(result.find(Colorize(heading, TextStyle::Heading, fileno(file))),
               std::string::npos);
+  }
+}
+
+TEST_F(ConsoleColorTest, HelpOperationTablesKeepTheirContextWhenGlobalNamesCollide)
+{
+  SetHelpCommands(
+      {{"ns",
+        {{"stat", {}}, {"mutex", {}}, {"tracker", {}}, {"cache", {}}, {"behaviour", {}}}},
+       {"stat", {}},
+       {"tracker", {}}});
+  const std::vector<std::pair<std::string, std::string>> operations{
+      {"stat", "Read statistics."},
+      {"mutex", "Inspect mutexes."},
+      {"tracker", "Inspect trackers."},
+      {"cache", "Adjust caches."},
+      {"behaviour", "Inspect settings."}};
+  HelpPage page;
+  page.blocks = {{HelpBlockKind::Section, "USAGE", {}},
+                 {HelpBlockKind::Usage, "eos ns [<operation>]", {}},
+                 {HelpBlockKind::Section, "OPERATIONS", {}}};
+  for (const auto& [operation, description] : operations) {
+    page.blocks.push_back({HelpBlockKind::Definition, operation, description});
+  }
+  ConfigureColor(ColorMode::Always, false, false);
+  for (const size_t width : {40, 120}) {
+    SCOPED_TRACE(width);
+    const auto text = page.render(width);
+    const auto output = legacyHelp(text);
+    EXPECT_EQ(plain(output), text);
+    for (const auto& [operation, description] : operations) {
+      EXPECT_NE(
+          output.find("\n  " + Colorize(operation, TextStyle::Command, fileno(file))),
+          std::string::npos)
+          << operation;
+      EXPECT_NE(output.find(description), std::string::npos) << description;
+    }
   }
 }
 
