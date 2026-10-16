@@ -47,8 +47,11 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
+#include <algorithm>
+#include <cctype>
 #include <math.h>
 #include <memory>
+#include <openssl/sha.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -113,6 +116,17 @@ FileCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::FileProto file = mReqProto.file();
+  if (file.has_touch()) {
+    const auto& checksum = file.touch().checksuminfo();
+    if (checksum.size() > 2 * SHA256_DIGEST_LENGTH || checksum.size() % 2 != 0 ||
+        !std::all_of(checksum.begin(), checksum.end(),
+                     [](unsigned char c) { return std::isxdigit(c); })) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: checksum must contain complete hexadecimal byte pairs "
+                        "(maximum 32 bytes)");
+      return reply;
+    }
+  }
   std::string spath;
   unsigned long long fid = 0ull;
 

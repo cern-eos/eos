@@ -24,6 +24,7 @@
 #include "ConsoleMain.hh"
 #include "CommandFramework.hh"
 #include "ConsoleCompletion.hh"
+#include "ConsoleMetadata.hh"
 #include "License"
 #include "common/FileId.hh"
 #include "common/Path.hh"
@@ -39,6 +40,7 @@
 #include <XrdCl/XrdClURL.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucTokenizer.hh>
+#include <algorithm>
 #include <arpa/inet.h>
 #include <iomanip>
 #include <list>
@@ -97,6 +99,7 @@ static int RunRegisteredCommand(const std::string& cmdName,
   IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
   if (!icmd) {
     fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
+    global_retc = -1;
     return -1;
   }
 
@@ -435,6 +438,16 @@ output_result(XrdOucEnv* result, bool highlighting)
 XrdOucEnv*
 client_command(XrdOucString& in, bool is_admin, std::string* reply)
 {
+  if (!eos::console::IsSafeCgiMetadata(std::string_view(app.c_str(), app.length())) ||
+      !eos::console::IsSafeCgiMetadata(
+          std::string_view(user_role.c_str(), user_role.length())) ||
+      !eos::console::IsSafeCgiMetadata(
+          std::string_view(group_role.c_str(), group_role.length()))) {
+    fprintf(stderr,
+            "error: app and role values cannot contain '&' or control characters\n");
+    global_retc = EINVAL;
+    return nullptr;
+  }
   if (app.length()) {
     in += "&eos.app=";
     in += app;
@@ -464,7 +477,7 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 
   if (global_comment.length()) {
     in += "&mgm.comment=";
-    in += global_comment;
+    in += eos::common::StringConversion::curl_escaped(global_comment.c_str()).c_str();
     global_comment = "";
   }
 
@@ -694,6 +707,34 @@ RunShellCompletion(int argc, char* argv[], int argindex)
 
   return 0;
 }
+
+std::string
+PromptDisplayValue(const XrdOucString& input, size_t budget)
+{
+  std::string value(input.c_str(), input.length());
+  for (char& character : value) {
+    const auto byte = static_cast<unsigned char>(character);
+    if (byte < 0x20 || byte == 0x7f) {
+      character = '?';
+    }
+  }
+  if (value.size() <= budget) {
+    return value;
+  }
+  if (budget < 3) {
+    return std::string(budget, '.');
+  }
+  size_t prefix = (budget - 3) / 2;
+  size_t suffix = value.size() - (budget - 3 - prefix);
+  while (prefix && (static_cast<unsigned char>(value[prefix]) & 0xc0) == 0x80) {
+    --prefix;
+  }
+  while (suffix < value.size() &&
+         (static_cast<unsigned char>(value[suffix]) & 0xc0) == 0x80) {
+    ++suffix;
+  }
+  return value.substr(0, prefix) + "..." + value.substr(suffix);
+}
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -914,33 +955,23 @@ Run(int argc, char* argv[])
         file_op.close();
         exit(0);
       } else {
-        XrdOucString cmdline = "";
-
-        // enclose all arguments except first in quotes
-        for (int i = argindex; i < argc; i++) {
-          if (i == argindex) {
-            cmdline += argv[i];
+        // The invoking shell has already separated and unquoted these arguments.
+        std::vector<std::string> args;
+        std::string comment;
+        bool hasComment = false;
+        bool options = true;
+        for (int i = argindex + 1; i < argc; ++i) {
+          if (options && strcmp(argv[i], "--comment") == 0) {
+            if (hasComment || i + 1 == argc || !argv[i + 1][0]) {
+              fprintf(stderr, "error: --comment requires one non-empty value\n");
+              exit(EINVAL);
+            }
+            hasComment = true;
+            comment = argv[++i];
           } else {
-            cmdline += " ";
-            std::string arg = argv[i];
-            // Only wrap in quotes if necessary; escape only internal double-quotes.
-            // An empty argument must also be quoted, otherwise it collapses into
-            // the surrounding whitespace and is lost during re-tokenization.
-            bool needs_quoting = (arg.empty() || arg.find(' ') != std::string::npos ||
-                                  arg.find('"') != std::string::npos);
-            if (needs_quoting) {
-              std::string quoted;
-              quoted += '"';
-              for (char c : arg) {
-                if (c == '"') {
-                  quoted += '\\'; // escape embedded quotes only
-                }
-                quoted += c;
-              }
-              quoted += '"';
-              cmdline += quoted.c_str();
-            } else {
-              cmdline += arg.c_str();
+            args.emplace_back(argv[i]);
+            if (args.back() == "--") {
+              options = false;
             }
           }
         }
@@ -953,16 +984,9 @@ Run(int argc, char* argv[])
           silent = false;
         }
 
-        // strip leading and trailing white spaces
-        while (cmdline.beginswith(" ")) {
-          cmdline.erase(0, 1);
-        }
-
-        while (cmdline.endswith(" ")) {
-          cmdline.erase(cmdline.length() - 1, 1);
-        }
-
-        execute_line((char*) cmdline.c_str());
+        global_comment = comment.c_str();
+        gGlobalOpts.mComment = comment.c_str();
+        RunRegisteredCommand(in1.c_str(), args);
         exit(global_retc);
       }
     }
@@ -1020,11 +1044,6 @@ Run(int argc, char* argv[])
               fdlimit, errno);
     }
   }
-  char prompt[4096];
-
-  sprintf(prompt, "%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),
-          textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
-
   // Bind our completer
   rl_readline_name = (char*) "EOS Console";
   rl_attempted_completion_function = eos_console_completion;
@@ -1056,13 +1075,19 @@ Run(int argc, char* argv[])
     read_pwdfile();
   }
 
+  rl_initialize();
   // Loop reading and executing lines until the user quits.
   for (; done == 0;) {
-    char prompt[4096];
-
-    sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),
-            textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(),
-            gPwd.c_str());
+    int screenRows = 0, screenColumns = 0;
+    rl_get_screen_size(&screenRows, &screenColumns);
+    // Readline also has fixed redisplay arrays: bound wrapped prompt lines.
+    const size_t promptBudget =
+        static_cast<size_t>(std::clamp(screenColumns, 1, 128)) * 32;
+    constexpr size_t fixedPromptBytes = sizeof("EOS Console [] |> ") - 1;
+    const size_t valueBudget = (promptBudget - fixedPromptBytes) / 2;
+    const std::string prompt = textbold + "EOS Console" + textunbold + " [" + textred +
+                               PromptDisplayValue(serveruri, valueBudget) + textnormal +
+                               "] |" + PromptDisplayValue(gPwd, valueBudget) + "> ";
 
     signal(SIGINT, jump_handler);
 
@@ -1071,7 +1096,7 @@ Run(int argc, char* argv[])
       fprintf(stdout, "\n");
     }
 
-    line = readline(prompt);
+    line = readline(prompt.c_str());
     signal(SIGINT, exit_handler);
 
     if (!line) {

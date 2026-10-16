@@ -25,6 +25,7 @@
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include "common/utils/RandUtils.hh"
+#include "console/ConsoleMetadata.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <sstream>
@@ -59,6 +60,15 @@ ICmdHelper::Execute(bool print_err, bool add_route)
 int
 ICmdHelper::ExecuteWithoutPrint(bool add_route)
 {
+  const char* application = getenv("EOSAPP");
+  if (!eos::console::IsSafeCgiMetadata(mGlobalOpts.mUserRole) ||
+      !eos::console::IsSafeCgiMetadata(mGlobalOpts.mGroupRole) ||
+      (application && !eos::console::IsSafeCgiMetadata(application))) {
+    mOutcome = ExecutionOutcome(
+        "", "error: app and role values cannot contain '&' or control characters\n",
+        EINVAL);
+    return EINVAL;
+  }
   if (!mReq.command_case()) {
     std::cerr << "error: generic request object not populated with command"
               << std::endl;

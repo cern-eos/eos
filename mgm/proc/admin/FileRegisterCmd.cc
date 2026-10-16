@@ -21,15 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "QuotaCmd.hh"
-#include "mgm/proc/ProcInterface.hh"
+#include "common/Constants.hh"
+#include "common/Path.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/policy/Policy.hh"
-#include "common/Path.hh"
-#include "common/Constants.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IQuota.hh"
-#include "mgm/proc/admin/FileRegisterCmd.hh"
+#include <algorithm>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -59,6 +60,16 @@ FileRegisterCmd::ProcessRequest() noexcept
   }
 
   eos::console::FileRegisterProto reg = mReqProto.record();
+  // Reject malformed checksums before accessing the namespace.
+  const auto& checksum = reg.checksum();
+  if (checksum.size() > 2 * SHA256_DIGEST_LENGTH || checksum.size() % 2 != 0 ||
+      !std::all_of(checksum.begin(), checksum.end(), [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+      })) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: checksum must contain at most 64 hex digits in byte pairs");
+    return reply;
+  }
   eos::common::Path cPath(reg.path());
   std::shared_ptr<eos::IContainerMD> dir;
   std::shared_ptr<eos::IFileMD> fmd;

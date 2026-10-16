@@ -31,6 +31,9 @@
 namespace eos::mgm::attr
 {
 
+// Quote attribute values for human output or the JSON formatter's text input.
+std::string formatQuotedValue(const std::string& value, bool json);
+
 /*!
  * check and set directory owner based on "sys.auth.owner" param
  * @param attrmap map of xattrs

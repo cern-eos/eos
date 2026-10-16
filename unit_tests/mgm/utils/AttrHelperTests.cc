@@ -17,12 +17,52 @@
   ************************************************************************
 */
 
-#include "mgm/utils/AttrHelper.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/proc/IProcCommand.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "gtest/gtest.h"
+#include <json/json.h>
 
 using namespace eos::mgm;
 using eos::mgm::attr::checkDirOwner;
+
+namespace {
+class AttrJsonOutput : public IProcCommand {
+public:
+  using IProcCommand::ConvertOutputToJsonFormat;
+};
+} // namespace
+
+TEST(AttrOutput, JsonConversionPreservesLiteralQuotesAndBackslashes)
+{
+  for (const std::string& value :
+       {"plain", "value\"quote", "\"leading", "\"", "\"quoted\"", "back\\slash", "tail\\",
+        "space and \"quote\"", "tab\tvalue", "\\\"escaped-looking\\\""}) {
+    SCOPED_TRACE(value);
+    const std::string output =
+        "user.attr.json4=" + attr::formatQuotedValue(value, true) + "\n";
+    const auto result = AttrJsonOutput::ConvertOutputToJsonFormat(output);
+    ASSERT_EQ(result.size(), 1u);
+    EXPECT_EQ(result[0]["user"]["attr"]["json4"].asString(), value);
+  }
+}
+
+TEST(AttrOutput, HumanOutputKeepsItsExistingRepresentation)
+{
+  const std::string value = "value\"quote\\backslash";
+  EXPECT_EQ(attr::formatQuotedValue(value, false), "\"" + value + "\"");
+}
+
+TEST(AttrOutput, JsonConversionKeepsExistingNumericAndEmptyValueTypes)
+{
+  const auto result = AttrJsonOutput::ConvertOutputToJsonFormat(
+      "user.number=" + attr::formatQuotedValue("3", true) + "\n" +
+      "user.empty=" + attr::formatQuotedValue("", true) + "\n");
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_TRUE(result[0]["user"]["number"].isUInt64());
+  EXPECT_EQ(result[0]["user"]["number"].asUInt64(), 3u);
+  EXPECT_EQ(result[1]["user"]["empty"].asString(), "NULL");
+}
 
 TEST(checkDirOwner, EmptyMap)
 {

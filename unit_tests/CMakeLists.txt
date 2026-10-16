@@ -61,6 +61,8 @@ set(MGM_UT_SRCS
   mgm/AclCmdTests.cc
   mgm/ConversionInfoTests.cc
   mgm/EgroupTests.cc
+  mgm/FileCmdTest.cc
+  mgm/FileRegisterCmdTest.cc
   mgm/MemberTests.cc
   mgm/FileSystemRegistryTests.cc
   mgm/FsViewTests.cc

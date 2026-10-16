@@ -84,6 +84,43 @@ TEST(StringConversion, ChecksumTranslations)
   ASSERT_TRUE(StringConversion::BinData2HexString(&buff[0], 4, 4) == "2a38174b");
 }
 
+TEST(StringConversion, ChecksumBufferRejectsMalformedPairsWithoutThrowing)
+{
+  for (const auto* input : {"zz", "0g", "g0", "aa00zz", " 1", "1 ", "-1", "+1"}) {
+    SCOPED_TRACE(input);
+    size_t size = 999;
+    std::unique_ptr<char[]> checksum;
+    ASSERT_NO_THROW(checksum = StringConversion::Hex2BinDataChar(input, size));
+    EXPECT_EQ(checksum, nullptr);
+    EXPECT_EQ(size, 0u);
+  }
+  size_t size = 0;
+  auto checksum = StringConversion::Hex2BinDataChar("00aBFF", size, 4);
+  ASSERT_NE(checksum, nullptr);
+  ASSERT_EQ(size, 3u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[0]), 0u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[1]), 0xabu);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[2]), 0xffu);
+  EXPECT_EQ(checksum[3], 0);
+}
+
+TEST(StringConversion, ChecksumBufferPreservesNominalLengthAndTrailingNibble)
+{
+  size_t size = 0;
+  auto checksum = StringConversion::Hex2BinDataChar("00aBFF", size, 2);
+  ASSERT_NE(checksum, nullptr);
+  ASSERT_EQ(size, 2u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[0]), 0u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[1]), 0xabu);
+
+  checksum = StringConversion::Hex2BinDataChar("00aBF", size, 3);
+  ASSERT_NE(checksum, nullptr);
+  ASSERT_EQ(size, 2u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[0]), 0u);
+  EXPECT_EQ(static_cast<unsigned char>(checksum[1]), 0xabu);
+  EXPECT_EQ(checksum[2], 0);
+}
+
 TEST(StringConversion, Hex2BinData)
 {
   using eos::common::StringConversion;
