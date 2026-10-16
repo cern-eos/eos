@@ -278,3 +278,16 @@ TEST(ConsoleCompletion, ResolveRootedPathInputCompletesEosPrefix)
   EXPECT_EQ(displayPrefix, "/");
   EXPECT_EQ(basename, "eos");
 }
+
+TEST(ConsoleCompletion, GroupCommandHelpDescribesValidatedStates)
+{
+  EnsureNativeCommandRegistryInitialized();
+  auto* cmd = CommandRegistry::instance().find("group");
+
+  ASSERT_NE(cmd, nullptr);
+  const auto help = cmd->helpText();
+  EXPECT_NE(help.find("on"), std::string::npos);
+  EXPECT_NE(help.find("drain"), std::string::npos);
+  EXPECT_NE(help.find("off"), std::string::npos);
+  EXPECT_NE(help.find("--brief"), std::string::npos);
+}

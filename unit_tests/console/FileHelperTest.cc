@@ -28,6 +28,7 @@
 //------------------------------------------------------------------------------
 
 #include "gtest/gtest.h"
+#include <limits>
 #define IN_TEST_HARNESS
 #include "console/commands/helpers/FileHelper.hh"
 #undef IN_TEST_HARNESS
@@ -716,4 +717,35 @@ TEST(FileHelper, AmpersandIsNotSealed)
   // must not leak in
   auto file = ParseOk("rename /eos/a&b /eos/c");
   ASSERT_EQ(file.md().path(), "/eos/a&b");
+}
+
+TEST(FileHelper, Uint32AndUint64BoundariesArePreserved)
+{
+  EXPECT_EQ(ParseOk("drop /eos/a 4294967295").drop().fsid(),
+            std::numeric_limits<uint32_t>::max());
+  EXPECT_EQ(ParseOk("verify /eos/a -rate 4294967295").verify().rate(),
+            std::numeric_limits<uint32_t>::max());
+  EXPECT_EQ(ParseOk("touch /eos/a 18446744073709551615").touch().size(),
+            std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(ParseOk("drop fid:18446744073709551615 1").md().id(),
+            std::numeric_limits<uint64_t>::max());
+}
+
+TEST(FileHelper, ContainerRenamePreservesExistingPathIdentifierContract)
+{
+  for (const auto* id : {"cid:42", "cxid:2a", "pid:42", "pxid:2a"}) {
+    SCOPED_TRACE(id);
+    const auto renamed = ParseOk(std::string("rename ") + id + " /eos/new-dir");
+    EXPECT_EQ(renamed.md().path(), id);
+    EXPECT_EQ(renamed.md().id(), 0u);
+    const auto copied = ParseOk(std::string("copy ") + id + " /eos/new-dir");
+    EXPECT_EQ(copied.md().path(), id);
+  }
+}
+
+TEST(FileHelper, TouchLockZeroLifetimeMeansImmediateExpiry)
+{
+  const auto file = ParseOk("touch -l /eos/a 0");
+  EXPECT_EQ(file.touch().lockop(), "lock");
+  EXPECT_EQ(file.touch().lockop_lifetime(), "0");
 }

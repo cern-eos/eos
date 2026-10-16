@@ -24,10 +24,28 @@
 #include "gtest/gtest.h"
 #include "console/ConsoleMain.hh"
 
+namespace {
+class PathIdentifierTest : public ::testing::Test {
+protected:
+  void
+  SetUp() override
+  {
+    savedPwd = gPwd;
+    gPwd = "/";
+  }
+  void
+  TearDown() override
+  {
+    gPwd = savedPwd;
+  }
+  XrdOucString savedPwd;
+};
+} // namespace
+
 //------------------------------------------------------------------------------
 // Test parsing of keyword identifiers (e.g.: fid, fxid)
 //------------------------------------------------------------------------------
-TEST(PathIdentifier, KeyWords)
+TEST_F(PathIdentifierTest, KeyWords)
 {
   // Check the keywords
   ASSERT_STREQ(PathIdentifier("fid:100").c_str(), "fid:100");
@@ -46,7 +64,7 @@ TEST(PathIdentifier, KeyWords)
 //------------------------------------------------------------------------------
 // Test parsing of absolute path identifier
 //------------------------------------------------------------------------------
-TEST(PathIdentifier, AbsolutePath)
+TEST_F(PathIdentifierTest, AbsolutePath)
 {
   // Absolute path
   ASSERT_STREQ(PathIdentifier("/eos/instance/user/file").c_str(),
@@ -63,7 +81,7 @@ TEST(PathIdentifier, AbsolutePath)
 //------------------------------------------------------------------------------
 // Test parsing of relative path identifier
 //------------------------------------------------------------------------------
-TEST(PathIdentifier, RelativePath)
+TEST_F(PathIdentifierTest, RelativePath)
 {
   gPwd = "/";
   // Relative path
