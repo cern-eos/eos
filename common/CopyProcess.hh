@@ -54,7 +54,9 @@ public:
   }
 
   // Add a job to the appropriate XrdCopyProcess instance
-  XRootDStatus AddJob(const PropertyList &properties, PropertyList *results) {
+  XrdCl::XRootDStatus
+  AddJob(const XrdCl::PropertyList& properties, XrdCl::PropertyList* results)
+  {
     size_t count = jobCounter.fetch_add(1);
     size_t index = count / jobsPerProcess;
 
@@ -74,29 +76,33 @@ public:
   }
 
   // Prepare all copy processes; stop if any fails
-  XRootDStatus Prepare() {
+  XrdCl::XRootDStatus
+  Prepare()
+  {
     for (auto &job : vJobs) {
       if (job) {
-        XRootDStatus status = job->Prepare();
+        XrdCl::XRootDStatus status = job->Prepare();
         if (!status.IsOK()) {
           return status;
         }
       }
     }
-    return XRootDStatus(); // OK
+    return XrdCl::XRootDStatus(); // OK
   }
 
   // Run all copy processes; stop if any fails
-  XRootDStatus Run(CopyProgressHandler *handler) {
+  XrdCl::XRootDStatus
+  Run(XrdCl::CopyProgressHandler* handler)
+  {
     for (auto &job : vJobs) {
       if (job) {
-        XRootDStatus status = job->Run(handler);
+        XrdCl::XRootDStatus status = job->Run(handler);
         if (!status.IsOK()) {
           return status;
         }
       }
     }
-    return XRootDStatus(); // OK
+    return XrdCl::XRootDStatus(); // OK
   }
 
   const size_t Jobs() {
