@@ -147,6 +147,7 @@ set(COMMON_UT_SRCS
   common/UtilsTests.cc
   common/FileIdTests.cc
   common/FmdTests.cc
+  common/ClayLayoutIdTests.cc
   common/FsOpsTests.cc
   common/FileMapTests.cc
   common/FutureWrapperTests.cc
@@ -215,7 +216,8 @@ set(FST_UT_SRCS
   fst/ChecksumGroupTests.cc
   fst/NfsIoTests.cc
   fst/BlockXsMapTests.cc
-  fst/SparseJournalTests.cc)
+  fst/SparseJournalTests.cc
+  fst/ClayCodeTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files

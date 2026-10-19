@@ -468,6 +468,10 @@ grpc::Status GrpcWncInterface::Attr()
         val = {"1M", "adler", "archive", "8", "default", "crc32c"};
       else if (value == "qrain")
         val = {"1M", "adler", "qrain", "12", "default", "crc32c"};
+      else if (value == "clay10")
+        val = {"1M", "adler", "clay10", "12", "default", "crc32c"};
+      else if (value == "clay15")
+        val = {"4M", "adler", "clay15", "18", "default", "crc32c"};
       else {
         mReply->set_std_err("Error: Value are not allowed");
         mReply->set_retc(EINVAL);

@@ -24,6 +24,8 @@
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/layout/ClayLayout.hh"
+#include <stdexcept>
 #include <string>
 
 #define DEFAULTBUFFERSIZE (4 * 1024 * 1024)
@@ -113,6 +115,17 @@ isValidStripeCombination(const std::vector<std::string>& stripes,
       eos::common::LayoutId::kRaidDP) {
     redundancyObj = new eos::fst::RaidDpLayout(
       nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+  } else if ((eos::common::LayoutId::GetLayoutType(layout) ==
+              eos::common::LayoutId::kClay10) ||
+             (eos::common::LayoutId::GetLayoutType(layout) ==
+              eos::common::LayoutId::kClay15)) {
+    try {
+      redundancyObj = new eos::fst::ClayLayout(
+        nullptr, layout, nullptr, nullptr, stripes.front().c_str(), nullptr, 0,
+        false);
+    } catch (const std::runtime_error& e) {
+      redundancyObj = nullptr;
+    }
   } else {
     try {
       redundancyObj = new eos::fst::ReedSLayout(nullptr, layout, nullptr, nullptr,
@@ -248,8 +261,17 @@ main(int argc, char* argv[])
   eos::fst::RainMetaLayout* redundancyObj{nullptr};
 
   try {
-    redundancyObj = new eos::fst::ReedSLayout(nullptr, layout, nullptr, nullptr,
-                                              stripeUrls.front().c_str(), 0, false);
+    const auto layout_type = eos::common::LayoutId::GetLayoutType(layout);
+
+    if ((layout_type == eos::common::LayoutId::kClay10) ||
+        (layout_type == eos::common::LayoutId::kClay15)) {
+      redundancyObj = new eos::fst::ClayLayout(
+        nullptr, layout, nullptr, nullptr, stripeUrls.front().c_str(), nullptr,
+        0, false);
+    } else {
+      redundancyObj = new eos::fst::ReedSLayout(nullptr, layout, nullptr, nullptr,
+                                                stripeUrls.front().c_str(), 0, false);
+    }
   } catch (const std::runtime_error& e) {
     redundancyObj = nullptr;
   }
