@@ -1202,7 +1202,7 @@ The following policies can be configured
     =================== =================================================
     space               default,...
     altspaces           [space1[,space2[,space3]]]
-    layout              plain,replica,raid5,raid6,raiddp,archive,qrain
+    layout              plain,replica,raid5,raid6,raiddp,archive,qrain,clay10,clay15
     nstripes            1..255
     checksum            adler,md5,sha1,crc32,crc32c
     blockchecksum       adler,md5,sha1,crc32,crc32c
