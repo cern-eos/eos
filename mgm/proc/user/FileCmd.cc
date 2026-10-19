@@ -38,6 +38,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "mgm/xattr/XattrLock.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -2274,8 +2275,8 @@ FileCmd::VersionsSubcmd(const eos::console::FileVersionsProto& versions,
   }
 
   {
-    // Copy the xattrs of the current file to the newly restored one
-    std::set<std::string> exclude_xattrs{"sys.utrace", "sys.vtrace"};
+    // Copy the xattrs of the current file to the newly restored one, which
+    // keeps the ones describing itself, e.g. the keys it is encrypted with
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto versioned_fmd = gOFS->eosView->getFile(versionedpath.c_str());
     auto restored_fmd = gOFS->eosView->getFile(spath.c_str());
@@ -2286,12 +2287,9 @@ FileCmd::VersionsSubcmd(const eos::console::FileVersionsProto& versions,
       return;
     }
 
-    eos::IFileMD::XAttrMap map_xattrs = versioned_fmd->getAttributes();
-
-    for (const auto& xattr : map_xattrs) {
-      if (exclude_xattrs.find(xattr.first) == exclude_xattrs.end()) {
-        restored_fmd->setAttribute(xattr.first, xattr.second);
-      }
+    for (const auto& [key, val] :
+         attr::getCarryOverXattrs(versioned_fmd->getAttributes())) {
+      restored_fmd->setAttribute(key, val);
     }
 
     gOFS->eosView->updateFileStore(restored_fmd.get());
