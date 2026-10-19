@@ -3849,6 +3849,32 @@ runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/atomicv | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.atomicv" "$SPACEENC_CGI_DIR/atomicv"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.atomicv"
+# a restored version keeps the keys it is encrypted with instead of taking the
+# ones of the current file, which becomes a version keeping its own
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/restore" "-ODeos.obfuscate=1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/restore" "-ODeos.obfuscate=1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "$SPACEENC_CGI_DIR/restore"
+SPACEENC_CGI_RESTORE_VERSION=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_CGI_DIR/restore" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_CGI_RESTORE_VERSION\""
+runtest "### Restore   " unix SUCCESS "" eos file versions "$SPACEENC_CGI_DIR/restore $SPACEENC_CGI_RESTORE_VERSION"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "$SPACEENC_CGI_DIR/restore | grep kept"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/restore | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.restore" "$SPACEENC_CGI_DIR/restore"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.restore"
+SPACEENC_CGI_RESTORE_VERSION=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_CGI_DIR/restore" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_CGI_RESTORE_VERSION\""
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.restore.v" "$SPACEENC_CGI_DIR/.sys.v#.restore/$SPACEENC_CGI_RESTORE_VERSION"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.restore.v"
+# a plain version stays plain when the current file is encrypted
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/restoreplain"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/restoreplain" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/restoreplain | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+SPACEENC_CGI_RESTORE_PLAIN=$(command eos -b root://$EOS_TEST_REDIRECTOR file versions "$SPACEENC_CGI_DIR/restoreplain" 2>/dev/null | awk 'NF{print $NF}' | tail -1)
+runtest "### Version   " unix SUCCESS "" shell test "-n" "\"$SPACEENC_CGI_RESTORE_PLAIN\""
+runtest "### Restore   " unix SUCCESS "" eos file versions "$SPACEENC_CGI_DIR/restoreplain $SPACEENC_CGI_RESTORE_PLAIN"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/restoreplain | grep -c 'Crypt:' | grep -w 0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.restoreplain" "$SPACEENC_CGI_DIR/restoreplain"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.restoreplain"
 runtest "### Version   " unix SUCCESS "" eos attr rm sys.versioning "$SPACEENC_CGI_DIR"
 
 # a key provided by the client takes precedence over the key of the space
