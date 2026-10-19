@@ -222,7 +222,9 @@ ClayLayout::StoreRecovered(eos::fst::RainGroup& blocks, unsigned int stripe_id,
 }
 
 //------------------------------------------------------------------------------
-// Rebuild one missing stripe from helper sub-chunks
+// Rebuild one missing stripe from helper sub-chunks.
+// Each helper file receives one vector read covering every sub-chunk. The
+// requests are issued together; the chunk lists stay alive until they finish.
 //------------------------------------------------------------------------------
 bool
 ClayLayout::RepairOneStripe(eos::fst::RainGroup& blocks, unsigned int lost,
@@ -244,8 +246,16 @@ ClayLayout::RepairOneStripe(eos::fst::RainGroup& blocks, unsigned int lost,
     return false;
   }
 
+  struct HelperRead {
+    unsigned int physical_id;
+    bool issued;
+    XrdCl::ChunkList chunks;
+  };
+
   std::vector<std::vector<char>> packed(helpers.size());
   std::vector<char*> packed_ptrs(helpers.size(), nullptr);
+  std::vector<HelperRead> reads;
+  reads.reserve(helpers.size());
 
   for (size_t h = 0; h < helpers.size(); ++h) {
     const unsigned int stripe_id = static_cast<unsigned int>(helpers[h]);
@@ -256,30 +266,88 @@ ClayLayout::RepairOneStripe(eos::fst::RainGroup& blocks, unsigned int lost,
     }
 
     packed[h].assign(static_cast<size_t>(repair_bytes), 0);
+    packed_ptrs[h] = packed[h].data();
+    HelperRead read;
+    read.physical_id = physical_id;
+    read.issued = false;
+    read.chunks.reserve(ranges.size());
     size_t packed_off = 0;
+
+    for (const auto& range : ranges) {
+      const uint64_t off = offset_local +
+                           static_cast<uint64_t>(range.index) *
+                           static_cast<uint64_t>(sc_size);
+      const uint64_t len = static_cast<uint64_t>(range.count) *
+                           static_cast<uint64_t>(sc_size);
+
+      if ((len == 0) || (len > static_cast<uint64_t>(UINT32_MAX)) ||
+          (packed_off + len > static_cast<size_t>(repair_bytes))) {
+        return false;
+      }
+
+      read.chunks.emplace_back(off, static_cast<uint32_t>(len),
+                               packed[h].data() + packed_off);
+      packed_off += static_cast<size_t>(len);
+    }
+
+    if (packed_off != static_cast<size_t>(repair_bytes)) {
+      return false;
+    }
+
+    reads.push_back(std::move(read));
+  }
+
+  bool failed = false;
+
+  for (auto& read : reads) {
     AsyncMetaHandler* phandler = static_cast<AsyncMetaHandler*>(
-                                   mStripe[physical_id]->fileGetAsyncHandler());
+                                   mStripe[read.physical_id]->fileGetAsyncHandler());
 
     if (phandler) {
       phandler->Reset();
     }
 
-    for (const auto& range : ranges) {
-      const uint64_t off = offset_local +
-                           static_cast<uint64_t>(range.index) * sc_size;
-      const int len = range.count * sc_size;
-      const int64_t nread = mStripe[physical_id]->fileRead(
-                              static_cast<XrdSfsFileOffset>(off),
-                              packed[h].data() + packed_off, len, mTimeout);
+    const int64_t nread = mStripe[read.physical_id]->fileReadVAsync(
+                            read.chunks, mTimeout);
 
-      if (nread != len) {
-        return false;
-      }
-
-      packed_off += static_cast<size_t>(len);
+    if (nread != static_cast<int64_t>(repair_bytes)) {
+      eos_err("msg=\"clay repair readv failed\" physical_id=%u chunks=%u",
+              read.physical_id, static_cast<unsigned int>(read.chunks.size()));
+      failed = true;
+      continue;
     }
 
-    packed_ptrs[h] = packed[h].data();
+    read.issued = true;
+  }
+
+  for (auto& read : reads) {
+    if (!read.issued) {
+      continue;
+    }
+
+    AsyncMetaHandler* phandler = static_cast<AsyncMetaHandler*>(
+                                   mStripe[read.physical_id]->fileGetAsyncHandler());
+
+    if (!phandler) {
+      continue;
+    }
+
+    const uint16_t error_type = phandler->WaitOK();
+
+    if (error_type != XrdCl::errNone) {
+      eos_err("msg=\"clay repair readv error\" physical_id=%u xrdcl_errno=%u",
+              read.physical_id, error_type);
+      failed = true;
+
+      if (error_type == XrdCl::errOperationExpired) {
+        mStripe[read.physical_id]->fileClose(mTimeout);
+        mStripe[read.physical_id] = nullptr;
+      }
+    }
+  }
+
+  if (failed) {
+    return false;
   }
 
   if (mCode.Repair(static_cast<int>(lost), helpers, packed_ptrs.data(),
