@@ -812,7 +812,7 @@ RAIN - Erasure Coding
 ECC Layout Types
 ^^^^^^^^^^^^^^^^
 
-EOS supports five types of RAIN layouts:
+EOS supports seven types of RAIN layouts:
 
 .. epigraph::
 
@@ -824,11 +824,13 @@ EOS supports five types of RAIN layouts:
    raid6      N+2           Erasure Code (Jerasure library)  can lose 2 disks without data loss
    archive    N+3           Erasure Code (Jerasure library)  can lose 3 disks without data loss
    qrain      N+4           Erasure Code (Jerasure library)  can lose 4 disks without data loss
+   clay10     10+2          Clay coupled-layer code          loses 2 disks; repair reads half
+   clay15     15+3          Clay coupled-layer code          loses 3 disks; repair reads half
    ========== ============= ================================ ====================================
 
 The layout is set in a namespace tree via ``eos attr -r set default=<name> <tree>``.
 
-The minimum number of stripes is currently 6 for all erasure coding layouts (raiddp, raid6, archive, qrain).
+The minimum number of stripes is currently 6 for the variable erasure coding layouts (raiddp, raid6, archive, qrain). ``clay10`` always uses 12 stripes (10 data + 2 parity) and a block size of at least 512k, with 1M as the default. ``clay15`` always uses 18 stripes (15 data + 3 parity) and a block size of at least 4M.
 
 The default layout can be defined using default space policies.
 

@@ -151,6 +151,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh
+  layout/ClayLayout.cc           layout/ClayLayout.hh
+  layout/clay/ClayCode.cc        layout/clay/ClayCode.hh
   cache/SparseJournal.cc         cache/SparseJournal.hh
   cache/CacheLru.cc              cache/CacheLru.hh
   utils/FSPathHandler.cc

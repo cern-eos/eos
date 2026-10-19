@@ -493,6 +493,33 @@ Policy::GetLayoutAndSpace(const char* path,
     *atimeage = std::stoull(satime.c_str(), 0, 10);
   }
 
+  const unsigned long fixed_stripes =
+    eos::common::LayoutId::GetFixedStripeCount(layout);
+
+  if (fixed_stripes != 0) {
+    const bool explicit_stripes =
+      (env.Get("eos.layout.nstripes") != nullptr) ||
+      (attrmap.count(SYS_FORCED_NSTRIPES) != 0) ||
+      (attrmap.count(USER_FORCED_NSTRIPES) != 0);
+
+    if (explicit_stripes && (stripes != fixed_stripes)) {
+      eos_static_warning("msg=\"clay layout fixes the stripe count\" "
+                         "requested=%lu fixed=%lu", stripes, fixed_stripes);
+    }
+
+    stripes = fixed_stripes;
+  }
+
+  const int min_block = eos::common::LayoutId::GetClayMinBlockType(layout);
+
+  if ((min_block >= 0) &&
+      (blocksize < static_cast<unsigned long>(min_block))) {
+    const int raised = eos::common::LayoutId::GetClayDefaultBlockType(layout);
+    eos_static_warning("msg=\"raising block size for clay layout\" from=%lu "
+                       "to=%d", blocksize, raised);
+    blocksize = static_cast<unsigned long>(raised);
+  }
+
   layoutId =
     eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
   eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld",

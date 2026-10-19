@@ -28,6 +28,7 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/layout/ClayLayout.hh"
 #include "fst/layout/CacheLayout.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -76,6 +77,13 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
   }
 
   try {
+    if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kClay10) ||
+        (LayoutId::GetLayoutType(layoutId) == LayoutId::kClay15)) {
+      return static_cast<Layout*>(new ClayLayout(file, layoutId, client, error, path,
+                                                 fmdHandler, timeout, storeRecovery, 0,
+                                                 "oss.size", computeStripeChecksum));
+    }
+
     if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
         (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
         (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||

@@ -31,8 +31,8 @@ std::string MakeAttrHelp()
       << "  attr [-r] set [-c] <key>=<value> <identifier>\n"
       << "      Use <key>= to set an empty value (e.g. sys.acl=)\n"
       << "      Set attributes of path (-r recursive, -c only if absent)\n"
-      << "  attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain "
-         "<identifier>\n"
+      << "  attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain|"
+         "clay10|clay15 <identifier>\n"
       << "      Set EOS default layout attributes for the path\n"
       << "  attr [-r] [-V] get <key> <identifier>\n"
       << "      Get attributes of path (-r recursive, -V only print value)\n"
@@ -62,7 +62,8 @@ std::string MakeAttrHelp()
          "<group>, where <group> is the numerical index of <space>.<n>    "
          "[configuration dependent]\n";
   oss << "         sys.forced.layout=<layout>            : enforces to use "
-         "<layout>   [<layout>=(plain,replica,raid5,raid6,archive,qrain)]\n";
+         "<layout>   [<layout>=(plain,replica,raid5,raid6,archive,qrain,"
+         "clay10,clay15)]\n";
   oss << "         sys.forced.checksum=<checksum>        : enforces to use "
          "file-level checksum <checksum>\n";
   oss << "                                              <checksum> = "
@@ -420,6 +421,20 @@ public:
                       {"sys.forced.checksum", "adler"},
                       {"sys.forced.layout", "qrain"},
                       {"sys.forced.nstripes", "12"},
+                      {"sys.forced.space", "default"},
+                      {"sys.forced.blockchecksum", "crc32c"}};
+        } else if (value == "clay10") {
+          defaults = {{"sys.forced.blocksize", "1M"},
+                      {"sys.forced.checksum", "adler"},
+                      {"sys.forced.layout", "clay10"},
+                      {"sys.forced.nstripes", "12"},
+                      {"sys.forced.space", "default"},
+                      {"sys.forced.blockchecksum", "crc32c"}};
+        } else if (value == "clay15") {
+          defaults = {{"sys.forced.blocksize", "4M"},
+                      {"sys.forced.checksum", "adler"},
+                      {"sys.forced.layout", "clay15"},
+                      {"sys.forced.nstripes", "18"},
                       {"sys.forced.space", "default"},
                       {"sys.forced.blockchecksum", "crc32c"}};
         } else {

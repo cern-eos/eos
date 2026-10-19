@@ -88,6 +88,8 @@ public:
     kRaid6 = 0x4,
     kQrain = 0x5,
     kRaid5 = 0x6,
+    kClay10 = 0x7, ///< 10 data + 2 parity Clay code
+    kClay15 = 0x8, ///< 15 data + 3 parity Clay code
   };
 
 
@@ -188,19 +190,23 @@ public:
         int excessreplicas = 0,
         int redundancystripes = 0)
   {
+    // Clay profiles fix both the stripe count and the parity count. A 15+3
+    // file is 18 stripes; a supplied count such as 12+3 is not stored.
+    if ((layout == kClay10) || (layout == kClay15)) {
+      stripesize = static_cast<int>(GetFixedStripeCount(layout));
+      redundancystripes = GetRedundancyFromLayoutType(layout);
+    } else if (redundancystripes == 0) {
+      // Set the number of parity stripes depending on the layout type if not
+      // already set explicitly
+      redundancystripes = GetRedundancyFromLayoutType(layout);
+    }
+
     unsigned long id = (checksum |
                         ((layout & 0xf) << 4) |
                         (((stripesize - 1) & 0xff) << 8) |
                         ((stripewidth & 0xf) << 16) |
                         ((blockchecksum & 0xf) << 20) |
                         ((excessreplicas & 0xf) << 24));
-
-    // Set the number of parity stripes depending on the layout type if not
-    // already set explicitly
-    if (redundancystripes == 0) {
-      redundancystripes = GetRedundancyFromLayoutType(layout);
-    }
-
     id |= ((redundancystripes & 0x7) << 28);
     return id;
   }
@@ -514,7 +520,7 @@ public:
   {
     ftype &= 0xf;
 
-    if ((ftype < kPlain) || (ftype > kRaid6)) {
+    if ((ftype < kPlain) || (ftype > kClay15)) {
       ftype = kPlain;
     }
 
@@ -760,6 +766,12 @@ public:
                         layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kArchive)
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
+
+    if ((GetLayoutType(layout) == kClay10) ||
+        (GetLayoutType(layout) == kClay15))
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))) + GetExcessStripeNumber(layout));
@@ -1089,6 +1101,14 @@ public:
       return "qrain";
     }
 
+    if (GetLayoutType(layout) == kClay10) {
+      return "clay10";
+    }
+
+    if (GetLayoutType(layout) == kClay15) {
+      return "clay15";
+    }
+
     return "none";
   }
 
@@ -1112,6 +1132,10 @@ public:
       return kQrain;
     } else if (layout == "archive") {
       return kArchive;
+    } else if (layout == "clay10") {
+      return kClay10;
+    } else if (layout == "clay15") {
+      return kClay15;
     }
 
     return -1;
@@ -1151,9 +1175,67 @@ public:
       redundancystripes = 3;
     } else if (layout_type == kQrain) {
       redundancystripes = 4;
+    } else if (layout_type == kClay10) {
+      redundancystripes = 2;
+    } else if (layout_type == kClay15) {
+      redundancystripes = 3;
     }
 
     return redundancystripes;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Stripe count fixed by a layout type. Zero when the caller chooses it.
+  //! clay10 is 10+2 (12 stripes). clay15 is 15+3 (18 stripes).
+  //--------------------------------------------------------------------------
+  static unsigned long
+  GetFixedStripeCount(unsigned long layout_type)
+  {
+    if (layout_type == kClay10) {
+      return 12;
+    }
+
+    if (layout_type == kClay15) {
+      return 18;
+    }
+
+    return 0;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Smallest block-size enum whose Clay sub-chunks are at least 4 KiB.
+  //! Returns -1 for layouts that are not Clay.
+  //--------------------------------------------------------------------------
+  static int
+  GetClayMinBlockType(unsigned long layout_type)
+  {
+    if (layout_type == kClay10) {
+      return k512k;
+    }
+
+    if (layout_type == kClay15) {
+      return k4M;
+    }
+
+    return -1;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Block size applied when a Clay directory does not request a large enough
+  //! one. clay10 uses 1M. clay15 uses 4M.
+  //--------------------------------------------------------------------------
+  static int
+  GetClayDefaultBlockType(unsigned long layout_type)
+  {
+    if (layout_type == kClay10) {
+      return k1M;
+    }
+
+    if (layout_type == kClay15) {
+      return k4M;
+    }
+
+    return -1;
   }
 
   //--------------------------------------------------------------------------
