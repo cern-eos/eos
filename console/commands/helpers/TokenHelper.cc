@@ -39,6 +39,9 @@ TokenHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   std::map<std::string, std::set<std::string>> args;
+  static const std::set<std::string> options = {"token",   "path",   "permission",
+                                                "expires", "owner",  "group",
+                                                "tree",    "origin", "scope"};
 
   do {
     std::string element;
@@ -57,8 +60,16 @@ TokenHelper::ParseCommand(const char* arg)
     if (element.substr(0, 2) == "--") {
       element.erase(0, 2);
 
+      if (!options.count(element)) {
+        return false;
+      }
+
       if (element != "tree") {
         option = tokenizer.GetTokenUnquoted();
+
+        if (element == "scope" && (!option || !*option)) {
+          return false;
+        }
 
         if (option) {
           std::string value = option;
@@ -67,6 +78,8 @@ TokenHelper::ParseCommand(const char* arg)
       } else {
         args[element].insert("dummy");
       }
+    } else {
+      return false;
     }
   } while (1);
 
@@ -136,6 +149,12 @@ TokenHelper::ParseCommand(const char* arg)
             auth->set_prot("(.*)");
           }
         }
+      }
+    }
+
+    if (args.count("scope")) {
+      for (const auto& scope : args["scope"]) {
+        token->add_scopes(scope);
       }
     }
   }

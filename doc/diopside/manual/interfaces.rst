@@ -1978,6 +1978,37 @@ from scratch if the deletion of a node would now leave the accounting to an
 upstream node.
 
 
+Quota-only gRPC tokens (proof of concept)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Administrators can issue an EOS token restricted to the native namespace
+``Exec`` quota API. Two exact scopes are supported:
+
+* ``grpc.quota.read`` permits quota ``GET`` operations.
+* ``grpc.quota.write`` permits ``GET``, ``SET``, ``RM`` and ``RMNODE``.
+
+For example, issue a short-lived read-only token using the existing token
+identity policy, then pass its value to the existing gRPC client:
+
+.. code-block:: bash
+
+   eos token --path /eos/ --tree --owner 0 --group 0 --scope grpc.quota.read
+   eos-grpc-ns --endpoint <host>:50051 --force-ssl --token <token> -p /eos/project/ quota get
+
+Use ``grpc.quota.write`` for read-write access. Scopes restrict the mapped
+identity's existing quota authority; they do not grant administrator or quota
+ACL permissions. Scoped requests cannot select another role. Other native
+gRPC calls, WNC and REST gateway calls are denied, and identity mapping rejects
+these tokens on other protocols. Unscoped tokens retain their existing
+behaviour. Scope names are exact; unknown names and wildcards are rejected.
+
+This PoC restricts API actions, not quota target paths. The token's ``--path``
+does not confine the quota nodes that can be queried or changed; normal quota
+authorization governs those targets. The proof of concept requires an MGM
+with scope support. Older MGM versions ignore the scope field and can treat
+such a credential as an ordinary EOS token.
+
+
 .. index::
    pair: Interfaces; Permissions
    pair: CLI; eos chmod

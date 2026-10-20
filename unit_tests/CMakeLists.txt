@@ -51,6 +51,7 @@ set(CONSOLE_UT_SRCS
   console/FusexCommandTest.cc
   console/JwkGeneratorTests.cc
   console/NewfindHelperTest.cc
+  console/TokenHelperTest.cc
   console/ParseCommentTest.cc
   console/RegexUtilTest.cc
   console/ConsoleUtilTests.cc
@@ -78,6 +79,7 @@ set(MGM_UT_SRCS
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/GrpcStreamReplyTests.cc
+  mgm/GrpcQuotaAuthTests.cc
   mgm/FusexCastBatchTests.cc
   mgm/FuseServerClientsTests.cc
   mgm/CapsTests.cc

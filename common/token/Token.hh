@@ -32,6 +32,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 class Token {
 public:
@@ -67,4 +68,6 @@ public:
   virtual std::string Voucher() const = 0;
   virtual std::string Requester() const = 0;
   virtual int Generation() const = 0;
+  virtual int AddScope(const std::string& scope) = 0;
+  virtual std::vector<std::string> Scopes() const = 0;
 };

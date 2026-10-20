@@ -62,8 +62,9 @@ public:
   //! @param context server context
   //! @param vid virtual identity
   //!
+  //! @return false when the supplied token is rejected by the scope policy
   //----------------------------------------------------------------------------
-  static void Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid);
+  static bool Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid);
 #endif // EOS_GRPC_GATEWAY
 
   //----------------------------------------------------------------------------

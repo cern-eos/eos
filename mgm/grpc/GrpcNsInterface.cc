@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "GrpcNsInterface.hh"
+#include "GrpcAuth.hh"
 #include "common/LayoutId.hh"
 #include "common/LinuxFds.hh"
 #include "common/LinuxMemConsumption.hh"
@@ -53,6 +54,17 @@
 EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
+
+namespace {
+void
+SetGrpcScopeDenied(eos::rpc::NSResponse* reply, const GrpcAuthDecision& decision,
+                   const eos::common::VirtualIdentity& vid)
+{
+  GrpcAuth::LogDenied(vid, decision, "eos.rpc.exec");
+  reply->mutable_error()->set_code(EPERM);
+  reply->mutable_error()->set_msg("error: grpc scope denied");
+}
+} // namespace
 
 bool
 GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
@@ -1405,6 +1417,13 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
                       const eos::rpc::NSRequest* request)
 {
   eos::common::VirtualIdentity vid = ivid;
+  const auto decision =
+      GrpcAuth::Authorize(ivid, request->authkey(), GrpcAuth::ExecScope(*request));
+
+  if (!decision.allowed) {
+    SetGrpcScopeDenied(reply, decision, ivid);
+    return grpc::Status::OK;
+  }
 
   if (request->role().uid() || request->role().gid()) {
     if ((ivid.uid != request->role().uid()) ||

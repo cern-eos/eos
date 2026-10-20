@@ -22,17 +22,19 @@
  ************************************************************************/
 
 #include "TokenCmd.hh"
+#include "common/Constants.hh"
+#include "common/Definitions.hh"
+#include "common/Path.hh"
+#include "common/token/EosTok.hh"
+#include "common/token/GrpcQuotaScope.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/access/Access.hh"
-#include "common/Path.hh"
-#include "common/Definitions.hh"
-#include "common/token/EosTok.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -175,6 +177,21 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
   if (token.vtoken().empty()) {
     eos_static_info("%s\n", token.vtoken().c_str());
 
+    if (token.scopes_size() && !(mVid.HasUid(0) || mVid.HasUid(eos::common::ADM_UID) ||
+                                 mVid.HasGid(eos::common::ADM_GID))) {
+      reply.set_retc(EPERM);
+      reply.set_std_err("error: only administrators can issue scoped command tokens");
+      return reply;
+    }
+
+    for (const auto& scope : token.scopes()) {
+      if (!eos::common::IsGrpcQuotaScope(scope)) {
+        reply.set_retc(EINVAL);
+        reply.set_std_err("error: scope must be grpc.quota.read or grpc.quota.write");
+        return reply;
+      }
+    }
+
     // check who asks for a token
     if ((mVid.HasUid(0))) {
       // we issue all the token in the world for them
@@ -301,6 +318,10 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     eostoken.SetGroup(token.group());
     eostoken.SetGeneration(eos::common::EosTok::sTokenGeneration);
     eostoken.SetRequester(mVid.getTrace());
+
+    for (int i = 0; i < token.scopes_size(); ++i) {
+      eostoken.AddScope(token.scopes(i));
+    }
 
     for (int i = 0; i < token.origins_size(); ++i) {
       const eos::console::TokenAuth& auth = token.origins(i);

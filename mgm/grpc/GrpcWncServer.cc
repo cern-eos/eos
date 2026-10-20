@@ -7,10 +7,12 @@
 //-----------------------------------------------------------------------------
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
-#include "console/ConsoleMain.hh"
+#include "GrpcAuth.hh"
 #include "GrpcServer.hh"
+#include "console/ConsoleMain.hh"
 #include "mgm/macros/Macros.hh"
 //-----------------------------------------------------------------------------
+#include <cerrno>
 #ifdef EOS_GRPC
 #include "proto/EosWnc.grpc.pb.h"
 using eos::console::EosWnc;
@@ -21,6 +23,19 @@ using grpc::ServerContext;
 EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
+
+namespace {
+
+void
+SetWncScopeDenied(eos::console::ReplyProto* reply, const GrpcAuthDecision& decision,
+                  const eos::common::VirtualIdentity& vid)
+{
+  GrpcAuth::LogDenied(vid, decision, "eos.wnc");
+  reply->set_retc(EACCES);
+  reply->set_std_err("error: grpc scope denied");
+}
+
+} // namespace
 
 class WncService final : public EosWnc::Service
 {
@@ -198,6 +213,13 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
+    const auto decision = GrpcAuth::Authorize(vid, request->auth().authkey());
+
+    if (!decision.allowed) {
+      SetWncScopeDenied(reply, decision, vid);
+      return grpc::Status::OK;
+    }
+
     GrpcWncInterface wnc;
     return wnc.ExecCmd(vid, request, reply);
   }
@@ -232,6 +254,15 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
+    const auto decision = GrpcAuth::Authorize(vid, request->auth().authkey());
+
+    if (!decision.allowed) {
+      eos::console::ReplyProto reply;
+      SetWncScopeDenied(&reply, decision, vid);
+      writer->Write(reply);
+      return grpc::Status::OK;
+    }
+
     GrpcWncInterface wnc;
     return wnc.ExecStreamCmd(vid, request, writer);
   }

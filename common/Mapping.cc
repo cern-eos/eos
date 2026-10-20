@@ -934,6 +934,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_err("msg=\"failed to decode token\" tident=\"%s\" token=\"%s\" errno=%d",
                        tident, authz.c_str(), -rc);
       } else {
+        if (!vid.token->Scopes().empty() && std::string(client->prot) != "grpc") {
+          vid.token->Reset();
+          vid.toNobody();
+          return;
+        }
+
         bool validated = true;
 
         if (path.length() && path.substr(0, 6) != "/proc/") {

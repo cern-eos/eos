@@ -24,6 +24,7 @@
 #include "GrpcRestGwServer.hh"
 #ifdef EOS_GRPC_GATEWAY
 #include "EosGrpcGateway.h"
+#include "GrpcAuth.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
@@ -137,7 +138,7 @@ GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id, std::string*
 //------------------------------------------------------------------------------
 // Populate virtual identity based on the context information
 //------------------------------------------------------------------------------
-void
+bool
 GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid)
 {
   // C-1: the REST gateway has no transport-level authentication and the
@@ -156,7 +157,7 @@ GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity
                        "peer - falling back to nobody\" peer=\"%s\" ip=\"%s\"",
                        context->peer().c_str(), peer_ip.c_str());
     vid = eos::common::VirtualIdentity::Nobody();
-    return;
+    return true;
   }
 
   static const std::string hdr_name = "client-name";
@@ -209,6 +210,13 @@ GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity
   }
 
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
+  const auto decision = GrpcAuth::Authorize(vid, authz_val);
+
+  if (!decision.allowed) {
+    GrpcAuth::LogDenied(vid, decision, "eos.rest");
+  }
+
+  return decision.allowed;
 }
 
 //------------------------------------------------------------------------------
@@ -221,7 +229,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AclCall(vid, request, reply);
   }
@@ -230,7 +240,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AccessCall(vid, request, reply);
   }
@@ -239,7 +251,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ArchiveCall(vid, request, reply);
   }
@@ -248,7 +262,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AttrCall(vid, request, reply);
   }
@@ -257,7 +273,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.BackupCall(vid, request, reply);
   }
@@ -266,7 +284,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChmodCall(vid, request, reply);
   }
@@ -275,7 +295,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChownCall(vid, request, reply);
   }
@@ -285,7 +307,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                 ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConfigCall(vid, request, writer);
   }
@@ -294,7 +318,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConvertCall(vid, request, reply);
   }
@@ -303,7 +329,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.CpCall(vid, request, reply);
   }
@@ -312,7 +340,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.DebugCall(vid, request, reply);
   }
@@ -321,7 +351,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.EvictCall(vid, request, reply);
   }
@@ -330,7 +362,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FileCall(vid, request, reply);
   }
@@ -339,7 +373,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                          ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FileinfoCall(vid, request, reply);
   }
@@ -348,7 +384,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FindCall(vid, request, writer);
   }
@@ -358,7 +396,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
             ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsCall(vid, request, writer);
   }
@@ -367,7 +407,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsckCall(vid, request, writer);
   }
@@ -376,7 +418,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                          ReplyProto* reply)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GeoschedCall(vid, request, reply);
   }
@@ -386,7 +430,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GroupCall(vid, request, writer);
   }
@@ -395,7 +441,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.HealthCall(vid, request, reply);
   }
@@ -405,7 +453,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
             ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.IoCall(vid, request, writer);
   }
@@ -414,7 +464,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.LsCall(vid, request, writer);
   }
@@ -423,7 +475,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MapCall(vid, request, reply);
   }
@@ -432,7 +486,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MemberCall(vid, request, reply);
   }
@@ -441,7 +497,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MkdirCall(vid, request, reply);
   }
@@ -450,7 +508,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MvCall(vid, request, reply);
   }
@@ -460,7 +520,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
               ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NodeCall(vid, request, writer);
   }
@@ -469,7 +531,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NsCall(vid, request, reply);
   }
@@ -479,7 +543,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.QuotaCall(vid, request, writer);
   }
@@ -489,7 +555,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                  ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RecycleCall(vid, request, writer);
   }
@@ -498,7 +566,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                    ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmCall(vid, request, reply);
   }
@@ -507,7 +577,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmdirCall(vid, request, reply);
   }
@@ -516,7 +588,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RouteCall(vid, request, reply);
   }
@@ -526,7 +600,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.SchedCall(vid, request, reply);
   }
@@ -536,7 +612,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.SpaceCall(vid, request, writer);
   }
@@ -545,7 +623,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                      ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatCall(vid, request, reply);
   }
@@ -554,7 +634,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatusCall(vid, request, reply);
   }
@@ -563,7 +645,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TokenCall(vid, request, reply);
   }
@@ -572,7 +656,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                       ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TouchCall(vid, request, reply);
   }
@@ -581,7 +667,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                         ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VersionCall(vid, request, reply);
   }
@@ -591,7 +679,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
              ServerWriter<ReplyProto>* writer) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VidCall(vid, request, writer);
   }
@@ -600,7 +690,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                     ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoCall(vid, request, reply);
   }
@@ -609,7 +701,9 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
                        ReplyProto* reply) override
   {
     eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
+    if (!GrpcRestGwServer::Vid(context, vid)) {
+      return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+    }
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoamiCall(vid, request, reply);
   }

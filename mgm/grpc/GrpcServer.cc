@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "GrpcServer.hh"
+#include "GrpcAuth.hh"
 #include "GrpcNsInterface.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
@@ -32,7 +33,6 @@
 #include <chrono>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <thread>
-#include <vector>
 
 #ifdef EOS_GRPC
 #include "proto/Rpc.grpc.pb.h"
@@ -55,6 +55,16 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
 
+namespace {
+Status
+ScopeDenied(const eos::common::VirtualIdentity& vid, const GrpcAuthDecision& decision)
+{
+  GrpcAuth::LogDenied(vid, decision, "eos.rpc");
+  return Status(grpc::StatusCode::PERMISSION_DENIED, "grpc scope denied");
+}
+
+} // namespace
+
 class RequestServiceImpl final : public Eos::Service {
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
@@ -64,6 +74,13 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str(), request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.ping");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     reply->set_message(request->message());
     return Status::OK;
   }
@@ -77,6 +94,14 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->authkey(), "grpc.file_insert");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
@@ -90,6 +115,14 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision =
+        GrpcAuth::Authorize(vid, request->authkey(), "grpc.container_insert");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::ContainerInsert(vid, reply, request);
   }
@@ -101,6 +134,13 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.md");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     WAIT_BOOT;
 
     switch (request->type()) {
@@ -128,6 +168,13 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.find");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::Find(vid, writer, request);
   }
@@ -141,6 +188,13 @@ class RequestServiceImpl final : public Eos::Service {
                     GrpcServer::DN(context).c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
+
+    const auto decision = GrpcAuth::Authorize(vid, request->authkey(), "grpc.nsstat");
+
+    if (!decision.allowed) {
+      return ScopeDenied(vid, decision);
+    }
+
     WAIT_BOOT;
     return GrpcNsInterface::NsStat(vid, reply, request);
   }

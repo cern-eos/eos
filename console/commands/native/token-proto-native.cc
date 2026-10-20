@@ -35,6 +35,12 @@ std::string MakeTokenHelp()
       << "                                           : token granting write permission for /eos/file as user foo:bar\n"
       << "          eos token --token zteos64:...\n"
       << "                                           : dump the given token\n";
+  oss << "\nQuota API scopes (administrators only):\n"
+      << "  --scope grpc.quota.read   allow gRPC quota queries\n"
+      << "  --scope grpc.quota.write  allow gRPC quota queries and updates\n"
+      << "  Scopes are repeatable and allow only quota API actions over gRPC.\n"
+      << "  Quota target paths use normal quota authorization; --path does not "
+         "restrict them.\n";
   return oss.str();
 }
 
