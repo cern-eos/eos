@@ -3599,7 +3599,9 @@ runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTS
 
 # a conversion has to copy the stored bytes as they are - decoding them on the
 # way out would store the file in clear and fail the checksum of the original
-runtest "### Convert   " unix SUCCESS "" eos convert file "$SPACEENC_DIR/encrypted replica:2"
+# the bare space lets the scheduler pick the group - the group of the source
+# replica may have no other file system to take the new copies
+runtest "### Convert   " unix SUCCESS "" eos file convert "$SPACEENC_DIR/encrypted replica:2 default"
 runtest "### Convert   " unix SUCCESS "" shell sleep 20
 runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Stripes: 2' | grep -w 1"
 # still encrypted, and the contents still decode with the key of the space

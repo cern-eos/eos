@@ -35,7 +35,7 @@ public:
 
 TEST(AttrOutput, JsonConversionPreservesLiteralQuotesAndBackslashes)
 {
-  for (const std::string& value :
+  for (const char* value :
        {"plain", "value\"quote", "\"leading", "\"", "\"quoted\"", "back\\slash", "tail\\",
         "space and \"quote\"", "tab\tvalue", "\\\"escaped-looking\\\""}) {
     SCOPED_TRACE(value);
