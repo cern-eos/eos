@@ -3581,6 +3581,10 @@ SPACEENC_USERKEY="039b9858-5bb3-4dcc-85c2-a5a333eb78b0"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "$SPACEENC_DIR"
 runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$SPACEENC_DIR"
 runtest "### Attr      " unix SUCCESS "" eos attr set sys.file.obfuscate=1 "$SPACEENC_DIR"
+# the conversion below goes from replica to plain, which only needs one file
+# system besides the one holding the file - replica:2 needs two in one group
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.layout=replica "$SPACEENC_DIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.nstripes=1 "$SPACEENC_DIR"
 # make sure we start without a key configured on the space
 runtest "### KeyRm     " unix IGNORE  "" eos space config default space.encryptionkey=remove --no-confirmation
 
@@ -3678,9 +3682,12 @@ runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTS
 
 # a conversion has to copy the stored bytes as they are - decoding them on the
 # way out would store the file in clear and fail the checksum of the original
-runtest "### Convert   " unix SUCCESS "" eos convert file "$SPACEENC_DIR/encrypted replica:2"
+# the bare space lets the scheduler pick the group - the group of the source
+# replica may have no other file system to take the new copies
+runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Layout: replica' | grep -w 1"
+runtest "### Convert   " unix SUCCESS "" eos file convert "$SPACEENC_DIR/encrypted plain:1 default"
 runtest "### Convert   " unix SUCCESS "" shell sleep 20
-runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Stripes: 2' | grep -w 1"
+runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Layout: plain' | grep -w 1"
 # still encrypted, and the contents still decode with the key of the space
 runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.conv" "$SPACEENC_DIR/encrypted"
