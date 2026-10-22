@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "console/CommandCompletion.hh"
 #include "console/ConsoleMain.hh"
 
 // Context passed to commands to access existing facilities without global coupling
@@ -39,11 +40,8 @@ public:
   }
   virtual bool requiresMgm(const std::string& args) const { return !wants_help(args.c_str()); }
   virtual bool requiresMgmArguments(const std::vector<std::string>& args) const;
-  virtual std::vector<std::string>
-  complete(const std::vector<std::string>& args) const
-  {
-    return {};
-  }
+  virtual CommandCompletionResult completion(const std::vector<std::string>& args) const;
+  virtual std::vector<std::string> complete(const std::vector<std::string>& args) const;
   virtual int run(const std::vector<std::string>& args, CommandContext& ctx) = 0;
   virtual void printHelp() const = 0;
 };

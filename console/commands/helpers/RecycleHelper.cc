@@ -229,6 +229,21 @@ RecycleHelper::ParseCommand(const char* arg)
 bool
 RecycleHelper::ParseArguments(const std::vector<std::string>& args)
 {
+  return ParseOrCompleteArguments(args, nullptr);
+}
+
+CommandCompletionResult
+RecycleHelper::CompleteArguments(const std::vector<std::string>& args)
+{
+  CommandCompletionResult result;
+  ParseOrCompleteArguments(args, &result);
+  return result;
+}
+
+bool
+RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
+                                        CommandCompletionResult* completion)
+{
   mReq.clear_recycle();
   CLI::App app{"Recycle bin functionality", "recycle"};
   app.set_help_flag("-h,--help");
@@ -350,6 +365,40 @@ RecycleHelper::ParseArguments(const std::vector<std::string>& args)
   auto* enforce_option = config->add_option("--enforce", enforce, "enforce default bin")
                              ->check(CLI::IsMember({"on", "off"}));
   config->add_flag("--dump", dump, "show policy configuration")->disable_flag_override();
+
+  if (completion) {
+    *completion = CompleteCliArguments(
+        app, args,
+        {{dry_run_option, {"yes", "no"}},
+         {enable_option, {"on", "off"}},
+         {enforce_option, {"on", "off"}}},
+        {{list->get_option("--project"), CompletionPath::EosDirectory},
+         {project->get_option("--path"), CompletionPath::EosDirectory},
+         {add_bin_option, CompletionPath::EosDirectory},
+         {remove_bin_option, CompletionPath::EosDirectory}});
+    bool statusOnly = false;
+    for (const auto& arg : args) {
+      if (app.get_subcommand_no_throw(arg)) {
+        if (statusOnly) {
+          *completion = {};
+        }
+        break;
+      }
+      if (arg.size() > 1 && arg.front() == '-' &&
+          arg.find_first_not_of('m', 1) == std::string::npos) {
+        statusOnly = true;
+      }
+    }
+    if (statusOnly) {
+      auto& words = completion->candidates;
+      words.erase(std::remove_if(words.begin(), words.end(),
+                                 [&](const std::string& word) {
+                                   return app.get_subcommand_no_throw(word) != nullptr;
+                                 }),
+                  words.end());
+    }
+    return true;
+  }
 
   if (!eos::console::ParseCliArguments(app, args)) {
     return false;

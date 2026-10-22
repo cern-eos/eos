@@ -910,7 +910,10 @@ Run(int argc, char* argv[])
   // Bind our completer
   rl_readline_name = (char*) "EOS Console";
   rl_attempted_completion_function = eos_console_completion;
-  rl_completer_quote_characters = (char*) "\"";
+  rl_completer_quote_characters = "\"'";
+  rl_completer_word_break_characters = " \t\n\r\v\f\"'";
+  rl_filename_quote_characters = " \t\n\r\v\f\\\"'";
+  rl_filename_quoting_function = eos_completion_quote;
   rl_completion_append_character = '\0';
 
   if (getenv("EOS_HISTORY_FILE")) {

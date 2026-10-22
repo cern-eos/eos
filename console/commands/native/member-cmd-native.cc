@@ -99,6 +99,15 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CLI::App app;
+    bool update = false;
+    std::string egroup;
+    ConfigureMemberApp(app, update, egroup);
+    return CompleteCliArguments(app, args);
+  }
   void
   printHelp() const override
   {

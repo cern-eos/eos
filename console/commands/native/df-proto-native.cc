@@ -87,6 +87,13 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    DfOptions options;
+    return CompleteCliArguments(options.app, args, {},
+                                {{options.app.get_option("path"), CompletionPath::Eos}});
+  }
   std::string
   helpText() const override
   {

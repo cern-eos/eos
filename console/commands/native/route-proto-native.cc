@@ -223,6 +223,16 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    RouteOptions options;
+    return CompleteCliArguments(
+        options.app, args, {},
+        {{options.ls->get_option("path"), CompletionPath::EosDirectory},
+         {options.link->get_option("path"), CompletionPath::EosDirectory},
+         {options.unlink->get_option("path"), CompletionPath::EosDirectory}});
+  }
   std::string
   helpText() const override
   {

@@ -27,6 +27,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(EosConsoleHelpers-Objects OBJECT
+  CliCompletion.cc CommandCompletion.hh
   commands/helpers/ICmdHelper.cc    commands/helpers/ICmdHelper.hh
   commands/helpers/FileHelper.cc    commands/helpers/FileHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
@@ -59,6 +60,8 @@ add_library(EosConsoleCommands-Objects OBJECT
   # Core console framework
   ConsoleMain.cc  ConsoleMain.hh
   CommandFramework.cc CommandFramework.hh
+  CommandCompletion.cc CommandCompletion.hh
+  CompletionAdminSchemas.cc CompletionStorageSchemas.cc
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
 
