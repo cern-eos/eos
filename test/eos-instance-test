@@ -2835,6 +2835,12 @@ runtest "### Sync      " unix SUCCESS "" shell dd "of=/test-fusex/$EOS_TEST_INST
 runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
 runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$HLPRESERVE_DIR/vfile" "-ODeos.ruid=0"
 runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
+# the hard link now refers to the version: it stays hidden in the version
+# folder once the file is removed, and goes with the hard link
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/vfile"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR/.sys.v#.vfile/ | grep -c 'eos.ino' | grep -w 1"
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/vfile.hardlink"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR/.sys.v#.vfile/ | grep -c 'eos.ino' | grep -w 0"
 runtest "### Rm        " unix SUCCESS "" eos rm -r "$HLPRESERVE_DIR"
 
 #obfuscation
