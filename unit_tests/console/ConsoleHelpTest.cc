@@ -4,7 +4,6 @@
 
 #include "console/ConsoleColor.hh"
 #include "console/ConsoleHelp.hh"
-#include "console/ConsoleOptions.hh"
 #include "gtest/gtest.h"
 #include <CLI/CLI.hpp>
 #include <clocale>
@@ -57,15 +56,14 @@ protected:
   void
   SetUp() override
   {
-    for (const auto* name :
-         {"EOS_HELP_WIDTH", "EOS_PAGER", "PAGER", "NO_COLOR", "TERM"}) {
+    for (const auto* name : {"NO_COLOR", "TERM"}) {
       const char* value = getenv(name);
       saved[name] = value ? std::optional<std::string>(value) : std::nullopt;
       unsetenv(name);
     }
     setenv("TERM", "xterm", 1);
     ConfigureColor(ColorMode::Never, false, false);
-    ConfigureHelp(false, false, true);
+    ConfigureHelp(false, false);
     master = posix_openpt(O_RDWR | O_NOCTTY);
     ASSERT_GE(master, 0);
     ASSERT_EQ(grantpt(master), 0);
@@ -81,7 +79,7 @@ protected:
   void
   TearDown() override
   {
-    ConfigureHelp(false, false, true);
+    ConfigureHelp(false, false);
     ConfigureColor(ColorMode::Auto, false, false);
     for (const auto& [name, value] : saved) {
       if (value) {
@@ -240,21 +238,6 @@ TEST_F(ConsoleHelpTest, TerminalSizeUsesDestinationDescriptorAndCapsWideTerminal
   EXPECT_EQ(HelpWidth(terminal), 80u);
 }
 
-TEST_F(ConsoleHelpTest, WidthOverrideIsValidatedAndDoesNotChangeRedirectedOutput)
-{
-  resize(60);
-  for (const char* width : {"20", "40", "120", "200", "1000"}) {
-    setenv("EOS_HELP_WIDTH", width, 1);
-    EXPECT_EQ(HelpWidth(terminal), std::stoul(width));
-    EXPECT_EQ(HelpWidth(fileno(redirected)), 0u);
-  }
-  for (const char* width :
-       {"", "0", "19", "1001", "-1", "40x", " 40", "99999999999999999999"}) {
-    setenv("EOS_HELP_WIDTH", width, 1);
-    EXPECT_EQ(HelpWidth(terminal), 60u) << width;
-  }
-}
-
 TEST_F(ConsoleHelpTest, LayoutDoesNotDependOnColorAndIsDisabledForMachineModes)
 {
   resize(40);
@@ -265,7 +248,7 @@ TEST_F(ConsoleHelpTest, LayoutDoesNotDependOnColorAndIsDisabledForMachineModes)
   }
   for (const auto& modes :
        {std::pair<bool, bool>{true, false}, {false, true}, {true, true}}) {
-    ConfigureHelp(modes.first, modes.second, true);
+    ConfigureHelp(modes.first, modes.second);
     EXPECT_EQ(HelpWidth(terminal), 0u);
   }
 }
@@ -273,30 +256,16 @@ TEST_F(ConsoleHelpTest, LayoutDoesNotDependOnColorAndIsDisabledForMachineModes)
 TEST_F(ConsoleHelpTest, JsonToggleRestoresTerminalLayoutWithoutOverridingBatch)
 {
   resize(40);
-  ConfigureHelp(false, false, true);
+  ConfigureHelp(false, false);
   EXPECT_EQ(HelpWidth(terminal), 40u);
   SetJsonHelpOutput(true);
   EXPECT_EQ(HelpWidth(terminal), 0u);
   SetJsonHelpOutput(false);
   EXPECT_EQ(HelpWidth(terminal), 40u);
-  ConfigureHelp(true, false, true);
+  ConfigureHelp(true, false);
   SetJsonHelpOutput(true);
   SetJsonHelpOutput(false);
   EXPECT_EQ(HelpWidth(terminal), 0u);
-}
-
-TEST_F(ConsoleHelpTest, NoPagerIsAGlobalFlagAndPreservesCommandArguments)
-{
-  ConsoleOptions options;
-  std::string error;
-  ASSERT_TRUE(ParseConsoleOptions({"--no-pager", "--color=never", "ns", "--help"},
-                                  options, error))
-      << error;
-  EXPECT_TRUE(options.noPager);
-  EXPECT_EQ(options.command, (std::vector<std::string>{"ns", "--help"}));
-  ASSERT_TRUE(ParseConsoleOptions({"ns", "--no-pager"}, options, error)) << error;
-  EXPECT_FALSE(options.noPager);
-  EXPECT_EQ(options.command, (std::vector<std::string>{"ns", "--no-pager"}));
 }
 
 TEST_F(ConsoleHelpTest, CliHelpWrapsWithoutMutatingSharedFormatterOrApplication)

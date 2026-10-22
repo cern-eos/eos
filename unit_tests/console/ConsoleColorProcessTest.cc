@@ -565,11 +565,11 @@ TEST_F(ConsoleColorProcessTest, RootCommandListPreservesTextAndAlignment)
   EXPECT_EQ(plain(error), baseline);
 }
 
-TEST_F(ConsoleColorProcessTest, GlobalUsageKeepsItsTextAndExitStatus)
+TEST_F(ConsoleColorProcessTest, GlobalUsageUsesConsistentStylingAndSucceeds)
 {
-  ASSERT_EQ(process({"--color=never", "--help"}), 255);
+  ASSERT_EQ(process({"--color=never", "--help"}), 0);
   const auto baseline = error;
-  ASSERT_EQ(process({"--color=always", "--help"}), 255);
+  ASSERT_EQ(process({"--color=always", "--help"}), 0);
   EXPECT_NE(error.find('\033'), std::string::npos);
   EXPECT_EQ(plain(error), baseline);
 }

@@ -108,14 +108,14 @@ protected:
   {
     savedRetc = global_retc;
     ConfigureColor(ColorMode::Never, false, false);
-    ConfigureHelp(false, false, true);
+    ConfigureHelp(false, false);
   }
   void
   TearDown() override
   {
     global_retc = savedRetc;
     ConfigureColor(ColorMode::Auto, false, false);
-    ConfigureHelp(false, false, true);
+    ConfigureHelp(false, false);
   }
   int savedRetc = 0;
 };

@@ -568,166 +568,177 @@ read_pwdfile()
 void
 usage()
 {
-  if (eos::console::HelpWidth(STDERR_FILENO)) {
-    using eos::console::HelpBlockKind;
-    using eos::console::HelpCommandText;
-    using eos::console::HelpSyntax;
-    using eos::console::HelpText;
-    using eos::console::StyledHelpText;
-    using eos::console::TextStyle;
-    eos::console::HelpPage page;
-    page.blocks = {
-        {HelpBlockKind::Paragraph, "EOS storage system command line interface", {}},
-        {HelpBlockKind::Section, "USAGE", {}},
-        {HelpBlockKind::Usage,
-         HelpCommandText("eos").append(
-             HelpSyntax(" [options] [<mgm-url>] [<command> [<arguments>...]]")),
-         {}},
-        {HelpBlockKind::Usage,
-         HelpCommandText("eos").append(HelpSyntax(" [options] <filename>.eosh")),
-         {}},
-        {HelpBlockKind::Section, "OPTIONS", {}},
-        {HelpBlockKind::Definition, HelpSyntax("-r, --role <uid> <gid>"),
-         "Select user and group roles."},
-        {HelpBlockKind::Definition, HelpSyntax("-a, --app <application>"),
-         "Set the application name."},
-        {HelpBlockKind::Definition, HelpSyntax("-b, --batch"),
-         "Run in batch mode without terminal formatting."},
-        {HelpBlockKind::Definition,
-         HelpSyntax("--color <auto|always|never>", {"auto", "always", "never"}),
-         "Control human-readable terminal styling."},
-        {HelpBlockKind::Definition, HelpSyntax("--no-pager"),
-         "Disable the configured help pager."},
-        {HelpBlockKind::Definition, HelpSyntax("-j, --json"), "Select JSON output."},
-        {HelpBlockKind::Definition, HelpSyntax("-h, --help"), "Show help."},
-        {HelpBlockKind::Definition, HelpSyntax("-v, --version"),
-         "Print version information."},
-        {HelpBlockKind::Definition, HelpSyntax("-s"),
-         HelpText("Run the ").append(HelpCommandText("status")).append(" command.")},
-        {HelpBlockKind::Section, "ENVIRONMENT", {}},
-        {HelpBlockKind::Definition,
-         StyledHelpText("EOS_HELP_WIDTH", TextStyle::Identifier),
-         "Override interactive help width (20 to 1000 columns). Automatic width is "
-         "capped at 120 columns."},
-        {HelpBlockKind::Definition, StyledHelpText("EOS_PAGER", TextStyle::Identifier),
-         HelpText("Optional pager for long interactive help, for example '")
-             .append(HelpCommandText("less"))
-             .append(HelpSyntax(" -FRX"))
-             .append("'. Quoted arguments are supported; shell expressions are not "
-                     "evaluated. Unset or empty disables paging.")},
-        {HelpBlockKind::Definition, StyledHelpText("NO_COLOR", TextStyle::Identifier),
-         "Disable automatic color when nonempty."},
-        {HelpBlockKind::Definition, StyledHelpText("EOS_MGM_URL", TextStyle::Identifier),
-         HelpText("Set the management server URL, including ")
-             .append("root://", TextStyle::Path)
-             .append(HelpSyntax("<hostname>[:<port>]"))
-             .append(" or ")
-             .append("ipc://", TextStyle::Path)
-             .append(HelpSyntax("<path>"))
-             .append(".")},
-        {HelpBlockKind::Definition,
-         StyledHelpText("EOS_HISTORY_FILE", TextStyle::Identifier),
-         HelpText("Set the history file (default: ")
-             .append("$HOME/.eos_history", TextStyle::Path)
-             .append(").")},
-        {HelpBlockKind::Definition, StyledHelpText("EOS_PWD_FILE", TextStyle::Identifier),
-         HelpText("Set the saved working directory file (default: ")
-             .append("$HOME/.eos_pwd", TextStyle::Path)
-             .append(").")},
-        {HelpBlockKind::Definition, StyledHelpText("EOS_NEWGRP", TextStyle::Identifier),
-         "Request the current shell's group ID for each command."},
-        {HelpBlockKind::Section, "EXAMPLES", {}},
-        {HelpBlockKind::Example, HelpCommandText("eos help"), {}},
-        {HelpBlockKind::Example,
-         HelpCommandText("eos ns cache set").append(HelpSyntax(" --help")),
-         {}},
-        {HelpBlockKind::Example,
-         HelpCommandText("eos ns").append(HelpSyntax(" --help-all")),
-         {}},
-        {HelpBlockKind::Example,
-         HelpCommandText("eos")
-             .append(HelpSyntax(" -b "))
-             .append(HelpCommandText("whoami")),
-         {}},
-        {HelpBlockKind::Example,
-         HelpCommandText("eos").append(" ").append("root://myeos", TextStyle::Path),
-         {}},
-        {HelpBlockKind::Section, "INTERACTIVE SHELL", {}},
-        {HelpBlockKind::Paragraph,
-         HelpText("Run ")
-             .append(HelpCommandText("eos"))
-             .append(
-                 " without a command to start the interactive shell. Control-D exits. "
-                 "Control-C clears the current line or interrupts the running command."),
-         {}},
-        {HelpBlockKind::Section, "EXIT STATUS", {}},
-        {HelpBlockKind::Paragraph,
-         "The last command's status is returned: 0 on success, otherwise errno. Report "
-         "bugs to eos-dev@cern.ch.",
-         {}}};
-    eos::console::PrintHelpPage(page);
-    return;
+  using namespace eos::console;
+  HelpPage page;
+  page.blocks = {
+      {HelpBlockKind::Paragraph, "EOS storage system command line interface", {}},
+      {HelpBlockKind::Section, "USAGE", {}},
+      {HelpBlockKind::Usage,
+       HelpCommandText("eos").append(
+           HelpSyntax(" [global-options] [<mgm-url>] <command> [<arguments>...]")),
+       {}},
+      {HelpBlockKind::Usage,
+       HelpCommandText("eos").append(HelpSyntax(" [global-options] [<mgm-url>]")),
+       {}},
+      {HelpBlockKind::Usage,
+       HelpCommandText("eos").append(
+           HelpSyntax(" [global-options] [<mgm-url>] <file>.eosh")),
+       {}},
+      {HelpBlockKind::Paragraph,
+       "Run a command, open an interactive shell, or execute a script containing one "
+       "EOS command per line. Global options precede the command; options after its "
+       "name belong to that command.",
+       {}},
+      {HelpBlockKind::Section, "FIND COMMAND HELP", {}},
+      {HelpBlockKind::Definition, HelpCommandText("eos help"),
+       "List every command with its description."},
+      {HelpBlockKind::Definition,
+       HelpCommandText("eos help").append(HelpSyntax(" <command> [<operation>...]")),
+       "Read help for a command or a nested operation."},
+      {HelpBlockKind::Definition,
+       HelpCommandText("eos fs ls").append(HelpSyntax(" --help")),
+       "Show only the filesystem listing options, without contacting an MGM."},
+      {HelpBlockKind::Definition,
+       HelpCommandText("eos fs").append(HelpSyntax(" --help-all")),
+       "Read the complete filesystem command manual."},
+      {HelpBlockKind::Section, "COMMANDS BY TASK", {}}};
+
+  EnsureNativeCommandRegistryInitialized();
+  const std::vector<std::pair<std::string, std::vector<std::string>>> groups{
+      {"Browse and manage files",
+       {"ls", "cd", "pwd", "stat", "find", "newfind", "oldfind", "du", "mkdir", "rmdir",
+        "cp", "mv", "ln", "cat", "touch", "rm", "file", "info", "fileinfo"}},
+      {"Metadata and access",
+       {"attr", "acl", "chmod", "chown", "quota", "whoami", "who", "member", "role",
+        "token", "scitoken"}},
+      {"Storage and namespace",
+       {"fs", "df", "node", "space", "group", "ns", "io", "fsck", "sched", "geosched",
+        "route", "convert", "recycle", "archive", "backup", "evict", "register"}},
+      {"Monitor and administer",
+       {"health", "status", "config", "access", "accounting", "devices", "inspector",
+        "monit", "tracker", "report", "rtlog", "debug", "vid", "map", "daemon", "test"}},
+      {"Clients and tools", {"fuse", "fusex", "rclone", "squash", "tui", "reconnect"}},
+      {"Shell and information",
+       {"help", "?", "clear", "motd", "json", "silent", "timing", "version", "license",
+        "quit", "exit", ".q"}}};
+  std::vector<std::string> listed;
+  for (const auto& [label, names] : groups) {
+    HelpText commands;
+    for (const auto& name : names) {
+      if (CommandRegistry::instance().find(name)) {
+        if (!commands.text.empty()) {
+          commands.append("  ");
+        }
+        commands.append(HelpCommandText(name));
+        listed.push_back(name);
+      }
+    }
+    page.blocks.push_back({HelpBlockKind::Definition, label, std::move(commands)});
   }
-  eos::console::PrintLegacyHelp(
-      "`eos' is the command line interface (CLI) of the EOS storage system.\n"
-      "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] "
-      "[-v|--version] [-j|--json] [--color=auto|always|never] [<mgm-url>] [<cmd> "
-      "{<argN>}|<filename>.eosh]\n"
-      "            -r, --role <uid> <gid>              : select user role <uid> and "
-      "group role <gid>\n"
-      "            -a, --app <application>             : set the application name for "
-      "the CLI\n"
-      "            -b, --batch                         : run in batch mode without "
-      "colour and syntax highlighting\n"
-      "            --color <auto|always|never>          : control human-readable "
-      "terminal styling\n"
-      "            -j, --json                          : switch to json output format\n"
-      "            -h, --help                          : print help text\n"
-      "            -v, --version                       : print version information\n"
-      "            -s                                  : run <status> command\n"
-      "            <mgm-url>                           : XRoot URL of the management "
-      "server e.g. root://<hostname>[:<port>]\n"
-      "            <cmd>                               : eos shell command (use 'eos "
-      "help' to see available commands)\n"
-      "            {<argN>}                            : single or list of arguments for "
-      "the eos shell command <cmd>\n"
-      "            <filename>.eosh                     : eos script file name ending "
-      "with .eosh suffix\n\n"
-      "Environment Variables: \n"
-      "            NO_COLOR                            : disable automatic color when "
-      "nonempty\n"
-      "            EOS_MGM_URL                         : sets the redirector URL - if "
-      "ipc://[ipc-path] is used, it will talk via ZMQ messaging to a single dedicated "
-      "thread in the MGM\n"
-      "            EOS_HISTORY_FILE                    : sets the command history file - "
-      "by default '$HOME/.eos_history' is used\n\n"
-      "            EOS_NEWGRP                          : requests for each command the "
-      "group ID of the current shell\n"
-      "            EOS_PWD_FILE                        : sets the file where the last "
-      "working directory is stored- by default '$HOME/.eos_pwd\n\n"
-      "Return Value: \n"
-      "            The return code of the last executed command is returned. 0 is "
-      "returned in case of success otherwise <errno> (!=0).\n\n"
-      "Examples:\n"
-      "            eos                                 : start the interactive eos shell "
-      "client connected to localhost or URL defined in environment variable EOS_MGM_URL\n"
-      "            eos -r 0 0                          : as before but take role "
-      "root/root [only numeric IDs are supported]\n"
-      "            eos root://myeos                    : start the interactive eos shell "
-      "connecting to MGM host 'myeos'\n"
-      "            eos -b whoami                       : run the eos shell command "
-      "'whoami' in batch mode without syntax highlighting\n"
-      "            eos space ls --io                   : run the eos shell command "
-      "'space' with arguments 'ls --io'\n"
-      "            eos --version                       : print version information\n"
-      "            eos -b eosscript.eosh               : run the eos shell script "
-      "'eosscript.eosh'. This script has to contain linewise commands which are "
-      "understood by the eos interactive shell\n"
-      "            eos -s                              : run <status> command\n"
-      "\n"
-      "You can leave the interactive shell with <Control-D>. <Control-C> cleans the "
-      "current shell line or terminates the shell when a command is currently executed.\n"
-      "Report bugs to eos-dev@cern.ch\n");
+  HelpText other;
+  for (const auto* command : CommandRegistry::instance().all()) {
+    if (std::find(listed.begin(), listed.end(), command->name()) == listed.end()) {
+      if (!other.text.empty()) {
+        other.append("  ");
+      }
+      other.append(HelpCommandText(command->name()));
+    }
+  }
+  if (!other.text.empty()) {
+    page.blocks.push_back({HelpBlockKind::Definition, "More commands", std::move(other)});
+  }
+
+  const std::vector<HelpBlock> details{
+      {HelpBlockKind::Section, "CONNECTION AND IDENTITY", {}},
+      {HelpBlockKind::Definition, HelpSyntax("<mgm-url>"),
+       HelpText("Select an MGM, for example ")
+           .append("root://eos.example.org:1094", TextStyle::Path)
+           .append(" or ")
+           .append("ipc:///path/to/mgm.sock", TextStyle::Path)
+           .append(". Uses EOS_MGM_URL when omitted, otherwise root://localhost.")},
+      {HelpBlockKind::Definition, HelpSyntax("-r, --role <user> <group>"),
+       "Select user and group roles by numeric ID or configured mapping name."},
+      {HelpBlockKind::Definition, HelpSyntax("-a, --app <application>"),
+       "Set the client application name; overrides EOSAPP."},
+      {HelpBlockKind::Definition, HelpSyntax("--comment <text>"),
+       "Attach one nonempty audit comment to the command. Quote comments containing "
+       "spaces."},
+      {HelpBlockKind::Section, "OUTPUT AND EXECUTION", {}},
+      {HelpBlockKind::Definition, HelpSyntax("-b, --batch"),
+       "Run without interactive terminal formatting."},
+      {HelpBlockKind::Definition, HelpSyntax("-j, --json"),
+       "Request JSON output from commands that support it; implies noninteractive, plain "
+       "output."},
+      {HelpBlockKind::Definition,
+       HelpSyntax("--color <auto|always|never>", {"auto", "always", "never"}),
+       "Control color in human output (default: auto). Batch, JSON and completion output "
+       "remain plain."},
+      {HelpBlockKind::Definition, HelpSyntax("-s"),
+       "Run the status command. Cannot be combined with another command."},
+      {HelpBlockKind::Definition, HelpSyntax("-h, --help"),
+       "Show this help and exit successfully."},
+      {HelpBlockKind::Definition, HelpSyntax("-v, --version"),
+       "Print version information."},
+      {HelpBlockKind::Definition, HelpSyntax("--"),
+       "End global option parsing. Within a command, use its -- delimiter for literal "
+       "names beginning with '-'."},
+      {HelpBlockKind::Section, "EXAMPLES", {}},
+      {HelpBlockKind::Paragraph, "List a directory on a selected MGM:", {}},
+      {HelpBlockKind::Example,
+       HelpCommandText("eos")
+           .append(" ")
+           .append("root://myeos", TextStyle::Path)
+           .append(" ")
+           .append(HelpCommandText("ls"))
+           .append(" ")
+           .append("/eos/", TextStyle::Path),
+       {}},
+      {HelpBlockKind::Paragraph, "Inspect a command before running it:", {}},
+      {HelpBlockKind::Example,
+       HelpCommandText("eos fs config").append(HelpSyntax(" --help")),
+       {}},
+      {HelpBlockKind::Paragraph, "Request machine-readable namespace statistics:", {}},
+      {HelpBlockKind::Example,
+       HelpCommandText("eos")
+           .append(HelpSyntax(" -j "))
+           .append(HelpCommandText("ns stat")),
+       {}},
+      {HelpBlockKind::Paragraph, "Run an EOS script in batch mode:", {}},
+      {HelpBlockKind::Example,
+       HelpCommandText("eos")
+           .append(HelpSyntax(" -b "))
+           .append("commands.eosh", TextStyle::Path),
+       {}},
+      {HelpBlockKind::Section, "ENVIRONMENT", {}},
+      {HelpBlockKind::Definition, StyledHelpText("EOS_MGM_URL", TextStyle::Identifier),
+       "Default root:// or ipc:// management endpoint."},
+      {HelpBlockKind::Definition, StyledHelpText("EOSAPP", TextStyle::Identifier),
+       "Default client application name."},
+      {HelpBlockKind::Definition, StyledHelpText("NO_COLOR", TextStyle::Identifier),
+       "Disable automatic color when nonempty. --color=always overrides this "
+       "preference."},
+      {HelpBlockKind::Definition,
+       StyledHelpText("EOS_HISTORY_FILE", TextStyle::Identifier),
+       "Interactive history file (default: $HOME/.eos_history)."},
+      {HelpBlockKind::Definition, StyledHelpText("EOS_PWD_FILE", TextStyle::Identifier),
+       "Saved working directory file (default: $HOME/.eos_pwd)."},
+      {HelpBlockKind::Definition, StyledHelpText("EOS_NEWGRP", TextStyle::Identifier),
+       "Request the current shell's group ID for each command."},
+      {HelpBlockKind::Section, "INTERACTIVE SHELL AND EXIT STATUS", {}},
+      {HelpBlockKind::Paragraph,
+       "With no command, EOS opens an interactive shell. Tab completes commands, options "
+       "and paths. "
+       "Control-D exits; Control-C clears the current line or interrupts a command. "
+       "Scripts use EOS command syntax, without shell expansion, and accept no "
+       "positional arguments.",
+       {}},
+      {HelpBlockKind::Paragraph,
+       "Successful commands and help return 0. Failures return the command's error "
+       "status. "
+       "Report bugs to eos-dev@cern.ch.",
+       {}}};
+  page.blocks.insert(page.blocks.end(), details.begin(), details.end());
+  PrintHelpPage(page);
 }
 
 namespace {
@@ -860,10 +871,10 @@ Run(int argc, char* argv[])
     return EINVAL;
   }
   eos::console::ConfigureColor(options.color, options.batch, options.json);
-  eos::console::ConfigureHelp(options.batch, options.json, options.noPager);
+  eos::console::ConfigureHelp(options.batch, options.json);
   if (options.help) {
     usage();
-    return -1;
+    return 0;
   }
   if (options.version) {
     fprintf(stderr, "EOS %s (2026)\n\n", VERSION);

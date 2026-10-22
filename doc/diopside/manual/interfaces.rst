@@ -27,26 +27,8 @@ Formatting occurs before color is added; ``--color=never`` and ``NO_COLOR``
 still retain the adaptive layout.
 
 Automatic help width is limited to 120 columns, with an 80-column fallback
-when the terminal does not report a width. Set ``EOS_HELP_WIDTH`` to an integer
-from 20 to 1000 to override this for interactive help. Invalid values are
-ignored. Redirected output, batch mode and JSON mode retain their existing
-layout and do not use this override. Ordinary command data is not reflowed.
-
-Paging is opt-in. For example:
-
-.. code-block:: bash
-
-   export EOS_PAGER='less -FRX'
-   eos ns --help-all
-   eos --no-pager ns --help-all
-
-The pager runs only for help at least as long as the terminal height, when
-both input and the help output stream are terminals. Unset or empty
-``EOS_PAGER``, ``EOS_PAGER=cat``, or ``--no-pager`` disables paging. Batch,
-JSON and redirected help never starts a pager. Quoted pager arguments are
-supported and passed directly to the program, without shell evaluation.
-If the pager cannot start or exits unsuccessfully, help is printed normally.
-
+when the terminal does not report a width. Redirected output, batch mode and
+JSON mode retain their existing layout. Ordinary command data is not reflowed.
 
 .. index::
    pair: Interfaces; Namespace

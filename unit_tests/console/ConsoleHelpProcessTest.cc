@@ -2,6 +2,7 @@
 // File: ConsoleHelpProcessTest.cc
 // ----------------------------------------------------------------------
 
+#include "console/CommandFramework.hh"
 #include "console/ConsoleHelp.hh"
 #include "gtest/gtest.h"
 #include <cerrno>
@@ -12,11 +13,11 @@
 #include <map>
 #include <optional>
 #include <regex>
+#include <set>
 #include <signal.h>
 #include <spawn.h>
 #include <sstream>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <thread>
@@ -68,11 +69,7 @@ protected:
   void
   TearDown() override
   {
-    for (const auto& path : files) {
-      unlink(path.c_str());
-    }
-    for (const char* name :
-         {"stdout", "stderr", "pager-marker", "pager-arguments", "injected"}) {
+    for (const char* name : {"stdout", "stderr"}) {
       unlink((directory + "/" + name).c_str());
     }
     rmdir(directory.c_str());
@@ -82,8 +79,7 @@ protected:
   process(const std::vector<std::string>& args, unsigned short width = 80,
           bool outputTerminal = false, bool errorTerminal = false,
           bool inputTerminal = false,
-          const std::map<std::string, std::string>& overrides = {},
-          unsigned short rows = 24)
+          const std::map<std::string, std::string>& overrides = {})
   {
     output.clear();
     error.clear();
@@ -94,8 +90,7 @@ protected:
       const auto equal = value.find('=');
       environment[value.substr(0, equal)] = value.substr(equal + 1);
     }
-    for (const auto* name : {"NO_COLOR", "EOSAUTHZ", "EOS_CONSOLE_DEBUG",
-                             "EOS_HELP_WIDTH", "EOS_PAGER", "PAGER"}) {
+    for (const auto* name : {"NO_COLOR", "EOSAUTHZ", "EOS_CONSOLE_DEBUG"}) {
       environment.erase(name);
     }
     environment["TERM"] = "xterm";
@@ -104,8 +99,6 @@ protected:
     environment["EOS_PWD_FILE"] = "/dev/null";
     environment["EOS_HISTORY_FILE"] = "/dev/null";
     environment["INPUTRC"] = "/dev/null";
-    environment["EOS_TEST_PAGER_MARKER"] = directory + "/pager-marker";
-    environment["EOS_TEST_PAGER_ARGUMENTS"] = directory + "/pager-arguments";
     for (const auto& [key, value] : overrides) {
       environment[key] = value;
     }
@@ -153,7 +146,7 @@ protected:
       }
       winsize size{};
       size.ws_col = width;
-      size.ws_row = rows;
+      size.ws_row = 24;
       if (ioctl(terminal.slave, TIOCSWINSZ, &size)) {
         ADD_FAILURE() << "Cannot size help test PTY";
         return -1;
@@ -281,24 +274,7 @@ protected:
     return result;
   }
 
-  std::string
-  pager(const std::string& body = "cat\n")
-  {
-    const auto path = directory + "/pager fixture";
-    {
-      std::ofstream script(path);
-      script << "#!/bin/sh\n"
-                "printf 'invoked\\n' > \"$EOS_TEST_PAGER_MARKER\"\n"
-                "printf '<%s>\\n' \"$@\" > \"$EOS_TEST_PAGER_ARGUMENTS\"\n"
-             << body;
-    }
-    EXPECT_EQ(chmod(path.c_str(), 0700), 0);
-    files.push_back(path);
-    return "\"" + path + "\" \"two words\"";
-  }
-
   std::string directory, output, error, terminalOutput;
-  std::vector<std::string> files;
 };
 } // namespace
 
@@ -497,10 +473,10 @@ TEST_F(ConsoleHelpProcessTest, GlobalUsageAndCommandIndexFitRealTerminalWidths)
 {
   for (unsigned short width : {40, 60, 80, 120}) {
     SCOPED_TRACE(width);
-    ASSERT_EQ(process({"--color=never", "--help"}, width, false, true), 255);
+    ASSERT_EQ(process({"--color=never", "--help"}, width, false, true), 0);
     expectWidth(terminalOutput, width);
-    EXPECT_NE(terminalOutput.find("EOS_HELP_WIDTH"), std::string::npos);
-    EXPECT_NE(terminalOutput.find("--no-pager"), std::string::npos);
+    EXPECT_NE(terminalOutput.find("EOS_MGM_URL"), std::string::npos);
+    EXPECT_NE(terminalOutput.find("--batch"), std::string::npos);
     ASSERT_EQ(process({"--color=never", "help"}, width, false, true), 0);
     expectWidth(terminalOutput, width);
     EXPECT_NE(terminalOutput.find("Available commands:"), std::string::npos);
@@ -545,99 +521,18 @@ TEST_F(ConsoleHelpProcessTest, RedirectedAndMachineHelpKeepsTheSelectedNamespace
   EXPECT_EQ(error, leaf);
 }
 
-TEST_F(ConsoleHelpProcessTest, WidthOverrideChangesInteractiveLayoutWithoutChangingColor)
-{
-  ASSERT_EQ(process({"--color=never", "ns", "--help"}, 120, false, true, false,
-                    {{"EOS_HELP_WIDTH", "40"}}),
-            0);
-  const auto overridden = terminalOutput;
-  expectWidth(overridden, 40);
-  ASSERT_EQ(process({"--color=never", "ns", "--help"}, 40, false, true), 0);
-  EXPECT_EQ(terminalOutput, overridden);
-}
-
 TEST_F(ConsoleHelpProcessTest, CompletionProtocolIsUnchangedAtNarrowWidths)
 {
-  ASSERT_EQ(process({"__complete", "ns", "cache", "d"}, 40, true, true, true,
-                    {{"EOS_HELP_WIDTH", "20"}, {"EOS_PAGER", pager()}}, 3),
-            0);
+  ASSERT_EQ(process({"__complete", "ns", "cache", "d"}, 20, true, true, true), 0);
   EXPECT_EQ(terminalOutput, "drop\ndrop-single-container\ndrop-single-file\n");
-  EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
 }
 
 TEST_F(ConsoleHelpProcessTest, NewHelpOptionsAreDiscoverableThroughCompletion)
 {
-  ASSERT_EQ(process({"__complete", "--no-p"}), 0);
-  EXPECT_EQ(output, "--no-pager\n");
   ASSERT_EQ(process({"__complete", "ns", "--help-a"}), 0);
   EXPECT_EQ(output, "--help-all\n");
   ASSERT_EQ(process({"__complete", "ns", "cache", "--help-a"}), 0);
   EXPECT_EQ(output, "--help-all\n");
-}
-
-TEST_F(ConsoleHelpProcessTest, OptInPagerReceivesCompleteHelpAndQuotedArguments)
-{
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), 0);
-  const auto baseline = terminalOutput;
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
-                    {{"EOS_PAGER", pager()}}, 3),
-            0);
-  EXPECT_EQ(readFile(directory + "/pager-marker"), "invoked\n");
-  EXPECT_EQ(readFile(directory + "/pager-arguments"), "<two words>\n");
-  EXPECT_EQ(terminalOutput, baseline);
-  EXPECT_TRUE(output.empty());
-}
-
-TEST_F(ConsoleHelpProcessTest, PagerRequiresInteractiveInputAndTheHelpDestination)
-{
-  const auto command = pager();
-  for (const auto& streams :
-       {std::pair<bool, bool>{false, true}, {true, false}, {false, false}}) {
-    ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, streams.second,
-                      streams.first, {{"EOS_PAGER", command}}, 3),
-              0);
-    EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
-  }
-}
-
-TEST_F(ConsoleHelpProcessTest, PagerIsDisabledForShortHelpBatchJsonAndExplicitOptOut)
-{
-  const auto command = pager();
-  for (const auto& options :
-       std::vector<std::vector<std::string>>{{"--no-pager"}, {"-b"}, {"-j"}}) {
-    auto args = options;
-    args.insert(args.end(), {"--color=never", "ns", "--help-all"});
-    ASSERT_EQ(process(args, 60, false, true, true, {{"EOS_PAGER", command}}, 3), 0);
-    EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
-  }
-  ASSERT_EQ(process({"--color=never", "ns", "cache", "set", "--help"}, 80, false, true,
-                    true, {{"EOS_PAGER", command}}, 500),
-            0);
-  EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
-}
-
-TEST_F(ConsoleHelpProcessTest, PagerCommandIsExecutedWithoutShellEvaluation)
-{
-  const auto malicious = pager() + " ; touch " + directory + "/injected";
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
-                    {{"EOS_PAGER", malicious}}, 3),
-            0);
-  EXPECT_NE(access((directory + "/injected").c_str(), F_OK), 0);
-  EXPECT_NE(terminalOutput.find("update_quotanode"), std::string::npos);
-}
-
-TEST_F(ConsoleHelpProcessTest, FailedPagerFallsBackToTheCompleteHelp)
-{
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), 0);
-  const auto baseline = terminalOutput;
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
-                    {{"EOS_PAGER", directory + "/missing-pager"}}, 3),
-            0);
-  EXPECT_EQ(terminalOutput, baseline);
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
-                    {{"EOS_PAGER", pager("exit 7\n")}}, 3),
-            0);
-  EXPECT_EQ(terminalOutput, baseline);
 }
 
 TEST_F(ConsoleHelpProcessTest, StandardCli11HelpFitsActualTerminalWidths)
@@ -769,6 +664,41 @@ TEST_F(ConsoleHelpProcessTest, LsHelpKeepsItsSynopsisInBatchAndRedirectedOutput)
       EXPECT_TRUE(output.empty());
       EXPECT_NE(error.find("ls [OPTIONS] [path...]"), std::string::npos);
       EXPECT_NE(error.find("--no-globbing"), std::string::npos);
+    }
+  }
+}
+
+TEST_F(ConsoleHelpProcessTest, TopLevelHelpExplainsTasksOptionsAndEveryRegisteredCommand)
+{
+  ASSERT_EQ(process({"--color=never", "--help"}), 0);
+  EXPECT_TRUE(output.empty());
+  const auto baseline = error;
+  for (const auto* text :
+       {"COMMANDS BY TASK", "FIND COMMAND HELP", "CONNECTION AND IDENTITY",
+        "OUTPUT AND EXECUTION", "eos fs config --help", "--comment", "EOSAPP",
+        "EOS_MGM_URL", "commands.eosh"}) {
+    EXPECT_NE(baseline.find(text), std::string::npos) << text;
+  }
+  EnsureNativeCommandRegistryInitialized();
+  std::set<std::string> documented;
+  std::istringstream words(baseline);
+  std::string word;
+  while (words >> word) {
+    if (CommandRegistry::instance().find(word)) {
+      documented.insert(word);
+    }
+  }
+  for (const auto* command : CommandRegistry::instance().all()) {
+    EXPECT_TRUE(documented.count(command->name())) << command->name();
+  }
+  for (const auto* flag : {"-h", "--help"}) {
+    for (const auto& prefix : std::vector<std::vector<std::string>>{
+             {"--color=never"}, {"--color=always", "-b"}, {"--color=always", "-j"}}) {
+      auto args = prefix;
+      args.push_back(flag);
+      ASSERT_EQ(process(args), 0);
+      EXPECT_EQ(error, baseline);
+      EXPECT_EQ(error.find('\033'), std::string::npos);
     }
   }
 }
