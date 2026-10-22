@@ -991,7 +991,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       } else {
         eos_thread_info("msg=\"found final path\" %s", paths["atomic"].GetName());
 
-        // Asked at open by eos.xattr.preserve
+        // Asked at open by eos.xattr.preserve or eos.versioning=0
         if (option["xattrpreserve"]) {
           AddCarryOverXattrs(*fmd, pfmd->getAttributes());
           gOFS->eosView->updateFileStore(fmd.get());

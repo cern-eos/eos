@@ -3532,6 +3532,85 @@ runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INS
 runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep -F 'expires:${WOPILOCK_EXPIRES},type:shared,owner:*:wopi_test'"
 runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep wopilockid"
 runtest "### Overwrite " unix ERROR   "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
+# eos.versioning=0, which the wopiserver sends within its noversiongraceperiod,
+# only skips the new version: the previous versions, the attributes of their
+# folder and the xattrs of the file are kept - the lock included
+WOPILOCK_VERSIONS=$(command eos -b root://$EOS_TEST_REDIRECTOR ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.wopilock" 2>/dev/null | wc -l)
+runtest "### Version   " unix SUCCESS "" shell test "$WOPILOCK_VERSIONS" "-gt" "0"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=wopi_test\&eos.versioning=0"
+runtest "### Stat      " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.wopilock"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.wopilock | wc -l | grep -w $WOPILOCK_VERSIONS"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep -F 'expires:${WOPILOCK_EXPIRES},type:shared,owner:*:wopi_test'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock | grep wopilockid"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app"
+runtest "### Overwrite " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/wopilock" "-ODeos.app=other_app\&eos.versioning=0"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversion | wc -l | grep -w 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.vfolder=kept "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversion"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion" "-ODeos.versioning=0"
+runtest "### Stat      " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversion"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversion | wc -l | grep -w 1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.vfolder "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversion | grep kept"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion | grep kept"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.noversion" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversion"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/versioning.noversion"
+# also for an atomic upload
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversiona | wc -l | grep -w 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.keep=kept "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.vfolder=kept "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversiona"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona" "-ODeos.versioning=0\&eos.atomic=1"
+runtest "### Stat      " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversiona"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversiona | wc -l | grep -w 1"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.vfolder "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.noversiona | grep kept"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.keep "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona | grep kept"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.noversiona" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/noversiona"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/versioning.noversiona"
+# and what changes on the file while the atomic upload is open is neither lost
+# nor brought back, as for a versioned one
+VERSIONING_SKIP="/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/duringskip"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$VERSIONING_SKIP"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set "'sys.app.lock=${VERSIONING_LOCK}'" "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.iop.lock=before "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.changed=before "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.given=before "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.removed=before "$VERSIONING_SKIP"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_SKIP" "eos.app=wopi_test&eos.versioning=0&eos.xattr=user.given=fromcgi" xattr_change "$VERSIONING_REFRESH"
+runtest "### Ls        " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.duringskip | wc -l | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.duringskip" "$VERSIONING_SKIP"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/versioning.duringskip"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.app.lock "$VERSIONING_SKIP | grep -F 'expires:${VERSIONING_REFRESH},'"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.iop.lock "$VERSIONING_SKIP | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$VERSIONING_SKIP | grep after"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.added "$VERSIONING_SKIP | grep after"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.removed "$VERSIONING_SKIP"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.given "$VERSIONING_SKIP | grep fromcgi"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_SKIP" "eos.app=wopi_test&eos.versioning=0" lock_release
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.app.lock "$VERSIONING_SKIP"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.iop.lock "$VERSIONING_SKIP"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.changed "$VERSIONING_SKIP | grep after"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$VERSIONING_SKIP" "-ODeos.app=other_app\&eos.versioning=0"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_SKIP" "eos.app=wopi_test&eos.versioning=0" file_remove
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/versioning.removedskip" "$VERSIONING_SKIP"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/versioning.removedskip"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.changed "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.eval.useracl=1 "$VERSIONING_SKIP"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$VERSIONING_SKIP"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_SKIP" "eos.versioning=0&eos.xattr=user.acl=u:4:r" acl_change
+runtest "### Attr Get  " unix SUCCESS "" eos attr get user.acl "$VERSIONING_SKIP | grep -F 'u:3:r'"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_SKIP | grep -F 'u:4:r'"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/group" "$VERSIONING_SKIP" "eos.versioning=0" acl_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_SKIP"
+runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eval.useracl "$VERSIONING_SKIP | grep 1"
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.acl=u:2:r "$VERSIONING_SKIP"
+runtest "### Atomic    " unix SUCCESS "" atomic_upload_during "/etc/passwd" "$VERSIONING_SKIP" "eos.versioning=0" file_remove
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.acl "$VERSIONING_SKIP"
+runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eval.useracl "$VERSIONING_SKIP"
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/versioning.*"
 # Versioning test when acls control the permission for the user on the folder and
 # implicitly also for the creation of the versions directory.
 runtest "### Mkdir     " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
@@ -3660,6 +3739,11 @@ runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESE
 runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/value"
 runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/value" "-ODeos.xattr.preserve=true"
 runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/value"
+# and eos.versioning=0 changes nothing in a directory without versioning
+runtest "### Attr Set  " unix SUCCESS "" eos attr set user.preserve=kept "$XATTRPRESERVE_DIR/value"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$XATTRPRESERVE_DIR/value" "-ODeos.versioning=0"
+runtest "### Attr Get  " unix ERROR   "" eos attr get user.preserve "$XATTRPRESERVE_DIR/value"
+runtest "### Stat      " unix ERROR   "" meta stat "$XATTRPRESERVE_DIR/.sys.v#.value"
 # ownership and mode are not copied, the new file belongs to the overwriter -
 # root here, a plain upload is not mapped to root on every instance
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$XATTRPRESERVE_DIR/owner" "-ODeos.ruid=${NOBODY_UID}"
@@ -4279,6 +4363,17 @@ runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/versioned0 | grep -c 'Crypt:' | grep -w 0"
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.versioned0" "$SPACEENC_CGI_DIR/versioned0"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.versioned0"
+# a save which skips the new version with eos.versioning=0, as the wopiserver
+# does, keeps the file encrypted and keeps its versions
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/encnv" "-ODeos.obfuscate=1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/encnv" "-ODeos.obfuscate=1"
+runtest "### Ls        " unix SUCCESS "" eos ls "$SPACEENC_CGI_DIR/.sys.v#.encnv | wc -l | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/encnv" "-ODeos.versioning=0"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/encnv | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Stat      " unix SUCCESS "" meta stat "$SPACEENC_CGI_DIR/.sys.v#.encnv"
+runtest "### Ls        " unix SUCCESS "" eos ls "$SPACEENC_CGI_DIR/.sys.v#.encnv | wc -l | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.encnv" "$SPACEENC_CGI_DIR/encnv"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.encnv"
 # atomic overwrite of a versioned file asking for obfuscation again - the
 # commit must not put the keys of the previous version back
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/atomicv" "-ODeos.obfuscate=1"
@@ -4503,6 +4598,17 @@ runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTS
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.keyrmv2" "$SPACEENC_CGI_DIR/keyrmv"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.keyrmv2"
 runtest "### KeyRm     " unix SUCCESS "" eos space config default space.encryptionkey=remove --no-confirmation
+# a save which skips the new version with eos.versioning=0, as the wopiserver
+# does, keeps the file obfuscated and keeps its versions
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfnv" "-ODeos.obfuscate=1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/obfnv" "-ODeos.obfuscate=1"
+runtest "### Ls        " unix SUCCESS "" eos ls "$SPACEENC_CGI_DIR/.sys.v#.obfnv | wc -l | grep -w 1"
+runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfnv" "-ODeos.versioning=0"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfnv | grep -c 'Crypt: obfuscated' | grep -w 1"
+runtest "### Stat      " unix SUCCESS "" meta stat "$SPACEENC_CGI_DIR/.sys.v#.obfnv"
+runtest "### Ls        " unix SUCCESS "" eos ls "$SPACEENC_CGI_DIR/.sys.v#.obfnv | wc -l | grep -w 1"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.obfnv" "$SPACEENC_CGI_DIR/obfnv"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.cgi.obfnv"
 # in a space which has a key by now, the new version is encrypted with it
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/obfvk" "-ODeos.obfuscate=1"
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/obfvk | grep -c 'Crypt: obfuscated' | grep -w 1"
