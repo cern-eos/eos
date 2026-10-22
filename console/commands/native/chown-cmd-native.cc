@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <charconv>
 #include <cstdint>
@@ -158,5 +159,6 @@ public:
 void
 RegisterChownNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ChownCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<ChownCommand>(), {{}, eos::console::ShortHelpPolicy::Never}));
 }

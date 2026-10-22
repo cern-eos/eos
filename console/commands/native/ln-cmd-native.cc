@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -95,6 +96,11 @@ public:
       fargs.insert(fargs.begin() + 1, "-f");
     return fileCmd->run(fargs, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeLnHelp();
+  }
   void
   printHelp() const override
   {
@@ -106,5 +112,6 @@ public:
 void
 RegisterLnNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<LnCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<LnCommand>(), {}));
 }

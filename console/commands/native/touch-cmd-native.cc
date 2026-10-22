@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <vector>
@@ -63,6 +64,11 @@ public:
     fargs.insert(fargs.end(), args.begin(), args.end());
     return fileCmd->run(fargs, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeTouchHelp();
+  }
   void
   printHelp() const override
   {
@@ -74,5 +80,6 @@ public:
 void
 RegisterTouchNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TouchCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<TouchCommand>()));
 }

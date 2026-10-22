@@ -5,6 +5,7 @@
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "namespace/utils/Mode.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
@@ -343,5 +344,6 @@ public:
 void
 RegisterLsNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<LsCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<LsCommand>(), {{}, eos::console::ShortHelpPolicy::Standalone}));
 }

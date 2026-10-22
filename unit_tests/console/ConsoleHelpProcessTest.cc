@@ -766,16 +766,16 @@ TEST_F(ConsoleHelpProcessTest, IoExamplesUseConsistentCopyableLines)
   }
 }
 
-TEST_F(ConsoleHelpProcessTest, LsHelpKeepsItsLegacySynopsisInBatchAndRedirectedOutput)
+TEST_F(ConsoleHelpProcessTest, LsHelpKeepsItsSynopsisInBatchAndRedirectedOutput)
 {
   for (const char* flag : {"-h", "--help"}) {
     for (const auto& prefix : std::vector<std::vector<std::string>>{
              {"--color=never"}, {"--color=never", "-b", "root://localhost"}}) {
       auto args = prefix;
       args.insert(args.end(), {"ls", flag});
-      ASSERT_EQ(process(args), EINVAL);
+      ASSERT_EQ(process(args), 0);
       EXPECT_TRUE(output.empty());
-      EXPECT_NE(error.find("Usage: ls [OPTIONS] [path...]"), std::string::npos);
+      EXPECT_NE(error.find("ls [OPTIONS] [path...]"), std::string::npos);
       EXPECT_NE(error.find("--no-globbing"), std::string::npos);
     }
   }

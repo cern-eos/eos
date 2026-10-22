@@ -415,7 +415,7 @@ TEST_F(DuCliTest, RejectsMissingEmptyUnknownAndExtraArgumentsBeforeSending)
 
 TEST_F(DuCliTest, HelpDoesNotSendRequest)
 {
-  expectRejected("du", {"--help"});
+  expectHelp("du", {"--help"});
   auto* command = CommandRegistry::instance().find("du");
   ASSERT_NE(command, nullptr);
   const auto help = command->helpText();

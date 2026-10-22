@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -91,6 +92,15 @@ public:
   {
     return "Statistics about connected users";
   }
+  std::string
+  helpText() const override
+  {
+    CLI::App app;
+    bool opt_c = false, opt_n = false, opt_z = false, opt_a = false;
+    bool opt_m = false, opt_s = false, opt_h = false;
+    ConfigureWhoApp(app, opt_c, opt_n, opt_z, opt_a, opt_m, opt_s, opt_h);
+    return MakeWhoHelp(&app);
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -165,5 +175,7 @@ public:
 void
 RegisterWhoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<WhoCommand>());
+  eos::console::CommandHelpSpec help;
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<WhoCommand>(), std::move(help)));
 }

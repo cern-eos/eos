@@ -6,6 +6,7 @@
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -195,6 +196,11 @@ public:
   description() const override
   {
     return "Attribute Interface";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeAttrHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -536,5 +542,16 @@ public:
 void
 RegisterAttrNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<AttrCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "  attr [-r] ls ", "List extended attributes."},
+      {{"set"}, "  attr [-r] set [-c] ", "Set extended attributes or default layouts."},
+      {{"get"}, "  attr [-r] [-V] get ", "Read an extended attribute."},
+      {{"rm"}, "  attr [-r] rm ", "Remove an extended attribute."},
+      {{"link"}, "  attr [-r] link ", "Link another directory's attributes."},
+      {{"unlink"}, "  attr [-r] unlink ", "Remove an attribute link."},
+      {{"fold"}, "  attr [-r] fold ", "Fold identical linked attributes.", "Remarks:"},
+  };
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<AttrCommand>(), std::move(help)));
 }

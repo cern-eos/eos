@@ -289,8 +289,8 @@ TEST_F(LegacyCliValidationTest, LsHelpAndDelimiterAgreeWithPreflight)
   EXPECT_FALSE(command->requiresMgm("--help"));
   EXPECT_TRUE(command->requiresMgm("-h /eos/data"));
   EXPECT_TRUE(command->requiresMgm("-- --help"));
-  expectRejected("ls", {"-h"});
-  expectRejected("ls", {"--help"});
+  expectHelp("ls", {"-h"});
+  expectHelp("ls", {"--help"});
   run("ls", {"--", "--help"});
   expectPath("/eos/dispatch-test/--help");
 }

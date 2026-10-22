@@ -14,6 +14,7 @@
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FileHelper.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
@@ -632,5 +633,34 @@ public:
 void
 RegisterFileProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FileProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<FileProtoCommand>(),
+      {{{{"adjustreplica"}, "adjustreplica ", "Restore the nominal replica count."},
+        {{"check"}, "check ", "Check physical replicas against metadata."},
+        {{"convert"}, "convert ", "Convert a file layout."},
+        {{"copy"}, "copy ", "Copy a file or directory."},
+        {{"drop"},
+         "drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid>",
+         "Drop a disk replica or a cache location."},
+        {{"info"}, "info ", "Inspect file or directory metadata."},
+        {{"layout"},
+         "layout <path>|fid:<fid-dec>|fxid:<fid-hex> -stripes",
+         "Change layout properties."},
+        {{"move"}, "move ", "Move a file between filesystems."},
+        {{"purge"}, "purge ", "Purge old versions of a file."},
+        {{"rename"}, "rename ", "Rename a file or directory."},
+        {{"rename_with_symlink"},
+         "rename_with_symlink ",
+         "Move a file and leave a symbolic link."},
+        {{"replicate"}, "replicate ", "Replicate a file to another filesystem."},
+        {{"share"}, "share ", "Create a time-limited share link."},
+        {{"symlink"}, "symlink ", "Create a symbolic link."},
+        {{"tag"}, "tag ", "Change the recorded filesystem locations."},
+        {{"touch"},
+         "touch [-a]",
+         "Create a file, update its timestamp or manage its lock."},
+        {{"verify"}, "verify ", "Verify file replicas."},
+        {{"version"}, "version ", "Create a new file version."},
+        {{"versions"}, "versions ", "List or retrieve file versions."},
+        {{"workflow"}, "workflow ", "Trigger a file workflow event."}}}));
 }

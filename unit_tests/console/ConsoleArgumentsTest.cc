@@ -107,7 +107,7 @@ TEST(ConsoleLexer, HelpDetectionHonorsTokenBoundariesAndDelimiter)
   }
 }
 
-TEST(ConsoleLexer, ExpandedHelpIsScopedToNamespaceAndHonorsDelimiter)
+TEST(ConsoleLexer, ExpandedHelpIsLocalForCommandsAndHonorsDelimiter)
 {
   EXPECT_FALSE(wants_help("--help-all"));
   EnsureNativeCommandRegistryInitialized();
@@ -119,7 +119,7 @@ TEST(ConsoleLexer, ExpandedHelpIsScopedToNamespaceAndHonorsDelimiter)
   EXPECT_TRUE(ns->requiresMgmArguments({"cache", "name --help-all suffix"}));
   const auto* file = CommandRegistry::instance().find("file");
   ASSERT_NE(file, nullptr);
-  EXPECT_TRUE(file->requiresMgmArguments({"--help-all"}));
+  EXPECT_FALSE(file->requiresMgmArguments({"--help-all"}));
 }
 
 TEST(ConsoleOptions, PrefixOptionsAcceptEveryOrder)

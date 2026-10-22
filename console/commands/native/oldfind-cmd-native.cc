@@ -6,6 +6,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
@@ -82,7 +83,7 @@ RunRegisteredCommand(const std::string& cmdName,
 
 static std::string MakeOldfindHelp()
 {
-  return "Usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n>] "
+  return "Usage: oldfind [-name <pattern>] [--xurl] [--childcount] [--purge <n>] "
          "[--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] "
          "[-x <key>=<val>] [-p <key>] [-b] [-c %tags] [-layoutstripes <n>] <path>\n\n"
          "Find files/directories (old implementation).\n";
@@ -673,6 +674,11 @@ public:
     std::string joined = oss.str();
     return native_com_old_find((char*)joined.c_str());
   }
+  std::string
+  helpText() const override
+  {
+    return MakeOldfindHelp();
+  }
   void
   printHelp() const override
   {
@@ -684,5 +690,6 @@ public:
 void
 RegisterOldfindNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<OldfindCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<OldfindCommand>(), {}));
 }

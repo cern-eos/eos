@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <sstream>
 
@@ -25,6 +26,11 @@ public:
   description() const override
   {
     return "Determine how we are mapped on server side";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeWhoamiHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -66,5 +72,7 @@ public:
 void
 RegisterWhoamiNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<WhoamiCommand>());
+  eos::console::CommandHelpSpec help;
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<WhoamiCommand>(), std::move(help)));
 }

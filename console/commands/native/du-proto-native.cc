@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
@@ -156,5 +157,6 @@ public:
 void
 RegisterDuNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<DuCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<DuCommand>(), {{}, eos::console::ShortHelpPolicy::Never}));
 }
