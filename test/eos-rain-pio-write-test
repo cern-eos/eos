@@ -39,6 +39,10 @@
 #      fails and leaves the file untouched;
 #    - an atomic overwrite with eos.xattr.preserve=1 keeps the xattrs of the
 #      file it replaces;
+#    - PIO writes and reads of obfuscated files fall back to a gateway access:
+#      an overwrite of an obfuscated file, with and without versioning, and a
+#      new file in a directory obfuscating its files stay obfuscated and read
+#      back through a gateway FST and with the plugin;
 #    - non-sequential writes produce a correct checksum and parity;
 #    - the parity is correct i.e. the file can be read after dropping two
 #      stripes.
@@ -131,6 +135,15 @@ expect_pio_write() {
   return 0
 }
 
+# Check the last plugin run fell back to a gateway access, "read" or "write"
+expect_gateway_fallback() {
+  local what=$1
+  local access=$2
+  grep -q "fall back to gateway ${access}" <<< "${LAST_LOG}" ||
+    fail "${what}: plugin did not fall back to a gateway ${access}"
+  return 0
+}
+
 # Return the given field of the file's JSON fileinfo
 get_info() {
   local path=$1
@@ -175,6 +188,30 @@ verify_file() {
   cmp -s "${ref}" "${TMP_DIR}/read.dat" ||
     fail "${path}: PIO read content mismatch"
   rm -f "${TMP_DIR}/read.dat"
+}
+
+#------------------------------------------------------------------------------
+# Check the file reads back correctly through a gateway FST and with the
+# plugin and is obfuscated or encrypted. Only the entry server of a RAIN file
+# decodes its contents, the plugin has to fall back to a gateway read.
+#------------------------------------------------------------------------------
+verify_obfuscated_file() {
+  local ref=$1
+  local path=$2
+  rm -f "${TMP_DIR}/read.dat"
+  ${XRDCP} "${EOSURL}/${path}" "${TMP_DIR}/read.dat" > /dev/null 2>&1 ||
+    fail "${path}: gateway read failed"
+  cmp -s "${ref}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: gateway read content mismatch"
+  rm -f "${TMP_DIR}/read.dat"
+  run_with_plugin ${XRDCP} "${EOSURL}/${path}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: plugin read failed"
+  cmp -s "${ref}" "${TMP_DIR}/read.dat" ||
+    fail "${path}: plugin read content mismatch"
+  expect_gateway_fallback "${path}" read
+  rm -f "${TMP_DIR}/read.dat"
+  ${EOS} ${EOSURL} file info "${path}" | grep -Eq 'Crypt: (obfuscated|encrypted)' ||
+    fail "${path}: not obfuscated"
 }
 
 # Create an EOS directory with the given layout and the adler checksum
@@ -276,6 +313,46 @@ for layout in raid6 raiddp; do
   ${EOS} ${EOSURL} ls -a "${DIR}" | grep -qF '.sys.a#.' &&
     fail "${path}: temporary file of the atomic upload left behind"
   echo "ok: ${path} overwritten atomically keeping its xattrs"
+
+  #----------------------------------------------------------------------------
+  echo "### ${layout}: overwrite of an obfuscated file and obfuscating directory"
+  #----------------------------------------------------------------------------
+  # A file replacing an obfuscated one is obfuscated too, with or without
+  # versioning. No FST applies the key to the stripes a PIO client accesses
+  # directly, the plugin has to fall back to a gateway access. The MGM refuses
+  # the PIO overwrite before the file is versioned, which leaves one version.
+  ODIR="${DIR}/obfuscated"
+  VDIR="${DIR}/obfuscated_versioned"
+  make_dir "${ODIR}" ${layout} ${NSTRIPES}
+  make_dir "${VDIR}" ${layout} ${NSTRIPES}
+  ${EOS} ${EOSURL} attr set sys.versioning=5 "${VDIR}" ||
+    fail "could not set versioning on ${VDIR}"
+
+  for path in "${ODIR}/file.dat" "${VDIR}/file.dat"; do
+    ${XRDCP} "${TMP_DIR}/ref_4194321.dat" "${EOSURL}/${path}?eos.obfuscate=1" \
+      > /dev/null 2>&1 || fail "${path}: obfuscated gateway write failed"
+    verify_obfuscated_file "${TMP_DIR}/ref_4194321.dat" "${path}"
+    run_with_plugin ${XRDCP} -f "${REF_OTHER}" "${EOSURL}/${path}" ||
+      fail "${path}: overwrite of an obfuscated file failed"
+    expect_gateway_fallback "${path}" write
+    verify_obfuscated_file "${REF_OTHER}" "${path}"
+    echo "ok: ${path} overwritten and still obfuscated"
+  done
+
+  nversions=$(${EOS} ${EOSURL} ls "${VDIR}/.sys.v#.file.dat" 2> /dev/null | wc -l)
+  test "${nversions}" = 1 ||
+    fail "${VDIR}/file.dat: expected 1 version after the overwrite, got ${nversions}"
+
+  PDIR="${DIR}/obfuscating"
+  make_dir "${PDIR}" ${layout} ${NSTRIPES}
+  ${EOS} ${EOSURL} attr set sys.file.obfuscate=1 "${PDIR}" ||
+    fail "could not set obfuscation on ${PDIR}"
+  path="${PDIR}/file.dat"
+  run_with_plugin ${XRDCP} "${REF_OTHER}" "${EOSURL}/${path}" ||
+    fail "${path}: write to an obfuscating directory failed"
+  expect_gateway_fallback "${path}" write
+  verify_obfuscated_file "${REF_OTHER}" "${path}"
+  echo "ok: ${path} obfuscated"
 
   #----------------------------------------------------------------------------
   echo "### ${layout}: non-sequential writes"
