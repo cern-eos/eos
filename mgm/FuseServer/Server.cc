@@ -2330,10 +2330,22 @@ Server::OpSetFile(const std::string& id,
                         eos_info("hlnk unlink target %s for %s nlink %ld",
                                  gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
                         XrdOucErrInfo error;
+                        // Versioning moves the target into the version folder,
+                        // away from the directory of its links
+                        std::shared_ptr<eos::IContainerMD> gcmd;
 
-                        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
-                                                      error) == -1) {
-                          pcmd->removeFile(gmd->getName());
+                        try {
+                          gcmd = gOFS->eosDirectoryService->getContainerMD(
+                              gmd->getContainerId());
+                        } catch (eos::MDException& e) {
+                        }
+
+                        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, gcmd, gmd,
+                                                      vid, error) == -1) {
+                          if (gcmd) {
+                            gcmd->removeFile(gmd->getName());
+                          }
+
                           gmd->unlinkAllLocations();
                           gmd->setContainerId(0);
                         }
@@ -3542,10 +3554,21 @@ Server::OpDeleteFile(const std::string& id,
             eos_info("msg=\"hlnk unlink\" target=\"%s\" source=\"%s\" nlink=%ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
             XrdOucErrInfo error;
+            // Versioning moves the target into the version folder, away from
+            // the directory of its links
+            std::shared_ptr<eos::IContainerMD> gcmd;
 
-            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
+            try {
+              gcmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+            } catch (eos::MDException& e) {
+            }
+
+            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, gcmd, gmd, vid,
                                           error) == -1) {
-              pcmd->removeFile(gmd->getName());
+              if (gcmd) {
+                gcmd->removeFile(gmd->getName());
+              }
+
               gmd->unlinkAllLocations();
               gmd->setContainerId(0);
             }
