@@ -2330,10 +2330,31 @@ Server::OpSetFile(const std::string& id,
                         eos_info("hlnk unlink target %s for %s nlink %ld",
                                  gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
                         XrdOucErrInfo error;
+                        // Versioning moves the target into the version folder,
+                        // away from the directory of its links
+                        std::shared_ptr<eos::IContainerMD> gcmd;
 
-                        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
-                                                      error) == -1) {
-                          pcmd->removeFile(gmd->getName());
+                        try {
+                          gcmd = gOFS->eosDirectoryService->getContainerMD(
+                              gmd->getContainerId());
+                        } catch (eos::MDException& e) {
+                          eos_err("msg=\"no directory for hard link target\" "
+                                  "target=\"%s\" emsg=\"%s\"",
+                                  gmd->getName().c_str(), e.getMessage().str().c_str());
+                        }
+
+                        // Without its directory a target can't be cloned, it
+                        // keeps the contents the clone still needs
+                        const bool keep_for_clone =
+                            !gcmd && gmd->getCloneId() && gmd->getCloneFST().empty();
+
+                        if (!keep_for_clone &&
+                            (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, gcmd,
+                                                       gmd, vid, error) == -1)) {
+                          if (gcmd) {
+                            gcmd->removeFile(gmd->getName());
+                          }
+
                           gmd->unlinkAllLocations();
                           gmd->setContainerId(0);
                         }
@@ -3542,10 +3563,30 @@ Server::OpDeleteFile(const std::string& id,
             eos_info("msg=\"hlnk unlink\" target=\"%s\" source=\"%s\" nlink=%ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
             XrdOucErrInfo error;
+            // Versioning moves the target into the version folder, away from
+            // the directory of its links
+            std::shared_ptr<eos::IContainerMD> gcmd;
 
-            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
-                                          error) == -1) {
-              pcmd->removeFile(gmd->getName());
+            try {
+              gcmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+            } catch (eos::MDException& e) {
+              eos_err("msg=\"no directory for hard link target\" target=\"%s\" "
+                      "emsg=\"%s\"",
+                      gmd->getName().c_str(), e.getMessage().str().c_str());
+            }
+
+            // Without its directory a target can't be cloned, it keeps the
+            // contents the clone still needs
+            const bool keep_for_clone =
+                !gcmd && gmd->getCloneId() && gmd->getCloneFST().empty();
+
+            if (!keep_for_clone &&
+                (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, gcmd, gmd, vid,
+                                           error) == -1)) {
+              if (gcmd) {
+                gcmd->removeFile(gmd->getName());
+              }
+
               gmd->unlinkAllLocations();
               gmd->setContainerId(0);
             }
