@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
 #include <sstream>
 
@@ -43,5 +44,10 @@ public:
 void
 RegisterLicenseNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<LicenseCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<LicenseCommand>(),
+      {{},
+       eos::console::ShortHelpPolicy::Always,
+       {},
+       "Usage: license\nDisplay the EOS software license.\n"}));
 }

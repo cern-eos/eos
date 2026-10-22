@@ -6,6 +6,7 @@
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -17,7 +18,9 @@ namespace {
 std::string MakeVidHelp()
 {
   std::ostringstream oss;
-  oss << "Usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n] : list configured policies\n"
+  oss << "Usage: vid <operation> [arguments...]\n\n"
+      << "vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n] : list configured "
+         "policies\n"
       << "                                        -u : show only user role mappings\n"
       << "                                        -g : show only group role mappings\n"
       << "                                        -s : show list of sudoers\n"
@@ -25,38 +28,60 @@ std::string MakeVidHelp()
       << "                                        -G : show group alias mapping\n"
       << "                                        -y : show configured gateways\n"
       << "                                        -a : show authentication\n"
-      << "                                        -N : show maximum anonymous (nobody) access level deepness - the tree deepness where unauthenticated access is possible (default is 1024)\n"
+      << "                                        -N : show maximum anonymous (nobody) "
+         "access level deepness - the tree deepness where unauthenticated access is "
+         "possible (default is 1024)\n"
       << "                                        -l : show geo location mapping\n"
-      << "                                        -n : show numerical ids instead of user/group names\n"
+      << "                                        -n : show numerical ids instead of "
+         "user/group names\n"
       << "\n"
       << "       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n"
       << "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n"
-      << "       vid rm membership <uid>             : delete the membership entries for <uid>.\n"
       << "       vid set membership <uid> [+|-]sudo \n"
-      << "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 <pattern> [vuid:<uid>] [vgid:<gid>] \n"
-      << "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n"
-      << "           -sss key:<key>   : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n"
-      << "           -grpc key:<key>  : <key> has to be added to the relevant GRPC request in the field 'authkey'\n"
-      << "           -https key:<key> : <key> has to be added to the relevant HTTP(S) request as a header 'x-gateway-authorization'\n"
-      << "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n"
+      << "       vid rm membership <uid>             : delete the membership entries for "
+         "<uid>.\n"
+      << "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 "
+         "<pattern> [vuid:<uid>] [vgid:<gid>] \n"
+      << "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS "
+         "attribute /dteam/cern/Role=NULL/Capability=NULL one should define "
+         "<pattern>=/dteam/cern: \n"
+      << "           -sss key:<key>   : <key> has to be defined on client side via "
+         "'export XrdSecsssENDORSEMENT=<key>'\n"
+      << "           -grpc key:<key>  : <key> has to be added to the relevant GRPC "
+         "request in the field 'authkey'\n"
+      << "           -https key:<key> : <key> has to be added to the relevant HTTP(S) "
+         "request as a header 'x-gateway-authorization'\n"
+      << "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH "
+         "resource endpoint to translate OAUTH tokens to user identities\n"
       << "\n"
-      << "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n"
-      << "                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n"
-      << "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n"
+      << "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the "
+         "prefix <prefix> the geo location tag <geotag>\n"
+      << "                                              N.B. specify the default "
+         "assumption via 'vid set geotag default <default-tag>'\n"
+      << "       vid rm <key>                         : remove configured vid with name "
+         "key - hint: use config dump to see the key names of vid rules\n"
       << "\n"
       << "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2|ztn\n"
-      << "                                            : enable/disables the default mapping via password or external database\n"
+      << "                                            : enable/disables the default "
+         "mapping via password or external database\n"
       << "\n"
       << "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https|grpc]\n"
-      << "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n"
-      << "                                              [<prot>] restricts the gateway role change to the specified authentication method\n"
+      << "                                            : adds/removes a host as a (fuse) "
+         "gateway with 'su' priviledges\n"
+      << "                                              [<prot>] restricts the gateway "
+         "role change to the specified authentication method\n"
       << "       vid publicaccesslevel <level>\n"
-      << "                                           : sets the deepest directory level where anonymous access (nobody) is possible\n"
+      << "                                           : sets the deepest directory level "
+         "where anonymous access (nobody) is possible\n"
       << "       vid tokensudo 0|1|2|3\n"
-      << "                                           : configure sudo policy when tokens are used\n"
-      << "                                             0 : always allow token sudo (setting uid/gid from token) [default if not set]\n"
-      << "                                             1 : allow token sudo if transport is encrypted\n"
-      << "                                             2 : allow token sudo for strong authentication (not unix!)\n"
+      << "                                           : configure sudo policy when tokens "
+         "are used\n"
+      << "                                             0 : always allow token sudo "
+         "(setting uid/gid from token) [default if not set]\n"
+      << "                                             1 : allow token sudo if transport "
+         "is encrypted\n"
+      << "                                             2 : allow token sudo for strong "
+         "authentication (not unix!)\n"
       << "                                             3 : never allow token sudo\n";
   return oss.str();
 }
@@ -86,6 +111,11 @@ public:
   description() const override
   {
     return "VID tools";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeVidHelp();
   }
   bool
   requiresMgm(const std::string&) const override
@@ -503,5 +533,37 @@ public:
 void
 RegisterVidNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<VidCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "vid ls ", "List virtual identity policies."},
+      {{"set"}, "", "Configure virtual identity mappings."},
+      {{"set", "membership"},
+       "       vid set membership <uid> -uids ",
+       "Set user and group memberships."},
+      {{"set", "map"}, "       vid set map ", "Set an authentication mapping."},
+      {{"set", "geotag"}, "       vid set geotag ", "Map an IP prefix to a geotag."},
+      {{"rm"}, "       vid rm <key> ", "Remove a virtual identity rule."},
+      {{"rm", "membership"}, "       vid rm membership ", "Remove user memberships."},
+      {{"enable"},
+       "       vid enable|disable ",
+       "Enable default authentication mappings."},
+      {{"disable"},
+       "       vid enable|disable ",
+       "Disable default authentication mappings."},
+      {{"add"}, "       vid add|remove gateway ", "Manage gateway privileges."},
+      {{"add", "gateway"}, "       vid add|remove gateway ", "Add gateway privileges."},
+      {{"remove"}, "       vid add|remove gateway ", "Manage gateway privileges."},
+      {{"remove", "gateway"},
+       "       vid add|remove gateway ",
+       "Remove gateway privileges."},
+      {{"publicaccesslevel"},
+       "       vid publicaccesslevel ",
+       "Set anonymous-access depth."},
+      {{"tokensudo"}, "       vid tokensudo ", "Configure token sudo policy."},
+  };
+  help.valueOptions = {{"-uids", 1},  {"-gids", 1}, {"-krb5", 1},  {"-gsi", 1},
+                       {"-https", 1}, {"-sss", 1},  {"-unix", 1},  {"-tident", 1},
+                       {"-voms", 1},  {"-grpc", 1}, {"-oauth2", 1}};
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<VidCommand>(), std::move(help)));
 }

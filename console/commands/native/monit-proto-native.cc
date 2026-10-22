@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 
@@ -197,5 +198,15 @@ public:
 void
 RegisterMonitNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MonitProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"enable"}, "  enable ", "Enable the Prometheus endpoint."},
+      {{"disable"}, "  disable ", "Disable the Prometheus endpoint."},
+      {{"config"}, "", "Configure the Prometheus endpoint."},
+      {{"config", "ls"}, "  config ls ", "List monitoring configuration."},
+      {{"config", "set"}, "  config set --port ", "Set monitoring configuration."},
+  };
+  help.valueOptions = {{"--port", 1}, {"--cache-ttl", 1}};
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<MonitProtoCommand>(), std::move(help)));
 }

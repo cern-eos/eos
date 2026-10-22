@@ -7,6 +7,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <fcntl.h>
 #include <json/json.h>
@@ -505,28 +506,33 @@ public:
     }
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return "Usage: report [--read|--write] [--regex <pattern>] [-n <max>]\n"
+           "               [--max-efficiency <0-100>] [--squash <path>]\n"
+           "               [--start <epoch>] [--stop <epoch>] "
+           "[--json] [--addvector] [-s] <file>\n"
+           "options:\n"
+           "  --read                 filter read reports only\n"
+           "  --write                filter write reports only\n"
+           "  --regex <pattern>      POSIX regex to filter lines\n"
+           "  -n <max>               limit number of reports (default huge)\n"
+           "  --max-efficiency <n>   reject entries with efficiency above n (0-100)\n"
+           "  --squash <path>        squash paths to the given "
+           "prefix (must start/end with '/')\n"
+           "  --start <epoch>        only include reports >= start time\n"
+           "  --stop <epoch>         only include reports <= stop time\n"
+           "  --json                 output JSON summary\n"
+           "  --addvector            include vector-read bytes (rvb_sum) in read "
+           "totals,\n"
+           "                         rates and efficiency computations\n"
+           "  -s                     silent (no output)\n";
+  }
   void
   printHelp() const override
   {
-    eos::console::PrintLegacyHelp(
-        "Usage: report [--read|--write] [--regex <pattern>] [-n <max>]\n"
-        "               [--max-efficiency <0-100>] [--squash <path>]\n"
-        "               [--start <epoch>] [--stop <epoch>] "
-        "[--json] [--addvector] [-s] <file>\n"
-        "options:\n"
-        "  --read                 filter read reports only\n"
-        "  --write                filter write reports only\n"
-        "  --regex <pattern>      POSIX regex to filter lines\n"
-        "  -n <max>               limit number of reports (default huge)\n"
-        "  --max-efficiency <n>   reject entries with efficiency above n (0-100)\n"
-        "  --squash <path>        squash paths to the given "
-        "prefix (must start/end with '/')\n"
-        "  --start <epoch>        only include reports >= start time\n"
-        "  --stop <epoch>         only include reports <= stop time\n"
-        "  --json                 output JSON summary\n"
-        "  --addvector            include vector-read bytes (rvb_sum) in read totals,\n"
-        "                         rates and efficiency computations\n"
-        "  -s                     silent (no output)\n");
+    eos::console::PrintLegacyHelp(helpText());
   }
 };
 } // namespace
@@ -534,5 +540,9 @@ public:
 void
 RegisterReportNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ReportCommand>());
+  eos::console::CommandHelpSpec help;
+  help.valueOptions = {{"--regex", 1},  {"-n", 1},      {"--max-efficiency", 1},
+                       {"--squash", 1}, {"--start", 1}, {"--stop", 1}};
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<ReportCommand>(), std::move(help)));
 }

@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
 
 namespace {
@@ -39,5 +40,10 @@ public:
 void
 RegisterStatusNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<StatusCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<StatusCommand>(),
+      {{},
+       eos::console::ShortHelpPolicy::Always,
+       {},
+       "Usage: status\nDisplay MGM status using the eos-status utility.\n"}));
 }

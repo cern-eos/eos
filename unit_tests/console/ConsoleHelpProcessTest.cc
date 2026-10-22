@@ -644,12 +644,14 @@ TEST_F(ConsoleHelpProcessTest, StandardCli11HelpFitsActualTerminalWidths)
 {
   for (unsigned short width : {40, 60, 80, 120}) {
     SCOPED_TRACE(width);
-    ASSERT_EQ(process({"--color=never", "help", "config"}, width, false, true), 0);
+    ASSERT_EQ(process({"--color=never", "help", "config", "save"}, width, false, true),
+              0);
     const auto baseline = terminalOutput;
     expectWidth(baseline, width);
     EXPECT_NE(baseline.find("--comment"), std::string::npos);
     EXPECT_NE(baseline.find("REQUIRED"), std::string::npos);
-    ASSERT_EQ(process({"--color=always", "help", "config"}, width, false, true), 0);
+    ASSERT_EQ(process({"--color=always", "help", "config", "save"}, width, false, true),
+              0);
     EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
     EXPECT_EQ(plain(terminalOutput), baseline);
   }

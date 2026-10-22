@@ -642,7 +642,7 @@ TEST_F(ConsoleProcessTest, HealthHelpDoesNotContactMgm)
   for (const auto* option : {"--help", "-h"}) {
     SCOPED_TRACE(option);
     EXPECT_EQ(process({"-b", "health", option}), 0) << lastOutput;
-    EXPECT_NE(lastOutput.find("Usage: eos health"), std::string::npos);
+    EXPECT_NE(lastOutput.find("eos health"), std::string::npos);
     noRequests();
   }
 }
@@ -963,4 +963,18 @@ TEST_F(ConsoleProcessTest, ColoredReadlineInsertionPreservesOneQuotedPathOperand
       << lastOutput;
   EXPECT_EQ(protobuf(true).record().path(), path) << lastOutput;
   unlink(path.c_str());
+}
+
+TEST_F(ConsoleProcessTest, EveryCommandHelpIsLocalAndSuccessful)
+{
+  EnsureNativeCommandRegistryInitialized();
+  for (const auto* command : CommandRegistry::instance().all()) {
+    SCOPED_TRACE(command->name());
+    EXPECT_EQ(process({"--color=never", command->name(), "--help"}), 0) << lastOutput;
+    EXPECT_FALSE(lastOutput.empty());
+    noRequests();
+    EXPECT_EQ(process({"--color=never", "help", command->name()}), 0) << lastOutput;
+    EXPECT_FALSE(lastOutput.empty());
+    noRequests();
+  }
 }
