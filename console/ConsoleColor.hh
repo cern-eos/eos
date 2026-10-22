@@ -31,6 +31,9 @@ enum class TextStyle {
   Literal,
   Identifier,
   Path,
+  EntityType,
+  Read,
+  Write,
   Count
 };
 

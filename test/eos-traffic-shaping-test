@@ -4,6 +4,32 @@
 # Author: Luis Antonio Obis Aparicio - CERN
 # ----------------------------------------------------------------------
 
+# Keep state checks independent of the human-readable table layout.
+check_shaping_config() {
+  local detail=$1
+  local baseline=${2:-false}
+
+  if CONFIG_JSON_RESULT=$(eos io shaping config ls --json); then
+    printf '%s\n' "$CONFIG_JSON_RESULT" | jq -s -e --arg detail "$detail" \
+      --argjson baseline "$baseline" '
+      length == 1 and (.[0] |
+        type == "object" and .enabled == true and .detail_level == $detail and
+        (if $baseline then
+          .estimators_update_period_ms == 100 and
+          .fst_io_policy_update_period_ms == 100 and
+          .fst_io_stats_reporting_period_ms == 100 and
+          .system_stats_time_window_seconds == 15
+        else true end))' > /dev/null
+  else
+    return "$?"
+  fi
+}
+
+# Fixtures source only the read-only configuration assertion above.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
+
 if [[ $# -ne 2 ]]; then
   echo "Error: Missing arguments."
   echo "Usage:    $0 <eos_mgm_hostname> <eos_instance_name>"
@@ -120,20 +146,17 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
-CONFIG_RESULT=$(eos io shaping config ls)
-CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
 POLICY_JSON_RESULT=$(eos io shaping policy ls --json)
 
-if echo "$CONFIG_RESULT" | grep -Eq 'Traffic Shaping Enabled:[[:space:]]*true' && \
-   echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate'; then
-  echo "✅ Success: Default aggregate detail mode reported."
+if CONFIG_RESULT=$(eos io shaping config ls) && [[ "$CONFIG_RESULT" =~ [^[:space:]] ]]; then
+  echo "✅ Success: Traffic shaping config human output is nonempty."
 else
-  echo "❌ Error: Traffic shaping config output missing enabled state or aggregate detail mode."
+  echo "❌ Error: Traffic shaping config human output failed or was empty."
   echo "Debug Info: $CONFIG_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
-if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "aggregate" and (.estimators_update_period_ms == 100) and (.fst_io_policy_update_period_ms == 100) and (.fst_io_stats_reporting_period_ms == 100) and (.system_stats_time_window_seconds == 15)' > /dev/null; then
+if check_shaping_config aggregate true; then
   echo "✅ Success: Traffic shaping config JSON output reported expected values."
 else
   echo "❌ Error: Traffic shaping config JSON output missing expected values."
@@ -168,13 +191,19 @@ sleep 8
 xrdcp -f ${TEST_FILE_10MB} "${DEST_URL}/disk_detail_prime.dat?eos.app=${DETAIL_APP}" > /dev/null 2>&1
 sleep 1
 
-CONFIG_RESULT=$(eos io shaping config ls)
+if CONFIG_RESULT=$(eos io shaping config ls) && [[ "$CONFIG_RESULT" =~ [^[:space:]] ]]; then
+  echo "✅ Success: Traffic shaping config human output is nonempty in filesystem detail mode."
+else
+  echo "❌ Error: Traffic shaping config human output failed or was empty in filesystem detail mode."
+  echo "Debug Info: $CONFIG_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
 
-if echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*fs'; then
+if check_shaping_config fs; then
   echo "✅ Success: Filesystem detail mode enabled."
 else
-  echo "❌ Error: Filesystem detail mode was not reported as enabled."
-  echo "Debug Info: $CONFIG_RESULT"
+  echo "❌ Error: Filesystem detail mode was not reported as enabled in JSON."
+  echo "Debug Info: $CONFIG_JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
