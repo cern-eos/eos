@@ -27,6 +27,7 @@
 #include "common/Timing.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
 #include <CLI/CLI.hpp>
@@ -102,24 +103,23 @@ struct RcloneOptions {
 namespace {
 std::string MakeRcloneHelp()
 {
-  return R"(Usage: rclone copy <src-dir> <dst-dir> [OPTIONS]
-       rclone sync <dir1> <dir2> [OPTIONS]
-
-  copy : one-way sync from source to destination
-  sync : bi-directional sync based on modification times
-
-Options:
-  --delete    delete based on mtimes (currently unsupported)
-  --noreplace never update files, only create new ones
-  --dryrun    simulate and show actions, don't execute
-  --atomic    copy/sync also EOS atomic files
-  --versions  copy/sync also EOS version files
-  --hidden    copy/sync also hidden files/directories
-  -v,--verbose  display all actions, not only summary
-  -s,--silent   only show errors
-
-Run with: eos rclone copy|sync <src> <dst> [OPTIONS]
-)";
+  const std::string options =
+      "Options:\n"
+      "  --delete        delete based on mtimes (currently unsupported)\n"
+      "  --noreplace     never update files, only create new ones\n"
+      "  --dryrun        simulate and show actions without executing them\n"
+      "  --atomic        include EOS atomic files\n"
+      "  --versions      include EOS version files\n"
+      "  --hidden        include hidden files and directories\n"
+      "  -v,--verbose    display all actions\n"
+      "  -s,--silent     display errors only\n";
+  return "Usage: rclone <copy|sync> <src> <dst> [OPTIONS]\n\n"
+         "rclone copy <src-dir> <dst-dir> [OPTIONS]\n"
+         "  Copy source changes to the destination in one direction.\n\n" +
+         options +
+         "\nrclone sync <dir1> <dir2> [OPTIONS]\n"
+         "  Synchronize changes in both directions using modification times.\n\n" +
+         options;
 }
 
 void ConfigureRcloneApp(CLI::App& app, RcloneOptions& opts)
@@ -1631,6 +1631,11 @@ public:
     }
     return rclone_impl(opts);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRcloneHelp();
+  }
   void
   printHelp() const override
   {
@@ -1642,5 +1647,8 @@ public:
 void
 RegisterRcloneNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RcloneCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RcloneCommand>(),
+      {{{{"copy"}, "rclone copy ", "Copy source changes to a destination."},
+        {{"sync"}, "rclone sync ", "Synchronize two directories."}}}));
 }

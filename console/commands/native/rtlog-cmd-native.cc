@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -53,6 +54,11 @@ public:
   description() const override
   {
     return "Real-time logging";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeRtlogHelp();
   }
   bool
   requiresMgm(const std::string&) const override
@@ -131,5 +137,7 @@ public:
 void
 RegisterRtlogNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RtlogCommand>());
+  eos::console::CommandHelpSpec help;
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<RtlogCommand>(), std::move(help)));
 }

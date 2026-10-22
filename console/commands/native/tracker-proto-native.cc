@@ -5,6 +5,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -66,6 +67,11 @@ public:
   {
     return "Print file replication tracking entries";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeTrackerHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -112,5 +118,7 @@ public:
 void
 RegisterTrackerNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TrackerCommand>());
+  eos::console::CommandHelpSpec help;
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<TrackerCommand>(), std::move(help)));
 }

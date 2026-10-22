@@ -5,6 +5,7 @@
 #include "common/BuildVersion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -100,6 +101,11 @@ public:
     }
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeVersionHelp();
+  }
   void
   printHelp() const override
   {
@@ -114,5 +120,6 @@ public:
 void
 RegisterVersionNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<VersionCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<VersionCommand>(), {}));
 }

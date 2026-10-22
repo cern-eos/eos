@@ -6,6 +6,7 @@
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -81,13 +82,13 @@ std::string MakeFusexHelp()
       << "                -t|i|p <regexp>>                                     -  "
          "display entries matching <regexp> for the used filter type\n"
       << "\n"
-      << "examples:\n"
-      << "           fusex caps -i ^0000abcd$                                  :  show "
-         "caps for inode 0000abcd\n"
-      << "           fusex caps -p ^/eos/$                                     :  show "
-         "caps for path /eos\n"
-      << "           fusex caps -p ^/eos/caps/                                 :  show "
-         "all caps in subtree /eos/caps\n"
+      << "EXAMPLES:\n"
+      << "  # Show capabilities for inode 0000abcd\n"
+      << "  eos fusex caps -i '^0000abcd$'\n\n"
+      << "  # Show capabilities for /eos\n"
+      << "  eos fusex caps -p '^/eos/$'\n\n"
+      << "  # Show capabilities below /eos/caps\n"
+      << "  eos fusex caps -p '^/eos/caps/'\n\n"
       << "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds] [max "
          "broadcast audience] [broadcast audience match]\n"
       << "                                                             :  show heartbeat "
@@ -96,18 +97,17 @@ std::string MakeFusexHelp()
          "optional change heartbeat interval from [1-15] seconds ]\n"
       << "                                                                     :  [ "
          "optional set quota check interval from [1-16] seconds ]\n"
-      << "examples:\n"
-      << "   fusex conf                                                :  show heartbeat "
-         "and quota interval\n"
-      << "   fusex conf 10                                             :  define "
-         "heartbeat interval as 10 seconds\n"
-      << "   fusex conf 10 30                                          :  define "
-         "heartbeat as 10 seconds and quota interval as 30 seconds\n"
-      << "   fusex conf 0 0 256 @b[67]                                :  suppress "
-         "broadcasts when more than 256 clients are conected and the target matches "
-         "@b[67]\n"
-      << "   fusex conf 10 10 0 \"\"                                    :  clear the "
-         "broadcast audience suppress match\n";
+      << "EXAMPLES:\n"
+      << "  # Show heartbeat and quota intervals\n"
+      << "  eos fusex conf\n\n"
+      << "  # Set the heartbeat interval to 10 seconds\n"
+      << "  eos fusex conf 10\n\n"
+      << "  # Set heartbeat to 10 seconds and quota checks to 30 seconds\n"
+      << "  eos fusex conf 10 30\n\n"
+      << "  # Suppress matching broadcasts above 256 clients\n"
+      << "  eos fusex conf 0 0 256 '@b[67]'\n\n"
+      << "  # Clear the broadcast audience match\n"
+      << "  eos fusex conf 10 10 0 \"\"\n";
   return oss.str();
 }
 
@@ -288,6 +288,11 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeFusexHelp();
+  }
   void
   printHelp() const override
   {
@@ -299,5 +304,18 @@ public:
 void
 RegisterFusexNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FusexCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<FusexCommand>(),
+      {{{{"ls"}, "Usage: fusex ls ", "Show connected FUSE clients."},
+        {{"evict"},
+         "       fusex evict <uuid>",
+         "Evict a FUSE client or change its logging."},
+        {{"dropcaps"},
+         "       fusex dropcaps ",
+         "Ask a client to drop its capabilities."},
+        {{"droplocks"}, "       fusex droplocks ", "Ask a client to release locks."},
+        {{"caps"}, "       fusex caps ", "Inspect FUSE capabilities."},
+        {{"conf"},
+         "       fusex conf [",
+         "Configure heartbeat, quota and broadcast intervals."}}}));
 }

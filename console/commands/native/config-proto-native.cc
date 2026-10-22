@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
@@ -141,5 +142,15 @@ public:
 void
 RegisterConfigProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ConfigProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<ConfigProtoCommand>(),
+      {{{{"ls"}, "ls", "List configurations."},
+        {{"dump"}, "dump", "Dump a current or named configuration."},
+        {{"export"}, "export", "Export a configuration to QuarkDB."},
+        {{"load"}, "load", "Load a saved configuration."},
+        {{"reset"}, "reset", "Reset the configuration."},
+        {{"save"}, "save", "Save the current configuration."},
+        {{"changelog"}, "changelog", "Show configuration changes."}},
+       eos::console::ShortHelpPolicy::Always,
+       {{"-c", 1}, {"--comment", 1}}}));
 }

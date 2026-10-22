@@ -356,7 +356,7 @@ TEST_F(ConsoleColorProcessTest, RedirectedHelpIsExactUnlessExplicitlyForced)
 {
   ASSERT_EQ(process({"--color=never", "help", "config"}), 0);
   const auto baseline = error;
-  EXPECT_NE(baseline.find("--comment"), std::string::npos);
+  EXPECT_NE(baseline.find("save"), std::string::npos);
   ASSERT_EQ(process({"help", "config"}), 0);
   EXPECT_EQ(error, baseline);
   EXPECT_TRUE(output.empty());

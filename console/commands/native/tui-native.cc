@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 
 #include <cerrno>
 #include <cstring>
@@ -103,5 +104,13 @@ public:
 void
 RegisterTuiNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TuiCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<TuiCommand>(),
+      {{},
+       eos::console::ShortHelpPolicy::Always,
+       {},
+       "usage: tui [eos-tui-args]\n"
+       "\n"
+       "Launch the eos-tui terminal UI.\n"
+       "Any additional arguments are passed through to eos-tui.\n"}));
 }

@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
 #include <sstream>
 // Native implementation adapted from legacy com_daemon
@@ -31,6 +32,82 @@
 #define EOS_PTRACE_ATTACH PTRACE_ATTACH
 #define EOS_PTRACE_DETACH PTRACE_DETACH
 #endif //__APPLE__
+
+namespace {
+std::string
+MakeDaemonHelp()
+{
+  return R"help(Usage: daemon <operation> [arguments...]
+
+  daemon config <service> [name] [subcommand]
+    Show init, sysconfig and XRootD configuration for a service.
+    Services: mq, mgm, fst, qdb.
+    For qdb, supported operations include coup, info, backup, remove, add,
+    promote and new observer.
+
+  daemon sss recreate
+    Recreate the instance SSS key and eosnobody keys in
+    /etc/eos.keytab and /etc/eos/fuse.sss.keytab.
+
+  daemon seal <text-or-absolute-file> [key]
+    Encrypt text or a file for use in sealed init commands.
+    When no key is supplied, use the daemon key from /etc/eos.keytab.
+
+  daemon kill <service> [name]
+    Send SIGKILL to the service.
+
+  daemon run <service> [name] [key...]
+    Run a service daemon, optionally identified by name.
+
+  daemon stack <service> [name]
+    Print the service stack with eu-stack.
+
+  daemon stop <service> [name]
+    Send SIGTERM to stop the service gracefully.
+
+  daemon jwk <service-placeholder> <key-file>
+    Run the JWK public key server on port 4443.
+
+  daemon module-init <service> [name]
+    Run the initialization procedure for a module.
+
+EXAMPLES:
+  # Ask the QDB instance to become leader
+  eos daemon config qdb qdb coup
+
+  # Inspect the QDB raft state
+  eos daemon config qdb qdb info
+
+  # Remove a QDB cluster member
+  eos daemon config qdb qdb remove host:port
+
+  # Add an observer to the QDB cluster
+  eos daemon config qdb qdb add host:port
+
+  # Promote a QDB observer to a member
+  eos daemon config qdb qdb promote host:port
+
+  # Create a QDB observer
+  eos daemon config qdb qdb new observer
+
+  # Show configuration for an FST service
+  eos daemon config fst fst.1
+
+  # Kill the MQ service
+  eos daemon kill mq
+
+  # Print the MGM stack
+  eos daemon stack mgm
+
+  # Stop the MQ service gracefully
+  eos daemon stop mq
+
+  # Run an FST service
+  eos daemon run fst fst.1
+)help";
+}
+
+} // namespace
 
 // Native port of legacy com_daemon
 static int
@@ -735,51 +812,7 @@ native_com_daemon(char* arg)
 
   return (0);
 com_daemon_usage:
-  eos::console::PrintLegacyHelp(
-      "Usage: daemon config|sss|kill|run|stack|stop|jwk|module-init <service> "
-      "[name] [subcmd]                                     :  \n"
-      "                <service> := mq | mgm | fst | qdb\n"
-      "                config                                      "
-      "          -  configure a service / show configuration\n"
-      "                kill                                        "
-      "          -  kill -9 a given service\n"
-      "                run                                                 "
-      "  -  run the given service daemon optionally identified by name\n"
-      "                sss recreate                                        "
-      "  -  re-create an instance sss key and the eosnobody keys "
-      "(/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n"
-      "                stack                                       "
-      "          -  print an 'eu-stack'\n"
-      "                stop                                        "
-      "          -  kill -15 a given service\n"
-      "                jwk                                         "
-      "          -  run a 'jwk' public key server on port 4443\n"
-      "                module-init                                 "
-      "          -  run the init procedure for a module\n"
-      "\n"
-      "      examples: eos daemon config qdb qdb coup              "
-      "          -  try to make instance [qdb] a leader of QDB\n"
-      "                eos daemon config qdb qdb info              "
-      "          -  show raft-info for the [qdb] QDB instance\n"
-      "                eos daemon config qdb qdb remove host:port  "
-      "          -  remove a member of the qdb cluster\n"
-      "                eos daemon config qdb qdb add host:port     "
-      "          -  add an observer to the qdb cluster\n"
-      "                eos daemon config qdb qdb promote host:port         "
-      "  -  promote an observer to a full member of the qdb cluster\n"
-      "                eos daemon config qdb qdb new observer      "
-      "          -  create a new observer\n"
-      "                eos daemon config fst fst.1                 "
-      "          -  show the init,sysconfig and xrootd config for "
-      "the [fst.1] FST service\n"
-      "                eos daemon kill mq                          "
-      "          -  shoot the MQ service with signal -9\n"
-      "                eos daemon stop mq                                  "
-      "  -  gracefully shut down the MQ service with signal -15\n"
-      "                eos daemon stack mgm                        "
-      "          -  take an 'eu-stack' of the MGM service\n"
-      "                eos daemon run fst fst.1                    "
-      "          -  run the fst.1 subservice FST\n");
+  eos::console::PrintLegacyHelp(MakeDaemonHelp());
   global_retc = EINVAL;
   return (0);
 #endif
@@ -797,6 +830,11 @@ public:
   description() const override
   {
     return "Run EOS daemon control";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeDaemonHelp();
   }
   bool
   requiresMgm(const std::string&) const override
@@ -831,5 +869,21 @@ public:
 void
 RegisterDaemonNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<DaemonCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"config"}, "  daemon config ", "Show service configuration and manage QDB."},
+      {{"sss"}, "", "Manage SSS keys."},
+      {{"sss", "recreate"}, "  daemon sss recreate", "Recreate instance SSS keys."},
+      {{"seal"}, "  daemon seal ", "Encrypt text or an init script."},
+      {{"kill"}, "  daemon kill ", "Kill a service with SIGKILL."},
+      {{"run"}, "  daemon run ", "Run a service daemon."},
+      {{"stack"}, "  daemon stack ", "Print a service stack trace."},
+      {{"stop"}, "  daemon stop ", "Stop a service with SIGTERM."},
+      {{"jwk"}, "  daemon jwk ", "Run a JWK public key server."},
+      {{"module-init"},
+       "  daemon module-init ",
+       "Run a module initialization procedure."},
+  };
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<DaemonCommand>(), std::move(help)));
 }

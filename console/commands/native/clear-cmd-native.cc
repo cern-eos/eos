@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -89,5 +90,7 @@ public:
 void
 RegisterClearNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ClearCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<ClearCommand>(),
+      {{}, eos::console::ShortHelpPolicy::Always, {}, MakeClearHelp()}));
 }

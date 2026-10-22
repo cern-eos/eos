@@ -26,6 +26,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <chrono>
@@ -833,6 +834,11 @@ public:
     }
     return com_squash((char*)joined.c_str());
   }
+  std::string
+  helpText() const override
+  {
+    return MakeSquashHelp();
+  }
   void
   printHelp() const override
   {
@@ -845,5 +851,22 @@ public:
 void
 RegisterSquashNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<SquashCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<SquashCommand>(),
+      {{{{"new"}, "usage: squash new ", "Create a new squashfs image."},
+        {{"pack"}, "       squash pack ", "Pack a squashfs image."},
+        {{"unpack"}, "       squash unpack ", "Unpack a squashfs image."},
+        {{"info"}, "       squash info ", "Inspect a squashfs image."},
+        {{"rm"}, "       squash rm ", "Remove a squashfs image and its link."},
+        {{"relabel"}, "       squash relabel ", "Relabel a squashfs image link."},
+        {{"install"},
+         "       squash install ",
+         "Install a squashfs package from a web archive."},
+        {{"new-release"}, "       squash new-release ", "Create a new release."},
+        {{"pack-release"}, "       squash pack-release ", "Pack a release."},
+        {{"info-release"}, "       squash info-release ", "List release revisions."},
+        {{"trim-release"}, "       squash trim-release ", "Trim old release revisions."},
+        {{"rm-release"},
+         "       squash rm-release ",
+         "Remove all revisions of a release."}}}));
 }
