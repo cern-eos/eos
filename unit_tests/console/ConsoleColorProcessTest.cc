@@ -2,9 +2,12 @@
 // File: ConsoleColorProcessTest.cc
 // ----------------------------------------------------------------------
 
+#include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "proto/ConsoleRequest.pb.h"
 #include "gtest/gtest.h"
+#include <XrdOuc/XrdOucEnv.hh>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -14,6 +17,7 @@
 #include <future>
 #include <json/json.h>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <regex>
 #include <set>
@@ -75,6 +79,11 @@ public:
             while (!mStop) {
               zmq::message_t request;
               if (socket.recv(request, zmq::recv_flags::none)) {
+                {
+                  std::lock_guard<std::mutex> lock(mMutex);
+                  mWireRequests.emplace_back(static_cast<const char*>(request.data()),
+                                             request.size());
+                }
                 ++mRequests;
                 socket.send(zmq::buffer(reply), zmq::send_flags::none);
               }
@@ -111,8 +120,38 @@ public:
     return mRequests.load();
   }
 
+  eos::console::RequestProto
+  request(size_t index) const
+  {
+    std::string wire;
+    {
+      std::lock_guard<std::mutex> lock(mMutex);
+      EXPECT_LT(index, mWireRequests.size());
+      if (index < mWireRequests.size()) {
+        wire = mWireRequests[index];
+      }
+    }
+    eos::console::RequestProto proto;
+    const auto query = wire.find('?');
+    EXPECT_NE(query, std::string::npos) << wire;
+    if (query == std::string::npos) {
+      return proto;
+    }
+    XrdOucEnv env(wire.substr(query + 1).c_str());
+    const char* encoded = env.Get("mgm.cmd.proto");
+    EXPECT_NE(encoded, nullptr) << wire;
+    if (encoded) {
+      std::string bytes;
+      EXPECT_TRUE(eos::common::SymKey::Base64Decode(encoded, bytes));
+      EXPECT_TRUE(proto.ParseFromString(bytes));
+    }
+    return proto;
+  }
+
 private:
   std::string mPath;
+  mutable std::mutex mMutex;
+  std::vector<std::string> mWireRequests;
   std::atomic<bool> mStop{false};
   std::atomic<size_t> mRequests{0};
   std::thread mThread;
@@ -668,5 +707,226 @@ TEST_F(ConsoleColorProcessTest, LongPromptKeepsBoundedTextAndCompleteColorReset)
               std::string::npos);
     EXPECT_EQ(terminalOutput.find('\001'), std::string::npos);
     EXPECT_EQ(terminalOutput.find('\002'), std::string::npos);
+  }
+}
+
+TEST_F(ConsoleColorProcessTest, IoShapingExplicitJsonKeepsAllFourReplyContracts)
+{
+  const std::string payload = "[ {\"type\":\"fixture\",\"id\":\"byte-exact-json\"} ]\n";
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=" + payload +
+                       "&mgm.proc.stderr=fixture note&mgm.proc.retc=0");
+  const std::map<std::string, std::string> environment{
+      {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
+  for (const auto& command : std::vector<std::vector<std::string>>{
+           {"ls"}, {"policy", "ls"}, {"pressure", "ls"}, {"config", "ls"}}) {
+    auto args = std::vector<std::string>{"--color=always", "io", "shaping"};
+    args.insert(args.end(), command.begin(), command.end());
+    args.push_back("--json");
+    const auto index = mgm.requests();
+    ASSERT_EQ(process(args, false, false, environment), 0);
+    EXPECT_EQ(output, payload);
+    EXPECT_EQ(error, styled("fixture note\n", eos::console::TextStyle::Error));
+    EXPECT_EQ(mgm.requests(), index + 1);
+    const auto request = mgm.request(index);
+    const auto& shaping = request.io().shaping();
+    if (command.front() == "ls") {
+      EXPECT_TRUE(shaping.list().json_output());
+      EXPECT_FALSE(shaping.list().resolve_ids());
+    } else if (command.front() == "policy") {
+      EXPECT_TRUE(shaping.policy().list().json_output());
+    } else if (command.front() == "pressure") {
+      EXPECT_TRUE(shaping.pressure().list().json_output());
+    } else {
+      EXPECT_TRUE(shaping.config().list().json_output());
+    }
+    ASSERT_EQ(process(args, true, false, environment), 0);
+    EXPECT_EQ(terminalOutput, payload);
+    EXPECT_EQ(error, styled("fixture note\n", eos::console::TextStyle::Error));
+    EXPECT_EQ(mgm.requests(), index + 2);
+  }
+}
+
+TEST_F(ConsoleColorProcessTest, GlobalJsonAndMonitoringIoKeepTheirOriginalBytes)
+{
+  const std::string payload = "fixture.key=123 fixture.value=unchanged\n";
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=" + payload +
+                       "&mgm.proc.stderr=fixture note&mgm.proc.retc=0");
+  const std::map<std::string, std::string> environment{
+      {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
+  for (const auto& command :
+       std::vector<std::vector<std::string>>{{"-j", "io", "shaping", "ls"},
+                                             {"-j", "io", "shaping", "policy", "ls"},
+                                             {"-j", "io", "shaping", "pressure", "ls"},
+                                             {"-j", "io", "shaping", "config", "ls"},
+                                             {"io", "stat", "-m"},
+                                             {"io", "ns", "-m"},
+                                             {"io", "stat"}}) {
+    auto args = std::vector<std::string>{"--color=always"};
+    args.insert(args.end(), command.begin(), command.end());
+    const auto index = mgm.requests();
+    ASSERT_EQ(process(args, false, false, environment), 0);
+    EXPECT_EQ(output, payload);
+    EXPECT_EQ(error, command.front() == "-j"
+                         ? "fixture note\n"
+                         : styled("fixture note\n", eos::console::TextStyle::Error));
+    EXPECT_EQ(mgm.requests(), index + 1);
+    const auto request = mgm.request(index);
+    if (command.front() == "-j") {
+      EXPECT_EQ(request.format(), eos::console::RequestProto::JSON);
+      EXPECT_TRUE(request.dontcolor());
+    }
+  }
+  for (const char* operation : {"stat", "ns"}) {
+    ASSERT_EQ(
+        process({"--color=always", "io", operation, "-m"}, true, false, environment), 0);
+    EXPECT_EQ(terminalOutput, payload);
+    EXPECT_EQ(error, styled("fixture note\n", eos::console::TextStyle::Error));
+  }
+}
+
+TEST_F(ConsoleColorProcessTest, HumanIoShapingUsesOneJsonRequestAndPreservesSelections)
+{
+  const std::string payload =
+      "[{\"type\":\"uid\",\"id\":\"1001\",\"name\":\"resolved-user-marker\","
+      "\"window_sec\":300,\"read_rate_bps\":12000000.0,\"write_rate_bps\":0.0,"
+      "\"read_iops\":4.0,\"write_iops\":0.0}]\n";
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=" + payload + "&mgm.proc.stderr=&mgm.proc.retc=0");
+  const std::map<std::string, std::string> environment{
+      {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
+  for (const char* resolution : {"--resolve-ids", "--no-resolve-ids"}) {
+    const auto index = mgm.requests();
+    ASSERT_EQ(process({"--color=never", "io", "shaping", "ls", "--users", "--sys",
+                       "--window", "300", resolution},
+                      false, false, environment),
+              0);
+    EXPECT_NE(output.find("1001"), std::string::npos);
+    EXPECT_NE(output.find("resolved-user-marker"), std::string::npos);
+    EXPECT_NE(output.find("MB/s"), std::string::npos);
+    EXPECT_TRUE(error.empty());
+    EXPECT_EQ(mgm.requests(), index + 1);
+    const auto request = mgm.request(index);
+    EXPECT_TRUE(request.dontcolor());
+    EXPECT_EQ(request.format(), eos::console::RequestProto::DEFAULT);
+    const auto& list = request.io().shaping().list();
+    EXPECT_TRUE(list.json_output());
+    EXPECT_TRUE(list.show_users());
+    EXPECT_FALSE(list.show_apps());
+    EXPECT_TRUE(list.system_stats());
+    EXPECT_EQ(list.time_window_seconds(), 300u);
+    EXPECT_TRUE(list.has_resolve_ids());
+    EXPECT_EQ(list.resolve_ids(), std::string(resolution) == "--resolve-ids");
+  }
+}
+
+TEST_F(ConsoleColorProcessTest, IoShapingHumanColorFollowsTheDestinationPolicy)
+{
+  const std::string payload =
+      "[{\"type\":\"app\",\"id\":\"color-app-marker\",\"window_sec\":60,"
+      "\"read_rate_bps\":12000000.0,\"write_rate_bps\":0.0,"
+      "\"read_iops\":4.0,\"write_iops\":0.0}]\n";
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=" + payload + "&mgm.proc.stderr=&mgm.proc.retc=0");
+  const std::map<std::string, std::string> environment{
+      {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
+  ASSERT_EQ(process({"io", "shaping", "ls"}, false, false, environment), 0);
+  const auto baseline = output;
+  EXPECT_EQ(baseline.find('\033'), std::string::npos);
+  ASSERT_EQ(process({"--color=always", "io", "shaping", "ls"}, false, false, environment),
+            0);
+  EXPECT_NE(output.find('\033'), std::string::npos);
+  EXPECT_EQ(plain(output), baseline);
+  const auto expectRoles = [](const std::string& text) {
+    using eos::console::TextStyle;
+    EXPECT_NE(text.find(styled("Application", TextStyle::EntityType)), std::string::npos);
+    EXPECT_NE(text.find(styled("Read", TextStyle::Read)), std::string::npos);
+    EXPECT_NE(text.find(styled("Write", TextStyle::Write)), std::string::npos);
+    EXPECT_NE(text.find(styled("12.00 MB/s", TextStyle::Read)), std::string::npos);
+    EXPECT_NE(text.find(styled("0.00 B/s", TextStyle::Write)), std::string::npos);
+  };
+  expectRoles(output);
+  ASSERT_EQ(process({"io", "shaping", "ls"}, true, false, environment), 0);
+  EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
+  EXPECT_EQ(plain(terminalOutput), baseline);
+  expectRoles(terminalOutput);
+  for (const auto& override : std::vector<std::map<std::string, std::string>>{
+           {{"NO_COLOR", "1"}}, {{"TERM", "dumb"}}}) {
+    auto options = environment;
+    options.insert(override.begin(), override.end());
+    ASSERT_EQ(process({"io", "shaping", "ls"}, true, false, options), 0);
+    EXPECT_EQ(terminalOutput, baseline);
+  }
+  ASSERT_EQ(
+      process({"--color=always", "-b", "io", "shaping", "ls"}, true, false, environment),
+      0);
+  EXPECT_EQ(terminalOutput, baseline);
+}
+
+TEST_F(ConsoleColorProcessTest, IoShapingInvalidRepliesAndFailuresAreNotRetried)
+{
+  for (const auto& payload :
+       std::vector<std::string>{"legacy server table\n", "{malformed json\n",
+                                "[{\"type\":\"future-schema\",\"new-field\":123}]\n"}) {
+    ColorTestMgm mgm(directory + "/mgm",
+                     "mgm.proc.stdout=" + payload + "&mgm.proc.stderr=&mgm.proc.retc=0");
+    ASSERT_EQ(process({"--color=always", "io", "shaping", "ls"}, false, false,
+                      {{"EOS_MGM_URL", "ipc://" + directory + "/mgm"}}),
+              0);
+    EXPECT_EQ(output, payload);
+    EXPECT_TRUE(error.empty());
+    EXPECT_EQ(mgm.requests(), 1u);
+  }
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=raw failure details&mgm.proc.stderr=error: fixture "
+                   "failure&mgm.proc.retc=5");
+  ASSERT_EQ(process({"--color=always", "io", "shaping", "ls"}, false, false,
+                    {{"EOS_MGM_URL", "ipc://" + directory + "/mgm"}}),
+            EIO);
+  EXPECT_EQ(output, "raw failure details\n");
+  EXPECT_EQ(plain(error), "error: fixture failure\n");
+  EXPECT_EQ(mgm.requests(), 1u);
+}
+
+TEST_F(ConsoleColorProcessTest, IoShapingMutationsSendOnlyTheRequestedOperation)
+{
+  ColorTestMgm mgm(directory + "/mgm",
+                   "mgm.proc.stdout=success: fixture operation complete"
+                   "&mgm.proc.stderr=&mgm.proc.retc=0");
+  const std::map<std::string, std::string> environment{
+      {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
+  const std::vector<std::vector<std::string>> operations{
+      {"enable"},
+      {"disable"},
+      {"policy", "set", "--app", "fixture", "--limit-read", "1M"},
+      {"policy", "rm", "--uid", "1001"},
+      {"config", "set", "--limits", "disabled"}};
+  for (size_t index = 0; index < operations.size(); ++index) {
+    auto args = std::vector<std::string>{"--color=always", "io", "shaping"};
+    args.insert(args.end(), operations[index].begin(), operations[index].end());
+    ASSERT_EQ(process(args, false, false, environment), 0);
+    EXPECT_EQ(plain(output), "success: fixture operation complete\n");
+    EXPECT_TRUE(error.empty());
+    EXPECT_EQ(mgm.requests(), index + 1);
+    const auto request = mgm.request(index);
+    const auto& shaping = request.io().shaping();
+    EXPECT_FALSE(shaping.has_list());
+    EXPECT_FALSE(shaping.has_pressure());
+    if (index == 0) {
+      EXPECT_TRUE(shaping.has_enable());
+    }
+    if (index == 1) {
+      EXPECT_TRUE(shaping.has_disable());
+    }
+    if (index == 2) {
+      EXPECT_TRUE(shaping.policy().has_set());
+    }
+    if (index == 3) {
+      EXPECT_TRUE(shaping.policy().has_remove());
+    }
+    if (index == 4) {
+      EXPECT_TRUE(shaping.config().has_set());
+    }
   }
 }
