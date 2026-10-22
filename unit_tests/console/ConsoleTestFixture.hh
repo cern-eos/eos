@@ -165,6 +165,15 @@ protected:
   }
 
   void
+  expectHelp(const std::string& name, const std::vector<std::string>& args)
+  {
+    run(name, args);
+    EXPECT_EQ(global_retc, 0);
+    std::lock_guard<std::mutex> lock(mutex);
+    EXPECT_TRUE(requests.empty());
+  }
+
+  void
   expectRejected(const std::string& name, const std::vector<std::string>& args)
   {
     run(name, args);

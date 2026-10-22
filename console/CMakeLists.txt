@@ -68,6 +68,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   # Core console framework
   ConsoleMain.cc  ConsoleMain.hh
   CommandFramework.cc CommandFramework.hh
+  ConsoleCommandHelp.cc ConsoleCommandHelp.hh
   CommandCompletion.cc CommandCompletion.hh
   CompletionAdminSchemas.cc CompletionStorageSchemas.cc
   ConsoleCompletion.cc ConsoleCompletion.hh

@@ -145,8 +145,7 @@ TEST_F(LegacyCliValidationTest, ChmodRejectsInvalidModesAndArgumentsBeforeSendin
                                              {"755"},
                                              {"755", ""},
                                              {"755", "/eos/a", "/eos/b"},
-                                             {"--unknown", "755", "/eos/data"},
-                                             {"--help"}}) {
+                                             {"--unknown", "755", "/eos/data"}}) {
     SCOPED_TRACE(::testing::PrintToString(args));
     expectRejected("chmod", args);
   }
@@ -193,8 +192,7 @@ TEST_F(LegacyCliValidationTest, ChownRejectsInvalidAndUnsafeOwnersBeforeSending)
                                              {"user"},
                                              {"user", ""},
                                              {"user", "/a", "/b"},
-                                             {"--unknown", "user", "/eos/data"},
-                                             {"--help"}}) {
+                                             {"--unknown", "user", "/eos/data"}}) {
     SCOPED_TRACE(::testing::PrintToString(args));
     expectRejected("chown", args);
   }
@@ -244,8 +242,8 @@ TEST_F(LegacyCliValidationTest, CdHomeUsesEnvironmentAndRejectsInvalidInput)
     run("cd", args);
     expectPath("/eos/home with spaces&x/");
   }
-  for (const auto& args : std::vector<std::vector<std::string>>{
-           {""}, {"/eos/a", "/eos/b"}, {"--unknown"}, {"--help"}}) {
+  for (const auto& args :
+       std::vector<std::vector<std::string>>{{""}, {"/eos/a", "/eos/b"}, {"--unknown"}}) {
     SCOPED_TRACE(::testing::PrintToString(args));
     expectRejected("cd", args);
   }

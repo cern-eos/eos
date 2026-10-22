@@ -32,6 +32,7 @@ struct CommandCompletionSchema {
   explicit CommandCompletionSchema(const std::string& name);
   ~CommandCompletionSchema();
   std::unique_ptr<CLI::App> app;
+  std::vector<std::string> prefix;
   std::map<const CLI::Option*, std::vector<std::string>> values;
   std::map<const CLI::Option*, CompletionPath> paths;
   std::map<const CLI::Option*, std::vector<std::string>> spellings;
@@ -55,6 +56,9 @@ CommandCompletionResult CompleteCliArguments(
 CommandCompletionResult CompleteRegisteredCommand(const std::string& name,
                                                   const std::vector<std::string>& args);
 bool HasCommandCompletionSchema(const std::string& name);
+// Declarations only; construction never parses arguments or runs callbacks.
+std::unique_ptr<CommandCompletionSchema>
+BuildRegisteredCompletionSchema(const std::string& name);
 void RegisterCommandHelpMetadata();
 
 bool ConfigureAdminCompletion(CommandCompletionSchema& schema, const std::string& name);

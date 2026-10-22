@@ -57,7 +57,6 @@ TEST_F(CommandDispatchTest, EvictRejectsInvalidOptionsBeforeSending)
 {
   for (const auto& args : std::vector<std::vector<std::string>>{
            {},
-           {"--help"},
            {"--fsid"},
            {"--fsid", "1", "fid:1"},
            {"--ignore-removal-on-fst", "fid:1"},
@@ -122,7 +121,7 @@ TEST_F(CommandDispatchTest, RegisterNamedOwnersAndPathTag)
 TEST_F(CommandDispatchTest, RegisterRejectsInvalidMetadataBeforeSending)
 {
   for (const auto& args : std::vector<std::vector<std::string>>{
-           {}, {"--help"}, {"-u"}, {"size=1"}, {"relative"}, {"path="}}) {
+           {}, {"-u"}, {"size=1"}, {"relative"}, {"path="}}) {
     expectRejected("register", args);
   }
   for (const char* tag :
