@@ -100,13 +100,11 @@ tokens intact. Color is added after layout. Standard CLI11 help uses its option
 and command metadata with a copied formatter; custom formatters stay untouched.
 
 The console entry point activates layout independently from color. Only a
-terminal destination uses adaptive layout, with `EOS_HELP_WIDTH` as an explicit
-override. Batch, JSON and redirected output retain the previous layout.
+terminal destination uses adaptive layout, based on the width reported by that
+terminal. Batch, JSON and redirected output retain the previous layout.
 Namespace root help becomes an operation index on terminals, with focused
 subcommand pages and `--help-all` for the full manual. Existing legacy pages
-are not heuristically reflowed. `EOS_PAGER` enables optional direct-exec paging
-for long interactive help; `--no-pager` disables it. Data output never goes
-through this renderer.
+are not heuristically reflowed. Data output never goes through this renderer.
 
 ### Validation contracts
 

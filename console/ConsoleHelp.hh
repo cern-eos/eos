@@ -86,10 +86,9 @@ std::size_t HelpDisplayWidth(std::string_view text);
 std::string LayoutCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::size_t width);
 std::optional<HelpPage> BuildCliHelpPage(CLI::App& app, CLI::AppFormatMode mode);
 
-void ConfigureHelp(bool batch, bool json, bool noPager = false);
+void ConfigureHelp(bool batch, bool json);
 void SetJsonHelpOutput(bool json);
 std::size_t HelpWidth(int descriptor);
-void WriteHelpOutput(std::string_view text, std::FILE* stream = stderr);
 void PrintHelpPage(const HelpPage& page, std::FILE* stream = stderr);
 
 } // namespace eos::console

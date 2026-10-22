@@ -614,7 +614,7 @@ PrintLegacyHelp(std::string_view text, std::FILE* stream)
 {
   if (!text.empty()) {
     const auto help = colorHelpText(text, fileno(stream));
-    WriteHelpOutput(help, stream);
+    fwrite(help.data(), 1, help.size(), stream);
   }
 }
 
@@ -625,7 +625,7 @@ PrintCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::FILE* stream)
   const auto width = HelpWidth(descriptor);
   if (width > 0) {
     if (const auto page = BuildCliHelpPage(app, mode)) {
-      WriteHelpOutput(page->render(width, descriptor), stream);
+      PrintHelpPage(*page, stream);
       return;
     }
   }
@@ -637,7 +637,7 @@ PrintCliHelp(CLI::App& app, CLI::AppFormatMode mode, std::FILE* stream)
     collectHelpWords(app, options, command);
   }
   const auto help = colorHelpText(text, fileno(stream), options, {std::move(command)});
-  WriteHelpOutput(help, stream);
+  fwrite(help.data(), 1, help.size(), stream);
 }
 
 } // namespace eos::console
