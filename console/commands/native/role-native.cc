@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/ConsoleMetadata.hh"
 #include <memory>
@@ -75,5 +76,7 @@ public:
 void
 RegisterRoleNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RoleCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RoleCommand>(),
+      {{}, eos::console::ShortHelpPolicy::Always, {}, MakeRoleHelp()}));
 }

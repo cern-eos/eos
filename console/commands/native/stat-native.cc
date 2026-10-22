@@ -6,6 +6,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <memory>
@@ -106,5 +107,13 @@ public:
 void
 RegisterStatNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<StatCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<StatCommand>(),
+      {{},
+       eos::console::ShortHelpPolicy::Always,
+       {},
+       "Usage: stat [-f|-d]    <path>                         "
+       "                         :  stat <path>\n"
+       "                    -f : checks if <path> is a file\n"
+       "                    -d : checks if <path> is a directory\n"}));
 }

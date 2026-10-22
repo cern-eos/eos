@@ -27,6 +27,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/native/CpOptions.hh"
 #include <CLI/CLI.hpp>
@@ -74,9 +75,16 @@ Remark:
   source and target directories terminated with '/' for hierarchy copy.
 
 Examples:
+  # Copy one file to EOS
   eos cp /var/data/myfile /eos/foo/user/data/
+
+  # Copy files from a local directory
   eos cp /var/data/ /eos/foo/user/data/
+
+  # Copy a directory hierarchy
   eos cp -r /var/data/ /eos/foo/user/data/
+
+  # Copy a hierarchy with checksums and only error output
   eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/
 
 S3:
@@ -1732,6 +1740,11 @@ public:
     }
     return cp_impl(opts);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeCpHelp();
+  }
   void
   printHelp() const override
   {
@@ -1743,7 +1756,11 @@ public:
 void
 RegisterCpNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<CpCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<CpCommand>(),
+                                    {{},
+                                     eos::console::ShortHelpPolicy::Always,
+                                     {{"--rate", 1}, {"--streams", 1}, {"--depth", 1}}}));
 }
 
 /* eos cat command - just eos cp with '-' destination */

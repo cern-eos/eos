@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
 #include <CLI/CLI.hpp>
@@ -167,6 +168,11 @@ public:
     global_retc = finder.Execute();
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeFindHelp();
+  }
   void
   printHelp() const override
   {
@@ -205,6 +211,11 @@ public:
     }
     return findCmd->run(args, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeFindHelp();
+  }
   void
   printHelp() const override
   {
@@ -219,6 +230,8 @@ public:
 void
 RegisterFindProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FindProtoCommand>());
-  CommandRegistry::instance().reg(std::make_unique<NewfindAliasCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<FindProtoCommand>()));
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<NewfindAliasCommand>()));
 }

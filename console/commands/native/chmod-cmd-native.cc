@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 
@@ -97,5 +98,6 @@ public:
 void
 RegisterChmodNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ChmodCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<ChmodCommand>(), {}));
 }

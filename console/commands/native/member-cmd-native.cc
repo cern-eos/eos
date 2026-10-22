@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -109,6 +110,11 @@ public:
     ConfigureMemberApp(app, update, egroup);
     return CompleteCliArguments(app, args);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeMemberHelp();
+  }
   void
   printHelp() const override
   {
@@ -124,5 +130,6 @@ public:
 void
 RegisterMemberNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MemberCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<MemberCommand>(), {}));
 }

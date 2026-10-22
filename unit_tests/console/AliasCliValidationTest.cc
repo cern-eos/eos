@@ -47,8 +47,8 @@ TEST_F(AliasCliValidationTest, ActualHelpFlagsDoNotSendRequests)
 {
   for (const auto* name : {"touch", "mv", "cp"}) {
     SCOPED_TRACE(name);
-    expectRejected(name, {"--help"});
-    expectRejected(name, {"-h"});
+    expectHelp(name, {"--help"});
+    expectHelp(name, {"-h"});
   }
 }
 

@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <fcntl.h>
 #include <memory>
@@ -153,5 +154,6 @@ public:
 void
 RegisterCdNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<CdCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<CdCommand>(), {}));
 }

@@ -6,6 +6,7 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/PathIdentifier.hh"
 #include <memory>
@@ -171,5 +172,6 @@ public:
 void
 RegisterRmProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RmProtoCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<RmProtoCommand>(), {}));
 }
