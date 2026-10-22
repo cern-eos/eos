@@ -466,6 +466,77 @@ version_names_file_deleted () {
     file_is_deleted "$(cat "$EOS_TEST_TESTSYS/versioning.taken")"
 }
 ################################################################################
+# A hard link target whose directory can't be found. As in
+# eos-file-cont-detached-test the parent is changed behind the back of the MGM,
+# eos-ns-inspect also invalidates the file in its cache. The clone has to be tagged before the hard link exists and the target has to
+# be hidden through FUSE: eos rm clones a tagged file, and a tagged hard link
+# would be cloned instead of being removed.
+# Usage: hl_clone_tag <dir>          - make <dir> part of a new clone
+#        hl_clone_purge <dir>        - remove that clone again
+#        hl_target_hidden <dir>      - <dir> holds a hidden hard link target
+#        hl_target_detach <dir>      - give the target a parent which doesn't exist
+#        hl_target_attach <dir>      - give it <dir> back as its parent
+#        hl_target_holds <dir> <src> - the target has the contents of <src>
+#        eos_path_absent <path>      - <path> does not exist
+################################################################################
+hl_clone_tag () {
+    local id
+    id=$(command eos -b root://$EOS_TEST_REDIRECTOR oldfind -j -x sys.clone=+10 "$1" | head -1 | jq -r .c)
+    echo "hl_clone_tag $1 id=$id" >> $EOSCERTLOG
+    test "$id" -gt 10 2>/dev/null && echo "$id" > "$EOS_TEST_TESTSYS/hl.clone"
+}
+
+hl_clone_purge () {
+    command eos -b root://$EOS_TEST_REDIRECTOR oldfind -f -x "sys.clone=-$(cat "$EOS_TEST_TESTSYS/hl.clone")" "$1" >> $EOSCERTLOG 2>&1
+}
+
+hl_target_name () {
+    command eos -b root://$EOS_TEST_REDIRECTOR ls -a "$1" | grep -F '...eos.ino...'
+}
+
+hl_target_hidden () {
+    test -n "$(hl_target_name "$1")"
+}
+
+hl_target_parent () {
+    local fid=$1 parent=$2
+    local QDB_CLUSTER=$(cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbcluster" | awk '{print $2;}')
+    local QDB_PWDFILE=$(cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbpassword_file" | awk '{print $2;}')
+    eos-ns-inspect change-fid --password-file "$QDB_PWDFILE" --members "$QDB_CLUSTER" --fid "$fid" --new-parent "$parent" --no-dry-run >> $EOSCERTLOG 2>&1
+}
+
+hl_target_detach () {
+    local dir=$1 fid
+    fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$dir/$(hl_target_name "$dir")" | jq -r .id)
+    echo "hl_target_detach $dir fid=$fid" >> $EOSCERTLOG
+    test "$fid" -gt 0 2>/dev/null || return 1
+    echo "$fid" > "$EOS_TEST_TESTSYS/hl.target.$(basename "$dir")"
+    hl_target_parent "$fid" 20000000
+}
+
+hl_target_attach () {
+    local dir=$1 parent
+    parent=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$dir" | jq -r .id)
+    hl_target_parent "$(cat "$EOS_TEST_TESTSYS/hl.target.$(basename "$dir")")" "$parent"
+}
+
+hl_target_holds () {
+    local dir=$1 src=$2 name info
+    local local_copy="$EOS_TEST_TESTSYS/hl.holds.$(basename "$dir")"
+    name=$(hl_target_name "$dir")
+    # a read alone proves nothing: a file without locations gets placed on a file
+    # system, and reads back until the FST has deleted its contents
+    info=$(command eos -b root://$EOS_TEST_REDIRECTOR fileinfo "$dir/$name" -m) || return 1
+    echo "$info" >> $EOSCERTLOG
+    echo "$info" | grep -q -w 'nrep=0' && return 1
+    command xrdcp -f "root://$EOS_TEST_REDIRECTOR/$dir/$name" "$local_copy" >> $EOSCERTLOG 2>&1 &&
+      diff "$src" "$local_copy" >> $EOSCERTLOG 2>&1
+}
+
+eos_path_absent () {
+    ! command eos -b root://$EOS_TEST_REDIRECTOR fileinfo "$1" > /dev/null 2>&1
+}
+################################################################################
 timeout() {
     echo "## TIMEOUT ##";
     exit 0;
@@ -3034,7 +3105,47 @@ runtest "### Sync      " unix SUCCESS "" shell dd "of=/test-fusex/$EOS_TEST_INST
 runtest "### Attr Get  " unix SUCCESS "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
 runtest "### Overwrite " unix SUCCESS "" upload "/etc/group" "$HLPRESERVE_DIR/vfile" "-ODeos.ruid=0"
 runtest "### Attr Get  " unix ERROR   "" eos attr get sys.eos.nlink "$HLPRESERVE_DIR/vfile"
+# the hard link now refers to the version: it stays hidden in the version
+# folder once the file is removed, and goes with the hard link
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/vfile"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR/.sys.v#.vfile/ | grep -c 'eos.ino' | grep -w 1"
+runtest "### Rm        " unix SUCCESS "" eos rm "$HLPRESERVE_DIR/vfile.hardlink"
+runtest "### Ls        " unix SUCCESS "" eos ls "-a $HLPRESERVE_DIR/.sys.v#.vfile/ | grep -c 'eos.ino' | grep -w 0"
 runtest "### Rm        " unix SUCCESS "" eos rm -r "$HLPRESERVE_DIR"
+# the last hard link of a target in a clone goes while the directory of the
+# target can't be found: the clone can't be created, and the target must keep
+# its contents - for an rm of the hard link and for a rename over it
+HLCLONE_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlclone"
+HLCLONE_FUSE="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hlclone"
+runtest "### mkdir     " unix SUCCESS "" shell mkdir -p "$HLCLONE_FUSE/rm" "$HLCLONE_FUSE/mv"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "$HLCLONE_FUSE/rm/file"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd "$HLCLONE_FUSE/mv/file"
+runtest "### Sync      " unix SUCCESS "" shell dd "of=$HLCLONE_FUSE/rm/file" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Sync      " unix SUCCESS "" shell dd "of=$HLCLONE_FUSE/mv/file" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Clone     " unix SUCCESS "" hl_clone_tag "$HLCLONE_DIR"
+runtest "### link      " unix SUCCESS "" shell cd "$HLCLONE_FUSE/rm/ && ln file file.hardlink"
+runtest "### link      " unix SUCCESS "" shell cd "$HLCLONE_FUSE/mv/ && ln file file.hardlink"
+runtest "### rm        " unix SUCCESS "" shell rm "$HLCLONE_FUSE/rm/file"
+runtest "### rm        " unix SUCCESS "" shell rm "$HLCLONE_FUSE/mv/file"
+runtest "### Hidden    " unix SUCCESS "" wait_for 30 hl_target_hidden "$HLCLONE_DIR/rm"
+runtest "### Hidden    " unix SUCCESS "" wait_for 30 hl_target_hidden "$HLCLONE_DIR/mv"
+runtest "### cp        " unix SUCCESS "" shell cp /etc/group "$HLCLONE_FUSE/mv/other"
+runtest "### Sync      " unix SUCCESS "" shell dd "of=$HLCLONE_FUSE/mv/other" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Detach    " unix SUCCESS "" hl_target_detach "$HLCLONE_DIR/rm"
+runtest "### Detach    " unix SUCCESS "" hl_target_detach "$HLCLONE_DIR/mv"
+runtest "### rm        " unix SUCCESS "" shell rm "$HLCLONE_FUSE/rm/file.hardlink"
+runtest "### mv        " unix SUCCESS "" shell mv "$HLCLONE_FUSE/mv/other" "$HLCLONE_FUSE/mv/file.hardlink"
+runtest "### Gone      " unix SUCCESS "" wait_for 30 eos_path_absent "$HLCLONE_DIR/rm/file.hardlink"
+runtest "### Gone      " unix SUCCESS "" wait_for 30 eos_path_absent "$HLCLONE_DIR/mv/other"
+runtest "### Attach    " unix SUCCESS "" hl_target_attach "$HLCLONE_DIR/rm"
+runtest "### Attach    " unix SUCCESS "" hl_target_attach "$HLCLONE_DIR/mv"
+runtest "### Holds     " unix SUCCESS "" hl_target_holds "$HLCLONE_DIR/rm" /etc/passwd
+runtest "### Holds     " unix SUCCESS "" hl_target_holds "$HLCLONE_DIR/mv" /etc/passwd
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/hl.renamed" "$HLCLONE_DIR/mv/file.hardlink"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/hl.renamed"
+runtest "### Clone     " unix SUCCESS "" hl_clone_purge "$HLCLONE_DIR"
+runtest "### Rm        " unix SUCCESS "" eos rm -r "$HLCLONE_DIR"
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" "$EOS_TEST_TESTSYS/hl.*"
 
 #obfuscation
 runtest "### Obfuscate " unix SUCCESS "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
