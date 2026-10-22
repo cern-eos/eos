@@ -377,12 +377,14 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
     /* gmd = the hard link target */
     gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(hlTgt), &clock);
 
-    if (gmd->getCloneId() != 0 and gmd->getCloneFST().empty()) {
-      try {
-        dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
-      } catch (eos::MDException& e) {
-      }
+    // Versioning moves the target into the version folder, away from
+    // the directory of its links
+    try {
+      dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+    } catch (eos::MDException& e) {
+    }
 
+    if (gmd->getCloneId() != 0 and gmd->getCloneFST().empty()) {
       XrdOucErrInfo error;
       cow_rc = prepare_cow(dmd, gmd, cow, error);
     }
@@ -440,7 +442,10 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
 
             retc = 1;
           } else { /* delete hard link target */
-            cmd->removeFile(gmd->getName());
+            if (dmd) {
+              dmd->removeFile(gmd->getName());
+            }
+
             gmd->unlinkAllLocations();
             gmd->setContainerId(0);
             gOFS->eosFileService->updateStore(gmd.get());
