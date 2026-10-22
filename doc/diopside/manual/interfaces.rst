@@ -8,6 +8,45 @@
 Interfaces
 ===========
 
+Console help
+------------
+
+``eos help`` lists commands. In a terminal, namespace help supports focused pages: use
+``eos ns --help`` for the operation index, ``eos ns cache --help`` for the
+cache group, or ``eos ns cache set --help`` for one operation. The equivalent
+``eos help ns cache set`` form is also supported. ``eos ns --help-all``
+shows the complete namespace manual.
+
+Interactive top-level, namespace and standard CLI11 help adapts to the width
+of its output terminal. Descriptions wrap at word boundaries, continuation
+lines retain their indentation, and long option labels have their descriptions
+placed underneath. Section spacing is consistent. Examples and indivisible
+tokens are preserved, so an example or long URL can exceed the terminal width.
+Custom legacy help pages retain their existing layout until migrated.
+Formatting occurs before color is added; ``--color=never`` and ``NO_COLOR``
+still retain the adaptive layout.
+
+Automatic help width is limited to 120 columns, with an 80-column fallback
+when the terminal does not report a width. Set ``EOS_HELP_WIDTH`` to an integer
+from 20 to 1000 to override this for interactive help. Invalid values are
+ignored. Redirected output, batch mode and JSON mode retain their existing
+layout and do not use this override. Ordinary command data is not reflowed.
+
+Paging is opt-in. For example:
+
+.. code-block:: bash
+
+   export EOS_PAGER='less -FRX'
+   eos ns --help-all
+   eos --no-pager ns --help-all
+
+The pager runs only for help at least as long as the terminal height, when
+both input and the help output stream are terminals. Unset or empty
+``EOS_PAGER``, ``EOS_PAGER=cat``, or ``--no-pager`` disables paging. Batch,
+JSON and redirected help never starts a pager. Quoted pager arguments are
+supported and passed directly to the program, without shell evaluation.
+If the pager cannot start or exits unsuccessfully, help is printed normally.
+
 
 .. index::
    pair: Interfaces; Namespace

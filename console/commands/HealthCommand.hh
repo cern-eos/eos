@@ -106,6 +106,7 @@ class HealthCommand : public ICommand
   std::string m_section; ///< Chosen section
   std::ostringstream m_output; ///< Object containing output
   bool m_dont_color; ///< Disable text coloring
+  bool m_consoleColorPolicy = false;
 
   //----------------------------------------------------------------------------
   //! Performing dead node check. Results are kept inside class attributes.

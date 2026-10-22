@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <vector>
@@ -65,7 +66,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeTouchHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeTouchHelp());
   }
 };
 } // namespace

@@ -107,6 +107,21 @@ TEST(ConsoleLexer, HelpDetectionHonorsTokenBoundariesAndDelimiter)
   }
 }
 
+TEST(ConsoleLexer, ExpandedHelpIsScopedToNamespaceAndHonorsDelimiter)
+{
+  EXPECT_FALSE(wants_help("--help-all"));
+  EnsureNativeCommandRegistryInitialized();
+  const auto* ns = CommandRegistry::instance().find("ns");
+  ASSERT_NE(ns, nullptr);
+  EXPECT_FALSE(ns->requiresMgmArguments({"--help-all"}));
+  EXPECT_FALSE(ns->requiresMgmArguments({"cache", "set", "--help-all"}));
+  EXPECT_TRUE(ns->requiresMgmArguments({"cache", "--", "--help-all"}));
+  EXPECT_TRUE(ns->requiresMgmArguments({"cache", "name --help-all suffix"}));
+  const auto* file = CommandRegistry::instance().find("file");
+  ASSERT_NE(file, nullptr);
+  EXPECT_TRUE(file->requiresMgmArguments({"--help-all"}));
+}
+
 TEST(ConsoleOptions, PrefixOptionsAcceptEveryOrder)
 {
   std::vector<unsigned> order{0, 1, 2, 3};

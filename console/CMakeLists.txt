@@ -28,6 +28,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 #-------------------------------------------------------------------------------
 add_library(EosConsoleHelpers-Objects OBJECT
   CliCompletion.cc CommandCompletion.hh
+  ConsoleColor.cc ConsoleColor.hh
+  ConsoleHelp.cc ConsoleHelp.hh ConsoleHelpOutput.cc
   commands/helpers/ICmdHelper.cc    commands/helpers/ICmdHelper.hh
   commands/helpers/FileHelper.cc    commands/helpers/FileHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
@@ -38,6 +40,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   CLI11::CLI11
+  NCURSES::NCURSES
   EosFstProto-Objects
   EosCliProto-Objects
   ZMQ::ZMQ
@@ -51,6 +54,11 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
 
 if (Linux)
   target_link_libraries(EosConsoleHelpers-Objects PUBLIC stdc++fs)
+  # Some distributions split terminfo out of ncurses.
+  find_library(EOS_CONSOLE_TERMINFO_LIBRARY NAMES tinfo)
+  if (EOS_CONSOLE_TERMINFO_LIBRARY)
+    target_link_libraries(EosConsoleHelpers-Objects PUBLIC ${EOS_CONSOLE_TERMINFO_LIBRARY})
+  endif()
 endif()
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES

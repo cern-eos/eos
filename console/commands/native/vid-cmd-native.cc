@@ -5,6 +5,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -494,7 +495,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeVidHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeVidHelp());
   }
 };
 } // namespace

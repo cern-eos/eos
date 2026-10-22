@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -50,8 +51,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: reconnect [gsi,krb5,unix,sss] : reconnect to the "
-                    "management node [using the specified protocol]\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: reconnect [gsi,krb5,unix,sss] : reconnect to the "
+        "management node [using the specified protocol]\n");
   }
 };
 } // namespace

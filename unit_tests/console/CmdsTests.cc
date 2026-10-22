@@ -21,10 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
+#include "console/ConsoleColor.hh"
 #include "console/commands/helpers/AclHelper.hh"
 #include "console/commands/helpers/RecycleHelper.hh"
 #include "unistd.h"
+#include "gtest/gtest.h"
 
 GlobalOptions opts;
 
@@ -32,10 +33,9 @@ TEST(AclHelper, RouteFromPathAppended)
 {
   AclHelper acl(opts);
   acl.ParseCommand("--user u:1001=rwx /eos/devtest/");
-  const std::string proto_msg = (!isatty(STDOUT_FILENO) ||
-                                 !isatty(STDERR_FILENO)) ?
-                                "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv+AEB" :
-                                "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv";
+  const std::string proto_msg = (!eos::console::ServerColorEnabled())
+                                    ? "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv+AEB"
+                                    : "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv";
   acl.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
                       "&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
@@ -55,9 +55,8 @@ TEST(RecycleHelper, RouteFromEnvAppended)
   oss_route << "/eos/user/" << username[0] << "/" << username << "/";
   RecycleHelper recycle(opts);
   recycle.ParseCommand("ls");
-  const std::string proto_msg = (!isatty(STDOUT_FILENO) ||
-                                 !isatty(STDERR_FILENO)) ?
-                                "UgQKAggB+AEB" : "UgQKAggB";
+  const std::string proto_msg =
+      (!eos::console::ServerColorEnabled()) ? "UgQKAggB+AEB" : "UgQKAggB";
 
   if (getenv("USER")) {
     recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg

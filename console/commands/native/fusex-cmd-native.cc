@@ -5,6 +5,7 @@
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -290,7 +291,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeFusexHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeFusexHelp());
   }
 };
 } // namespace

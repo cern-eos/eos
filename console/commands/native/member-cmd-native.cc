@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -111,7 +112,11 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMemberHelp().c_str());
+    CLI::App app;
+    bool update = false;
+    std::string egroup;
+    ConfigureMemberApp(app, update, egroup);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

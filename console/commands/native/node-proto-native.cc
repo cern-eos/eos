@@ -3,9 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
 #include "console/commands/helpers/NodeHelper.hh"
+#include <CLI/CLI.hpp>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -143,7 +144,7 @@ public:
   {
     CLI::App app;
     ConfigureNodeApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace

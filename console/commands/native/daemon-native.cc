@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <memory>
 #include <sstream>
 // Native implementation adapted from legacy com_daemon
@@ -734,56 +735,51 @@ native_com_daemon(char* arg)
 
   return (0);
 com_daemon_usage:
-  fprintf(
-      stderr,
+  eos::console::PrintLegacyHelp(
       "Usage: daemon config|sss|kill|run|stack|stop|jwk|module-init <service> "
-      "[name] [subcmd]                                     :  \n");
-  fprintf(stderr, "                <service> := mq | mgm | fst | qdb\n");
-  fprintf(stderr, "                config                                      "
-                  "          -  configure a service / show configuration\n");
-  fprintf(stderr, "                kill                                        "
-                  "          -  kill -9 a given service\n");
-  fprintf(stderr,
-          "                run                                                 "
-          "  -  run the given service daemon optionally identified by name\n");
-  fprintf(stderr,
-          "                sss recreate                                        "
-          "  -  re-create an instance sss key and the eosnobody keys "
-          "(/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n");
-  fprintf(stderr, "                stack                                       "
-                  "          -  print an 'eu-stack'\n");
-  fprintf(stderr, "                stop                                        "
-                  "          -  kill -15 a given service\n");
-  fprintf(stderr, "                jwk                                         "
-                  "          -  run a 'jwk' public key server on port 4443\n");
-  fprintf(stderr, "                module-init                                 "
-                  "          -  run the init procedure for a module\n");
-  fprintf(stderr, "\n");
-  fprintf(stderr, "      examples: eos daemon config qdb qdb coup              "
-                  "          -  try to make instance [qdb] a leader of QDB\n");
-  fprintf(stderr, "                eos daemon config qdb qdb info              "
-                  "          -  show raft-info for the [qdb] QDB instance\n");
-  fprintf(stderr, "                eos daemon config qdb qdb remove host:port  "
-                  "          -  remove a member of the qdb cluster\n");
-  fprintf(stderr, "                eos daemon config qdb qdb add host:port     "
-                  "          -  add an observer to the qdb cluster\n");
-  fprintf(stderr,
-          "                eos daemon config qdb qdb promote host:port         "
-          "  -  promote an observer to a full member of the qdb cluster\n");
-  fprintf(stderr, "                eos daemon config qdb qdb new observer      "
-                  "          -  create a new observer\n");
-  fprintf(stderr, "                eos daemon config fst fst.1                 "
-                  "          -  show the init,sysconfig and xrootd config for "
-                  "the [fst.1] FST service\n");
-  fprintf(stderr, "                eos daemon kill mq                          "
-                  "          -  shoot the MQ service with signal -9\n");
-  fprintf(stderr,
-          "                eos daemon stop mq                                  "
-          "  -  gracefully shut down the MQ service with signal -15\n");
-  fprintf(stderr, "                eos daemon stack mgm                        "
-                  "          -  take an 'eu-stack' of the MGM service\n");
-  fprintf(stderr, "                eos daemon run fst fst.1                    "
-                  "          -  run the fst.1 subservice FST\n");
+      "[name] [subcmd]                                     :  \n"
+      "                <service> := mq | mgm | fst | qdb\n"
+      "                config                                      "
+      "          -  configure a service / show configuration\n"
+      "                kill                                        "
+      "          -  kill -9 a given service\n"
+      "                run                                                 "
+      "  -  run the given service daemon optionally identified by name\n"
+      "                sss recreate                                        "
+      "  -  re-create an instance sss key and the eosnobody keys "
+      "(/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n"
+      "                stack                                       "
+      "          -  print an 'eu-stack'\n"
+      "                stop                                        "
+      "          -  kill -15 a given service\n"
+      "                jwk                                         "
+      "          -  run a 'jwk' public key server on port 4443\n"
+      "                module-init                                 "
+      "          -  run the init procedure for a module\n"
+      "\n"
+      "      examples: eos daemon config qdb qdb coup              "
+      "          -  try to make instance [qdb] a leader of QDB\n"
+      "                eos daemon config qdb qdb info              "
+      "          -  show raft-info for the [qdb] QDB instance\n"
+      "                eos daemon config qdb qdb remove host:port  "
+      "          -  remove a member of the qdb cluster\n"
+      "                eos daemon config qdb qdb add host:port     "
+      "          -  add an observer to the qdb cluster\n"
+      "                eos daemon config qdb qdb promote host:port         "
+      "  -  promote an observer to a full member of the qdb cluster\n"
+      "                eos daemon config qdb qdb new observer      "
+      "          -  create a new observer\n"
+      "                eos daemon config fst fst.1                 "
+      "          -  show the init,sysconfig and xrootd config for "
+      "the [fst.1] FST service\n"
+      "                eos daemon kill mq                          "
+      "          -  shoot the MQ service with signal -9\n"
+      "                eos daemon stop mq                                  "
+      "  -  gracefully shut down the MQ service with signal -15\n"
+      "                eos daemon stack mgm                        "
+      "          -  take an 'eu-stack' of the MGM service\n"
+      "                eos daemon run fst fst.1                    "
+      "          -  run the fst.1 subservice FST\n");
   global_retc = EINVAL;
   return (0);
 #endif

@@ -4,6 +4,7 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -637,7 +638,13 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   try {
     app.parse(to_parse, true);
   } catch (const CLI::ParseError& e) {
-    app.exit(e);
+    if (e.get_name() == "CallForHelp") {
+      eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal, stdout);
+    } else if (e.get_name() == "CallForAllHelp") {
+      eos::console::PrintCliHelp(app, CLI::AppFormatMode::All, stdout);
+    } else {
+      app.exit(e);
+    }
     return false;
   }
   return true;
@@ -706,7 +713,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    eos::console::PrintLegacyHelp(helpText());
   }
 };
 } // namespace

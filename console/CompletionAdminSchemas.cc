@@ -15,6 +15,7 @@ Flags(CommandCompletionSchema& schema, CLI::App& app,
 void
 NamespaceCompletion(CommandCompletionSchema& schema, CLI::App& app)
 {
+  app.set_help_all_flag("--help-all", "Show the complete namespace manual");
   auto& stat = schema.sub(app, "stat");
   Flags(schema, stat, {"-a", "-x", "-m", "-n", "--reset"});
   auto& mutex = schema.sub(app, "mutex");

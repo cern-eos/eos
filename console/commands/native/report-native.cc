@@ -6,6 +6,7 @@
 #include "common/Statistics.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <fcntl.h>
 #include <json/json.h>
@@ -507,29 +508,25 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: report [--read|--write] [--regex <pattern>] [-n <max>]\n");
-    fprintf(stderr,
-            "               [--max-efficiency <0-100>] [--squash <path>]\n");
-    fprintf(stderr,
-            "               [--start <epoch>] [--stop <epoch>] [--json] [--addvector] [-s] <file>\n");
-    fprintf(stderr,
-            "options:\n");
-    fprintf(stderr, "  --read                 filter read reports only\n");
-    fprintf(stderr, "  --write                filter write reports only\n");
-    fprintf(stderr, "  --regex <pattern>      POSIX regex to filter lines\n");
-    fprintf(stderr, "  -n <max>               limit number of reports (default huge)\n");
-    fprintf(stderr,
-            "  --max-efficiency <n>   reject entries with efficiency above n (0-100)\n");
-    fprintf(stderr,
-            "  --squash <path>        squash paths to the given prefix (must start/end with '/')\n");
-    fprintf(stderr, "  --start <epoch>        only include reports >= start time\n");
-    fprintf(stderr, "  --stop <epoch>         only include reports <= stop time\n");
-    fprintf(stderr, "  --json                 output JSON summary\n");
-    fprintf(stderr,
-            "  --addvector            include vector-read bytes (rvb_sum) in read totals,\n"
-            "                         rates and efficiency computations\n");
-    fprintf(stderr, "  -s                     silent (no output)\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: report [--read|--write] [--regex <pattern>] [-n <max>]\n"
+        "               [--max-efficiency <0-100>] [--squash <path>]\n"
+        "               [--start <epoch>] [--stop <epoch>] "
+        "[--json] [--addvector] [-s] <file>\n"
+        "options:\n"
+        "  --read                 filter read reports only\n"
+        "  --write                filter write reports only\n"
+        "  --regex <pattern>      POSIX regex to filter lines\n"
+        "  -n <max>               limit number of reports (default huge)\n"
+        "  --max-efficiency <n>   reject entries with efficiency above n (0-100)\n"
+        "  --squash <path>        squash paths to the given "
+        "prefix (must start/end with '/')\n"
+        "  --start <epoch>        only include reports >= start time\n"
+        "  --stop <epoch>         only include reports <= stop time\n"
+        "  --json                 output JSON summary\n"
+        "  --addvector            include vector-read bytes (rvb_sum) in read totals,\n"
+        "                         rates and efficiency computations\n"
+        "  -s                     silent (no output)\n");
   }
 };
 } // namespace

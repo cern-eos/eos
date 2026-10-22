@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/commands/helpers/AclHelper.hh"
 #include <CLI/CLI.hpp>
 #include <iomanip>
@@ -120,7 +121,7 @@ public:
   {
     CLI::App app;
     ConfigureAclApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace

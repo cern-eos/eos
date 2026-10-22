@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/commands/helpers/TokenHelper.hh"
 #include <memory>
 #include <sstream>
@@ -83,7 +84,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeTokenHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeTokenHelp());
   }
 };
 } // namespace

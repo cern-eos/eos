@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -42,7 +43,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: cat <path>\n");
+    eos::console::PrintLegacyHelp("Usage: cat <path>\n");
   }
 };
 } // namespace

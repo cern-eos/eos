@@ -51,6 +51,9 @@ struct LsOptions {
         ->check(eos::console::NonEmptyArgument);
     app.footer("file:... lists a local directory; root:... lists a plain XRootD server; "
                "as3:... lists an S3 path. Other paths refer to EOS.");
+    // Keep the legacy synopsis while deriving its arguments from the schema.
+    app.usage("Usage: " +
+              CLI::detail::trim_copy(CLI::Formatter{}.make_usage(&app, app.get_name())));
   }
 };
 
@@ -331,7 +334,8 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    LsOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

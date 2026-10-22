@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -126,11 +127,12 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage:\n"
-                    "  fuse mount <mount-point>\n"
-                    "  fuse umount <mount-point>\n"
-                    "Mount uses server URI to derive fsname and prepares the "
-                    "mountpoint.\n");
+    eos::console::PrintLegacyHelp(
+        "Usage:\n"
+        "  fuse mount <mount-point>\n"
+        "  fuse umount <mount-point>\n"
+        "Mount uses server URI to derive fsname and prepares the "
+        "mountpoint.\n");
   }
 };
 } // namespace

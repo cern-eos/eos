@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <sstream>
 
@@ -57,7 +58,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeWhoamiHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeWhoamiHelp());
   }
 };
 } // namespace

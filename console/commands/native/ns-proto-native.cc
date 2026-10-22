@@ -6,11 +6,15 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <utility>
 
 // Native helper implementing the protobuf request (ported from legacy)
 class NsNativeHelper : public ICmdHelper {
@@ -649,16 +653,458 @@ std::string MakeNsHelp()
   return oss.str();
 }
 
-void ConfigureNsApp(CLI::App& app)
+using eos::console::HelpCommandText;
+using eos::console::HelpSyntax;
+using eos::console::HelpText;
+using eos::console::StyledHelpText;
+using eos::console::TextStyle;
+
+struct NsHelpTopic {
+  std::string name;
+  std::string summary;
+  std::string arguments;
+  std::vector<std::pair<HelpText, HelpText>> definitions;
+  std::vector<HelpText> notes;
+  std::vector<HelpText> examples;
+  std::vector<NsHelpTopic> children;
+};
+
+const NsHelpTopic&
+NamespaceHelp()
 {
-  app.name("ns");
-  app.description("Namespace Interface");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeNsHelp();
-      }));
+  static const HelpText trackerTypes = HelpText("Select ")
+                                           .append("drain", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("balance", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("fsck", TextStyle::Literal)
+                                           .append(", ")
+                                           .append("convert", TextStyle::Literal)
+                                           .append(" or ")
+                                           .append("all", TextStyle::Literal)
+                                           .append(".");
+  static const HelpText behaviourNames =
+      StyledHelpText("rain_min_fsid_entry", TextStyle::Identifier)
+          .append(" or ")
+          .append("disable_access_log", TextStyle::Identifier)
+          .append(".");
+  static const NsHelpTopic help{
+      "ns",
+      "Print or configure namespace parameters.",
+      "[<operation>]",
+      {},
+      {"With no operation, print a namespace summary."},
+      {},
+      {{"stat",
+        "Print namespace statistics.",
+        "[-a] [-x] [-m] [-n] [--reset]",
+        {{"-a", "Break down statistics by user and group."},
+         {"-x", "Break down statistics by application."},
+         {"-m", "Use monitoring format: <key>=<value>."},
+         {"-n", "Display numerical user and group IDs."},
+         {"--reset", "Reset namespace counters."}},
+        {},
+        {HelpCommandText("eos ns stat").append(HelpSyntax(" -m"))},
+        {}},
+       {"mutex",
+        "Inspect or configure mutex monitoring.",
+        "[<option>...]",
+        {{"--toggletime", "Toggle timing."},
+         {"--toggleorder", "Toggle lock order monitoring."},
+         {"--toggledeadlock", "Toggle deadlock checks."},
+         {"--smplrate1", "Sample 1% of timings (default; no slowdown)."},
+         {"--smplrate10", "Sample 10% of timings (medium slowdown)."},
+         {"--smplrate100", "Sample all timings (severe slowdown)."},
+         {"--setblockedtime <ms>", "Log locks held longer than this threshold, in "
+                                   "milliseconds (default: 10000)."}},
+        {"With no option, list the current monitoring configuration. Monitoring requires "
+         "an MGM built with instrumented RW mutex support."},
+        {HelpCommandText("eos ns mutex")},
+        {}},
+       {"compact",
+        "Legacy namespace compaction interface (unsupported).",
+        "<operation>",
+        {},
+        {"The current MGM does not support this legacy operation and returns ENOTSUP."},
+        {},
+        {{"off",
+          "Disable online compaction (unsupported).",
+          "",
+          {},
+          {"The current MGM returns ENOTSUP."},
+          {},
+          {}},
+         {"on",
+          "Enable online compaction (unsupported).",
+          "[<delay> [<interval> [<type>]]]",
+          {{"<delay>", "Delay before compaction, in seconds."},
+           {"<interval>",
+            "Repeat compaction after this many seconds when greater than zero."},
+           {"<type>", StyledHelpText("files", TextStyle::Literal)
+                          .append(", ")
+                          .append("directories", TextStyle::Literal)
+                          .append(", ")
+                          .append("all", TextStyle::Literal)
+                          .append(", ")
+                          .append("files-repair", TextStyle::Literal)
+                          .append(", ")
+                          .append("directories-repair", TextStyle::Literal)
+                          .append(" or ")
+                          .append("all-repair", TextStyle::Literal)
+                          .append(". The default compacts ")
+                          .append("files", TextStyle::Literal)
+                          .append(".")}},
+          {"The current MGM does not support this legacy operation and returns ENOTSUP."},
+          {},
+          {}}}},
+       {"master",
+        "Inspect or configure master and slave supervision.",
+        "[<hostname>|<option>]",
+        {{"<hostname>", "Set the hostname of the read-write MGM master."},
+         {"--log", "Show the master log (the default operation)."},
+         {"--log-clear", "Clear the master log."},
+         {"--enable",
+          "Deprecated supervisor operation; the current MGM returns ENOTSUP."},
+         {"--disable",
+          "Deprecated supervisor operation; the current MGM returns ENOTSUP."}},
+        {},
+        {HelpCommandText("eos ns master").append(HelpSyntax(" --log"))},
+        {}},
+       {"recompute_tree_size",
+        "Recompute a directory's tree size, including its subdirectories.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <value>]",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>",
+          "Identify the directory by path, decimal container ID or hexadecimal container "
+          "ID."},
+         {"--depth <value>", "Maximum recursion depth; zero means unlimited (default)."}},
+        {},
+        {},
+        {}},
+       {"recompute_quotanode",
+        "Recompute the specified quota node.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id>",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>",
+          "Identify the quota node by path, decimal container ID or hexadecimal "
+          "container ID."}},
+        {},
+        {},
+        {}},
+       {"update_quotanode",
+        "Update a quota node using the supplied accounting values.",
+        "<path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> "
+        "physicalbytes:<bytes> inodes:<inodes>",
+        {{"<path>|cid:<decimal_id>|cxid:<hex_id>", "Identify the quota node."},
+         {"uid:<uid>|gid:<gid>",
+          "Identify the user or group whose accounting is updated."},
+         {"bytes:<bytes>", "Logical bytes used."},
+         {"physicalbytes:<bytes>", "Physical bytes used."},
+         {"inodes:<inodes>", "Inodes used."}},
+        {"Values are applied without checking their consistency. Supply all three "
+         "accounting values together.",
+         "Project quotas require a user ID because accounting accumulates the quotas of "
+         "users registered with the quota node."},
+        {},
+        {}},
+       {"cache",
+        "Inspect or change namespace metadata caches.",
+        "<operation>",
+        {},
+        {HelpText("Use '")
+             .append(HelpCommandText("eos ns stat"))
+             .append("' to inspect the current cache values.")},
+        {},
+        {{"set",
+          "Set a metadata cache's entry limit.",
+          "-f|-d <max_num> [<max_size>]",
+          {{"-f", "Control the file metadata cache."},
+           {"-d", "Control the directory metadata cache."},
+           {"<max_num>",
+            "Maximum number of cache entries. The MGM applies values greater than 100."},
+           {"<max_size>", "Optional size with a K, M or G suffix; the size limit is not "
+                          "implemented yet."}},
+          {HelpText("Choose exactly one of ")
+               .append("-f", TextStyle::Option)
+               .append(" and ")
+               .append("-d", TextStyle::Option)
+               .append(". Use '")
+               .append(HelpCommandText("eos ns stat"))
+               .append("' to inspect current values.")},
+          {HelpCommandText("eos ns cache set").append(HelpSyntax(" -f 1000000"))},
+          {}},
+         {"drop",
+          "Drop cached namespace metadata.",
+          "[-f|-d]",
+          {{"-f", "Drop file metadata entries."},
+           {"-d", "Drop directory metadata entries."}},
+          {HelpText("Without ")
+               .append("-f", TextStyle::Option)
+               .append(" or ")
+               .append("-d", TextStyle::Option)
+               .append(", drop both caches.")},
+          {},
+          {}},
+         {"drop-single-file",
+          "Drop one cached file to force a metadata refresh.",
+          "<file_id>",
+          {{"<file_id>", "Decimal ID of the file to drop from the cache."}},
+          {},
+          {},
+          {}},
+         {"drop-single-container",
+          "Drop one cached directory to force a metadata refresh.",
+          "<container_id>",
+          {{"<container_id>", "Decimal ID of the container to drop from the cache."}},
+          {},
+          {},
+          {}}}},
+       {"drain",
+        "Inspect or configure global drain parameters.",
+        "<operation>",
+        {},
+        {},
+        {},
+        {{"list",
+          "List global drain configuration parameters.",
+          "",
+          {},
+          {},
+          {HelpCommandText("eos ns drain list")},
+          {}},
+         {"set",
+          "Set one global drain configuration parameter.",
+          "<key>=<value>",
+          {{StyledHelpText("max-thread-pool-size", TextStyle::Identifier)
+                .append("=<value>"),
+            "Maximum threads in the drain pool (default: 100; minimum: 5)."},
+           {StyledHelpText("max-fs-per-node", TextStyle::Identifier).append("=<value>"),
+            "Maximum file systems per node drained in parallel (default: 5)."}},
+          {},
+          {},
+          {}}}},
+       {"reserve-ids",
+        "Reserve file and container IDs up to the given thresholds.",
+        "<file_id> <container_id>",
+        {{"<file_id>", "Nonnegative file ID threshold."},
+         {"<container_id>", "Nonnegative container ID threshold."}},
+        {"The namespace will not allocate IDs less than or equal to these thresholds."},
+        {},
+        {}},
+       {"benchmark",
+        "Run a metadata benchmark inside the MGM.",
+        "<threads> <subdirs> <subfiles> [<prefix>]",
+        {{"<threads>", "Number of parallel benchmark threads (capped at 1024)."},
+         {"<subdirs>", "Directories created by each thread."},
+         {"<subfiles>", "Files created in each subdirectory."},
+         {"<prefix>", HelpText("Parent directory of ")
+                          .append("benchmark/", TextStyle::Path)
+                          .append("; the default writes to ")
+                          .append("/benchmark", TextStyle::Path)
+                          .append(".")}},
+        {"Results are printed to the MGM log and the console."},
+        {},
+        {}},
+       {"tracker",
+        "List or clear file identifier trackers.",
+        "<operation> --name <type>",
+        {{"--name <type>", trackerTypes}},
+        {HelpText("Without ")
+             .append("--name", TextStyle::Option)
+             .append(", no tracker is selected.")},
+        {},
+        {{"list",
+          "List tracked file identifiers.",
+          "--name <type>",
+          {{"--name <type>", trackerTypes}},
+          {HelpText("Without ")
+               .append("--name", TextStyle::Option)
+               .append(", no tracker is selected.")},
+          {HelpCommandText("eos ns tracker list")
+               .append(HelpSyntax(" --name all", {"all"}))},
+          {}},
+         {"clear",
+          "Clear tracked file identifiers.",
+          "--name <type>",
+          {{"--name <type>", trackerTypes}},
+          {HelpText("Without ")
+               .append("--name", TextStyle::Option)
+               .append(", no tracker is selected.")},
+          {},
+          {}}}},
+       {"behaviour",
+        "Inspect or change manager behaviour settings.",
+        "<operation>",
+        {},
+        {"Settings are saved in the MGM configuration.",
+         StyledHelpText("rain_min_fsid_entry", TextStyle::Identifier)
+             .append(" selects the lowest file system ID as the entry server for RAIN "
+                     "files. ")
+             .append("disable_access_log", TextStyle::Identifier)
+             .append(" suppresses INFO lines for access checks. Both accept ")
+             .append("on", TextStyle::Literal)
+             .append(" or ")
+             .append("off", TextStyle::Literal)
+             .append(" and default to ")
+             .append("off", TextStyle::Literal)
+             .append(".")},
+        {},
+        {{"list",
+          "List enforced behaviour changes.",
+          "",
+          {},
+          {},
+          {HelpCommandText("eos ns behaviour list")},
+          {}},
+         {"set",
+          "Set a manager behaviour.",
+          "<name> <on|off>",
+          {{"<name>", behaviourNames}, {"<on|off>", "Enable or disable the behaviour."}},
+          {},
+          {},
+          {}},
+         {"get",
+          "Get a manager behaviour's configuration.",
+          "<name>",
+          {{"<name>", behaviourNames}},
+          {},
+          {HelpCommandText("eos ns behaviour get")
+               .append(" ")
+               .append("disable_access_log", TextStyle::Identifier)},
+          {}},
+         {"clear",
+          "Remove enforced behaviour settings.",
+          "<name>|all",
+          {{"<name>|all", HelpText("Select ")
+                              .append("rain_min_fsid_entry", TextStyle::Identifier)
+                              .append(", ")
+                              .append("disable_access_log", TextStyle::Identifier)
+                              .append(" or ")
+                              .append("all", TextStyle::Literal)
+                              .append(" settings.")}},
+          {},
+          {},
+          {}}}}}};
+  return help;
+}
+
+void
+AppendNamespaceHelp(eos::console::HelpPage& page, const NsHelpTopic& topic,
+                    const std::string& path, bool all)
+{
+  using eos::console::HelpBlockKind;
+  page.blocks.push_back(
+      {HelpBlockKind::Section,
+       all && path != "eos ns" ? HelpCommandText(path) : HelpText("USAGE"),
+       {}});
+  auto usage = HelpCommandText(path);
+  if (!topic.arguments.empty()) {
+    usage.append(" ").append(HelpSyntax(topic.arguments, {"on", "off", "all"}));
+  }
+  page.blocks.push_back({HelpBlockKind::Usage, std::move(usage), {}});
+  page.blocks.push_back({HelpBlockKind::Paragraph, topic.summary, {}});
+  if (!topic.children.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "OPERATIONS", {}});
+    for (const auto& child : topic.children) {
+      page.blocks.push_back(
+          {HelpBlockKind::Definition, HelpCommandText(child.name), child.summary});
+    }
+  }
+  if (!topic.definitions.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "ARGUMENTS AND OPTIONS", {}});
+    for (const auto& definition : topic.definitions) {
+      auto label = HelpSyntax(definition.first.text, {"on", "off", "all"});
+      for (const auto& span : definition.first.spans) {
+        label.mark(span.offset, span.length, span.style);
+      }
+      page.blocks.push_back(
+          {HelpBlockKind::Definition, std::move(label), definition.second});
+    }
+  }
+  if (!topic.notes.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "DETAILS", {}});
+    for (const auto& note : topic.notes) {
+      page.blocks.push_back({HelpBlockKind::Paragraph, note, {}});
+    }
+  }
+  if (!topic.examples.empty()) {
+    page.blocks.push_back({HelpBlockKind::Section, "EXAMPLES", {}});
+    for (const auto& example : topic.examples) {
+      page.blocks.push_back({HelpBlockKind::Example, example, {}});
+    }
+  }
+  if (all) {
+    for (const auto& child : topic.children) {
+      AppendNamespaceHelp(page, child, path + " " + child.name, true);
+    }
+  } else {
+    page.blocks.push_back({HelpBlockKind::Section, "LEARN MORE", {}});
+    if (!topic.children.empty()) {
+      page.blocks.push_back({HelpBlockKind::Paragraph,
+                             HelpText("Run '")
+                                 .append(HelpCommandText(path))
+                                 .append(HelpSyntax(" <operation> --help"))
+                                 .append("' for operation details."),
+                             {}});
+    }
+    page.blocks.push_back({HelpBlockKind::Paragraph,
+                           HelpText("Run '")
+                               .append(HelpCommandText("eos ns"))
+                               .append(HelpSyntax(" --help-all"))
+                               .append("' for the complete namespace manual."),
+                           {}});
+  }
+}
+
+void
+PrintNamespaceHelp(const std::vector<std::string>& args)
+{
+  if (!eos::console::HelpWidth(fileno(stderr))) {
+    eos::console::PrintLegacyHelp(MakeNsHelp());
+    return;
+  }
+  const auto* topic = &NamespaceHelp();
+  std::string path = "eos ns";
+  bool all = false;
+  for (const auto& arg : args) {
+    if (arg == "--") {
+      break;
+    }
+    if (arg == "--help-all") {
+      all = true;
+      break;
+    }
+  }
+  if (!all) {
+    for (const auto& arg : args) {
+      if (arg == "--") {
+        break;
+      }
+      const auto child =
+          std::find_if(topic->children.begin(), topic->children.end(),
+                       [&arg](const NsHelpTopic& entry) { return entry.name == arg; });
+      if (child == topic->children.end()) {
+        break;
+      }
+      topic = &*child;
+      path += " " + topic->name;
+    }
+  }
+  eos::console::HelpPage page;
+  AppendNamespaceHelp(page, *topic, path, all);
+  eos::console::PrintHelpPage(page);
+}
+
+bool
+WantsNamespaceHelp(const std::vector<std::string>& args)
+{
+  for (const auto& argument : args) {
+    if (argument == "--") {
+      break;
+    }
+    if (argument == "--help" || argument == "--help-all" || argument == "-h") {
+      return true;
+    }
+  }
+  return false;
 }
 
 class NsProtoCommand : public IConsoleCommand {
@@ -676,7 +1122,7 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    return !WantsNamespaceHelp(eos::console::TokenizeArguments(args.c_str()));
   }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
@@ -688,14 +1134,14 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
+    if (WantsNamespaceHelp(args)) {
+      printHelp(args);
       global_retc = EINVAL;
       return 0;
     }
     NsNativeHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
-      printHelp();
+      printHelp(args);
       global_retc = EINVAL;
       return 0;
     }
@@ -705,9 +1151,12 @@ public:
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureNsApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    PrintNamespaceHelp({});
+  }
+  void
+  printHelp(const std::vector<std::string>& args) const override
+  {
+    PrintNamespaceHelp(args);
   }
 };
 } // namespace

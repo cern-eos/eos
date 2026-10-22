@@ -1,5 +1,7 @@
 #pragma once
 
+#include "console/ConsoleColor.hh"
+
 #include <CLI/CLI.hpp>
 #include <cctype>
 #include <charconv>
@@ -88,7 +90,8 @@ ParseCliArguments(CLI::App& app, const std::vector<std::string>& arguments)
     return true;
   } catch (const CLI::ParseError& error) {
     if (error.get_exit_code() != 0) {
-      std::cerr << "error: " << error.what() << '\n';
+      std::cerr << Colorize("error:", TextStyle::Error, fileno(stderr)) << " "
+                << error.what() << '\n';
     }
     return false;
   }

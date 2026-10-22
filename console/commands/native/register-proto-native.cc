@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
 #include <charconv>
@@ -347,7 +348,7 @@ public:
     CLI::App app;
     RegisterArguments values;
     ConfigureRegisterApp(app, values);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace

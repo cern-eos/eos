@@ -1,5 +1,6 @@
 #include "console/CommandCompletion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <CLI/CLI.hpp>
 #include <set>
 
@@ -48,6 +49,25 @@ aliases()
       {"newfind", {"find"}}};
   return result;
 }
+
+std::vector<eos::console::HelpCommand>
+helpChildren(const CLI::App& app)
+{
+  std::vector<eos::console::HelpCommand> result;
+  for (const auto* child : app.get_subcommands(
+           [](const CLI::App* command) { return !command->get_disabled(); })) {
+    auto children = helpChildren(*child);
+    if (child->get_name().empty()) {
+      result.insert(result.end(), children.begin(), children.end());
+      continue;
+    }
+    result.push_back({child->get_name(), children});
+    for (const auto& alias : child->get_aliases()) {
+      result.push_back({alias, children});
+    }
+  }
+  return result;
+}
 } // namespace
 
 CommandCompletionResult
@@ -78,4 +98,43 @@ HasCommandCompletionSchema(const std::string& name)
   }
   CommandCompletionSchema schema(name);
   return configure(schema, name);
+}
+
+namespace {
+std::vector<eos::console::HelpCommand>
+BuildCommandHelpMetadata()
+{
+  std::vector<eos::console::HelpCommand> commands;
+  for (const auto* command : CommandRegistry::instance().all()) {
+    const std::string name = command->name();
+    const auto alias = aliases().find(name);
+    CommandCompletionSchema schema(alias == aliases().end() ? name
+                                                            : alias->second.front());
+    eos::console::HelpCommand help{name, {}};
+    // These schemas contain declarations only. Do not call command completion or
+    // parse here: native command callbacks may validate or contact the instance.
+    if (configure(schema, schema.app->get_name())) {
+      const CLI::App* target = schema.app.get();
+      if (alias != aliases().end()) {
+        for (auto part = alias->second.begin() + 1; part != alias->second.end(); ++part) {
+          target = target->get_subcommand_no_throw(*part);
+          if (!target) {
+            break;
+          }
+        }
+      }
+      if (target) {
+        help.children = helpChildren(*target);
+      }
+    }
+    commands.push_back(std::move(help));
+  }
+  return commands;
+}
+} // namespace
+
+void
+RegisterCommandHelpMetadata()
+{
+  eos::console::SetHelpCommandLoader(BuildCommandHelpMetadata);
 }
