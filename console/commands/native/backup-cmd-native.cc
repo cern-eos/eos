@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -51,6 +52,11 @@ public:
   description() const override
   {
     return "Backup Interface";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeBackupHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -150,5 +156,8 @@ public:
 void
 RegisterBackupNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<BackupCommand>());
+  eos::console::CommandHelpSpec help;
+  help.valueOptions = {{"--ctime", 1}, {"--mtime", 1}, {"--excl_xattr", 1}};
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<BackupCommand>(), std::move(help)));
 }

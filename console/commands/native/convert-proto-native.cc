@@ -6,6 +6,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -188,6 +189,11 @@ public:
   {
     return "Convert Interface";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeConvertHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -230,5 +236,16 @@ public:
 void
 RegisterConvertProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ConvertProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"config"}, "  config list|set ", "Inspect or configure the converter."},
+      {{"config", "list"}, "  config list|set ", "List converter configuration."},
+      {{"config", "set"}, "  config list|set ", "Set converter configuration."},
+      {{"list"}, "  list", "List conversion jobs."},
+      {{"clear"}, "  clear", "Clear stored conversion jobs."},
+      {{"file"}, "  file <identifier> ", "Schedule a file conversion."},
+      {{"rule"}, "  rule <identifier> ", "Apply a directory conversion rule."},
+  };
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<ConvertProtoCommand>(), std::move(help)));
 }

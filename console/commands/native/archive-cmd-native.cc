@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -67,6 +68,11 @@ public:
   description() const override
   {
     return "Archive Interface";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeArchiveHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -169,5 +175,18 @@ public:
 void
 RegisterArchiveNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ArchiveCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"create"}, "  create ", "Create archive metadata."},
+      {{"put"}, "  put ", "Copy files to the archive."},
+      {{"get"}, "  get ", "Recall archived files."},
+      {{"purge"}, "  purge ", "Purge archived files from disk."},
+      {{"transfers"}, "  transfers ", "Inspect running archive jobs."},
+      {{"list"}, "  list ", "List archived directories."},
+      {{"kill"}, "  kill ", "Stop an archive transfer."},
+      {{"delete"}, "  delete ", "Delete the tape copies of archived files."},
+      {{"help"}, "  help ", "Show archive help."},
+  };
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<ArchiveCommand>(), std::move(help)));
 }

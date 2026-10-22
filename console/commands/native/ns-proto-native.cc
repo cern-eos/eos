@@ -1057,7 +1057,8 @@ AppendNamespaceHelp(eos::console::HelpPage& page, const NsHelpTopic& topic,
 void
 PrintNamespaceHelp(const std::vector<std::string>& args)
 {
-  if (!eos::console::HelpWidth(fileno(stderr))) {
+  if (!eos::console::HelpWidth(fileno(stderr)) &&
+      std::find(args.begin(), args.end(), "--help-all") != args.end()) {
     eos::console::PrintLegacyHelp(MakeNsHelp());
     return;
   }
@@ -1136,7 +1137,7 @@ public:
     std::string joined = oss.str();
     if (WantsNamespaceHelp(args)) {
       printHelp(args);
-      global_retc = EINVAL;
+      global_retc = 0;
       return 0;
     }
     NsNativeHelper helper(*ctx.globalOpts);

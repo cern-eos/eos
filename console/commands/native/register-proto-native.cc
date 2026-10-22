@@ -5,6 +5,7 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
 #include <charconv>
@@ -342,6 +343,11 @@ public:
     return CompleteCliArguments(app, args, {},
                                 {{app.get_option("path"), CompletionPath::Eos}});
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRegisterHelp();
+  }
   void
   printHelp() const override
   {
@@ -356,5 +362,24 @@ public:
 void
 RegisterRegisterProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RegisterProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RegisterProtoCommand>(), {{},
+                                                 eos::console::ShortHelpPolicy::Always,
+                                                 {{"--path", 1},
+                                                  {"--uid", 1},
+                                                  {"--username", 1},
+                                                  {"--gid", 1},
+                                                  {"--groupname", 1},
+                                                  {"--size", 1},
+                                                  {"--mode", 1},
+                                                  {"--layoutid", 1},
+                                                  {"--location", 1},
+                                                  {"--checksum", 1},
+                                                  {"--attr", 1},
+                                                  {"--xattr", 1},
+                                                  {"--btime", 1},
+                                                  {"--ctime", 1},
+                                                  {"--mtime", 1},
+                                                  {"--atime", 1},
+                                                  {"--atimeifnewer", 1}}}));
 }

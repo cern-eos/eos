@@ -451,8 +451,7 @@ TEST_F(ConsoleProcessTest, LocalListingPreservesArgvWithoutMgmPreflight)
 
 TEST_F(ConsoleProcessTest, HelpAndShellCompletionDoNotContactMgm)
 {
-  EXPECT_EQ(process({"-b", "-r", "0", "0", "-a", "test", "-j", "evict", "--help"}),
-            EINVAL);
+  EXPECT_EQ(process({"-b", "-r", "0", "0", "-a", "test", "-j", "evict", "--help"}), 0);
   noRequests();
   EXPECT_EQ(process({"__complete", "eo"}), 0);
   noRequests();

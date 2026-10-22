@@ -5,6 +5,7 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
@@ -237,7 +238,7 @@ public:
   std::string
   helpText() const override
   {
-    return RouteOptions{}.app.help();
+    return RouteOptions{}.app.help("", CLI::AppFormatMode::All);
   }
   void
   printHelp() const override
@@ -251,5 +252,9 @@ public:
 void
 RegisterRouteProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RouteProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RouteProtoCommand>(),
+      {{{{"ls"}, "ls", "List namespace routes."},
+        {{"link"}, "link", "Assign a path to destination endpoints."},
+        {{"unlink"}, "unlink", "Remove a namespace route."}}}));
 }

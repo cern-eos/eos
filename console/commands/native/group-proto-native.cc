@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <algorithm>
@@ -149,5 +150,11 @@ public:
 void
 RegisterGroupProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<GroupProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<GroupProtoCommand>(),
+      {{{{"ls"}, "ls", "List scheduling groups."},
+        {{"rm"}, "rm", "Remove a scheduling group."},
+        {{"set"}, "set", "Activate, drain or deactivate a group."}},
+       eos::console::ShortHelpPolicy::Always,
+       {{"-g", 1}}}));
 }

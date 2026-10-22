@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
@@ -111,5 +112,6 @@ public:
 void
 RegisterDfProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<DfProtoCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<DfProtoCommand>(), {}));
 }
