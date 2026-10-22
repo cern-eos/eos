@@ -665,6 +665,107 @@ TEST_F(ConsoleHelpProcessTest, StandardCli11HelpFitsActualTerminalWidths)
   }
 }
 
+TEST_F(ConsoleHelpProcessTest, IoNamespaceHelpIsScopedInRedirectedAndTerminalOutput)
+{
+  auto check = [](const std::string& text) {
+    EXPECT_NE(text.find("io ns"), std::string::npos);
+    EXPECT_NE(text.find("-10000"), std::string::npos);
+    EXPECT_NE(text.find("Monitoring format"), std::string::npos);
+    EXPECT_EQ(text.find("Print IO statistics"), std::string::npos);
+    EXPECT_EQ(text.find("Traffic Shaping engine"), std::string::npos);
+    const std::string synopsis = "io ns [OPTIONS]";
+    const auto usage = text.find(synopsis);
+    ASSERT_NE(usage, std::string::npos);
+    EXPECT_EQ(text.find(synopsis, usage + 1), std::string::npos);
+  };
+  for (const auto* option : {"--help", "-h"}) {
+    SCOPED_TRACE(option);
+    ASSERT_EQ(process({"--color=never", "io", "ns", option}), 0);
+    EXPECT_TRUE(error.empty()) << error;
+    check(output);
+    for (unsigned short width : {40, 80}) {
+      SCOPED_TRACE(width);
+      ASSERT_EQ(process({"--color=never", "io", "ns", option}, width, true), 0);
+      EXPECT_TRUE(error.empty()) << error;
+      const auto baseline = terminalOutput;
+      check(baseline);
+      expectWidth(baseline.substr(0, baseline.find("EXAMPLES:")), width);
+      ASSERT_EQ(process({"--color=always", "io", "ns", option}, width, true), 0);
+      EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
+      EXPECT_EQ(plain(terminalOutput), baseline);
+    }
+  }
+  ASSERT_EQ(process({"--color=never", "help", "io", "ns"}), 0);
+  EXPECT_TRUE(output.empty()) << output;
+  check(error);
+}
+
+TEST_F(ConsoleHelpProcessTest, IoLeafHelpBypassesRequirementsAndExcludesSiblings)
+{
+  for (const auto& topic : {std::string("policy"), std::string("config")}) {
+    for (const auto* option : {"--help", "-h"}) {
+      SCOPED_TRACE(topic);
+      SCOPED_TRACE(option);
+      ASSERT_EQ(process({"--color=never", "io", "shaping", topic, "set", option}), 0);
+      EXPECT_TRUE(error.empty()) << error;
+      EXPECT_NE(output.find("io shaping " + topic + " set"), std::string::npos);
+      EXPECT_NE(output.find(topic == "policy" ? "--limit-read" : "--estimators-period"),
+                std::string::npos);
+      EXPECT_EQ(output.find(topic == "policy" ? "--estimators-period" : "--limit-read"),
+                std::string::npos);
+      EXPECT_EQ(output.find("Print IO statistics"), std::string::npos);
+      const std::string synopsis = "io shaping " + topic + " set [OPTIONS]";
+      const auto usage = output.find(synopsis);
+      ASSERT_NE(usage, std::string::npos);
+      EXPECT_EQ(output.find(synopsis, usage + 1), std::string::npos);
+    }
+  }
+}
+
+TEST_F(ConsoleHelpProcessTest, IoExamplesUseConsistentCopyableLines)
+{
+  auto check = [](const std::string& text) {
+    EXPECT_EQ(text.find('\t'), std::string::npos);
+    const auto examples = text.find("EXAMPLES:");
+    ASSERT_NE(examples, std::string::npos);
+    EXPECT_EQ(text.find("EXAMPLES:", examples + 1), std::string::npos);
+    std::istringstream lines(text.substr(examples));
+    std::string line;
+    size_t commands = 0;
+    while (std::getline(lines, line)) {
+      const auto comment = line.find_first_not_of(' ');
+      if (comment == std::string::npos || line[comment] != '#') {
+        continue;
+      }
+      ASSERT_TRUE(std::getline(lines, line));
+      ASSERT_EQ(line.find_first_not_of(' '), comment) << line;
+      EXPECT_EQ(line.compare(comment, 7, "eos io "), 0) << line;
+      ++commands;
+    }
+    EXPECT_GT(commands, 0u);
+  };
+  for (const auto& path : std::vector<std::vector<std::string>>{
+           {"stat"}, {"ns"}, {"shaping"}, {"shaping", "policy"}, {"shaping", "config"}}) {
+    SCOPED_TRACE(::testing::PrintToString(path));
+    std::vector<std::string> args{"--color=never", "io"};
+    args.insert(args.end(), path.begin(), path.end());
+    args.push_back("--help");
+    ASSERT_EQ(process(args), 0);
+    EXPECT_TRUE(error.empty()) << error;
+    check(output);
+    for (unsigned short width : {40, 80}) {
+      SCOPED_TRACE(width);
+      ASSERT_EQ(process(args, width, true), 0);
+      const auto baseline = terminalOutput;
+      check(baseline);
+      args.front() = "--color=always";
+      ASSERT_EQ(process(args, width, true), 0);
+      EXPECT_EQ(plain(terminalOutput), baseline);
+      args.front() = "--color=never";
+    }
+  }
+}
+
 TEST_F(ConsoleHelpProcessTest, LsHelpKeepsItsLegacySynopsisInBatchAndRedirectedOutput)
 {
   for (const char* flag : {"-h", "--help"}) {

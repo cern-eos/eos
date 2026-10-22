@@ -40,6 +40,7 @@ set(CONSOLE_UT_SRCS
   console/ConsoleColorProcessTest.cc
   console/IoShapingOutputTest.cc
   console/ConsoleHelpTest.cc
+  console/ConsoleCommandHelpTest.cc
   console/ConsoleHelpProcessTest.cc
   console/AclCmdTest.cc
   console/AliasCliValidationTest.cc

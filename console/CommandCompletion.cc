@@ -87,6 +87,21 @@ CompleteRegisteredCommand(const std::string& name, const std::vector<std::string
                               schema.spellings);
 }
 
+std::unique_ptr<CommandCompletionSchema>
+BuildRegisteredCompletionSchema(const std::string& name)
+{
+  const auto alias = aliases().find(name);
+  auto schema = std::make_unique<CommandCompletionSchema>(
+      alias == aliases().end() ? name : alias->second.front());
+  if (!configure(*schema, schema->app->get_name())) {
+    return nullptr;
+  }
+  if (alias != aliases().end()) {
+    schema->prefix.assign(alias->second.begin() + 1, alias->second.end());
+  }
+  return schema;
+}
+
 bool
 HasCommandCompletionSchema(const std::string& name)
 {

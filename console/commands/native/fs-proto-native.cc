@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include <iomanip>
@@ -266,13 +267,15 @@ std::string MakeFsHelp()
       << "    -l : list all files which are at risk and offline files" << std::endl
       << "    -r : show risk analysis" << std::endl
       << std::endl
-      << "  Examples: " << std::endl
-      << "  fs ls --io -> list all filesystems with IO statistics" << std::endl
-      << "  fs boot *  -> send boot request to all filesystems" << std::endl
-      << "  fs dumpmd 100 --path -> dump all logical path names on filesystem"
-      << " 100" << std::endl
-      << "  fs mv 100 default.0 -> move filesystem 100 to scheduling group"
-      << " default.0" << std::endl;
+      << "  EXAMPLES:\n"
+      << "    # List all filesystems with IO statistics\n"
+      << "    eos fs ls --io\n\n"
+      << "    # Send a boot request to all filesystems\n"
+      << "    eos fs boot *\n\n"
+      << "    # Dump all logical path names on filesystem 100\n"
+      << "    eos fs dumpmd 100 --path\n\n"
+      << "    # Move filesystem 100 to scheduling group default.0\n"
+      << "    eos fs mv 100 default.0\n";
   return oss.str();
 }
 
@@ -337,5 +340,21 @@ public:
 void
 RegisterFsProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FsProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<FsProtoCommand>(),
+      {{{{"add"}, "  fs add ", "Add and assign a filesystem."},
+        {{"boot"}, "  fs boot ", "Boot one or more filesystems."},
+        {{"clone"}, "  fs clone ", "Replicate files between filesystems."},
+        {{"compare"}, "  fs compare ", "Compare files on two filesystems."},
+        {{"config"}, "  fs config ", "Configure filesystem parameters."},
+        {{"dropdeletion"}, "  fs dropdeletion ", "Drop pending deletions."},
+        {{"dropghosts"},
+         "  fs dropghosts ",
+         "Drop accounted files without namespace metadata."},
+        {{"dropfiles"}, "  fs dropfiles ", "Drop all files on a filesystem."},
+        {{"dumpmd"}, "  fs dumpmd ", "Dump or count filesystem metadata."},
+        {{"ls"}, "  fs ls ", "List filesystems."},
+        {{"mv"}, "  fs mv ", "Move a filesystem."},
+        {{"rm"}, "  fs rm ", "Remove a filesystem."},
+        {{"status"}, "  fs status ", "Inspect filesystem state and removal risk."}}}));
 }

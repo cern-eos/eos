@@ -481,7 +481,9 @@ TEST(ConsoleCompletion, EveryRegisteredCommandHasDeliberateCompletionCoverage)
       const auto result = command->completion({});
       EXPECT_EQ(result.path, CompletionPath::None);
       for (const auto& candidate : result.candidates) {
-        EXPECT_TRUE(candidate == "-h" || candidate == "--help") << candidate;
+        EXPECT_TRUE(candidate == "-h" || candidate == "--help" ||
+                    candidate == "--help-all")
+            << candidate;
       }
     }
   }

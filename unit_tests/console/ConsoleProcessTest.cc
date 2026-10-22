@@ -648,6 +648,57 @@ TEST_F(ConsoleProcessTest, HealthHelpDoesNotContactMgm)
   }
 }
 
+TEST_F(ConsoleProcessTest, IoSubcommandHelpDoesNotContactMgm)
+{
+  for (const auto& path : std::vector<std::vector<std::string>>{
+           {"ns"}, {"shaping", "policy", "set"}, {"shaping", "config", "set"}}) {
+    for (const auto* option : {"--help", "-h"}) {
+      SCOPED_TRACE(::testing::PrintToString(path));
+      SCOPED_TRACE(option);
+      std::vector<std::string> args{"-b", "io"};
+      args.insert(args.end(), path.begin(), path.end());
+      args.push_back(option);
+      EXPECT_EQ(process(args), 0) << lastOutput;
+      EXPECT_NE(lastOutput.find("OPTIONS:"), std::string::npos);
+      EXPECT_EQ(lastOutput.find("Print IO statistics"), std::string::npos);
+      noRequests();
+    }
+  }
+  EXPECT_EQ(process({"-b", "help", "io", "ns"}), 0) << lastOutput;
+  EXPECT_NE(lastOutput.find("-10000"), std::string::npos);
+  EXPECT_EQ(lastOutput.find("Print IO statistics"), std::string::npos);
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, IoFullHelpDoesNotContactMgm)
+{
+  for (const auto& args : std::vector<std::vector<std::string>>{
+           {"-b", "io", "--help-all"}, {"-b", "help", "io"}}) {
+    SCOPED_TRACE(::testing::PrintToString(args));
+    EXPECT_EQ(process(args), 0) << lastOutput;
+    EXPECT_NE(lastOutput.find("--detail-auto-high-cardinality"), std::string::npos);
+    EXPECT_NE(lastOutput.find("-10000"), std::string::npos);
+    noRequests();
+  }
+}
+
+TEST_F(ConsoleProcessTest, InvalidIoArgumentsDoNotAppendTheFullManual)
+{
+  EXPECT_EQ(process({"-b", "io", "ns", "--unknown-option"}), EINVAL) << lastOutput;
+  EXPECT_NE(lastOutput.find("--unknown-option"), std::string::npos);
+  EXPECT_EQ(lastOutput.find("Print IO statistics"), std::string::npos);
+  EXPECT_EQ(lastOutput.find("--detail-auto-high-cardinality"), std::string::npos);
+  noRequests();
+}
+
+TEST_F(ConsoleProcessTest, IoReportPreservesLiteralPathArguments)
+{
+  responseRetc = 0;
+  const std::string path = "/eos/test/literal \"quotes\" and back\\slash";
+  ASSERT_EQ(process({"-b", "io", "report", path}), 0) << lastOutput;
+  EXPECT_EQ(protobuf(false).io().report().path(), path);
+}
+
 TEST_F(ConsoleProcessTest, MalformedRootListingReturnsAnErrorWithoutCrashing)
 {
   for (const auto* path : {"root:malformed", "root:/malformed"}) {
