@@ -28,6 +28,7 @@
 //------------------------------------------------------------------------------
 
 #include "gtest/gtest.h"
+#include <ctime>
 #include <limits>
 #define IN_TEST_HARNESS
 #include "console/commands/helpers/FileHelper.hh"
@@ -108,55 +109,25 @@ TEST(FileHelper, DecimalFidSpecifier)
   ASSERT_TRUE(file.md().path().empty());
 }
 
-TEST(FileHelper, MalformedIdSpecifierFallsBackToPath)
+TEST(FileHelper, MalformedExplicitIdentifiersAreRejected)
 {
-  // 'fxid:' with a non-hex tail is not an id, it stays a path
-  auto file = ParseOk("drop fxid:zzz 3");
-  ASSERT_EQ(file.md().path(), "fxid:zzz");
-  ASSERT_EQ(file.md().id(), 0u);
+  for (const auto* id : {"fxid:zzz", "fxid:", "fid:", "fid:-1", "fid:1junk", "fxid:1g",
+                         "fid:18446744073709551616", "fxid:10000000000000000",
+                         "fxid:zz/fxid:1f", "fid:10/fxid:10"}) {
+    SCOPED_TRACE(id);
+    ExpectReject(std::string("drop ") + id + " 3");
+  }
 }
 
-TEST(FileHelper, IdSpecifierWithEmptyTailIsAPath)
+TEST(FileHelper, IdentifierTextInsidePathRemainsPath)
 {
-  auto file = ParseOk("drop fxid: 3");
-  ASSERT_EQ(file.md().path(), "fxid:");
-  ASSERT_EQ(file.md().id(), 0u);
-}
-
-//------------------------------------------------------------------------------
-// ConsoleMain matches the specifier with regexec(), which is unanchored at the
-// start, so a trailing 'fxid:<hex>' is recognised even in the middle of a
-// token. These pin that behaviour, which the helper reproduces.
-//------------------------------------------------------------------------------
-TEST(FileHelper, IdSpecifierIsRecognisedAnywhereInTheToken)
-{
-  auto file = ParseOk("drop /eos/dir/fxid:abc 3");
-  ASSERT_EQ(file.md().id(), 0xabcu);
-  ASSERT_TRUE(file.md().path().empty());
-}
-
-TEST(FileHelper, IdSpecifierMustRunToTheEnd)
-{
-  // the digits do not reach the end of the token, so this stays a path
-  auto file = ParseOk("drop /eos/fxid:abc/sub 3");
-  ASSERT_EQ(file.md().path(), "/eos/fxid:abc/sub");
-  ASSERT_EQ(file.md().id(), 0u);
-}
-
-TEST(FileHelper, LaterIdSpecifierWinsWhenTheFirstDoesNotReachTheEnd)
-{
-  // the first 'fxid:' is not followed by digits running to the end, the
-  // second one is - regexec() finds the leftmost *successful* match
-  auto file = ParseOk("drop fxid:zz/fxid:1f 3");
-  ASSERT_EQ(file.md().id(), 0x1fu);
-  ASSERT_TRUE(file.md().path().empty());
-}
-
-TEST(FileHelper, HexPrefixIsPreferredOverDecimal)
-{
-  // 'fxid:' is tried before 'fid:', matching ConsoleMain's ordering
-  auto file = ParseOk("drop fid:10/fxid:10 3");
-  ASSERT_EQ(file.md().id(), 0x10u);
+  for (const auto* path :
+       {"/eos/dir/fxid:abc", "/eos/fxid:abc/sub", "relative-fid:123", "./fxid:abc"}) {
+    SCOPED_TRACE(path);
+    const auto file = ParseOk(std::string("drop ") + path + " 3");
+    EXPECT_EQ(file.md().path(), path);
+    EXPECT_EQ(file.md().id(), 0u);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -315,11 +286,11 @@ TEST(FileHelper, TouchLockRejectsUnknownAudience)
 
 TEST(FileHelper, TouchUnlock)
 {
-  auto file = ParseOk("touch -u /eos/f.dat 3600");
+  auto file = ParseOk("touch -u /eos/f.dat");
   ASSERT_EQ(file.touch().lockop(), "unlock");
-  // unlock takes no further arguments
   ASSERT_TRUE(file.touch().lockop_lifetime().empty());
   ASSERT_EQ(file.touch().size(), 0u);
+  ExpectReject("touch -u /eos/f.dat 3600");
 }
 
 TEST(FileHelper, TouchNeedsAPath)
@@ -609,15 +580,21 @@ TEST(FileHelper, AdjustreplicaRejectsDanglingExcludeFs)
 //------------------------------------------------------------------------------
 TEST(FileHelper, ShareDefaultLifetime)
 {
+  const auto before = std::time(nullptr);
   auto file = ParseOk("share /eos/f.dat");
+  const auto after = std::time(nullptr);
   ASSERT_TRUE(file.has_share());
-  ASSERT_EQ(file.share().expires(), 28u * 86400u);
+  EXPECT_GE(file.share().expires(), before + 28u * 86400u);
+  EXPECT_LE(file.share().expires(), after + 28u * 86400u);
 }
 
 TEST(FileHelper, ShareExplicitLifetime)
 {
+  const auto before = std::time(nullptr);
   auto file = ParseOk("share /eos/f.dat 3600");
-  ASSERT_EQ(file.share().expires(), 3600u);
+  const auto after = std::time(nullptr);
+  EXPECT_GE(file.share().expires(), before + 3600);
+  EXPECT_LE(file.share().expires(), after + 3600);
 }
 
 TEST(FileHelper, Workflow)
@@ -719,6 +696,56 @@ TEST(FileHelper, AmpersandIsNotSealed)
   ASSERT_EQ(file.md().path(), "/eos/a&b");
 }
 
+TEST(FileHelper, VectorArgumentsPreserveAllBytes)
+{
+  const std::string source = "/eos/a b'c\"d\\e&x=y";
+  const std::string target = "/eos/f g\"h'i\\j&x=z";
+  FileHelper helper(gOpts);
+  ASSERT_TRUE(helper.ParseArguments({"rename", source, target}));
+  EXPECT_EQ(helper.GetRequest().file().md().path(), source);
+  EXPECT_EQ(helper.GetRequest().file().rename().new_path(), target);
+  ASSERT_TRUE(helper.ParseArguments({"symlink", "-f", source, target}));
+  EXPECT_EQ(helper.GetRequest().file().md().path(), source);
+  EXPECT_EQ(helper.GetRequest().file().symlink().target_path(), target);
+}
+
+TEST(FileHelper, RejectsTrailingArgumentsForEverySubcommand)
+{
+  for (const auto* command :
+       {"rename /eos/a /eos/b extra", "rename_with_symlink /eos/a /eos/b extra",
+        "symlink /eos/a /eos/b extra", "drop /eos/a 1 extra", "touch /eos/a 1 abcd extra",
+        "move /eos/a 1 2 extra", "copy /eos/a /eos/b extra", "replicate /eos/a 1 2 extra",
+        "purge /eos/a 1 extra", "version /eos/a 1 extra", "versions /eos/a 123 extra",
+        "layout /eos/a -stripes 1 extra", "tag /eos/a +1 extra",
+        "convert /eos/a replica:2 default scattered adler extra", "verify /eos/a 1 2",
+        "adjustreplica /eos/a default 1 extra", "share /eos/a 1 extra",
+        "workflow /eos/a default sync extra", "info /eos/a extra"}) {
+    SCOPED_TRACE(command);
+    ExpectReject(command);
+  }
+}
+
+TEST(FileHelper, RejectsMalformedAndOverflowingNumericFields)
+{
+  for (const auto* value :
+       {"1junk", "1.5", "-1", "0x10", "4294967296", "18446744073709551616"}) {
+    SCOPED_TRACE(value);
+    for (const auto* format :
+         {"drop /eos/a ", "move /eos/a 1 ", "replicate /eos/a 1 ", "verify /eos/a -rate ",
+          "verify /eos/a ", "layout /eos/a -stripes ",
+          "adjustreplica /eos/a --exclude-fs "}) {
+      ExpectReject(std::string(format) + value);
+    }
+  }
+  for (const auto* value : {"1junk", "1.5", "18446744073709551616"}) {
+    SCOPED_TRACE(value);
+    ExpectReject(std::string("touch /eos/a ") + value);
+    ExpectReject(std::string("tag /eos/a +") + value);
+    ExpectReject(std::string("purge /eos/a ") + value);
+    ExpectReject(std::string("version /eos/a ") + value);
+  }
+}
+
 TEST(FileHelper, Uint32AndUint64BoundariesArePreserved)
 {
   EXPECT_EQ(ParseOk("drop /eos/a 4294967295").drop().fsid(),
@@ -729,6 +756,104 @@ TEST(FileHelper, Uint32AndUint64BoundariesArePreserved)
             std::numeric_limits<uint64_t>::max());
   EXPECT_EQ(ParseOk("drop fid:18446744073709551615 1").md().id(),
             std::numeric_limits<uint64_t>::max());
+}
+
+TEST(FileHelper, AllContainerIdentifierAliasesWorkForInfo)
+{
+  for (const auto* id : {"pid:42", "cid:42", "pxid:2a", "cxid:2a"}) {
+    SCOPED_TRACE(id);
+    const auto file = ParseOk(std::string("info ") + id);
+    EXPECT_EQ(file.fileinfo().md().id(), 42u);
+    EXPECT_EQ(file.fileinfo().md().type(), eos::console::CONTAINER);
+  }
+  for (const auto* id : {"pid:42junk", "pxid:2ag", "inode:-1", "inode:1junk",
+                         "cid:", "cxid:10000000000000000"}) {
+    SCOPED_TRACE(id);
+    ExpectReject(std::string("info ") + id);
+  }
+  EXPECT_EQ(ParseOk("rename cxid:2a /eos/dest").md().path(), "cxid:2a");
+}
+
+TEST(FileHelper, ShareLifetimeUnitsProduceAbsoluteEpoch)
+{
+  for (const auto& value :
+       std::vector<std::pair<std::string, uint32_t>>{{"1s", 1},
+                                                     {"2min", 120},
+                                                     {"3h", 10800},
+                                                     {"1.5d", 129600},
+                                                     {"1w", 7 * 86400},
+                                                     {"1mo", 31 * 86400},
+                                                     {"1y", 365 * 86400}}) {
+    SCOPED_TRACE(value.first);
+    const auto before = std::time(nullptr);
+    const auto file = ParseOk("share /eos/a " + value.first);
+    const auto after = std::time(nullptr);
+    EXPECT_GE(file.share().expires(), before + value.second);
+    EXPECT_LE(file.share().expires(), after + value.second);
+  }
+  for (const auto* value : {"-1", "invalid", "1junk", "1e100", "4294967295",
+                            "18446744073709551616d", "NaN", "inf", "0x10", "0x10h"}) {
+    SCOPED_TRACE(value);
+    ExpectReject(std::string("share /eos/a ") + value);
+  }
+}
+
+TEST(FileHelper, RejectsUnknownFlagsAndConflictingModes)
+{
+  for (const auto* command :
+       {"touch --unknown /eos/a", "drop /eos/a cache -f", "touch -l -u /eos/a",
+        "touch -l /eos/a 1junk", "touch -l /eos/a 2147483648",
+        "layout /eos/a -stripes 2 -checksum adler", "layout /eos/a -type zz",
+        "layout /eos/a -type 100000000", "versions /eos/a ../other",
+        "versions /eos/a /other", "adjustreplica /eos/a --unknown",
+        "convert /eos/a --unknown"}) {
+    SCOPED_TRACE(command);
+    ExpectReject(command);
+  }
+}
+
+TEST(FileHelper, FailedAndRepeatedParsesDoNotReusePreviousCommandState)
+{
+  FileHelper helper(gOpts);
+  ASSERT_TRUE(helper.ParseArguments({"info", "/eos/a", "-s"}));
+  ASSERT_TRUE(helper.mIsSilent);
+  ASSERT_FALSE(helper.ParseArguments({"drop", "fid:1junk", "1"}));
+  EXPECT_FALSE(helper.GetRequest().has_file());
+  ASSERT_TRUE(helper.ParseArguments({"drop", "/eos/b", "1"}));
+  EXPECT_FALSE(helper.mIsSilent);
+  EXPECT_TRUE(helper.GetRequest().file().has_drop());
+  EXPECT_FALSE(helper.GetRequest().file().has_fileinfo());
+}
+
+TEST(FileHelper, StringAdapterHandlesWhitespaceAndQuotedEmptyOperands)
+{
+  const auto file = ParseOk("rename   /eos/a    /eos/b");
+  EXPECT_EQ(file.md().path(), "/eos/a");
+  EXPECT_EQ(file.rename().new_path(), "/eos/b");
+  ExpectReject("touch /eos/a \"\"");
+  ExpectReject("rename \"\" /eos/b");
+}
+
+TEST(FileHelper, LeadingZeroNumericArgumentsRemainDecimal)
+{
+  const auto moved = ParseOk("move /eos/a 010 08");
+  EXPECT_EQ(moved.move().fsid1(), 10u);
+  EXPECT_EQ(moved.move().fsid2(), 8u);
+  const auto replicated = ParseOk("replicate /eos/a 08 010");
+  EXPECT_EQ(replicated.replicate().fsid1(), 8u);
+  EXPECT_EQ(replicated.replicate().fsid2(), 10u);
+  EXPECT_EQ(ParseOk("verify /eos/a 08 -rate 010").verify().fsid(), 8u);
+  EXPECT_EQ(ParseOk("verify /eos/a 08 -rate 010").verify().rate(), 10u);
+  EXPECT_EQ(ParseOk("layout /eos/a -stripes 08").layout().stripes(), 8u);
+  EXPECT_EQ(ParseOk("purge /eos/a 010").purge().purge_version(), 10);
+  EXPECT_EQ(ParseOk("adjustreplica /eos/a default 08 --exclude-fs 010")
+                .adjustreplica()
+                .subgroup(),
+            "8");
+  EXPECT_EQ(ParseOk("adjustreplica /eos/a default 08 --exclude-fs 010")
+                .adjustreplica()
+                .exclude_fs(),
+            "10");
 }
 
 TEST(FileHelper, ContainerRenamePreservesExistingPathIdentifierContract)
@@ -748,4 +873,34 @@ TEST(FileHelper, TouchLockZeroLifetimeMeansImmediateExpiry)
   const auto file = ParseOk("touch -l /eos/a 0");
   EXPECT_EQ(file.touch().lockop(), "lock");
   EXPECT_EQ(file.touch().lockop_lifetime(), "0");
+}
+
+TEST(FileHelper, TouchRejectsMalformedChecksumsBeforeRequestConstruction)
+{
+  for (const auto& checksum :
+       {std::string("z0"), std::string("0z"), std::string("abc"), std::string(66, 'a')}) {
+    SCOPED_TRACE(checksum);
+    ExpectReject("touch /eos/a 1 " + checksum);
+  }
+  EXPECT_EQ(ParseOk("touch /eos/a 1 " + std::string(64, 'a')).touch().checksuminfo(),
+            std::string(64, 'a'));
+}
+
+TEST(FileHelper, LegacyStringAdapterRejectsMalformedQuoting)
+{
+  FileHelper helper(gOpts);
+  ASSERT_TRUE(helper.ParseCommand("info /eos/a -s"));
+  EXPECT_FALSE(helper.ParseCommand("touch \"unterminated"));
+  EXPECT_FALSE(helper.GetRequest().has_file());
+  EXPECT_FALSE(helper.mIsSilent);
+  EXPECT_FALSE(helper.ParseCommand("touch /eos/a\\"));
+  EXPECT_FALSE(helper.GetRequest().has_file());
+}
+
+TEST(FileHelper, LayoutStripeCountMatchesServerLimits)
+{
+  EXPECT_EQ(ParseOk("layout /eos/a -stripes 1").layout().stripes(), 1u);
+  EXPECT_EQ(ParseOk("layout /eos/a -stripes 255").layout().stripes(), 255u);
+  ExpectReject("layout /eos/a -stripes 0");
+  ExpectReject("layout /eos/a -stripes 256");
 }

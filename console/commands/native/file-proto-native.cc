@@ -17,7 +17,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FileHelper.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
-#include <CLI/CLI.hpp>
+#include "console/commands/helpers/PathIdentifier.hh"
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdOuc/XrdOucEnv.hh>
@@ -27,7 +27,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <errno.h>
-#include <iomanip>
 #include <limits>
 #include <memory>
 #include <openssl/sha.h>
@@ -587,20 +586,7 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i) {
-        oss << ' ';
-      }
-      if (args[i].find(' ') != std::string::npos) {
-        oss << std::quoted(args[i]);
-      } else {
-        oss << args[i];
-      }
-    }
-    std::string joined = oss.str();
-
-    if (args.empty() || wants_help(joined.c_str())) {
+    if (args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -612,7 +598,13 @@ public:
     // 'file check' does client-side FST querying/stat'ing and doesn't fit
     // the oneof-dispatch pattern - stays on its original code path.
     if (cmd == "check") {
-      if (rest.empty()) {
+      const auto identifier = rest.empty() ? eos::console::PathIdentifier{}
+                                           : eos::console::ParsePathIdentifier(rest[0]);
+      if (rest.empty() || rest.size() > 2 || rest[0].empty() || rest[0] == "--help" ||
+          rest[0] == "-h" ||
+          (rest.size() > 1 && (rest[1] == "--help" || rest[1] == "-h")) ||
+          (identifier.type != eos::console::IdentifierType::Path &&
+           identifier.type != eos::console::IdentifierType::File)) {
         printHelp();
         global_retc = EINVAL;
         return 0;
@@ -625,7 +617,7 @@ public:
     FileHelper helper(*ctx.globalOpts,
                       [](const char* in) { return std::string(abspath(in)); });
 
-    if (!helper.ParseCommand(joined.c_str())) {
+    if (!helper.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;

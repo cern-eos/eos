@@ -25,6 +25,7 @@
 #include "CommandFramework.hh"
 #include "ConsoleCompletion.hh"
 #include "ConsoleMetadata.hh"
+#include "ConsoleOptions.hh"
 #include "License"
 #include "common/FileId.hh"
 #include "common/Path.hh"
@@ -33,7 +34,7 @@
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
 #include "common/mq/XrdMqTiming.hh"
-#include "console/RegexUtil.hh"
+#include "console/commands/helpers/PathIdentifier.hh"
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClPostMaster.hh>
@@ -49,6 +50,7 @@
 #include <readline/history.h>
 #include <readline/readline.h>
 #include <setjmp.h>
+#include <string_view>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -103,14 +105,7 @@ static int RunRegisteredCommand(const std::string& cmdName,
     return -1;
   }
 
-  std::string rest;
-  for (size_t i = 0; i < argsVec.size(); ++i) {
-    if (i) rest.push_back(' ');
-    rest += argsVec[i];
-  }
-
-  if (icmd->requiresMgm(rest) &&
-      !CheckMgmOnline(serveruri.c_str())) {
+  if (icmd->requiresMgmArguments(argsVec) && !CheckMgmOnline(serveruri.c_str())) {
     std::cerr << "error: MGM " << serveruri.c_str()
               << " not online/reachable" << std::endl;
     exit(ENONET);
@@ -128,6 +123,7 @@ static int RunRegisteredCommand(const std::string& cmdName,
   ctx.clientCommand = &client_command;
   ctx.outputResult = &output_result;
 
+  global_retc = 0;
   return icmd->run(argsVec, ctx);
 }
 
@@ -203,46 +199,18 @@ abspath(const char* in)
 bool
 wants_help(const char* args_line, bool no_h)
 {
-  std::string allargs = " ";
-  allargs += args_line;
-  allargs += " ";
-
-  if ((allargs.find("\"--help\"") != std::string::npos) ||
-      (allargs.find(" --help ") != std::string::npos) ||
-      (allargs.find(" \"--help\" ") != std::string::npos)) {
-    const char* ptr;
-    std::string token;
-    eos::common::StringTokenizer tokenizer(allargs);
-    tokenizer.GetLine();
-
-    while ((ptr = tokenizer.GetToken(false))) {
-      token = ptr;
-
-      if (token == "--help") {
-        return true;
-      }
+  std::vector<std::string> arguments;
+  if (!eos::console::TokenizeArguments(args_line, arguments)) {
+    return false;
+  }
+  for (const auto& argument : arguments) {
+    if (argument == "--") {
+      break;
+    }
+    if (argument == "--help" || (!no_h && argument == "-h")) {
+      return true;
     }
   }
-
-  if (!no_h) {
-    if ((allargs.find("\"-h\"") != std::string::npos) ||
-        (allargs.find(" -h ") != std::string::npos) ||
-        (allargs.find(" \"-h\" ") != std::string::npos)) {
-      const char* ptr;
-      std::string token;
-      eos::common::StringTokenizer tokenizer(allargs);
-      tokenizer.GetLine();
-
-      while ((ptr = tokenizer.GetToken(false))) {
-        token = ptr;
-
-        if (token == "-h") {
-          return true;
-        }
-      }
-    }
-  }
-
   return false;
 }
 
@@ -772,10 +740,7 @@ Run(int argc, char* argv[])
   }
 
   gGlobalOpts.mMgmUri = serveruri.c_str();
-  XrdOucString urole = "";
-  XrdOucString grole = "";
   bool selectedrole = false;
-  int argindex = 1;
   int retc = system("test -t 0 && test -t 1");
 
   if (getenv("EOS_CONSOLE_DEBUG")) {
@@ -793,212 +758,110 @@ Run(int argc, char* argv[])
     interactive = false;
   }
 
-  if (argc > 1) {
-    XrdOucString in1 = argv[argindex];
-
-    if (in1 == "__complete") {
-      return RunShellCompletion(argc, argv, argindex + 1);
-    }
-
-    if (in1.beginswith("-")) {
-      if ((in1 != "--help") &&
-          (in1 != "--version") &&
-          (in1 != "--batch") &&
-          (in1 != "--role") &&
-          (in1 != "--json") &&
-          (in1 != "--app") &&
-          (in1 != "-h") &&
-          (in1 != "-b") &&
-          (in1 != "-v") &&
-          (in1 != "-s") &&
-          (in1 != "-j") &&
-          (in1 != "-a") &&
-          (in1 != "-r")) {
-        usage();
-        exit(-1);
-      }
-    }
-
-    if ((in1 == "--help") || (in1 == "-h")) {
-      usage();
-      exit(-1);
-    }
-
-    if ((in1 == "-s")) {
-      return RunRegisteredCommand("status", {});
-    }
-
-    if ((in1 == "--version") || (in1 == "-v")) {
-      fprintf(stderr, "EOS %s (2026)\n\n", VERSION);
-      fprintf(stderr, "Developed by the CERN IT Storage Group\n");
-      exit(0);
-    }
-
-    if ((in1 == "--batch") || (in1 == "-b")) {
-      interactive = false;
-      global_highlighting = false;
-      argindex++;
-      in1 = argv[argindex];
-    }
-
-    if ((in1 == "--json") || (in1 == "-j")) {
-      interactive = false;
-      global_highlighting = false;
-      json = true;
-      argindex++;
-      in1 = argv[argindex];
-      gGlobalOpts.mJsonFormat = true;
-    }
-
-    if ((in1 == "fuse")) {
-      interactive = false;
-      global_highlighting = false;
-    }
-
-    if ((in1 == "--role") || (in1 == "-r")) {
-      urole = argv[argindex + 1];
-      grole = argv[argindex + 2];
-      in1 = argv[argindex + 3];
-      argindex += 3;
-      // execute the role function
-      XrdOucString cmdline = "role ";
-      cmdline += urole;
-      cmdline += " ";
-      cmdline += grole;
-      in1 = argv[argindex];
-
-      if (in1.length()) {
-        silent = true;
-      }
-
-      execute_line((char*) cmdline.c_str());
-
-      if (in1.length()) {
-        silent = false;
-      }
-
-      selectedrole = true;
-    }
-
-    if ((in1 == "--app") || (in1 == "-a")) {
-      app = argv[argindex + 1];
-      in1 = argv[argindex + 2];
-      argindex += 2;
-      setenv("EOSAPP", app.c_str(), 1);
-    }
-
-    app = getenv("EOSAPP");
-
-    if ((in1 == "--batch") || (in1 == "-b")) {
-      interactive = false;
-      argindex++;
-      in1 = argv[argindex];
-    }
-
-    if ((in1 == "cp") || (in1 == "rclone")) {
-      interactive = false;
-      global_highlighting = false;
-    }
-
-    if ((in1 == "fuse")) {
-      interactive = false;
-    }
-
-    if (in1.beginswith("root://")) {
-      serveruri = argv[argindex];
-      gGlobalOpts.mMgmUri = serveruri.c_str();
-      argindex++;
-      in1 = argv[argindex];
-    }
-
-    if (in1.beginswith("ipc://")) {
-      serveruri = argv[argindex];
-
-      if (serveruri == "ipc://") {
-        // set the default ipc pipe
-        serveruri = "ipc:///var/eos/md/.admin_socket:1094";
-      }
-
-      gGlobalOpts.mMgmUri = serveruri.c_str();
-      argindex++;
-      in1 = argv[argindex];
-    }
-
-    if (in1.length()) {
-      // check if this is a file (workaround for XrdOucString bug
-      if ((in1.length() > 5) && (in1.endswith(".eosh")) &&
-          (!access(in1.c_str(), R_OK))) {
-        // this is a script file
-        char str[16384];
-        std::fstream file_op(in1.c_str(), std::ios::in);
-
-        while (!file_op.eof()) {
-          file_op.getline(str, 16384);
-          XrdOucString cmdline = "";
-          cmdline = str;
-
-          if (!cmdline.length()) {
-            break;
-          }
-
-          while (cmdline.beginswith(" ")) {
-            cmdline.erase(0, 1);
-          }
-
-          while (cmdline.endswith(" ")) {
-            cmdline.erase(cmdline.length() - 1, 1);
-          }
-
-          execute_line((char*) cmdline.c_str());
-        }
-
-        file_op.close();
-        exit(0);
-      } else {
-        // The invoking shell has already separated and unquoted these arguments.
-        std::vector<std::string> args;
-        std::string comment;
-        bool hasComment = false;
-        bool options = true;
-        for (int i = argindex + 1; i < argc; ++i) {
-          if (options && strcmp(argv[i], "--comment") == 0) {
-            if (hasComment || i + 1 == argc || !argv[i + 1][0]) {
-              fprintf(stderr, "error: --comment requires one non-empty value\n");
-              exit(EINVAL);
-            }
-            hasComment = true;
-            comment = argv[++i];
-          } else {
-            args.emplace_back(argv[i]);
-            if (args.back() == "--") {
-              options = false;
-            }
-          }
-        }
-
-        if ((!selectedrole) && (!getuid()) && (IsLocalhostUri(serveruri))) {
-          // we are root, we always select also the root role by default
-          XrdOucString cmdline = "role 0 0 ";
-          silent = true;
-          execute_line((char*) cmdline.c_str());
-          silent = false;
-        }
-
-        global_comment = comment.c_str();
-        gGlobalOpts.mComment = comment.c_str();
-        RunRegisteredCommand(in1.c_str(), args);
-        exit(global_retc);
-      }
-    }
+  if (argc > 1 && std::string(argv[1]) == "__complete") {
+    return RunShellCompletion(argc, argv, 2);
   }
 
-  // By default select the root role if we are root@localhost
-  if ((!selectedrole) && (!getuid()) && (IsLocalhostUri(serveruri))) {
-    // we are root, we always select also the root role by default
-    XrdOucString cmdline = "role 0 0 ";
+  std::vector<std::string> arguments;
+  for (int i = 1; i < argc; ++i) {
+    arguments.emplace_back(argv[i] ? argv[i] : "");
+  }
+  std::string comment, parse_error;
+  eos::console::ConsoleOptions options;
+  if (!eos::console::ExtractConsoleComment(arguments, comment, parse_error) ||
+      !eos::console::ParseConsoleOptions(arguments, options, parse_error)) {
+    fprintf(stderr, "error: %s\n", parse_error.c_str());
+    usage();
+    return EINVAL;
+  }
+  if (options.help) {
+    usage();
+    return -1;
+  }
+  if (options.version) {
+    fprintf(stderr, "EOS %s (2026)\n\n", VERSION);
+    fprintf(stderr, "Developed by the CERN IT Storage Group\n");
+    return 0;
+  }
+  if (!options.endpoint.empty()) {
+    serveruri = options.endpoint.c_str();
+    if (serveruri == "ipc://") {
+      serveruri = "ipc:///var/eos/md/.admin_socket:1094";
+    }
+    gGlobalOpts.mMgmUri = serveruri.c_str();
+  }
+  if (options.batch || options.json) {
+    interactive = false;
+    global_highlighting = false;
+  }
+  json = options.json;
+  gGlobalOpts.mJsonFormat = options.json;
+  if (!options.application.empty()) {
+    setenv("EOSAPP", options.application.c_str(), 1);
+  }
+  const char* configured_app = getenv("EOSAPP");
+  if (configured_app && !eos::console::IsSafeCgiMetadata(configured_app)) {
+    fprintf(stderr, "error: EOSAPP cannot contain '&' or control characters\n");
+    return EINVAL;
+  }
+  app = configured_app ? configured_app : "";
+  if (options.status) {
+    options.command = {"status"};
+  }
+  if (!options.role.empty()) {
+    const bool was_silent = silent;
+    silent = !options.command.empty();
+    RunRegisteredCommand("role", options.role);
+    silent = was_silent;
+    selectedrole = true;
+  }
+  if (!selectedrole && !getuid() && IsLocalhostUri(serveruri)) {
+    const bool was_silent = silent;
     silent = true;
-    execute_line((char*) cmdline.c_str());
-    silent = false;
+    RunRegisteredCommand("role", {"0", "0"});
+    silent = was_silent;
+  }
+  global_comment = comment.c_str();
+  gGlobalOpts.mComment = comment;
+
+  if (!options.command.empty()) {
+    const auto& command = options.command.front();
+    if (command == "cp" || command == "rclone" || command == "fuse") {
+      interactive = false;
+      global_highlighting = false;
+    }
+    if (command.size() > 5 && command.compare(command.size() - 5, 5, ".eosh") == 0 &&
+        access(command.c_str(), R_OK) == 0) {
+      if (options.command.size() != 1) {
+        fprintf(stderr, "error: EOS scripts do not accept positional arguments\n");
+        return EINVAL;
+      }
+      std::ifstream script(command);
+      if (!script) {
+        fprintf(stderr, "error: cannot open EOS script '%s'\n", command.c_str());
+        return EIO;
+      }
+      std::string script_line;
+      while (std::getline(script, script_line)) {
+        if (script_line.find('\0') != std::string::npos) {
+          fprintf(stderr, "error: embedded NUL byte in EOS script '%s'\n",
+                  command.c_str());
+          return EINVAL;
+        }
+        if (script_line.find_first_not_of(" \t\r\n") != std::string::npos) {
+          execute_line(script_line.data());
+        }
+      }
+      if (script.bad()) {
+        fprintf(stderr, "error: cannot read EOS script '%s'\n", command.c_str());
+        return EIO;
+      }
+      return global_retc;
+    }
+    const std::vector<std::string> command_arguments(options.command.begin() + 1,
+                                                     options.command.end());
+    RunRegisteredCommand(command, command_arguments);
+    return global_retc;
   }
 
   /* install a shutdown handler */
@@ -1135,109 +998,25 @@ Run(int argc, char* argv[])
 int
 execute_line(char* line)
 {
-  std::string comment;
-  std::string line_without_comment = parse_comment(line, comment);
-
-  if (line_without_comment.empty()) {
-    fprintf(stderr, "error: syntax for comment is '<command> <args> "
-            "--comment \"<comment>\"'\n");
+  std::vector<std::string> arguments;
+  std::string comment, error;
+  global_comment = "";
+  gGlobalOpts.mComment.clear();
+  if (!eos::console::TokenizeArguments(line, arguments, &error) ||
+      !eos::console::ExtractConsoleComment(arguments, comment, error)) {
+    fprintf(stderr, "error: %s\n", error.c_str());
     global_retc = -1;
-    return (-1);
+    return -1;
   }
-
+  if (arguments.empty() || arguments.front().empty()) {
+    global_retc = -1;
+    return -1;
+  }
   global_comment = comment.c_str();
-  gGlobalOpts.mComment = comment.c_str();
-  // Isolate the command word from the rest of the arguments
-  std::list<std::string> tokens = eos::common::StringTokenizer::split
-                                  <std::list<std::string>>(line_without_comment.c_str(), ' ');
-
-  if (!tokens.size()) {
-    global_retc = -1;
-    return (-1);
-  }
-
-  // Initialize registry on first use
-  EnsureNativeCommandRegistryInitialized();
-
-  std::string cmdName = *tokens.begin();
-  IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
-  if (!icmd) {
-    fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
-    global_retc = -1;
-    return (-1);
-  }
-
-  // Extract arguments vector from full command line
-  line_without_comment = line_without_comment.substr(tokens.begin()->size());
-  eos::common::trim(line_without_comment);
-  std::string rest = line_without_comment;
-  // Quote-aware tokenization: preserve spaces within quoted strings, drop quotes
-  std::vector<std::string> argsVec;
-  {
-    bool inD = false, inS = false;
-    // Track whether the current token contained an explicit quote so that a
-    // deliberately quoted empty argument ("" or '') is preserved as an empty
-    // token instead of being silently dropped.
-    bool quoted = false;
-    std::string cur;
-    for (size_t i = 0; i < rest.size(); ++i) {
-      char c = rest[i];
-      if (c == '\\' && i + 1 < rest.size()) {
-        char next = rest[i + 1];
-        if (next == '"' || next == '\'') {
-          // Preserve escaped quotes as literals and avoid toggling state.
-          cur.push_back(c);
-          cur.push_back(next);
-          ++i;
-          continue;
-        }
-      }
-      if (c == '"' && !inS) {
-        inD = !inD;
-        quoted = true;
-        continue;
-      }
-      if (c == '\'' && !inD) {
-        inS = !inS;
-        quoted = true;
-        continue;
-      }
-      if (c == ' ' && !inD && !inS) {
-        if (!cur.empty() || quoted) {
-          argsVec.push_back(cur);
-          cur.clear();
-          quoted = false;
-        }
-        continue;
-      }
-      cur.push_back(c);
-    }
-    if (!cur.empty() || quoted) {
-      argsVec.push_back(cur);
-    }
-  }
-
-  // Check MGM availability
-  if (icmd->requiresMgm(rest) &&
-      !CheckMgmOnline(serveruri.c_str())) {
-    std::cerr << "error: MGM " << serveruri.c_str()
-              << " not online/reachable" << std::endl;
-    exit(ENONET);
-  }
-
-  CommandContext ctx;
-  ctx.serverUri = serveruri.c_str();
-  ctx.globalOpts = &gGlobalOpts;
-  ctx.json = json;
-  ctx.silent = silent;
-  ctx.interactive = interactive;
-  ctx.timing = timing;
-  ctx.userRole = user_role.c_str();
-  ctx.groupRole = group_role.c_str();
-  ctx.clientCommand = &client_command;
-  ctx.outputResult = &output_result;
-
-  return icmd->run(argsVec, ctx);
+  gGlobalOpts.mComment = comment;
+  const auto command = arguments.front();
+  arguments.erase(arguments.begin());
+  return RunRegisteredCommand(command, arguments);
 }
 
 //------------------------------------------------------------------------------
@@ -1264,58 +1043,6 @@ stripwhite(char* string)
 
   *++t = '\0';
   return s;
-}
-
-//------------------------------------------------------------------------------
-// Parse the command line, extracts the comment
-// and returns the line without the comment in it
-//------------------------------------------------------------------------------
-std::string
-parse_comment(const char* line, std::string& comment)
-{
-  std::string exec_line = line;
-  // Commands issued from the EOS shell do not encase arguments in quotes
-  // whereas commands issued from the terminal do
-  size_t cbpos = exec_line.find("\"--comment\"");
-  int size = 11;
-
-  if (cbpos == std::string::npos) {
-    cbpos = exec_line.find("--comment");
-    size = 9;
-  }
-
-  if (cbpos != std::string::npos) {
-    // Check that line doesn't end with comment flag
-    if (cbpos + size == exec_line.length()) {
-      return std::string();
-    }
-
-    // Check we found a complete word
-    if (exec_line[cbpos + size] == ' ') {
-      // Check we have comment text
-      if (cbpos + size + 3 >= exec_line.length()) {
-        return std::string();
-      }
-
-      // Comment text should always start with quotes: --comment "<comment>"
-      if (exec_line[cbpos + size + 1] == '"') {
-        size_t cepos = exec_line.find('"', cbpos + size + 2);
-
-        // Comment text should always end with quotes: --comment "<comment>"
-        if (cepos != std::string::npos) {
-          comment = exec_line.substr(cbpos + size + 1, cepos -
-                                     (cbpos + size)).c_str();
-          exec_line.erase(cbpos, cepos - cbpos + 1);
-        } else {
-          return std::string();
-        }
-      } else {
-        return std::string();
-      }
-    }
-  }
-
-  return exec_line;
 }
 
 //------------------------------------------------------------------------------
@@ -1347,87 +1074,32 @@ std::string PathIdentifier(const char* in, bool escapeand)
 }
 
 //------------------------------------------------------------------------------
-// Check if input matches pattern and extract the file id if possible
+// Extract only complete, in-range identifiers. Literal paths remain unchanged.
 //------------------------------------------------------------------------------
-bool RegWrapDenominator(XrdOucString& input, const std::string& key)
+bool
+Path2FileDenominator(const XrdOucString& input, unsigned long long& id)
 {
-  try {
-    RegexUtil reg;
-    reg.SetRegex(key);
-    reg.SetOrigin(input.c_str());
-    reg.initTokenizerMode();
-    std::string temp = reg.Match();
-    auto pos = temp.find(':');
-    temp = std::string(temp.begin() + pos + 1, temp.end());
-    input = XrdOucString(temp.c_str());
-    return true;
-  } catch (std::string& e) {
+  const auto parsed = eos::console::ParsePathIdentifier(input.c_str());
+  if (parsed.type != eos::console::IdentifierType::File) {
     return false;
   }
+  id = parsed.value;
+  return true;
 }
 
-//------------------------------------------------------------------------------
-// Extract file id specifier if input is in one of the following formats:
-// fxid:<hex_id> | fid:<dec_id>
-//------------------------------------------------------------------------------
-bool Path2FileDenominator(XrdOucString& input)
+bool
+Path2ContainerDenominator(const XrdOucString& input, unsigned long long& id)
 {
-  if (RegWrapDenominator(input, "fxid:[a-fA-F0-9]+$")) {
-    std::string temp = std::to_string(strtoull(input.c_str(), 0, 16));
-    input = XrdOucString(temp.c_str());
-    return true;
+  const std::string_view text(input.c_str());
+  if (text.compare(0, 4, "cid:") != 0 && text.compare(0, 5, "cxid:") != 0) {
+    return false;
   }
-
-  return RegWrapDenominator(input, "fid:[0-9]+$");
-}
-
-//------------------------------------------------------------------------------
-// Extract file id specifier if input is in one of the following formats:
-// fxid:<hex_id> | fid:<dec_id>
-//------------------------------------------------------------------------------
-bool Path2FileDenominator(XrdOucString& input, unsigned long long& id)
-{
-  if (RegWrapDenominator(input, "fxid:[a-fA-F0-9]+$")) {
-    id = strtoull(input.c_str(), nullptr, 16);
-    return true;
-  } else if (RegWrapDenominator(input, "fid:[0-9]+$")) {
-    id = strtoull(input.c_str(), nullptr, 10);
-    return true;
+  const auto parsed = eos::console::ParsePathIdentifier(input.c_str());
+  if (parsed.type != eos::console::IdentifierType::Container) {
+    return false;
   }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// Extract container id specifier if input is in one of the following formats:
-// cxid:<hex_id> | cid:<dec_id>
-//------------------------------------------------------------------------------
-bool Path2ContainerDenominator(XrdOucString& input)
-{
-  if (RegWrapDenominator(input, "cxid:[a-fA-F0-9]+$")) {
-    std::string temp = std::to_string(strtoull(input.c_str(), 0, 16));
-    input = XrdOucString(temp.c_str());
-    return true;
-  }
-
-  return RegWrapDenominator(input, "cid:[0-9]+$");
-}
-
-//------------------------------------------------------------------------------
-// Extract container id specifier if input is in one of the following formats:
-// cxid:<hex_id> | cid:<dec_id>
-//------------------------------------------------------------------------------
-bool Path2ContainerDenominator(XrdOucString& input, unsigned long long& id)
-{
-  if (RegWrapDenominator(input, "cxid:[a-fA-F0-9]+$")) {
-    id = strtoull(input.c_str(), nullptr, 16);
-    return true;
-  } else if (RegWrapDenominator(input, "cid:[0-9]+$")) {
-    id = strtoull(input.c_str(), nullptr, 10);
-    return true;
-  }
-
-  return false;
+  id = parsed.value;
+  return true;
 }
 
 //------------------------------------------------------------------------------

@@ -789,13 +789,6 @@ com_daemon_usage:
 #endif
 }
 
-// Legacy compatibility symbol required by ConsoleMain and other modules
-int
-com_daemon(char* arg)
-{
-  return native_com_daemon(arg);
-}
-
 namespace {
 class DaemonCommand : public IConsoleCommand {
 public:

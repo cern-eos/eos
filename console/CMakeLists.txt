@@ -36,6 +36,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
+  CLI11::CLI11
   EosFstProto-Objects
   EosCliProto-Objects
   ZMQ::ZMQ
@@ -71,7 +72,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/info-alias.cc
   commands/native/fileinfo-alias.cc
   commands/native/mv-alias.cc
-  commands/native/ls-compat.cc
 
   # Native com wrappers
   commands/native/cat-com-native.cc

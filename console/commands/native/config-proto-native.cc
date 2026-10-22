@@ -2,146 +2,88 @@
 // File: config-proto-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleCli.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <algorithm>
+#include <cstdint>
 #include <memory>
-#include <sstream>
-
-extern void com_config_help();
 
 namespace {
-std::string MakeConfigHelp()
-{
-  return "Usage: config changelog|dump|export|load|ls|reset|save [OPTIONS]\n\n"
-         "'[eos] config' provides the configuration interface to EOS.\n\n"
-         "Subcommands:\n"
-         "  changelog [#lines]     show last #lines from changelog (default 10)\n"
-         "  dump [<name>]          dump configuration\n"
-         "  export <name> [-f]     export config file to QuarkDB\n"
-         "  load <name>            load config\n"
-         "  ls [-b|--backup]       list configurations\n"
-         "  reset                  reset all configuration\n"
-         "  save <name> [-f] [-c|--comment \"<comment>\"]  save config\n";
-}
+struct ConfigOptions {
+  CLI::App app{"Configuration System", "config"};
+  CLI::App *ls, *dump, *exportConfig, *load, *reset, *save, *changelog;
+  bool backup = false, forceExport = false, forceSave = false;
+  std::string dumpName, exportName, loadName, saveName, comment;
+  uint32_t lines = 10;
 
-void ConfigureConfigApp(CLI::App& app)
-{
-  app.name("config");
-  app.description("Configuration System");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeConfigHelp();
-      }));
-}
+  ConfigOptions()
+  {
+    app.require_subcommand(1, 1);
+    ls = app.add_subcommand("ls", "List configurations");
+    ls->add_flag("-b,--backup", backup, "Include backup configurations");
+    dump = app.add_subcommand("dump", "Dump the current or a named configuration");
+    dump->add_option("name", dumpName)->check(eos::console::NonEmptyArgument);
+    exportConfig = app.add_subcommand("export", "Export a configuration to QuarkDB");
+    exportConfig->add_option("name", exportName)
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    exportConfig->add_flag("-f", forceExport, "Overwrite an existing configuration");
+    load = app.add_subcommand("load", "Load a configuration");
+    load->add_option("name", loadName)->required()->check(eos::console::NonEmptyArgument);
+    reset = app.add_subcommand("reset", "Reset all configuration");
+    save = app.add_subcommand("save", "Save a configuration");
+    save->add_option("name", saveName)->required()->check(eos::console::NonEmptyArgument);
+    save->add_flag("-f", forceSave, "Overwrite an existing configuration");
+    save->add_option("-c,--comment", comment, "Comment recorded with the configuration");
+    changelog = app.add_subcommand("changelog", "Show the configuration changelog");
+    changelog->add_option("lines", lines, "Number of lines (default: 10)")
+        ->transform(eos::console::DecimalNumber);
+  }
+};
 
-// Ported from legacy com_proto_config.cc
 class ConfigHelper : public ICmdHelper {
 public:
-  ConfigHelper(const GlobalOptions& opts) : ICmdHelper(opts) {}
-  ~ConfigHelper() override = default;
+  explicit ConfigHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
   bool
   ParseCommand(const char* arg) override
   {
-    eos::console::ConfigProto* config = mReq.mutable_config();
-    eos::common::StringTokenizer tokenizer(arg);
-    tokenizer.GetLine();
-    std::string token;
-    if (!tokenizer.NextToken(token)) {
+    std::vector<std::string> args;
+    return eos::console::TokenizeArguments(arg, args) && ParseArguments(args);
+  }
+  bool
+  ParseArguments(const std::vector<std::string>& args)
+  {
+    ConfigOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
       return false;
     }
-    if (token == "ls") {
-      eos::console::ConfigProto_LsProto* ls = config->mutable_ls();
-      if (tokenizer.NextToken(token)) {
-        if (token == "--backup" || token == "-b") {
-          ls->set_showbackup(true);
-        } else {
-          return false;
-        }
-      }
-    } else if (token == "dump") {
-      eos::console::ConfigProto_DumpProto* dump = config->mutable_dump();
-      if (tokenizer.NextToken(token)) {
-        dump->set_file(token);
-      }
-    } else if (token == "reset") {
-      if (tokenizer.NextToken(token)) {
-        return false;
-      }
+    auto* config = mReq.mutable_config();
+    if (*options.ls) {
+      config->mutable_ls()->set_showbackup(options.backup);
+    } else if (*options.dump) {
+      config->mutable_dump()->set_file(options.dumpName);
+    } else if (*options.exportConfig) {
+      auto* exp = config->mutable_exp();
+      exp->set_file(options.exportName);
+      exp->set_force(options.forceExport);
+    } else if (*options.load) {
+      config->mutable_load()->set_file(options.loadName);
+    } else if (*options.reset) {
       config->set_reset(true);
-    } else if (token == "export") {
-      if (!tokenizer.NextToken(token)) {
-        return false;
+    } else if (*options.save) {
+      auto* save = config->mutable_save();
+      save->set_file(options.saveName);
+      save->set_force(options.forceSave);
+      if (options.save->get_option("--comment")->count()) {
+        mReq.set_comment(options.comment);
       }
-      eos::console::ConfigProto_ExportProto* exp = config->mutable_exp();
-      if (token.find('-') != 0) {
-        exp->set_file(token);
-        if (tokenizer.NextToken(token)) {
-          if (token == "-f") {
-            exp->set_force(true);
-          } else {
-            return false;
-          }
-        }
-      } else {
-        return false;
-      }
-    } else if (token == "save") {
-      if (!tokenizer.NextToken(token)) {
-        return false;
-      }
-      eos::console::ConfigProto_SaveProto* save = config->mutable_save();
-      if (token.find('-') != 0) {
-        save->set_file(token);
-      } else {
-        return false;
-      }
-      while (tokenizer.NextToken(token)) {
-        if (token == "-c" || token == "--comment") {
-          std::string sline = arg;
-          if (token == "-c") {
-            size_t pos = sline.find("-c");
-            sline.replace(pos, std::string("-c").length(), "--comment");
-            parse_comment(sline.c_str(), token);
-          } else {
-            parse_comment(sline.c_str(), token);
-          }
-          mReq.set_comment(token);
-          tokenizer.NextToken(token);
-        } else if (token == "-f") {
-          save->set_force(true);
-        } else {
-          return false;
-        }
-      }
-    } else if (token == "load") {
-      if (!tokenizer.NextToken(token)) {
-        return false;
-      }
-      eos::console::ConfigProto_LoadProto* load = config->mutable_load();
-      load->set_file(token);
-    } else if (token == "changelog") {
-      eos::console::ConfigProto_ChangelogProto* changelog =
-          config->mutable_changelog();
-      if (tokenizer.NextToken(token)) {
-        if (token.find('-') == 0) {
-          token.erase(0);
-        }
-        try {
-          changelog->set_lines(std::stoi(token));
-        } catch (...) {
-          std::cerr << "error: argument needs to be numeric" << std::endl;
-          return false;
-        }
-      } else {
-        changelog->set_lines(10);
-      }
-    } else {
-      return false;
+    } else if (*options.changelog) {
+      config->mutable_changelog()->set_lines(options.lines);
     }
     return true;
   }
@@ -165,22 +107,10 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-    ConfigHelper helper(gGlobalOpts);
-    if (!helper.ParseCommand(joined.c_str())) {
+    ConfigHelper helper(*ctx.globalOpts);
+    if (!helper.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -188,12 +118,53 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return ConfigOptions{}.app.help("", CLI::AppFormatMode::All);
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    ConfigOptions options;
+    std::vector<std::string> result;
+    if (args.empty()) {
+      for (const auto* subcommand :
+           options.app.get_subcommands([](const CLI::App*) { return true; })) {
+        result.push_back(subcommand->get_name());
+      }
+      return result;
+    }
+    if (std::find(args.begin(), args.end(), "--") != args.end() || args.back() == "-c" ||
+        args.back() == "--comment") {
+      return {};
+    }
+    const auto* command = options.app.get_subcommand_no_throw(args.front());
+    if (!command) {
+      return {};
+    }
+    std::vector<std::string> reversed(args.rbegin(), args.rend());
+    try {
+      options.app.parse(reversed);
+    } catch (const CLI::RequiredError&) {
+      // Options remain available while the required configuration name is pending.
+    } catch (const CLI::ParseError&) {
+      return {};
+    }
+    for (const auto* option : command->get_options()) {
+      for (const auto& flag : option->get_snames()) {
+        result.push_back("-" + flag);
+      }
+      for (const auto& flag : option->get_lnames()) {
+        result.push_back("--" + flag);
+      }
+    }
+    return result;
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureConfigApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

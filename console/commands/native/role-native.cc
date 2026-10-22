@@ -12,9 +12,12 @@ namespace {
 std::string MakeRoleHelp()
 {
   std::ostringstream oss;
-  oss << "Usage: role <user-role> [<group-role>]                       : select user role <user-role> [and group role <group-role>]\n"
-      << "            <user-role> can be a virtual user ID (unsigned int) or a user mapping alias\n"
-      << "            <group-role> can be a virtual group ID (unsigned int) or a group mapping alias\n";
+  oss << "Usage: role <user-role> [<group-role>]                       : select user "
+         "role <user-role> [and group role <group-role>]\n"
+      << "            <user-role> can be a virtual user ID (unsigned int) or a user "
+         "mapping alias\n"
+      << "            <group-role> can be a virtual group ID (unsigned int) or a group "
+         "mapping alias\n";
   return oss.str();
 }
 
@@ -47,14 +50,15 @@ public:
       return 0;
     }
     user_role = args[0].c_str();
-    if (args.size() > 1)
+    if (args.size() > 1) {
       group_role = args[1].c_str();
-    else
+    } else {
       group_role = "";
-    if (!silent)
-      fprintf(stdout,
-              "=> selected user role ruid=<%s> and group role rgid=<%s>\n",
+    }
+    if (!silent) {
+      fprintf(stdout, "=> selected user role ruid=<%s> and group role rgid=<%s>\n",
               user_role.c_str(), group_role.c_str());
+    }
     gGlobalOpts.mUserRole = user_role.c_str();
     gGlobalOpts.mGroupRole = group_role.c_str();
     return 0;

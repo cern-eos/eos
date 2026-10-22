@@ -1484,7 +1484,7 @@ runtest "### Setup     " unix SUCCESS "" eos recycle project --path /eos/$EOS_TE
 rid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle | jq -r .id)
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
 runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
-runtest "### NoFile    " unix SUCCESS "" eos recycle ls --rid | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### MissingRid" unix ERROR "" eos recycle ls --rid
 runtest "### Restore   " unix ERROR "EOSROLE='-r 99 99'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
