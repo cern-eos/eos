@@ -324,21 +324,25 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
         eos_static_info("hlnk unlink target %s for %s nlink %ld",
                         gmd->getName().c_str(), fmd->getName().c_str(), nlink);
         uint64_t cloneId = gmd->getCloneId();
+        // Versioning moves the target into the version folder, away from
+        // the directory of its links
+        std::shared_ptr<eos::IContainerMD> dmd;
+
+        try {
+          dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+        } catch (eos::MDException& e) {
+        }
 
         if (cloneId != 0 and
             gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
           XrdOucErrInfo error;
-          std::shared_ptr<eos::IContainerMD> dmd;
-
-          try {
-            dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
-          } catch (eos::MDException& e) {
-          }
-
           XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, dmd, gmd, vid, error);
           return 1;
         } else {                /* delete hard link target */
-          cmd->removeFile(gmd->getName());
+          if (dmd) {
+            dmd->removeFile(gmd->getName());
+          }
+
           gmd->unlinkAllLocations();
           gmd->setContainerId(0);
         }
