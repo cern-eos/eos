@@ -200,16 +200,21 @@ committing again.
   - `PROTO: ...`
   - combined prefixes like `MGM/FST/CONSOLE: ...` when the patch spans them.
 - When an AI coding assistant substantially helped implement, debug, or
-  validate a change, add an `Assisted-by` trailer to the commit message. Match
-  the existing style used in this repository, for example:
+  validate a change, add an `Assisted-by` trailer to the commit message. The
+  trailer must identify the assistant/provider and the exact model, including
+  its variant and version. Use the canonical model identifier reported by the
+  session, in the format `Assisted-by: <assistant/provider>:<model-id>`, for
+  example:
 
 ```text
-Assisted-by: Codex:gpt-5.5
+Assisted-by: Codex:gpt-6.1-sol
 ```
 
-  Use the actual assistant/model when known. Do not add the trailer for purely
-  manual changes or for commits where the assistant only performed trivial
-  formatting or command execution.
+  Do not shorten the model to a generic family such as `gpt-6`, reorder its
+  identifier, or guess its version. Obtain missing attribution from the runtime
+  configuration or the user before committing. Do not add the trailer for
+  purely manual changes or for commits where the assistant only performed
+  trivial formatting or command execution.
 
 ## Operational Safety
 
