@@ -4,6 +4,7 @@
 #include "common/Constants.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "common/shaping/SlidingWindowStats.hh"
+#include "mgm/shaping/AutomaticDetailRecovery.hh"
 #include "proto/TrafficShaping.pb.h"
 
 #include <algorithm>
@@ -305,6 +306,7 @@ struct FstActuatorSnapshot {
 struct MapCardinalityStats {
   uint64_t node_states = 0;
   uint64_t node_state_streams = 0;
+  std::chrono::steady_clock::time_point stream_state_started_at{};
   uint64_t node_state_estimated_bytes = 0;
   uint64_t node_state_rejections_total = 0;
   uint64_t global_stats = 0;
@@ -351,6 +353,17 @@ struct LoopTimingSnapshot {
   DurationHistogramSnapshot duration;
   uint64_t iterations_total = 0;
   uint64_t last_completed_timestamp_seconds = 0;
+};
+
+struct FstPolicyLoopSample {
+  uint64_t total_microseconds = 0;
+  uint64_t pressure_microseconds = 0;
+  uint64_t controller_microseconds = 0;
+  uint64_t limits_microseconds = 0;
+  uint64_t fsview_lock_wait_microseconds = 0;
+  uint64_t fsview_lock_hold_microseconds = 0;
+  bool controller_ran = false;
+  bool slow_iteration = false;
 };
 
 struct SystemTimingSnapshot {
@@ -689,15 +702,9 @@ public:
 
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
-  void UpdateFstLimitsLoopMicroSec(uint64_t time_microseconds);
-
-  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds,
-                                               bool controller_ran = true);
-
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
-  void UpdateFstPolicyLoopMicroSec(uint64_t total_microseconds,
-                                   uint64_t pressure_microseconds, bool slow_iteration);
+  void UpdateFstPolicyLoopMicroSec(const FstPolicyLoopSample& sample);
 
   void UpdateFsViewLockMicroSec(uint64_t wait_microseconds, uint64_t hold_microseconds);
 
@@ -728,6 +735,8 @@ public:
   SystemTimingSnapshot GetSystemTimingSnapshot() const;
 
   MapCardinalityStats GetMapCardinalityStats() const;
+
+  std::pair<uint64_t, uint64_t> GetDetailRecoveryStreamCardinalities() const;
 
   TrafficShapingMemoryStats GetMemoryStats() const;
 
@@ -805,6 +814,7 @@ private:
 
   std::unordered_map<std::string, NodeData> mNodeStates;
   size_t mFstStreamStateCount = 0;
+  std::chrono::steady_clock::time_point mStreamStateStartedAt{};
   uint64_t mFstStreamStateEstimatedBytes = 0;
   std::atomic<uint64_t> mFstStreamStatesRejectedTotal{0};
   std::atomic<uint64_t> mLastFstReportStateWarningMonotonicNs{0};
@@ -948,6 +958,13 @@ public:
   {
     std::shared_lock lock(mMutex);
     return {mFstStreamStateCount, mFstStreamStateEstimatedBytes};
+  }
+
+  void
+  SetStreamStateStartedAtForTest(const std::chrono::steady_clock::time_point started_at)
+  {
+    std::unique_lock lock(mMutex);
+    mStreamStateStartedAt = started_at;
   }
 
   std::unique_lock<std::shared_mutex>
@@ -1295,7 +1312,7 @@ private:
   std::atomic<uint64_t> mAutomaticDetailLevelHighCardinality{
       kDefaultAutomaticFilesystemDetailHighCardinality};
   std::mutex mAutomaticDetailLevelMutex;
-  std::chrono::steady_clock::time_point mLastAutomaticDetailLevelChange{};
+  AutomaticDetailRecovery mAutomaticDetailRecovery;
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
