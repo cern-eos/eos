@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NodeHelper.hh"
 #include <CLI/CLI.hpp>
@@ -107,6 +108,11 @@ public:
   {
     return "Node configuration";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeNodeHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -152,5 +158,15 @@ public:
 void
 RegisterNodeProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<NodeProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "node ls ", "List storage nodes."},
+      {{"config"}, "node config ", "Configure node filesystem parameters."},
+      {{"set"}, "node set ", "Activate or deactivate a node."},
+      {{"rm"}, "node rm ", "Remove a node."},
+      {{"txgw"}, "node txgw ", "Control a transfer gateway."},
+      {{"status"}, "node status ", "Show all node variables."},
+  };
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<NodeProtoCommand>(), std::move(help)));
 }

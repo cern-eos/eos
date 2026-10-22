@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FsckHelper.hh"
 #include <iomanip>
@@ -111,6 +112,11 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeFsckHelp();
+  }
   void
   printHelp() const override
   {
@@ -122,5 +128,11 @@ public:
 void
 RegisterFsckProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FsckProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<FsckProtoCommand>(),
+      {{{{"stat"}, "  fsck stat ", "Show consistency-check statistics."},
+        {{"config"}, "  fsck config ", "Configure filesystem consistency checking."},
+        {{"report"}, "  fsck report ", "Report consistency-check results."},
+        {{"repair"}, "  fsck repair ", "Repair a file with consistency errors."},
+        {{"clean_orphans"}, "  fsck clean_orphans ", "Clean orphaned disk entries."}}}));
 }

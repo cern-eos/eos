@@ -7,6 +7,7 @@
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "mgm/http/rest-api/Constants.hh"
@@ -859,5 +860,32 @@ public:
 void
 RegisterSpaceProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<SpaceProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<SpaceProtoCommand>(),
+      {{{{"ls"}, "space ls ", "List spaces and their filesystems."},
+        {{"config"},
+         "space config <space-name> space.attr.",
+         "Configure space parameters and policies."},
+        {{"config", "rm"}, "space config rm ", "Remove a space configuration key."},
+        {{"define"}, "space define ", "Define a space and its scheduling groups."},
+        {{"inspector"}, "space inspector ", "Inspect namespace usage and scan results."},
+        {{"node-set"}, "space node-set ", "Publish a node configuration value."},
+        {{"node-get"}, "space node-get ", "Read a published node configuration value."},
+        {{"reset"}, "space reset ", "Reset cached state or namespace maps."},
+        {{"status"}, "space status ", "Show the variables defined for a space."},
+        {{"tracker"}, "space tracker ", "Show tracked replication operations."},
+        {{"set"}, "space set ", "Enable or disable a space."},
+        {{"rm"}, "space rm ", "Remove a space."},
+        {{"quota"}, "space quota ", "Enable or disable quota accounting."},
+        {{"groupbalancer"}, "", "Inspect group balancing."},
+        {{"groupbalancer", "status"},
+         "space groupbalancer status ",
+         "Show group-balancer status."},
+        {{"groupdrainer"}, "", "Inspect and reset group draining."},
+        {{"groupdrainer", "status"},
+         "space groupdrainer status ",
+         "Show group-drainer status."},
+        {{"groupdrainer", "reset"},
+         "space groupdrainer reset ",
+         "Reset failed transfers or group-drainer caches."}}}));
 }

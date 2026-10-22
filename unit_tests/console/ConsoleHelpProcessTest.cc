@@ -306,18 +306,18 @@ TEST_F(ConsoleHelpProcessTest, NamespaceIndexFitsRealTerminalWidthsWithEveryColo
 {
   for (unsigned short width : {40, 60, 80, 120}) {
     SCOPED_TRACE(width);
-    ASSERT_EQ(process({"--color=never", "ns", "--help"}, width, false, true), EINVAL);
+    ASSERT_EQ(process({"--color=never", "ns", "--help"}, width, false, true), 0);
     const auto baseline = terminalOutput;
     EXPECT_TRUE(output.empty());
     EXPECT_NE(baseline.find("OPERATIONS"), std::string::npos);
     EXPECT_NE(baseline.find("--help-all"), std::string::npos);
     EXPECT_EQ(baseline.find("master/slave operations"), std::string::npos);
     expectWidth(baseline, width);
-    ASSERT_EQ(process({"--color=always", "ns", "--help"}, width, false, true), EINVAL);
+    ASSERT_EQ(process({"--color=always", "ns", "--help"}, width, false, true), 0);
     EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
     EXPECT_EQ(plain(terminalOutput), baseline);
     ASSERT_EQ(process({"ns", "--help"}, width, false, true, false, {{"NO_COLOR", "1"}}),
-              EINVAL);
+              0);
     EXPECT_EQ(terminalOutput, baseline);
   }
 }
@@ -326,11 +326,11 @@ TEST_F(ConsoleHelpProcessTest, NamespaceIndexStylesEveryOperationWithItsCommandC
 {
   for (unsigned short width : {40, 60, 80, 120}) {
     SCOPED_TRACE(width);
-    ASSERT_EQ(process({"--color=never", "ns", "--help"}, width, false, true), EINVAL);
+    ASSERT_EQ(process({"--color=never", "ns", "--help"}, width, false, true), 0);
     const auto baseline = terminalOutput;
     for (const auto* mode : {"--color=auto", "--color=always"}) {
       SCOPED_TRACE(mode);
-      ASSERT_EQ(process({mode, "ns", "--help"}, width, false, true), EINVAL);
+      ASSERT_EQ(process({mode, "ns", "--help"}, width, false, true), 0);
       EXPECT_EQ(plain(terminalOutput), baseline);
       for (const auto* operation :
            {"stat", "mutex", "compact", "master", "recompute_tree_size",
@@ -356,12 +356,11 @@ TEST_F(ConsoleHelpProcessTest, NestedNamespaceOperationTablesStyleEveryChildInCo
     SCOPED_TRACE(width);
     for (const auto& [group, children] : groups) {
       SCOPED_TRACE(group);
-      ASSERT_EQ(process({"--color=never", "ns", group, "--help"}, width, false, true),
-                EINVAL);
+      ASSERT_EQ(process({"--color=never", "ns", group, "--help"}, width, false, true), 0);
       const auto baseline = terminalOutput;
       for (const auto* mode : {"--color=auto", "--color=always"}) {
         SCOPED_TRACE(mode);
-        ASSERT_EQ(process({mode, "ns", group, "--help"}, width, false, true), EINVAL);
+        ASSERT_EQ(process({mode, "ns", group, "--help"}, width, false, true), 0);
         EXPECT_EQ(plain(terminalOutput), baseline);
         const auto definitions = operationSection(terminalOutput);
         ASSERT_FALSE(definitions.empty());
@@ -372,14 +371,14 @@ TEST_F(ConsoleHelpProcessTest, NestedNamespaceOperationTablesStyleEveryChildInCo
       }
       ASSERT_EQ(process({"ns", group, "--help"}, width, false, true, false,
                         {{"NO_COLOR", "1"}}),
-                EINVAL);
+                0);
       EXPECT_EQ(terminalOutput, baseline);
     }
-    ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, width, false, true), EINVAL);
+    ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, width, false, true), 0);
     const auto expanded = terminalOutput;
     for (const auto* mode : {"--color=auto", "--color=always"}) {
       SCOPED_TRACE(mode);
-      ASSERT_EQ(process({mode, "ns", "--help-all"}, width, false, true), EINVAL);
+      ASSERT_EQ(process({mode, "ns", "--help-all"}, width, false, true), 0);
       EXPECT_EQ(plain(terminalOutput), expanded);
       for (const auto& [group, children] : groups) {
         SCOPED_TRACE(group);
@@ -401,11 +400,11 @@ TEST_F(ConsoleHelpProcessTest, BehaviourHelpSeparatesConfigurationNamesAndLitera
     SCOPED_TRACE(width);
     ASSERT_EQ(
         process({"--color=never", "ns", "behaviour", "--help-all"}, width, false, true),
-        EINVAL);
+        0);
     const auto baseline = terminalOutput;
     ASSERT_EQ(
         process({"--color=always", "ns", "behaviour", "--help-all"}, width, false, true),
-        EINVAL);
+        0);
     EXPECT_EQ(plain(terminalOutput), baseline);
     for (const auto* identifier : {"rain_min_fsid_entry", "disable_access_log"}) {
       EXPECT_NE(terminalOutput.find(styled(identifier, TextStyle::Identifier)),
@@ -433,15 +432,14 @@ TEST_F(ConsoleHelpProcessTest, ScopedNamespaceHelpContainsOnlyTheRequestedOperat
 {
   for (unsigned short width : {40, 60, 80, 120}) {
     SCOPED_TRACE(width);
-    ASSERT_EQ(process({"--color=never", "ns", "cache", "--help"}, width, false, true),
-              EINVAL);
+    ASSERT_EQ(process({"--color=never", "ns", "cache", "--help"}, width, false, true), 0);
     EXPECT_NE(terminalOutput.find("drop-single-container"), std::string::npos);
     EXPECT_EQ(terminalOutput.find("update_quotanode"), std::string::npos);
     EXPECT_EQ(terminalOutput.find("recompute_tree_size"), std::string::npos);
     expectWidth(terminalOutput, width);
     ASSERT_EQ(
         process({"--color=never", "ns", "cache", "set", "--help"}, width, false, true),
-        EINVAL);
+        0);
     const auto leaf = terminalOutput;
     EXPECT_NE(leaf.find("<max_num>"), std::string::npos);
     EXPECT_NE(leaf.find("EXAMPLES"), std::string::npos);
@@ -488,7 +486,7 @@ TEST_F(ConsoleHelpProcessTest, EveryNamespaceHelpTopicIsAvailableWithoutAnMgm)
     args.insert(args.end(), path.begin(), path.end());
     args.push_back("--help");
     SCOPED_TRACE(::testing::PrintToString(path));
-    ASSERT_EQ(process(args, 60, false, true), EINVAL);
+    ASSERT_EQ(process(args, 60, false, true), 0);
     EXPECT_EQ(terminalOutput.substr(0, 6), "USAGE\n");
     EXPECT_TRUE(output.empty());
     EXPECT_EQ(terminalOutput.find("error:"), std::string::npos);
@@ -512,57 +510,49 @@ TEST_F(ConsoleHelpProcessTest, GlobalUsageAndCommandIndexFitRealTerminalWidths)
 
 TEST_F(ConsoleHelpProcessTest, ExpandedHelpIsExplicitAndRetainsEveryOperation)
 {
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), 0);
   for (const auto* operation :
        {"mutex", "master", "update_quotanode", "reserve-ids", "benchmark",
         "drop-single-file", "drop-single-container", "behaviour"}) {
     EXPECT_NE(terminalOutput.find(operation), std::string::npos) << operation;
   }
   EXPECT_EQ(terminalOutput.find("\n\n\n"), std::string::npos);
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}), EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}), 0);
   EXPECT_NE(error.find("ns update_quotanode"), std::string::npos);
   EXPECT_TRUE(output.empty());
 }
 
-TEST_F(ConsoleHelpProcessTest, RedirectedAndMachineHelpRetainsTheEstablishedManual)
+TEST_F(ConsoleHelpProcessTest, RedirectedAndMachineHelpKeepsTheSelectedNamespaceTopic)
 {
-  ASSERT_EQ(process({"--color=never", "ns", "--help"}), EINVAL);
-  const auto baseline = error;
-  EXPECT_NE(baseline.find("ns update_quotanode"), std::string::npos);
-  EXPECT_NE(baseline.find("    master/slave operations. Option can be:\n"),
-            std::string::npos);
-  EXPECT_TRUE(output.empty());
-  ASSERT_EQ(process({"--color=never", "ns", "cache", "set", "--help"}), EINVAL);
-  EXPECT_EQ(error, baseline);
+  ASSERT_EQ(process({"--color=never", "ns", "--help"}), 0);
+  const auto index = error;
+  EXPECT_NE(index.find("OPERATIONS"), std::string::npos);
+  EXPECT_EQ(index.find("master/slave operations"), std::string::npos);
+  ASSERT_EQ(process({"--color=never", "ns", "cache", "set", "--help"}), 0);
+  const auto leaf = error;
+  EXPECT_NE(leaf.find("eos ns cache set"), std::string::npos);
+  EXPECT_NE(leaf.find("<max_num>"), std::string::npos);
+  EXPECT_EQ(leaf.find("drop-single-container"), std::string::npos);
   for (const auto* mode : {"-b", "-j"}) {
     ASSERT_EQ(process({"--color=always", mode, "ns", "cache", "set", "--help"}, 40, false,
                       true),
-              EINVAL);
-    EXPECT_EQ(terminalOutput, baseline);
+              0);
+    EXPECT_EQ(terminalOutput, leaf);
+    ASSERT_EQ(process({"--color=always", mode, "ns", "--help"}, 40, false, true), 0);
+    EXPECT_EQ(terminalOutput, index);
   }
-  ASSERT_EQ(
-      process({"ns", "--help"}, 40, false, false, false, {{"EOS_HELP_WIDTH", "40"}}),
-      EINVAL);
-  EXPECT_EQ(error, baseline);
-  ASSERT_EQ(process({"ns", "--help"}, 40, true, false), EINVAL);
-  EXPECT_EQ(error, baseline);
-  EXPECT_TRUE(terminalOutput.empty());
-  for (const auto* mode : {"-b", "-j"}) {
-    ASSERT_EQ(process({"--color=always", mode, "ns", "--help"}, 40, false, true, false,
-                      {{"EOS_HELP_WIDTH", "40"}}),
-              EINVAL);
-    EXPECT_EQ(terminalOutput, baseline);
-  }
+  ASSERT_EQ(process({"--color=never", "help", "ns", "cache", "set"}), 0);
+  EXPECT_EQ(error, leaf);
 }
 
 TEST_F(ConsoleHelpProcessTest, WidthOverrideChangesInteractiveLayoutWithoutChangingColor)
 {
   ASSERT_EQ(process({"--color=never", "ns", "--help"}, 120, false, true, false,
                     {{"EOS_HELP_WIDTH", "40"}}),
-            EINVAL);
+            0);
   const auto overridden = terminalOutput;
   expectWidth(overridden, 40);
-  ASSERT_EQ(process({"--color=never", "ns", "--help"}, 40, false, true), EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help"}, 40, false, true), 0);
   EXPECT_EQ(terminalOutput, overridden);
 }
 
@@ -587,11 +577,11 @@ TEST_F(ConsoleHelpProcessTest, NewHelpOptionsAreDiscoverableThroughCompletion)
 
 TEST_F(ConsoleHelpProcessTest, OptInPagerReceivesCompleteHelpAndQuotedArguments)
 {
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), 0);
   const auto baseline = terminalOutput;
   ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
                     {{"EOS_PAGER", pager()}}, 3),
-            EINVAL);
+            0);
   EXPECT_EQ(readFile(directory + "/pager-marker"), "invoked\n");
   EXPECT_EQ(readFile(directory + "/pager-arguments"), "<two words>\n");
   EXPECT_EQ(terminalOutput, baseline);
@@ -605,7 +595,7 @@ TEST_F(ConsoleHelpProcessTest, PagerRequiresInteractiveInputAndTheHelpDestinatio
        {std::pair<bool, bool>{false, true}, {true, false}, {false, false}}) {
     ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, streams.second,
                       streams.first, {{"EOS_PAGER", command}}, 3),
-              EINVAL);
+              0);
     EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
   }
 }
@@ -617,12 +607,12 @@ TEST_F(ConsoleHelpProcessTest, PagerIsDisabledForShortHelpBatchJsonAndExplicitOp
        std::vector<std::vector<std::string>>{{"--no-pager"}, {"-b"}, {"-j"}}) {
     auto args = options;
     args.insert(args.end(), {"--color=never", "ns", "--help-all"});
-    ASSERT_EQ(process(args, 60, false, true, true, {{"EOS_PAGER", command}}, 3), EINVAL);
+    ASSERT_EQ(process(args, 60, false, true, true, {{"EOS_PAGER", command}}, 3), 0);
     EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
   }
   ASSERT_EQ(process({"--color=never", "ns", "cache", "set", "--help"}, 80, false, true,
                     true, {{"EOS_PAGER", command}}, 500),
-            EINVAL);
+            0);
   EXPECT_NE(access((directory + "/pager-marker").c_str(), F_OK), 0);
 }
 
@@ -631,22 +621,22 @@ TEST_F(ConsoleHelpProcessTest, PagerCommandIsExecutedWithoutShellEvaluation)
   const auto malicious = pager() + " ; touch " + directory + "/injected";
   ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
                     {{"EOS_PAGER", malicious}}, 3),
-            EINVAL);
+            0);
   EXPECT_NE(access((directory + "/injected").c_str(), F_OK), 0);
   EXPECT_NE(terminalOutput.find("update_quotanode"), std::string::npos);
 }
 
 TEST_F(ConsoleHelpProcessTest, FailedPagerFallsBackToTheCompleteHelp)
 {
-  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true), 0);
   const auto baseline = terminalOutput;
   ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
                     {{"EOS_PAGER", directory + "/missing-pager"}}, 3),
-            EINVAL);
+            0);
   EXPECT_EQ(terminalOutput, baseline);
   ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, 60, false, true, true,
                     {{"EOS_PAGER", pager("exit 7\n")}}, 3),
-            EINVAL);
+            0);
   EXPECT_EQ(terminalOutput, baseline);
 }
 

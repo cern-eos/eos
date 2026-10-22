@@ -372,13 +372,12 @@ TEST_F(ConsoleColorProcessTest, NamespaceHelpHonorsColorWithoutChangingItsContra
                    "mgm.proc.stdout=&mgm.proc.stderr=&mgm.proc.retc=0");
   const std::map<std::string, std::string> environment{
       {"EOS_MGM_URL", "ipc://" + directory + "/mgm"}};
-  ASSERT_EQ(process({"--color=never", "ns", "--help"}, false, false, environment),
-            EINVAL);
+  ASSERT_EQ(process({"--color=never", "ns", "--help-all"}, false, false, environment), 0);
   const auto baseline = error;
   ASSERT_FALSE(baseline.empty());
   EXPECT_TRUE(output.empty());
-  ASSERT_EQ(process({"--color=always", "ns", "--help"}, false, false, environment),
-            EINVAL);
+  ASSERT_EQ(process({"--color=always", "ns", "--help-all"}, false, false, environment),
+            0);
   EXPECT_NE(error.find('\033'), std::string::npos);
   EXPECT_EQ(plain(error), baseline);
   EXPECT_NE(error.find(styled("ns", TextStyle::Command) + " " +
@@ -403,19 +402,21 @@ TEST_F(ConsoleColorProcessTest, NamespaceHelpHonorsColorWithoutChangingItsContra
                        " for project quotas the uid values needs to be specified\n"),
             std::string::npos);
   EXPECT_TRUE(output.empty());
-  ASSERT_EQ(process({"ns", "--help"}, false, true, environment), EINVAL);
+  ASSERT_EQ(process({"ns", "--help"}, false, true, environment), 0);
   EXPECT_NE(terminalOutput.find('\033'), std::string::npos);
   const auto interactiveHelp = plain(terminalOutput);
-  EXPECT_NE(interactiveHelp.find("--help-all"), std::string::npos);
+  EXPECT_NE(interactiveHelp.find("--help"), std::string::npos);
   EXPECT_NE(interactiveHelp.find("cache"), std::string::npos);
   auto noColor = environment;
   noColor["NO_COLOR"] = "1";
-  ASSERT_EQ(process({"ns", "--help"}, false, true, noColor), EINVAL);
+  ASSERT_EQ(process({"ns", "--help"}, false, true, noColor), 0);
   EXPECT_EQ(terminalOutput, interactiveHelp);
+  ASSERT_EQ(process({"--color=never", "ns", "--help"}, false, false, environment), 0);
+  const auto plainIndex = error;
   for (const char* mode : {"-b", "-j"}) {
     ASSERT_EQ(process({"--color=always", mode, "ns", "--help"}, false, true, environment),
-              EINVAL);
-    EXPECT_EQ(terminalOutput, baseline);
+              0);
+    EXPECT_EQ(terminalOutput, plainIndex);
   }
   EXPECT_EQ(mgm.requests(), 0u);
 }

@@ -4,6 +4,7 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/RecycleHelper.hh"
 #include <sstream>
@@ -144,6 +145,11 @@ public:
     global_retc = recycle.Execute(true, true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRecycleHelp();
+  }
   void
   printHelp() const override
   {
@@ -155,5 +161,28 @@ public:
 void
 RegisterRecycleProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RecycleProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RecycleProtoCommand>(),
+      {{{{"ls"}, "  recycle ls ", "List recycled files and directories."},
+        {{"purge"}, "  recycle purge ", "Permanently remove recycled entries."},
+        {{"restore"}, "  recycle restore ", "Restore a recycled entry."},
+        {{"project"}, "  recycle project ", "Configure a shared recycle project."},
+        {{"config"}, "  recycle config ", "Configure recycle-bin policies."}},
+       eos::console::ShortHelpPolicy::Always,
+       {{"--rid", 1},
+        {"--project", 1},
+        {"-k", 1},
+        {"--path", 1},
+        {"--acl", 1},
+        {"--add-bin", 1},
+        {"--remove-bin", 1},
+        {"--lifetime", 1},
+        {"--ratio", 1},
+        {"--size", 1},
+        {"--inodes", 1},
+        {"--collect-interval", 1},
+        {"--remove-interval", 1},
+        {"--dry-run", 1},
+        {"--enable", 1},
+        {"--enforce", 1}}}));
 }

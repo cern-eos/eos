@@ -5,6 +5,7 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleCli.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/PathIdentifier.hh"
@@ -160,6 +161,11 @@ public:
     return CompleteCliArguments(app, args, {},
                                 {{app.get_option("paths"), CompletionPath::Eos}});
   }
+  std::string
+  helpText() const override
+  {
+    return MakeEvictHelp();
+  }
   void
   printHelp() const override
   {
@@ -179,5 +185,7 @@ public:
 void
 RegisterEvictNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<EvictCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<EvictCommand>(),
+      {{}, eos::console::ShortHelpPolicy::Always, {{"--fsid", 1}}}));
 }

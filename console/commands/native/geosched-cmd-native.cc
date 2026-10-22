@@ -6,6 +6,7 @@
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -63,6 +64,11 @@ public:
   description() const override
   {
     return "Geographical scheduler control";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeGeoschedHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -353,5 +359,32 @@ public:
 void
 RegisterGeoschedNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<GeoschedCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"show"}, "", "Inspect geoscheduler state."},
+      {{"show", "tree"}, "  show [-c|-m] tree ", "Show scheduling trees."},
+      {{"show", "snapshot"}, "  show [-c|-m] snapshot ", "Show scheduling snapshots."},
+      {{"show", "param"}, "  show param ", "Show internal parameters."},
+      {{"show", "state"}, "  show state ", "Show internal state."},
+      {{"set"}, "  set <param> ", "Set a geoscheduler parameter."},
+      {{"updater"}, "  updater ", "Control the scheduling tree updater."},
+      {{"updater", "pause"}, "  updater ", "Pause the scheduling tree updater."},
+      {{"updater", "resume"}, "  updater ", "Resume the scheduling tree updater."},
+      {{"forcerefresh"}, "  forcerefresh ", "Refresh geoscheduler state."},
+      {{"disabled"}, "  disabled ", "Manage disabled scheduling branches."},
+      {{"disabled", "add"}, "  disabled ", "Disable a scheduling branch."},
+      {{"disabled", "rm"}, "  disabled ", "Re-enable a scheduling branch."},
+      {{"disabled", "show"}, "  disabled ", "Show disabled scheduling branches."},
+      {{"access"}, "  access ", "Manage direct-access rules.", "Options:"},
+      {{"access", "setdirect"}, "  access ", "Set direct-access rules.", "Options:"},
+      {{"access", "showdirect"}, "  access ", "Show direct-access rules.", "Options:"},
+      {{"access", "cleardirect"}, "  access ", "Clear direct-access rules.", "Options:"},
+  };
+  help.common = "Options:\n"
+                "  -c : enable color display\n"
+                "  -m : list in monitoring format\n\n"
+                "Note: Geotags must be alphanumeric segments, max 8 chars, "
+                "format <tag1>::<tag2>::...::<tagN>.\n";
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<GeoschedCommand>(), std::move(help)));
 }
