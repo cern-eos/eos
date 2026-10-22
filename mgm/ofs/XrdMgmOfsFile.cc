@@ -1616,6 +1616,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
+  // ---------------------------------------------------------------------------
+  // No FST applies the obfuscation or encryption key to the stripes a PIO
+  // client reads or writes directly. Refuse PIO whenever a key may be
+  // involved, the client then falls back to a gateway access. For writes this
+  // has to happen before an overwritten file is versioned or removed.
+  // ---------------------------------------------------------------------------
+  if (isPio) {
+    const bool obfuscates_new_file =
+        isRW && ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
+                                         (attrmap[eos::kAttrFileObfuscate] == "1")));
+
+    if (!mEosKey.empty() || attrmapF.count(eos::kAttrObfuscateKey) ||
+        obfuscates_new_file) {
+      return Emsg(epname, error, ENOTSUP,
+                  "open - PIO is not supported for "
+                  "obfuscated or encrypted files",
+                  path);
+    }
+  }
+
   if (isRW) {
     if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
         !isInjection && !isTpc && !isRepair) {
