@@ -110,6 +110,13 @@ public:
   {
     return "Remove files or directories";
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    RmOptions options;
+    return CompleteCliArguments(options.app, args, {},
+                                {{options.app.get_option("paths"), CompletionPath::Eos}});
+  }
   std::string
   helpText() const override
   {

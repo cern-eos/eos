@@ -128,6 +128,14 @@ public:
     }
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CdOptions options;
+    return CompleteCliArguments(
+        options.app, args, {},
+        {{options.app.get_option("path"), CompletionPath::EosDirectory}});
+  }
   std::string
   helpText() const override
   {

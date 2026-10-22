@@ -193,7 +193,8 @@ TEST_F(ConsoleCliValidationTest, GroupCompletionUsesValidatedCommandGrammar)
   EXPECT_TRUE(group->complete({"ls", "-g"}).empty());
   EXPECT_TRUE(group->complete({"ls", "--"}).empty());
   EXPECT_TRUE(group->complete({"set", ""}).empty());
-  EXPECT_TRUE(group->complete({"set", "default.0", "off"}).empty());
+  const auto finished = group->complete({"set", "default.0", "off"});
+  EXPECT_EQ(finished, (std::vector<std::string>{"--help", "-h"}));
   const auto flags = group->complete({"ls"});
   EXPECT_NE(std::find(flags.begin(), flags.end(), "--brief"), flags.end());
   EXPECT_NE(std::find(flags.begin(), flags.end(), "-g"), flags.end());

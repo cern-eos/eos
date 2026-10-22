@@ -13,7 +13,6 @@
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FileHelper.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
@@ -572,11 +571,6 @@ public:
   helpText() const override
   {
     return MakeFileHelp();
-  }
-  std::vector<std::string>
-  complete(const std::vector<std::string>& args) const override
-  {
-    return eos_help_completion_candidates(name(), helpText(), args);
   }
   bool
   requiresMgm(const std::string& args) const override

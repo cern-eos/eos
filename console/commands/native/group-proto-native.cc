@@ -113,39 +113,12 @@ public:
   {
     return GroupOptions{}.app.help("", CLI::AppFormatMode::All);
   }
-  std::vector<std::string>
-  complete(const std::vector<std::string>& args) const override
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
   {
     GroupOptions options;
-    std::vector<std::string> result;
-    if (args.empty()) {
-      for (const auto* subcommand :
-           options.app.get_subcommands([](const CLI::App*) { return true; })) {
-        result.push_back(subcommand->get_name());
-      }
-    } else if (args.front() == "ls") {
-      if (std::find(args.begin(), args.end(), "--") != args.end()) {
-        return {};
-      }
-      std::vector<std::string> reversed(args.rbegin(), args.rend());
-      try {
-        options.app.parse(reversed);
-      } catch (const CLI::ParseError&) {
-        return {};
-      }
-      for (const auto* option : options.ls->get_options()) {
-        for (const auto& flag : option->get_snames()) {
-          result.push_back("-" + flag);
-        }
-        for (const auto& flag : option->get_lnames()) {
-          result.push_back("--" + flag);
-        }
-      }
-    } else if (args.front() == "set" && args.size() == 2 && !args[1].empty() &&
-               args[1].front() != '-') {
-      result = options.states;
-    }
-    return result;
+    return CompleteCliArguments(options.app, args,
+                                {{options.set->get_option("state"), options.states}});
   }
   bool
   requiresMgm(const std::string& args) const override

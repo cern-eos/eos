@@ -6,6 +6,18 @@
 #include <iomanip>
 #include <sstream>
 
+CommandCompletionResult
+IConsoleCommand::completion(const std::vector<std::string>& args) const
+{
+  return CompleteRegisteredCommand(name(), args);
+}
+
+std::vector<std::string>
+IConsoleCommand::complete(const std::vector<std::string>& args) const
+{
+  return completion(args).candidates;
+}
+
 bool
 IConsoleCommand::requiresMgmArguments(const std::vector<std::string>& args) const
 {
