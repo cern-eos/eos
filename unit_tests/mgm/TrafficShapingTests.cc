@@ -461,14 +461,122 @@ TEST(TrafficShapingEngine, AutomaticDetailLevelSwitchesWithHysteresis)
   // Crossing a detail boundary clears runtime state. Rebuild a cardinality in
   // the hysteresis band and verify it does not immediately switch back.
   engine.GetManager()->ProcessReport(make_report(2));
-  engine.mLastAutomaticDetailLevelChange -=
-      std::chrono::seconds(engine.GetGarbageCollectionIdleSeconds());
+  engine.mAutomaticDetailRecovery.RecordFallback(
+      3, 3,
+      std::chrono::steady_clock::now() -
+          std::chrono::seconds(engine.GetGarbageCollectionIdleSeconds()));
   engine.ApplyAutomaticDetailLevel();
   EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
 
   engine.GetManager()->ClearRuntimeStats();
   engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+
+  engine.GetManager()->ProcessReport(make_report(1));
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+  engine.GetManager()->SetStreamStateStartedAtForTest(
+      std::chrono::steady_clock::now() -
+      std::chrono::milliseconds(3 *
+                                engine.GetFstIoStatsReportThreadPeriodMilliseconds()));
+  engine.ApplyAutomaticDetailLevel();
   EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM, engine.GetDetailLevel());
+}
+
+TEST(TrafficShapingManager, DetailRecoveryCardinalityIncludesBaselineOnlyStreams)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.SetFilesystemDetailEnabled(true);
+  auto make_report = [](const std::string& node, const size_t filesystems) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node);
+    for (size_t i = 0; i < filesystems; ++i) {
+      auto* entry = report.add_entries();
+      entry->set_app_name("baseline-only");
+      entry->set_uid(1);
+      entry->set_gid(2);
+      entry->set_fsid(i + 1);
+      entry->set_generation_id(1);
+    }
+    return report;
+  };
+  manager.ProcessReport(make_report("/eos/recovery-a.example:1095/fst", 3));
+  manager.ProcessReport(make_report("/eos/recovery-b.example:1095/fst", 2));
+  const auto started_at = manager.GetMapCardinalityStats().stream_state_started_at;
+  EXPECT_NE(std::chrono::steady_clock::time_point{}, started_at);
+  manager.ProcessReport(make_report("/eos/recovery-a.example:1095/fst", 3));
+  EXPECT_EQ(started_at, manager.GetMapCardinalityStats().stream_state_started_at);
+  EXPECT_EQ(0u, manager.GetMapCardinalityStats().node_entity_stats);
+  EXPECT_EQ((std::pair<uint64_t, uint64_t>{5, 2}),
+            manager.GetDetailRecoveryStreamCardinalities());
+  manager.ClearRuntimeStats();
+  EXPECT_EQ((std::pair<uint64_t, uint64_t>{0, 0}),
+            manager.GetDetailRecoveryStreamCardinalities());
+  EXPECT_EQ(std::chrono::steady_clock::time_point{},
+            manager.GetMapCardinalityStats().stream_state_started_at);
+  manager.ProcessReport(make_report("/eos/recovery-a.example:1095/fst", 1));
+  EXPECT_GE(manager.GetMapCardinalityStats().stream_state_started_at, started_at);
+}
+
+TEST(TrafficShapingEngine, AutomaticDetailRetainsFanoutAcrossReplayAndRuntimeClear)
+{
+  using eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
+  using eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  engine.ApplyAutomaticDetailLevelEnabledConfig(false);
+  engine.ApplyAutomaticDetailLevelCardinalityConfig(1, 2);
+  engine.ApplyDetailLevelConfig(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM);
+  eos::traffic_shaping::FstIoReport report;
+  report.set_node_id("/eos/recovery-fanout.example:1095/fst");
+  for (uint32_t fsid = 1; fsid <= 3; ++fsid) {
+    auto* entry = report.add_entries();
+    entry->set_app_name("same-identity");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(fsid);
+    entry->set_generation_id(1);
+  }
+  engine.GetManager()->ProcessReport(report);
+  engine.ApplyAutomaticDetailLevelEnabledConfig(true);
+  engine.ApplyAutomaticDetailLevel();
+  ASSERT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+  ASSERT_EQ(3u, engine.mAutomaticDetailRecovery.EstimateFilesystemStreams(1));
+
+  engine.mAutomaticDetailRecovery.RecordFallback(
+      3, 1,
+      std::chrono::steady_clock::now() -
+          std::chrono::seconds(engine.GetGarbageCollectionIdleSeconds()));
+  engine.GetManager()->ClearRuntimeStats();
+  report.clear_entries();
+  auto* aggregate = report.add_entries();
+  aggregate->set_app_name("same-identity");
+  aggregate->set_uid(1);
+  aggregate->set_gid(2);
+  aggregate->set_fsid(0);
+  aggregate->set_generation_id(2);
+  engine.GetManager()->ProcessReport(report);
+  engine.GetManager()->SetStreamStateStartedAtForTest(
+      std::chrono::steady_clock::now() -
+      std::chrono::milliseconds(3 *
+                                engine.GetFstIoStatsReportThreadPeriodMilliseconds()));
+
+  // Replay applies values without forgetting the learned expansion.
+  EXPECT_FALSE(engine.ApplyDetailLevelConfig(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE));
+  EXPECT_FALSE(engine.ApplyAutomaticDetailLevelEnabledConfig(true));
+  EXPECT_FALSE(engine.ApplyAutomaticDetailLevelCardinalityConfig(1, 2));
+  engine.ApplyAutomaticDetailLevel();
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE, engine.GetDetailLevel());
+
+  // An explicit operator override, unlike replay, starts a new recovery epoch.
+  engine.SetDetailLevel(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM);
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM, engine.GetDetailLevel());
+  EXPECT_EQ(1u, engine.mAutomaticDetailRecovery.EstimateFilesystemStreams(1));
+  engine.mAutomaticDetailRecovery.RecordFallback(3, 1, std::chrono::steady_clock::now());
+  engine.ApplyDetailLevelConfig(TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
+  engine.SetAutomaticDetailLevelEnabled(false);
+  engine.SetAutomaticDetailLevelEnabled(true);
+  EXPECT_EQ(TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM, engine.GetDetailLevel());
+  EXPECT_EQ(1u, engine.mAutomaticDetailRecovery.EstimateFilesystemStreams(1));
 }
 
 TEST(TrafficShapingEngine, StartAcceptsUnchangedDefaultThreadConfig)
@@ -1196,8 +1304,7 @@ TEST(TrafficShapingManager, ReservationControllerAndFstLimitLoopStatsAreSeparate
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
   manager.ApplyThreadConfig(200, 200, 200, 15);
 
-  manager.UpdateReservationControllerLoopMicroSec(123456);
-  manager.UpdateFstLimitsLoopMicroSec(789);
+  manager.UpdateFstPolicyLoopMicroSec({124245, 0, 123456, 789, 0, 0, true, false});
 
   const auto [controller_median, controller_min, controller_max] =
       manager.GetReservationControllerUpdateLoopMicroSecStats();
@@ -1218,11 +1325,7 @@ TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
   manager.ApplyThreadConfig(200, 200, 200, 15);
 
   manager.UpdateEstimatorsLoopMicroSec(2);
-  manager.UpdateFstPolicyLoopMicroSec(200000, 195000, true);
-  manager.UpdateReservationControllerLoopMicroSec(0, false);
-  manager.UpdateReservationControllerLoopMicroSec(123456, true);
-  manager.UpdateFstLimitsLoopMicroSec(789);
-  manager.UpdateFsViewLockMicroSec(25, 456);
+  manager.UpdateFstPolicyLoopMicroSec({200000, 195000, 123456, 789, 25, 456, true, true});
 
   const auto timing = manager.GetSystemTimingSnapshot();
   EXPECT_EQ(1u, timing.estimators.duration.sample_count);
@@ -1272,6 +1375,112 @@ TEST(TrafficShapingManager, DurationHistogramsAndLoopProgressAreCumulative)
   EXPECT_EQ(1u, after_reconfigure.fst_policy_slow_iterations_total);
 }
 
+TEST(TrafficShapingManager, PolicyLoopObservationsSkipControllerSamples)
+{
+  using namespace eos::mgm::traffic_shaping;
+  TrafficShapingManager manager;
+  ASSERT_TRUE(manager.ApplyThreadConfig(200, 200, 200, 15));
+
+  // A skipped controller must not acquire a duration or completion timestamp.
+  manager.UpdateFstPolicyLoopMicroSec({11000, 9000, 999999, 2000, 40, 60, false, false});
+  const auto skipped = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(0u, skipped.reservation_controller.duration.sample_count);
+  EXPECT_EQ(0u, skipped.reservation_controller.iterations_total);
+  EXPECT_EQ(0u, skipped.reservation_controller.last_completed_timestamp_seconds);
+  EXPECT_EQ(1u, skipped.fst_policy.iterations_total);
+  EXPECT_EQ(1u, skipped.fst_limits.iterations_total);
+  EXPECT_EQ(1u, skipped.io_pressure.iterations_total);
+  EXPECT_DOUBLE_EQ(0.011, skipped.fst_policy.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.009, skipped.io_pressure.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.002, skipped.fst_limits.duration.sample_sum_seconds);
+  EXPECT_EQ(1u, skipped.fsview_lock_wait.sample_count);
+  EXPECT_EQ(1u, skipped.fsview_lock_hold.sample_count);
+  EXPECT_DOUBLE_EQ(0.00004, skipped.fsview_lock_wait.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.00006, skipped.fsview_lock_hold.sample_sum_seconds);
+
+  manager.UpdateFstPolicyLoopMicroSec({22000, 10000, 5000, 7000, 100, 200, true, true});
+  const auto ran = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(1u, ran.reservation_controller.duration.sample_count);
+  EXPECT_EQ(1u, ran.reservation_controller.iterations_total);
+  EXPECT_DOUBLE_EQ(0.005, ran.reservation_controller.duration.sample_sum_seconds);
+  EXPECT_GT(ran.reservation_controller.last_completed_timestamp_seconds, 0u);
+  EXPECT_EQ(1u, ran.fst_policy_slow_iterations_total);
+  const auto [median, minimum, maximum] =
+      manager.GetReservationControllerUpdateLoopMicroSecStats();
+  EXPECT_EQ(5000u, median);
+  EXPECT_EQ(5000u, minimum);
+  EXPECT_EQ(5000u, maximum);
+
+  // Skipped iterations still advance the rolling window, as before batching.
+  for (size_t i = 0; i < 75; ++i) {
+    manager.UpdateFstPolicyLoopMicroSec(
+        {11000, 9000, 999999, 2000, 40, 60, false, false});
+  }
+  const auto [expired_median, expired_min, expired_max] =
+      manager.GetReservationControllerUpdateLoopMicroSecStats();
+  EXPECT_EQ(0u, expired_median);
+  EXPECT_EQ(0u, expired_min);
+  EXPECT_EQ(0u, expired_max);
+  const auto after = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(1u, after.reservation_controller.duration.sample_count);
+  EXPECT_EQ(ran.reservation_controller.last_completed_timestamp_seconds,
+            after.reservation_controller.last_completed_timestamp_seconds);
+  EXPECT_EQ(77u, after.fst_policy.iterations_total);
+  EXPECT_EQ(77u, after.fsview_lock_wait.sample_count);
+  EXPECT_EQ(77u, after.fsview_lock_hold.sample_count);
+}
+
+TEST(TrafficShapingManager, AbortedPolicyLoopOnlyRecordsFsViewTimings)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  ASSERT_TRUE(manager.ApplyThreadConfig(200, 200, 200, 15));
+
+  // Collection completed, but a later phase aborted before the full observation.
+  manager.UpdateFsViewLockMicroSec(25, 456);
+  const auto timing = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(0u, timing.fst_policy.iterations_total);
+  EXPECT_EQ(0u, timing.io_pressure.iterations_total);
+  EXPECT_EQ(0u, timing.reservation_controller.iterations_total);
+  EXPECT_EQ(0u, timing.fst_limits.iterations_total);
+  EXPECT_EQ(0u, timing.fst_policy.last_completed_timestamp_seconds);
+  EXPECT_EQ(0u, timing.fst_policy_slow_iterations_total);
+  EXPECT_EQ(1u, timing.fsview_lock_wait.sample_count);
+  EXPECT_EQ(1u, timing.fsview_lock_hold.sample_count);
+  EXPECT_DOUBLE_EQ(0.000025, timing.fsview_lock_wait.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.000456, timing.fsview_lock_hold.sample_sum_seconds);
+}
+
+TEST(TrafficShapingManager, PolicyLoopRecordingWaitDoesNotAlterPhaseDurations)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  ASSERT_TRUE(manager.ApplyThreadConfig(200, 200, 200, 15));
+  auto state_lock = manager.LockStateForTest();
+  std::promise<void> started;
+  auto recorder = std::async(std::launch::async, [&]() {
+    started.set_value();
+    manager.UpdateFstPolicyLoopMicroSec({100, 60, 20, 20, 3, 4, true, false});
+  });
+  started.get_future().wait();
+  EXPECT_EQ(std::future_status::timeout,
+            recorder.wait_for(std::chrono::milliseconds(20)));
+  state_lock.unlock();
+  ASSERT_EQ(std::future_status::ready, recorder.wait_for(std::chrono::seconds(1)));
+  recorder.get();
+
+  const auto timing = manager.GetSystemTimingSnapshot();
+  EXPECT_EQ(1u, timing.fst_policy.iterations_total);
+  EXPECT_EQ(1u, timing.io_pressure.iterations_total);
+  EXPECT_EQ(1u, timing.reservation_controller.iterations_total);
+  EXPECT_EQ(1u, timing.fst_limits.iterations_total);
+  EXPECT_DOUBLE_EQ(0.0001, timing.fst_policy.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.00006, timing.io_pressure.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.00002, timing.reservation_controller.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.00002, timing.fst_limits.duration.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.000003, timing.fsview_lock_wait.sample_sum_seconds);
+  EXPECT_DOUBLE_EQ(0.000004, timing.fsview_lock_hold.sample_sum_seconds);
+  EXPECT_GT(timing.fst_policy.last_completed_timestamp_seconds, 0u);
+}
+
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -1304,6 +1513,232 @@ TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
 
   ASSERT_FALSE(manager.GetDiskStats().empty());
   ASSERT_FALSE(manager.GetDetailedStats().empty());
+}
+
+TEST(TrafficShapingManager, FilesystemSnapshotsPreserveAllWindowsBetweenReads)
+{
+  using namespace eos::mgm::traffic_shaping;
+  TrafficShapingManager manager;
+  ASSERT_TRUE(manager.ApplyThreadConfig(500, 500, 500, 15));
+  manager.SetFilesystemDetailEnabled(true);
+
+  uint64_t read_bytes = 0;
+  uint64_t write_bytes = 0;
+  uint64_t read_ops = 0;
+  uint64_t write_ops = 0;
+  auto make_report = [&]() {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/snapshot-windows.example:1095/fst");
+    // The third stream supplies the same traffic as the two-stream disk.
+    for (uint32_t scale = 1; scale <= 3; ++scale) {
+      auto* entry = report.add_entries();
+      entry->set_app_name("snapshot-app-" + std::to_string(scale));
+      entry->set_uid(scale);
+      entry->set_gid(scale);
+      entry->set_fsid(scale == 3 ? 43 : 42);
+      entry->set_generation_id(1);
+      entry->set_total_bytes_read(read_bytes * scale);
+      entry->set_total_bytes_written(write_bytes * scale);
+      entry->set_total_read_ops(read_ops * scale);
+      entry->set_total_write_ops(write_ops * scale);
+    }
+    return report;
+  };
+  auto expect_metrics = [](const RateMetrics& expected, const RateMetrics& actual) {
+    EXPECT_DOUBLE_EQ(expected.read_rate_bps, actual.read_rate_bps);
+    EXPECT_DOUBLE_EQ(expected.write_rate_bps, actual.write_rate_bps);
+    EXPECT_DOUBLE_EQ(expected.read_iops, actual.read_iops);
+    EXPECT_DOUBLE_EQ(expected.write_iops, actual.write_iops);
+  };
+  auto check_snapshots = [&]() {
+    // Global snapshots provide the same windows for each stream identity.
+    const auto global = manager.GetGlobalStats();
+    ASSERT_EQ(3u, global.size());
+    const auto disk_reference =
+        std::find_if(global.begin(), global.end(),
+                     [](const auto& item) { return item.first.uid == 3; });
+    ASSERT_NE(global.end(), disk_reference);
+    const auto cardinality = manager.GetMapCardinalityStats();
+    for (size_t read = 0; read < 2; ++read) {
+      const auto detailed = manager.GetDetailedStats();
+      const auto disks = manager.GetDiskStats();
+      ASSERT_EQ(3u, detailed.size());
+      ASSERT_EQ(2u, disks.size());
+      for (const auto& [key, actual] : detailed) {
+        const auto expected = global.find(key.stream);
+        ASSERT_NE(global.end(), expected);
+        EXPECT_EQ(expected->second.last_activity_time, actual.last_activity_time);
+        for (size_t i = 0; i < EmaWindowSec.size(); ++i) {
+          expect_metrics(expected->second.ema[i], actual.ema[i]);
+        }
+        for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+          expect_metrics(expected->second.sma[i], actual.sma[i]);
+        }
+      }
+      for (const auto& [key, snapshot] : disks) {
+        for (size_t i = 0; i < EmaWindowSec.size(); ++i) {
+          expect_metrics(disk_reference->second.ema[i], snapshot.ema[i]);
+        }
+        for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+          expect_metrics(disk_reference->second.sma[i], snapshot.sma[i]);
+        }
+      }
+    }
+    EXPECT_EQ(cardinality.detailed_stats,
+              manager.GetMapCardinalityStats().detailed_stats);
+    EXPECT_EQ(cardinality.disk_stats, manager.GetMapCardinalityStats().disk_stats);
+  };
+
+  manager.ProcessReport(make_report());
+  const std::vector<double> intervals{0.4, 1.2, 0.75, 3.1};
+  for (size_t tick = 0; tick < 260; ++tick) {
+    SCOPED_TRACE(tick);
+    if (tick < 130 || tick > 185) {
+      const uint64_t delta = tick % 11 + 1;
+      read_bytes += delta * 4096;
+      write_bytes += delta * 6144;
+      read_ops += delta;
+      write_ops += delta * 3;
+      manager.ProcessReport(make_report());
+    }
+    manager.UpdateEstimators(intervals[tick % intervals.size()]);
+    if (tick % 37 == 0 || tick == 259) {
+      check_snapshots();
+    }
+  }
+
+  // An idle interval longer than every window must expire the last traffic.
+  manager.UpdateEstimators(330.0);
+  check_snapshots();
+  for (const auto& [key, snapshot] : manager.GetDetailedStats()) {
+    for (const auto& rate : snapshot.sma) {
+      expect_metrics({}, rate);
+    }
+  }
+  read_bytes += 4096;
+  write_bytes += 6144;
+  ++read_ops;
+  write_ops += 3;
+  manager.ProcessReport(make_report());
+  // Reading before the next tick must not consume the pending traffic.
+  check_snapshots();
+  manager.UpdateEstimators(0.7);
+  check_snapshots();
+}
+
+TEST(TrafficShapingManager, AggregateSnapshotsPreserveAllWindowsBetweenReads)
+{
+  using namespace eos::mgm::traffic_shaping;
+  TrafficShapingManager manager;
+  ASSERT_TRUE(manager.ApplyThreadConfig(500, 500, 500, 15));
+  const std::string nodes[]{"/eos/snapshot-a.example:1095/fst",
+                            "/eos/snapshot-b.example:1095/fst"};
+  CumulativeRateHistory global_history(300.0, 0.5);
+  CumulativeRateHistory first_node_history(300.0, 0.5);
+  CumulativeRateHistory second_node_history(300.0, 0.5);
+  uint64_t units = 0;
+  int64_t timestamp_ms = 1000;
+  auto process_reports = [&]() {
+    for (uint64_t scale = 1; scale <= 2; ++scale) {
+      eos::traffic_shaping::FstIoReport report;
+      report.set_node_id(nodes[scale - 1]);
+      report.set_timestamp_ms(timestamp_ms);
+      auto* entry = report.add_entries();
+      entry->set_app_name("aggregate-snapshot-app");
+      entry->set_uid(1);
+      entry->set_gid(2);
+      entry->set_fsid(scale);
+      entry->set_generation_id(1);
+      entry->set_total_bytes_read(units * scale * 4096);
+      entry->set_total_bytes_written(units * scale * 6144);
+      entry->set_total_read_ops(units * scale);
+      entry->set_total_write_ops(units * scale * 3);
+      manager.ProcessReport(report);
+    }
+    timestamp_ms += 500;
+  };
+  auto counters = [](const uint64_t delta, const uint64_t scale) {
+    const double value = static_cast<double>(delta * scale);
+    return RateCounters{value * 4096, value * 6144, value, value * 3};
+  };
+  auto expect_metrics = [](const RateMetrics& expected, const RateMetrics& actual) {
+    EXPECT_DOUBLE_EQ(expected.read_rate_bps, actual.read_rate_bps);
+    EXPECT_DOUBLE_EQ(expected.write_rate_bps, actual.write_rate_bps);
+    EXPECT_DOUBLE_EQ(expected.read_iops, actual.read_iops);
+    EXPECT_DOUBLE_EQ(expected.write_iops, actual.write_iops);
+  };
+  auto check_snapshot = [&](const RateSnapshot& snapshot,
+                            const CumulativeRateHistory& history) {
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      expect_metrics(history.GetRate(SmaWindowSec[i]), snapshot.sma[i]);
+    }
+  };
+  auto check_snapshots = [&]() {
+    for (size_t read = 0; read < 2; ++read) {
+      const auto global = manager.GetGlobalStats();
+      const auto node = manager.GetNodeStats();
+      if (!global.empty()) {
+        ASSERT_EQ(1u, global.size());
+        ASSERT_EQ(2u, node.size());
+        check_snapshot(global.begin()->second, global_history);
+        check_snapshot(node.at(nodes[0]), first_node_history);
+        check_snapshot(node.at(nodes[1]), second_node_history);
+      } else {
+        EXPECT_TRUE(node.empty());
+      }
+      check_snapshot(manager.GetTotalStats(), global_history);
+    }
+  };
+  auto tick = [&](const uint64_t delta, const double elapsed) {
+    global_history.Push(counters(delta, 3), elapsed);
+    first_node_history.Push(counters(delta, 1), elapsed);
+    second_node_history.Push(counters(delta, 2), elapsed);
+    manager.UpdateEstimators(elapsed);
+  };
+
+  check_snapshots();
+  process_reports(); // Establish the two node baselines.
+  const std::vector<double> intervals{0.4, 1.2, 0.75, 3.1};
+  for (size_t iteration = 0; iteration < 260; ++iteration) {
+    SCOPED_TRACE(iteration);
+    const uint64_t delta = iteration < 130 || iteration > 185 ? iteration % 11 + 1 : 0;
+    if (delta > 0) {
+      units += delta;
+      process_reports();
+    }
+    if (iteration == 0) {
+      // Pending traffic is invisible until the first estimator tick.
+      check_snapshots();
+    }
+    tick(delta, intervals[iteration % intervals.size()]);
+    if (iteration % 37 == 0 || iteration == 259) {
+      check_snapshots();
+    }
+  }
+  tick(0, 330.0);
+  check_snapshots();
+  ++units;
+  process_reports();
+  check_snapshots(); // Reads must not consume traffic pending between ticks.
+  tick(1, 0.7);
+  check_snapshots();
+
+  ASSERT_TRUE(manager.ApplyThreadConfig(200, 500, 500, 15));
+  global_history.Reset(300.0, 0.2);
+  first_node_history.Reset(300.0, 0.2);
+  second_node_history.Reset(300.0, 0.2);
+  check_snapshots();
+  ++units;
+  process_reports();
+  check_snapshots();
+  tick(1, 0.2);
+  check_snapshots();
+
+  manager.ClearRuntimeStats();
+  global_history.Reset(300.0, 0.2);
+  first_node_history.Reset(300.0, 0.2);
+  second_node_history.Reset(300.0, 0.2);
+  check_snapshots();
 }
 
 TEST(TrafficShapingManager, OutOfOrderReportsDoNotRegressStreamBaselines)

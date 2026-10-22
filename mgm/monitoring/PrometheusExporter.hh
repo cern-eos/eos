@@ -5,6 +5,7 @@
 #include "mgm/shaping/TrafficShaping.hh"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -18,9 +19,16 @@ class Registry;
 
 namespace eos::mgm::monitoring {
 
+struct TrafficShapingLabelResolvers {
+  std::function<std::string(uint32_t)> uid;
+  std::function<std::string(uint32_t)> gid;
+  std::function<std::string(const std::string&)> node;
+};
+
 std::shared_ptr<prometheus::Collectable>
 CreateTrafficShapingCollector(traffic_shaping::TrafficShapingEngine& engine,
-                              std::string cluster);
+                              std::string cluster,
+                              TrafficShapingLabelResolvers label_resolvers = {});
 
 class PrometheusExporter {
 public:

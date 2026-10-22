@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -124,6 +125,50 @@ LabelOrUnknown(const std::string& value)
   static const std::string unknown(eos::common::traffic_shaping::kUnknownId);
   return value.empty() ? unknown : value;
 }
+
+class ScrapeLabelCache {
+public:
+  explicit ScrapeLabelCache(const TrafficShapingLabelResolvers& resolvers)
+      : mResolvers(resolvers)
+  {
+  }
+
+  const std::string&
+  Uid(const uint32_t uid)
+  {
+    return Resolve(mUidLabels, uid, mResolvers.uid);
+  }
+
+  const std::string&
+  Gid(const uint32_t gid)
+  {
+    return Resolve(mGidLabels, gid, mResolvers.gid);
+  }
+
+  const std::string&
+  Node(const std::string& node_id)
+  {
+    return Resolve(mNodeLabels, node_id, mResolvers.node);
+  }
+
+private:
+  template <typename Key, typename Resolver>
+  static const std::string&
+  Resolve(std::unordered_map<Key, std::string>& labels, const Key& key,
+          const Resolver& resolver)
+  {
+    const auto found = labels.find(key);
+    if (found != labels.end()) {
+      return found->second;
+    }
+    return labels.emplace(key, resolver(key)).first->second;
+  }
+
+  const TrafficShapingLabelResolvers& mResolvers;
+  std::unordered_map<uint32_t, std::string> mUidLabels;
+  std::unordered_map<uint32_t, std::string> mGidLabels;
+  std::unordered_map<std::string, std::string> mNodeLabels;
+};
 
 prometheus::ClientMetric
 MakeMetric(const std::map<std::string, std::string>& labels, const double value)
@@ -311,10 +356,21 @@ private:
 
 class TrafficShapingCollector : public prometheus::Collectable {
 public:
-  TrafficShapingCollector(TrafficShapingEngine& engine, std::string cluster)
+  TrafficShapingCollector(TrafficShapingEngine& engine, std::string cluster,
+                          TrafficShapingLabelResolvers label_resolvers)
       : mEngine(engine)
       , mCluster(std::move(cluster))
+      , mLabelResolvers(std::move(label_resolvers))
   {
+    if (!mLabelResolvers.uid) {
+      mLabelResolvers.uid = UidLabel;
+    }
+    if (!mLabelResolvers.gid) {
+      mLabelResolvers.gid = GidLabel;
+    }
+    if (!mLabelResolvers.node) {
+      mLabelResolvers.node = NodeLabel;
+    }
   }
 
   std::vector<prometheus::MetricFamily>
@@ -326,6 +382,7 @@ public:
       return {};
     }
 
+    ScrapeLabelCache label_cache(mLabelResolvers);
     auto all_entries = MakeGaugeFamily("eos_io_shaping_all_entries",
                                        "Number of all-tags IO shaping entries available "
                                        "for export.");
@@ -540,9 +597,10 @@ public:
         "eos_ns_traffic_shaping_enabled",
         "Traffic shaping status reported by eos ns stat (1 if enabled, 0 if disabled).");
 
-    AddCounterFamilies(*manager, bytes_total, operations_total, fs_bytes_total,
-                       fs_operations_total, all_bytes_total, all_operations_total,
-                       all_entries, all_entries_exported, all_entries_limited);
+    AddCounterFamilies(*manager, label_cache, bytes_total, operations_total,
+                       fs_bytes_total, fs_operations_total, all_bytes_total,
+                       all_operations_total, all_entries, all_entries_exported,
+                       all_entries_limited);
     AddSystemFamilies(
         *manager, system_loop_duration, fsview_lock_duration, loop_iterations,
         loop_last_completed, slow_iterations, reports_processed, report_queue_depth,
@@ -550,13 +608,13 @@ public:
         stream_state_estimated_bytes, estimated_memory_bytes, memory_limit_bytes,
         stream_state_limit_entries, stream_states_rejected,
         garbage_collection_removed_entries, map_cardinality);
-    AddPolicyFamilies(*manager, policy_bytes);
-    AddPressureFamilies(*manager, app_io_pressure, app_io_pressure_sample,
+    AddPolicyFamilies(*manager, label_cache, policy_bytes);
+    AddPressureFamilies(*manager, label_cache, app_io_pressure, app_io_pressure_sample,
                         app_node_io_pressure, app_node_reservation_deficit_bytes,
                         app_node_reservation_deficit_active, app_node_pressure_active,
                         app_node_reservation_trigger_active,
                         node_pressured_reservation_active);
-    AddControllerFamilies(*manager, node_controller_limit_bytes_per_second,
+    AddControllerFamilies(*manager, label_cache, node_controller_limit_bytes_per_second,
                           node_controller_applied_reduction_bytes_per_second,
                           node_controller_protected_gain_bytes_per_second,
                           node_controller_response_ratio, node_controller_cohort_apps,
@@ -565,7 +623,7 @@ public:
                           node_controller_deficit_samples, node_controller_state);
     AddBroadcastActuatorFamilies(*manager, broadcast_delay_seconds, broadcast_delay_nodes,
                                  broadcast_assigned_rate_bytes, broadcast_pending_nodes);
-    AddFstActuatorFamilies(*manager, fst_actuator_active_waiters,
+    AddFstActuatorFamilies(*manager, label_cache, fst_actuator_active_waiters,
                            fst_actuator_wait_events, fst_actuator_wait_seconds);
     AddConfigFamilies(config_enabled, config_estimators_update_period_ms,
                       config_fst_io_policy_update_period_ms,
@@ -653,7 +711,7 @@ public:
 
 private:
   void
-  AddCounterFamilies(TrafficShapingManager& manager,
+  AddCounterFamilies(TrafficShapingManager& manager, ScrapeLabelCache& label_cache,
                      prometheus::MetricFamily& bytes_total,
                      prometheus::MetricFamily& operations_total,
                      prometheus::MetricFamily& fs_bytes_total,
@@ -679,21 +737,21 @@ private:
     }
 
     for (const auto& [uid, snapshot] : projection_totals.uid) {
-      standard_totals[{"uid", UidLabel(uid)}].Add(snapshot);
+      standard_totals[{"uid", label_cache.Uid(uid)}].Add(snapshot);
     }
 
     for (const auto& [gid, snapshot] : projection_totals.gid) {
-      standard_totals[{"gid", GidLabel(gid)}].Add(snapshot);
+      standard_totals[{"gid", label_cache.Gid(gid)}].Add(snapshot);
     }
 
     if (export_all_tags) {
-      const auto all_totals = CollectAllTotals(manager);
+      const auto all_totals = CollectAllTotals(manager, label_cache);
       AddGauge(all_entries_exported, {{"cluster", mCluster}},
                static_cast<double>(all_totals.size()));
 
       for (const auto& [key, totals] : all_totals) {
-        const std::string uid_label = UidLabel(key.uid);
-        const std::string gid_label = GidLabel(key.gid);
+        const std::string& uid_label = label_cache.Uid(key.uid);
+        const std::string& gid_label = label_cache.Gid(key.gid);
         AddReadWriteCounters(all_bytes_total, all_operations_total,
                              {{"cluster", mCluster},
                               {"node_id", key.node_id},
@@ -713,7 +771,7 @@ private:
     }
 
     for (const auto& [node_id, snapshot] : projection_totals.node) {
-      standard_totals[{"node", NodeLabel(LabelOrUnknown(node_id))}].Add(snapshot);
+      standard_totals[{"node", label_cache.Node(LabelOrUnknown(node_id))}].Add(snapshot);
     }
 
     for (const auto& [key, totals] : standard_totals) {
@@ -727,7 +785,7 @@ private:
       totals.Add(snapshot);
       AddReadWriteCounters(fs_bytes_total, fs_operations_total,
                            {{"cluster", mCluster},
-                            {"node_id", NodeLabel(LabelOrUnknown(key.node_id))},
+                            {"node_id", label_cache.Node(LabelOrUnknown(key.node_id))},
                             {"fsid", std::to_string(key.fsid)}},
                            totals);
     }
@@ -747,21 +805,21 @@ private:
   }
 
   std::map<AllKey, EntityTotals>
-  CollectAllTotals(TrafficShapingManager& manager) const
+  CollectAllTotals(TrafficShapingManager& manager, ScrapeLabelCache& label_cache) const
   {
     std::map<AllKey, EntityTotals> all_totals;
 
     if (mEngine.GetDetailLevel() ==
         eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
       for (const auto& [detailed_key, snapshot] : manager.GetDetailedCumulativeStats()) {
-        AllKey key{NodeLabel(LabelOrUnknown(detailed_key.node_id)),
+        AllKey key{label_cache.Node(LabelOrUnknown(detailed_key.node_id)),
                    detailed_key.stream.fsid, LabelOrUnknown(detailed_key.stream.app),
                    detailed_key.stream.uid, detailed_key.stream.gid};
         all_totals[key].Add(snapshot);
       }
     } else {
       for (const auto& [key, snapshot] : manager.GetNodeEntityCumulativeStats()) {
-        AllKey all_key{NodeLabel(LabelOrUnknown(key.node_id)), 0,
+        AllKey all_key{label_cache.Node(LabelOrUnknown(key.node_id)), 0,
                        LabelOrUnknown(key.stream.app), key.stream.uid, key.stream.gid};
         all_totals[all_key].Add(snapshot);
       }
@@ -902,7 +960,7 @@ private:
   }
 
   void
-  AddPolicyFamilies(TrafficShapingManager& manager,
+  AddPolicyFamilies(TrafficShapingManager& manager, ScrapeLabelCache& label_cache,
                     prometheus::MetricFamily& policy_bytes) const
   {
     for (const auto& [app, policy] : manager.GetAppPolicies()) {
@@ -910,16 +968,16 @@ private:
     }
 
     for (const auto& [uid, policy] : manager.GetUidPolicies()) {
-      AddPolicyMetrics(policy_bytes, mCluster, "uid", UidLabel(uid), policy);
+      AddPolicyMetrics(policy_bytes, mCluster, "uid", label_cache.Uid(uid), policy);
     }
 
     for (const auto& [gid, policy] : manager.GetGidPolicies()) {
-      AddPolicyMetrics(policy_bytes, mCluster, "gid", GidLabel(gid), policy);
+      AddPolicyMetrics(policy_bytes, mCluster, "gid", label_cache.Gid(gid), policy);
     }
   }
 
   void
-  AddPressureFamilies(TrafficShapingManager& manager,
+  AddPressureFamilies(TrafficShapingManager& manager, ScrapeLabelCache& label_cache,
                       prometheus::MetricFamily& app_io_pressure,
                       prometheus::MetricFamily& app_io_pressure_sample,
                       prometheus::MetricFamily& app_node_io_pressure,
@@ -943,13 +1001,13 @@ private:
     const auto node_pressure_snapshots =
         manager.GetReservedAppNodeIoPressure(&online_nodes);
     for (const auto& node : online_nodes) {
-      const std::string node_label = NodeLabel(LabelOrUnknown(node));
+      const std::string& node_label = label_cache.Node(LabelOrUnknown(node));
       node_pressure_flags[{node_label, "read"}] = false;
       node_pressure_flags[{node_label, "write"}] = false;
     }
 
     for (const auto& snapshot : node_pressure_snapshots) {
-      const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
+      const std::string& node_label = label_cache.Node(LabelOrUnknown(snapshot.node_id));
       const std::map<std::string, std::string> base_labels{
           {"cluster", mCluster},
           {"app", LabelOrUnknown(snapshot.app)},
@@ -1036,7 +1094,7 @@ private:
 
   void
   AddControllerFamilies(
-      TrafficShapingManager& manager,
+      TrafficShapingManager& manager, ScrapeLabelCache& label_cache,
       prometheus::MetricFamily& node_controller_limit_bytes_per_second,
       prometheus::MetricFamily& node_controller_applied_reduction_bytes_per_second,
       prometheus::MetricFamily& node_controller_protected_gain_bytes_per_second,
@@ -1052,7 +1110,7 @@ private:
     for (const auto& limit : snapshot.limits) {
       auto labels = std::map<std::string, std::string>{
           {"cluster", mCluster},
-          {"node_id", NodeLabel(LabelOrUnknown(limit.node_id))},
+          {"node_id", label_cache.Node(LabelOrUnknown(limit.node_id))},
           {"app", LabelOrUnknown(limit.app)}};
       if (limit.read_bytes_per_sec > 0) {
         labels["operation"] = "read";
@@ -1069,7 +1127,7 @@ private:
     for (const auto& feedback : snapshot.feedback) {
       auto labels = std::map<std::string, std::string>{
           {"cluster", mCluster},
-          {"node_id", NodeLabel(LabelOrUnknown(feedback.node_id))},
+          {"node_id", label_cache.Node(LabelOrUnknown(feedback.node_id))},
           {"operation", feedback.is_write ? "write" : "read"}};
       AddGauge(node_controller_applied_reduction_bytes_per_second, labels,
                feedback.applied_reduction_bps);
@@ -1110,7 +1168,7 @@ private:
   }
 
   void
-  AddFstActuatorFamilies(TrafficShapingManager& manager,
+  AddFstActuatorFamilies(TrafficShapingManager& manager, ScrapeLabelCache& label_cache,
                          prometheus::MetricFamily& active_waiters,
                          prometheus::MetricFamily& wait_events,
                          prometheus::MetricFamily& wait_seconds) const
@@ -1118,7 +1176,7 @@ private:
     for (const auto& snapshot : manager.GetFstActuatorSnapshots()) {
       auto labels = std::map<std::string, std::string>{
           {"cluster", mCluster},
-          {"node_id", NodeLabel(LabelOrUnknown(snapshot.node_id))}};
+          {"node_id", label_cache.Node(LabelOrUnknown(snapshot.node_id))}};
       auto operation_labels = labels;
       operation_labels["operation"] = "read";
       AddGauge(active_waiters, operation_labels,
@@ -1238,14 +1296,17 @@ private:
 
   TrafficShapingEngine& mEngine;
   std::string mCluster;
+  TrafficShapingLabelResolvers mLabelResolvers;
 };
 
 } // namespace
 
 std::shared_ptr<prometheus::Collectable>
-CreateTrafficShapingCollector(TrafficShapingEngine& engine, std::string cluster)
+CreateTrafficShapingCollector(TrafficShapingEngine& engine, std::string cluster,
+                              TrafficShapingLabelResolvers label_resolvers)
 {
-  return std::make_shared<TrafficShapingCollector>(engine, std::move(cluster));
+  return std::make_shared<TrafficShapingCollector>(engine, std::move(cluster),
+                                                   std::move(label_resolvers));
 }
 
 PrometheusExporter::PrometheusExporter(

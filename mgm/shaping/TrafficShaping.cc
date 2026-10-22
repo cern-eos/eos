@@ -6,6 +6,7 @@
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/shaping/IoPressure.hh"
 
 #include "proto/TrafficShaping.pb.h"
 
@@ -958,14 +959,20 @@ struct IoPressureSnapshot {
 };
 
 struct FilesystemPressureSource {
-  DiskKey key;
+  uint64_t fsid;
   eos::common::SharedHashLocator locator;
   eos::common::ActiveStatus active_status = eos::common::ActiveStatus::kOffline;
 };
 
+struct NodePressureSource {
+  std::string node_id;
+  std::vector<FilesystemPressureSource> filesystems;
+};
+
 struct IoPressureTopologySnapshot {
   std::vector<std::string> online_nodes;
-  std::vector<FilesystemPressureSource> filesystems;
+  std::vector<NodePressureSource> nodes;
+  size_t filesystem_count = 0;
   uint64_t fsview_lock_wait_us = 0;
   uint64_t fsview_lock_hold_us = 0;
 };
@@ -1055,7 +1062,7 @@ CollectIoPressureTopology()
   {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
     lock_acquired = std::chrono::steady_clock::now();
-    snapshot.filesystems.reserve(FsView::gFsView.mIdView.size());
+    snapshot.nodes.reserve(FsView::gFsView.mNodeView.size());
 
     // Copy only stable identifiers and atomic state while FsView protects the
     // object lifetimes. Shared-hash reads can wait on QDB and happen below,
@@ -1066,14 +1073,18 @@ CollectIoPressureTopology()
       }
 
       snapshot.online_nodes.push_back(node_name);
+      auto& node = snapshot.nodes.emplace_back();
+      node.node_id = node_name;
+      node.filesystems.reserve(node_view->size());
       for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
         auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
         if (!fs) {
           continue;
         }
-        snapshot.filesystems.push_back(
-            FilesystemPressureSource{DiskKey{node_name, static_cast<uint64_t>(*fsid_it)},
+        node.filesystems.push_back(
+            FilesystemPressureSource{static_cast<uint64_t>(*fsid_it),
                                      fs->getHashLocator(), fs->GetActiveStatus()});
+        ++snapshot.filesystem_count;
       }
     }
   }
@@ -1099,21 +1110,23 @@ CollectIoPressure(std::vector<std::string>* online_nodes = nullptr,
     *online_nodes = std::move(topology.online_nodes);
   }
   if (include_filesystems) {
-    pressure.filesystems.reserve(topology.filesystems.size());
+    pressure.filesystems.reserve(topology.filesystem_count);
   }
+  pressure.nodes.reserve(topology.nodes.size());
 
-  for (const auto& source : topology.filesystems) {
-    const auto disk_load = ReadFilesystemIoPressure(source, now_ms);
-    if (!disk_load.has_value()) {
-      continue;
-    }
-
-    auto [node_it, inserted] = pressure.nodes.try_emplace(source.key.node_id, *disk_load);
-    if (!inserted) {
-      node_it->second = std::max(node_it->second, *disk_load);
-    }
-    if (include_filesystems) {
-      pressure.filesystems.emplace(source.key, *disk_load);
+  for (const auto& node : topology.nodes) {
+    const auto maximum = CollectMaximumIoPressure(
+        node.filesystems,
+        [&](const auto& source) {
+          const auto disk_load = ReadFilesystemIoPressure(source, now_ms);
+          if (include_filesystems && disk_load) {
+            pressure.filesystems.emplace(DiskKey{node.node_id, source.fsid}, *disk_load);
+          }
+          return disk_load;
+        },
+        !include_filesystems);
+    if (maximum) {
+      pressure.nodes.emplace(node.node_id, *maximum);
     }
   }
 
@@ -1375,6 +1388,9 @@ try {
       auto [candidate_it, inserted] = node_map.try_emplace(stream_key);
       stream_it = candidate_it;
       if (inserted) {
+        if (mFstStreamStateCount == 0) {
+          mStreamStateStartedAt = std::chrono::steady_clock::now();
+        }
         ++mFstStreamStateCount;
         mFstStreamStateEstimatedBytes += estimated_stream_bytes;
       }
@@ -1679,10 +1695,6 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
     }
 
     stats.rate_history.Push(counters, time_delta_seconds);
-
-    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
-      stats.sma[i] = stats.rate_history.GetRate(SmaWindowSec[i]);
-    }
   };
 
   auto process_ema_rate = [&](EmaRate& stats) {
@@ -1720,6 +1732,8 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
 
   for (auto& [key, stats] : mGlobalStats) {
     process_rate(stats);
+    // Only the global five-second SMA is consumed by the control path.
+    stats.sma[Sma5s] = stats.rate_history.GetRate(SmaWindowSec[Sma5s]);
   }
   for (auto& [node_id, stats] : mNodeStats) {
     process_rate(stats);
@@ -3982,7 +3996,10 @@ TrafficShapingManager::GetGlobalStats() const
 
     snap.last_activity_time = internal_stat.last_activity_time;
     snap.ema = internal_stat.ema;
-    snap.sma = internal_stat.sma;
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      snap.sma[i] = i == Sma5s ? internal_stat.sma[Sma5s]
+                               : internal_stat.rate_history.GetRate(SmaWindowSec[i]);
+    }
   }
 
   return snapshot_map;
@@ -3999,7 +4016,9 @@ TrafficShapingManager::GetNodeStats() const
     RateSnapshot& snap = snapshot_map[node_id];
     snap.last_activity_time = internal_stat.last_activity_time;
     snap.ema = internal_stat.ema;
-    snap.sma = internal_stat.sma;
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      snap.sma[i] = internal_stat.rate_history.GetRate(SmaWindowSec[i]);
+    }
   }
 
   return snapshot_map;
@@ -4016,7 +4035,9 @@ TrafficShapingManager::GetDiskStats() const
     RateSnapshot& snap = snapshot_map[disk_key];
     snap.last_activity_time = internal_stat.last_activity_time;
     snap.ema = internal_stat.ema;
-    snap.sma = internal_stat.sma;
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      snap.sma[i] = internal_stat.rate_history.GetRate(SmaWindowSec[i]);
+    }
   }
 
   return snapshot_map;
@@ -4033,7 +4054,9 @@ TrafficShapingManager::GetDetailedStats() const
     RateSnapshot& snap = snapshot_map[detailed_key];
     snap.last_activity_time = internal_stat.last_activity_time;
     snap.ema = internal_stat.ema;
-    snap.sma = internal_stat.sma;
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      snap.sma[i] = internal_stat.rate_history.GetRate(SmaWindowSec[i]);
+    }
   }
 
   return snapshot_map;
@@ -4227,31 +4250,6 @@ TrafficShapingManager::LoopTimingState::Clear()
 }
 
 void
-TrafficShapingManager::UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds)
-{
-  std::unique_lock lock(mMutex);
-  if (fst_limits_update_loop_micro_sec) {
-    fst_limits_update_loop_micro_sec->Add(time_microseconds);
-    fst_limits_update_loop_micro_sec->Tick();
-  }
-  mFstLimitsLoopTiming.Observe(time_microseconds);
-}
-
-void
-TrafficShapingManager::UpdateReservationControllerLoopMicroSec(
-    const uint64_t time_microseconds, const bool controller_ran)
-{
-  std::unique_lock lock(mMutex);
-  if (reservation_controller_update_loop_micro_sec) {
-    reservation_controller_update_loop_micro_sec->Add(time_microseconds);
-    reservation_controller_update_loop_micro_sec->Tick();
-  }
-  if (controller_ran) {
-    mReservationControllerLoopTiming.Observe(time_microseconds);
-  }
-}
-
-void
 TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds)
 {
   std::unique_lock lock(mMutex);
@@ -4266,16 +4264,32 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
 }
 
 void
-TrafficShapingManager::UpdateFstPolicyLoopMicroSec(const uint64_t total_microseconds,
-                                                   const uint64_t pressure_microseconds,
-                                                   const bool slow_iteration)
+TrafficShapingManager::UpdateFstPolicyLoopMicroSec(const FstPolicyLoopSample& sample)
 {
   std::unique_lock lock(mMutex);
-  mFstPolicyLoopTiming.Observe(total_microseconds);
-  mIoPressureLoopTiming.Observe(pressure_microseconds);
-  if (slow_iteration) {
+  mFstPolicyLoopTiming.Observe(sample.total_microseconds);
+  mIoPressureLoopTiming.Observe(sample.pressure_microseconds);
+  if (sample.slow_iteration) {
     ++mFstPolicySlowIterationsTotal;
   }
+
+  const uint64_t controller_microseconds =
+      sample.controller_ran ? sample.controller_microseconds : 0;
+  if (reservation_controller_update_loop_micro_sec) {
+    reservation_controller_update_loop_micro_sec->Add(controller_microseconds);
+    reservation_controller_update_loop_micro_sec->Tick();
+  }
+  if (sample.controller_ran) {
+    mReservationControllerLoopTiming.Observe(controller_microseconds);
+  }
+
+  if (fst_limits_update_loop_micro_sec) {
+    fst_limits_update_loop_micro_sec->Add(sample.limits_microseconds);
+    fst_limits_update_loop_micro_sec->Tick();
+  }
+  mFstLimitsLoopTiming.Observe(sample.limits_microseconds);
+  mFsViewLockWaitTiming.Observe(sample.fsview_lock_wait_microseconds);
+  mFsViewLockHoldTiming.Observe(sample.fsview_lock_hold_microseconds);
 }
 
 void
@@ -4348,6 +4362,7 @@ TrafficShapingManager::GetMapCardinalityStats() const
   MapCardinalityStats stats;
   stats.node_states = static_cast<uint64_t>(mNodeStates.size());
   stats.node_state_streams = static_cast<uint64_t>(mFstStreamStateCount);
+  stats.stream_state_started_at = mStreamStateStartedAt;
   stats.node_state_estimated_bytes = static_cast<uint64_t>(mFstStreamStateEstimatedBytes);
   stats.node_state_rejections_total =
       mFstStreamStatesRejectedTotal.load(std::memory_order_relaxed);
@@ -4384,6 +4399,32 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.garbage_collection_removed_detailed_stats_total =
       static_cast<uint64_t>(mGarbageCollectionRemovedTotal.removed_detailed_stats);
   return stats;
+}
+
+std::pair<uint64_t, uint64_t>
+TrafficShapingManager::GetDetailRecoveryStreamCardinalities() const
+{
+  std::shared_lock lock(mMutex);
+  const uint64_t filesystem_streams = mFstStreamStateCount;
+  uint64_t aggregate_streams = 0;
+  try {
+    // Include baseline-only streams and collapse independently within each
+    // node. This calibration runs only when leaving filesystem detail.
+    std::unordered_set<StreamKey, StreamKeyHash> node_entities;
+    for (const auto& [node_id, state] : mNodeStates) {
+      node_entities.clear();
+      node_entities.reserve(state.streams.size());
+      for (const auto& [key, stream] : state.streams) {
+        node_entities.emplace(StreamKey{key.app, key.uid, key.gid, 0});
+      }
+      aggregate_streams += node_entities.size();
+    }
+  } catch (const std::bad_alloc&) {
+    // Still leave the expensive mode; unknown fan-out inhibits automatic
+    // recovery until an explicit operator reset.
+    return {filesystem_streams, 0};
+  }
+  return {filesystem_streams, aggregate_streams};
 }
 
 TrafficShapingMemoryStats
@@ -4482,6 +4523,7 @@ TrafficShapingManager::Clear()
   std::unique_lock lock(mMutex);
   mNodeStates.clear();
   mFstStreamStateCount = 0;
+  mStreamStateStartedAt = {};
   mFstStreamStateEstimatedBytes = 0;
   mGlobalStats.clear();
   mNodeStats.clear();
@@ -4523,6 +4565,7 @@ TrafficShapingManager::ClearRuntimeStats()
   std::unique_lock lock(mMutex);
   mNodeStates.clear();
   mFstStreamStateCount = 0;
+  mStreamStateStartedAt = {};
   mFstStreamStateEstimatedBytes = 0;
   mGlobalStats.clear();
   mNodeStats.clear();
@@ -4559,7 +4602,9 @@ TrafficShapingManager::GetTotalStats() const
   RateSnapshot snap;
   snap.last_activity_time = mTotalStats.last_activity_time;
   snap.ema = mTotalStats.ema;
-  snap.sma = mTotalStats.sma;
+  for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+    snap.sma[i] = mTotalStats.rate_history.GetRate(SmaWindowSec[i]);
+  }
   return snap;
 }
 
@@ -4740,6 +4785,7 @@ TrafficShapingEngine::SetDetailLevel(const std::string& detail_level)
   const MapCardinalityStats cardinality =
       mManager != nullptr ? mManager->GetMapCardinalityStats() : MapCardinalityStats{};
   const bool changed = ApplyDetailLevelConfig(detail_level);
+  mAutomaticDetailRecovery.Reset();
   StoreDetailLevelConfig(GetDetailLevel());
   if (changed) {
     LogDetailLevelSwitch("manual", GetDetailLevel(), cardinality);
@@ -4823,7 +4869,12 @@ TrafficShapingEngine::LogDetailLevelSwitch(
 void
 TrafficShapingEngine::SetAutomaticDetailLevelEnabled(const bool enabled)
 {
-  ApplyAutomaticDetailLevelEnabledConfig(enabled);
+  {
+    std::lock_guard detail_lock(mAutomaticDetailLevelMutex);
+    if (ApplyAutomaticDetailLevelEnabledConfig(enabled)) {
+      mAutomaticDetailRecovery.Reset();
+    }
+  }
   StoreAutomaticDetailLevelEnabledConfig(GetAutomaticDetailLevelEnabled());
 
   if (enabled) {
@@ -4912,21 +4963,29 @@ TrafficShapingEngine::ApplyAutomaticDetailLevel()
       std::chrono::seconds(mGarbageCollectionIdleSeconds.load(std::memory_order_relaxed));
 
   if (fs_detail && streams > high_cardinality) {
+    const auto [filesystem_streams, aggregate_streams] =
+        mManager->GetDetailRecoveryStreamCardinalities();
+    if (filesystem_streams <= high_cardinality) {
+      return;
+    }
     if (ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE)) {
-      mLastAutomaticDetailLevelChange = now;
+      mAutomaticDetailRecovery.RecordFallback(filesystem_streams, aggregate_streams, now);
       LogDetailLevelSwitch("automatic_high_cardinality",
                            eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE,
                            cardinality);
       SyncTrafficShapingConfigWithFst();
     }
   } else if (!fs_detail && streams <= low_cardinality) {
-    if (mLastAutomaticDetailLevelChange != std::chrono::steady_clock::time_point{} &&
-        now - mLastAutomaticDetailLevelChange < aggregate_holdoff) {
+    if (!mAutomaticDetailRecovery.CanRecover(
+            streams, low_cardinality, now, cardinality.stream_state_started_at,
+            std::chrono::milliseconds(mFstIoStatsReportThreadPeriodMilliseconds.load(
+                std::memory_order_relaxed)),
+            aggregate_holdoff)) {
       return;
     }
 
     if (ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM)) {
-      mLastAutomaticDetailLevelChange = now;
+      mAutomaticDetailRecovery.RecordRecoveryAttempt();
       LogDetailLevelSwitch("automatic_low_cardinality",
                            eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM,
                            cardinality);
@@ -5875,19 +5934,45 @@ try {
         last_controller_update == std::chrono::steady_clock::time_point{} ||
         iteration_start_time - last_controller_update >= kControllerUpdateInterval;
 
+    std::optional<std::pair<uint64_t, uint64_t>> pending_fsview_timing;
+    const auto record_aborted_fsview_timing = [&]() noexcept {
+      if (!pending_fsview_timing.has_value()) {
+        return;
+      }
+      const auto [wait_us, hold_us] = *pending_fsview_timing;
+      pending_fsview_timing.reset();
+      try {
+        mManager->UpdateFsViewLockMicroSec(wait_us, hold_us);
+      } catch (const std::exception& error) {
+        try {
+          eos_static_err("msg=\"Failed to record Traffic Shaping FsView timings\" "
+                         "error=\"%s\"",
+                         error.what());
+        } catch (...) {
+        }
+      } catch (...) {
+        try {
+          eos_static_err("%s", "msg=\"Failed to record Traffic Shaping FsView timings\" "
+                               "error=\"unknown exception\"");
+        } catch (...) {
+        }
+      }
+    };
+
     try {
       const auto work_start_time = iteration_start_time;
       const bool run_controller = controller_due;
       std::vector<std::string> online_nodes;
       const auto io_pressure = CollectIoPressure(&online_nodes, false);
       const auto pressure_done_time = std::chrono::steady_clock::now();
-      mManager->UpdateFsViewLockMicroSec(io_pressure.fsview_lock_wait_us,
-                                         io_pressure.fsview_lock_hold_us);
+      pending_fsview_timing.emplace(io_pressure.fsview_lock_wait_us,
+                                    io_pressure.fsview_lock_hold_us);
 
       if (run_controller) {
         mManager->UpdateTrafficShapingController(io_pressure.nodes);
       }
-      const auto controller_done_time = std::chrono::steady_clock::now();
+      const auto controller_done_time =
+          run_controller ? std::chrono::steady_clock::now() : pressure_done_time;
       if (run_controller) {
         last_controller_update = controller_done_time;
       }
@@ -5925,12 +6010,17 @@ try {
             static_cast<double>(limits_duration_us) / 1000.0, run_controller);
       }
 
-      mManager->UpdateFstPolicyLoopMicroSec(compute_duration_us, pressure_duration_us,
-                                            slow_iteration);
-      mManager->UpdateReservationControllerLoopMicroSec(controller_duration_us,
-                                                        run_controller);
-      mManager->UpdateFstLimitsLoopMicroSec(limits_duration_us);
+      // Phase durations include waits inside the controller and limit updates,
+      // but exclude waiting to record the observations themselves.
+      mManager->UpdateFstPolicyLoopMicroSec(
+          {static_cast<uint64_t>(compute_duration_us),
+           static_cast<uint64_t>(pressure_duration_us),
+           static_cast<uint64_t>(controller_duration_us),
+           static_cast<uint64_t>(limits_duration_us), io_pressure.fsview_lock_wait_us,
+           io_pressure.fsview_lock_hold_us, run_controller, slow_iteration});
+      pending_fsview_timing.reset();
     } catch (const std::exception& error) {
+      record_aborted_fsview_timing();
       if (controller_due) {
         // Avoid hammering a failing allocation/collection path every policy
         // tick. The normal controller cadence will retry it.
@@ -5943,6 +6033,7 @@ try {
       } catch (...) {
       }
     } catch (...) {
+      record_aborted_fsview_timing();
       if (controller_due) {
         last_controller_update = std::chrono::steady_clock::now();
       }

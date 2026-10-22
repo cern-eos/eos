@@ -1,4 +1,5 @@
 #include "common/Constants.hh"
+#include "common/shaping/Identity.hh"
 #include "mgm/monitoring/PrometheusExporter.hh"
 #include "prometheus/collectable.h"
 #include "prometheus/metric_family.h"
@@ -149,4 +150,152 @@ TEST(TrafficShapingCollector, FilesystemDetailDoesNotDoubleCountNodeTotals)
   EXPECT_DOUBLE_EQ(2, entries->metric[0].gauge.value);
   EXPECT_EQ(8192u,
             manager->GetNodeEntityCumulativeStats().begin()->second.bytes_written_total);
+}
+
+TEST(TrafficShapingCollector, ResolvesLabelsOncePerScrapeAcrossMetricFamilies)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  engine.SetDetailLevel(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM);
+  auto manager = engine.GetManager();
+  const std::vector<std::string> nodes{"/eos/fst-a.example:1095/fst",
+                                       "/eos/fst-b.example:1095/fst"};
+  for (const auto& node : nodes) {
+    manager->ProcessReport(MakeReport(node, 1000, 0, true));
+    manager->ProcessReport(MakeReport(node, 2000, 4096, true));
+  }
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.limit_write_bytes_per_sec = 1024;
+  manager->SetUidPolicy(1, policy);
+  manager->SetGidPolicy(2, policy);
+
+  std::map<uint32_t, size_t> uid_calls;
+  std::map<uint32_t, size_t> gid_calls;
+  std::map<std::string, size_t> node_calls;
+  size_t revision = 0;
+  eos::mgm::monitoring::TrafficShapingLabelResolvers resolvers;
+  resolvers.uid = [&](const uint32_t uid) {
+    ++uid_calls[uid];
+    return std::to_string(uid) + "(user-" + std::to_string(revision) + ")";
+  };
+  resolvers.gid = [&](const uint32_t gid) {
+    ++gid_calls[gid];
+    return std::to_string(gid) + "(group-" + std::to_string(revision) + ")";
+  };
+  resolvers.node = [&](const std::string& node) {
+    ++node_calls[node];
+    return eos::common::traffic_shaping::NodeLabel(node) + "-" + std::to_string(revision);
+  };
+  const auto collector =
+      eos::mgm::monitoring::CreateTrafficShapingCollector(engine, "ams", resolvers);
+
+  for (revision = 1; revision <= 2; ++revision) {
+    const auto families = collector->Collect();
+    const std::string uid_label = "1(user-" + std::to_string(revision) + ")";
+    const std::string gid_label = "2(group-" + std::to_string(revision) + ")";
+    const auto* all_bytes = FindFamily(families, "eos_io_shaping_all_bytes_total");
+    ASSERT_NE(nullptr, all_bytes);
+    ASSERT_EQ(8u, all_bytes->metric.size());
+    for (const auto& metric : all_bytes->metric) {
+      const auto labels = Labels(metric);
+      EXPECT_EQ(uid_label, labels.at("uid"));
+      EXPECT_EQ(uid_label, labels.at("uid_name"));
+      EXPECT_EQ("1", labels.at("uid_id"));
+      EXPECT_EQ(gid_label, labels.at("gid"));
+      EXPECT_EQ(gid_label, labels.at("gid_name"));
+      EXPECT_EQ(gid_label, labels.at("groups"));
+      EXPECT_EQ("2", labels.at("gid_id"));
+      EXPECT_TRUE(
+          labels.at("node_id") == "fst-a.example:1095-" + std::to_string(revision) ||
+          labels.at("node_id") == "fst-b.example:1095-" + std::to_string(revision));
+      EXPECT_DOUBLE_EQ(labels.at("operation") == "write" ? 4096 : 2048,
+                       metric.counter.value);
+    }
+
+    for (const auto& name :
+         {"eos_io_shaping_bytes_total", "eos_io_shaping_policy_bytes"}) {
+      const auto* family = FindFamily(families, name);
+      ASSERT_NE(nullptr, family);
+      bool found_uid = false;
+      bool found_gid = false;
+      for (const auto& metric : family->metric) {
+        const auto labels = Labels(metric);
+        if (labels.at("type") == "uid") {
+          EXPECT_EQ(uid_label, labels.at("id"));
+          found_uid = true;
+        } else if (labels.at("type") == "gid") {
+          EXPECT_EQ(gid_label, labels.at("id"));
+          found_gid = true;
+        }
+      }
+      EXPECT_TRUE(found_uid);
+      EXPECT_TRUE(found_gid);
+    }
+    ASSERT_EQ(1u, uid_calls.size());
+    ASSERT_EQ(1u, gid_calls.size());
+    EXPECT_EQ(revision, uid_calls.at(1));
+    EXPECT_EQ(revision, gid_calls.at(2));
+    ASSERT_EQ(nodes.size(), node_calls.size());
+    for (const auto& node : nodes) {
+      EXPECT_EQ(revision, node_calls.at(node));
+    }
+  }
+}
+
+TEST(TrafficShapingCollector, CachedNodeLabelsPreserveNormalizedAggregation)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  auto manager = engine.GetManager();
+  const std::vector<std::string> nodes{"/eos/fst-a.example:1095",
+                                       "/eos//eos/fst-a.example:1095/fst"};
+  for (const auto& node : nodes) {
+    manager->ProcessReport(MakeReport(node, 1000, 0, false));
+    manager->ProcessReport(MakeReport(node, 2000, 4096, false));
+  }
+  std::map<std::string, size_t> node_calls;
+  eos::mgm::monitoring::TrafficShapingLabelResolvers resolvers;
+  resolvers.node = [&](const std::string& node) {
+    ++node_calls[node];
+    return eos::common::traffic_shaping::NodeLabel(node);
+  };
+  const auto collector =
+      eos::mgm::monitoring::CreateTrafficShapingCollector(engine, "ams", resolvers);
+  const auto families = collector->Collect();
+  const auto* all_bytes = FindFamily(families, "eos_io_shaping_all_bytes_total");
+  ASSERT_NE(nullptr, all_bytes);
+  ASSERT_EQ(2u, all_bytes->metric.size());
+  for (const auto& metric : all_bytes->metric) {
+    const auto labels = Labels(metric);
+    EXPECT_EQ("/eos/fst-a.example:1095", labels.at("node_id"));
+    EXPECT_DOUBLE_EQ(labels.at("operation") == "write" ? 8192 : 4096,
+                     metric.counter.value);
+  }
+  for (const auto& name :
+       {"eos_io_shaping_all_entries", "eos_io_shaping_all_entries_exported",
+        "eos_io_shaping_all_entries_limited"}) {
+    const auto* family = FindFamily(families, name);
+    ASSERT_NE(nullptr, family);
+    ASSERT_EQ(1u, family->metric.size());
+    const double expected = std::string(name) == "eos_io_shaping_all_entries" ? 2
+                            : std::string(name) == "eos_io_shaping_all_entries_exported"
+                                ? 1
+                                : 0;
+    EXPECT_DOUBLE_EQ(expected, family->metric[0].gauge.value);
+  }
+  const auto* bytes = FindFamily(families, "eos_io_shaping_bytes_total");
+  ASSERT_NE(nullptr, bytes);
+  size_t node_series = 0;
+  for (const auto& metric : bytes->metric) {
+    const auto labels = Labels(metric);
+    if (labels.at("type") == "node") {
+      ++node_series;
+      EXPECT_EQ("/eos/fst-a.example:1095", labels.at("id"));
+      EXPECT_DOUBLE_EQ(labels.at("operation") == "write" ? 8192 : 4096,
+                       metric.counter.value);
+    }
+  }
+  EXPECT_EQ(2u, node_series);
+  ASSERT_EQ(nodes.size(), node_calls.size());
+  for (const auto& node : nodes) {
+    EXPECT_EQ(1u, node_calls.at(node));
+  }
 }

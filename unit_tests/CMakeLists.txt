@@ -121,6 +121,8 @@ set(MGM_UT_SRCS
   mgm/PolicyTests.cc
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
+  mgm/IoPressureTests.cc
+  mgm/AutomaticDetailRecoveryTests.cc
   mgm/TrafficShapingTests.cc
   mgm/TrafficShapingCollectorTests.cc
   mgm/placement/ClusterBuilderTests.cc
