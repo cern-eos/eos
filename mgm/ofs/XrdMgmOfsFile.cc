@@ -1515,6 +1515,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
   // check for versioning depth, cgi overrides sys & user attributes
   versioning = attr::getVersioning(attrmap, versioning_cgi);
+  // eos.versioning=0 in a versioned directory only skips the new version, the
+  // file keeps its versions and its xattrs
+  const bool skipVersion = !versioning && (attr::getVersioning(attrmap, "") > 0);
   // check for atomic uploads only in non fuse clients
   isAtomicUpload = !isFuse &&
                    attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
@@ -1716,7 +1719,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       // The new file is protected like the one it replaces, and gets its
-      // xattrs for versions or if asked by eos.xattr.preserve
+      // xattrs for versions, a skipped version or if asked by
+      // eos.xattr.preserve
       attrmapOverwritten = fmd->getAttributes();
 
       // check if this directory is write-once for the mapped user
@@ -1764,7 +1768,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       } else {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
+        if ((!isAtomicUpload) &&
+            gOFS->_rem(path, error, vid, ininfo, false, skipVersion)) {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }
@@ -1968,14 +1973,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             }
 
-            // For versions, or if asked by eos.xattr.preserve, copy the xattrs
-            // stored on the overwritten file over, never the space attributes
-            // merged into attrmapF as they would stick to the file once the
-            // space configuration changes. The encryption keys are the ones
-            // the new file is written with. An atomic upload gets them at
-            // commit, which keeps the changes made to the overwritten file
-            // while it runs, e.g. an application lock refreshed or released.
-            if ((versioning || isXattrPreserve) && !isAtomicUpload) {
+            // For versions, a skipped version or if asked by eos.xattr.preserve,
+            // copy the xattrs stored on the overwritten file over, never the
+            // space attributes merged into attrmapF as they would stick to the
+            // file once the space configuration changes. The encryption keys
+            // are the ones the new file is written with. An atomic upload gets
+            // them at commit, which keeps the changes made to the overwritten
+            // file while it runs, e.g. an application lock refreshed or
+            // released.
+            if ((versioning || skipVersion || isXattrPreserve) && !isAtomicUpload) {
               for (const auto& [key, val] :
                    attr::getCarryOverXattrs(attrmapOverwritten)) {
                 fmd->setAttribute(key, val);
@@ -2193,7 +2199,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // The commit of an atomic upload copies the xattrs of the file it
         // replaces, a versioned one is recognised by its temporary name. An
         // ownCloud chunked upload only gets them with versioning.
-        if (isAtomicUpload && !ocUploadUuid.length() && isXattrPreserve) {
+        if (isAtomicUpload && !ocUploadUuid.length() &&
+            (skipVersion || isXattrPreserve)) {
           capability += "&mgm.xattr.preserve=1";
         }
       }
@@ -2501,7 +2508,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (acl.EvalUserAttrFile()) {
-        if (isAtomicUpload && !ocUploadUuid.length() && (versioning || isXattrPreserve)) {
+        if (isAtomicUpload && !ocUploadUuid.length() &&
+            (versioning || skipVersion || isXattrPreserve)) {
           // No ACL until the commit, which copies the one of the replaced file
           // as it is then: an ACL changed or removed during the upload is
           // neither lost nor brought back. The commit only adds missing keys,

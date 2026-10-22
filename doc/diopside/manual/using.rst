@@ -751,6 +751,8 @@ Configure each directory which should apply versioning using the extended attrib
    # versions are created on the fly with each upload - now 2 versions
    eos cp /tmp/file /eos/version-dir/file
 
+An upload can ask for a different number of versions with the open CGI ``eos.versioning=<n>``. Since EOS 5.5.5 ``eos.versioning=0`` in a versioned directory only skips the new version: the existing versions are kept and the new file keeps the extended attributes of the one it replaces, like a new version does. Before, the upload deleted all the versions of the file and dropped its attributes. In a directory without versioning the CGI changes nothing.
+
 
 .. index::
    pair: Versioning; Creating
