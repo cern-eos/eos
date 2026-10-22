@@ -142,7 +142,7 @@ AppendExample(HelpPage& page, const ExampleLine& example)
 
 void
 AppendFormatted(HelpPage& page, std::string_view text, std::string_view name,
-                const CommandHelpSpec& spec)
+                const CommandHelpSpec& spec, const CommandHelpTopic* focused = nullptr)
 {
   std::string paragraph;
   std::size_t definitionIndent = std::string::npos;
@@ -169,10 +169,10 @@ AppendFormatted(HelpPage& page, std::string_view text, std::string_view name,
       flush();
       examples = false;
       definitionIndent = std::string::npos;
-      page.blocks.push_back(
-          {HelpBlockKind::Section,
-           HelpCommandText("eos " + std::string(name) + " " + Join(topic->path)),
-           {}});
+      const auto command = "eos " + std::string(name) + " " + Join(topic->path);
+      page.blocks.push_back({HelpBlockKind::Section,
+                             focused ? HelpText("USAGE") : HelpCommandText(command),
+                             {}});
       auto synopsis = std::string(line);
       if (synopsis.rfind("Usage:", 0) == 0 || synopsis.rfind("usage:", 0) == 0) {
         synopsis = std::string(Trim(std::string_view(synopsis).substr(6)));
@@ -184,7 +184,23 @@ AppendFormatted(HelpPage& page, std::string_view text, std::string_view name,
         }
         synopsis = "eos " + synopsis;
       }
-      page.blocks.push_back({HelpBlockKind::Usage, HelpSyntax(synopsis), {}});
+      page.blocks.push_back({HelpBlockKind::Usage,
+                             synopsis == command || synopsis.rfind(command + " ", 0) == 0
+                                 ? HelpCommandText(command).append(
+                                       HelpSyntax(synopsis.substr(command.size())))
+                                 : HelpSyntax(synopsis),
+                             {}});
+      if (focused) {
+        page.blocks.push_back({HelpBlockKind::Paragraph, focused->summary, {}});
+      }
+      continue;
+    }
+    if (!examples && line.rfind("## ", 0) == 0) {
+      flush();
+      examples = false;
+      definitionIndent = std::string::npos;
+      page.blocks.push_back(
+          {HelpBlockKind::Section, HelpSyntax(Trim(line.substr(3))), {}});
       continue;
     }
     if (ExamplesHeading(line)) {
@@ -222,18 +238,26 @@ AppendFormatted(HelpPage& page, std::string_view text, std::string_view name,
       page.blocks.push_back({HelpBlockKind::Usage, HelpSyntax(Trim(line.substr(6))), {}});
       continue;
     }
-    const auto separator = line.find(" : ");
+    auto separator = line.find(" : ");
+    if (separator == std::string_view::npos && line.size() >= 2 &&
+        line.substr(line.size() - 2) == " :") {
+      separator = line.size() - 2;
+    }
     const auto indent = entry.text.find_first_not_of(" \t");
     if (separator != std::string_view::npos) {
       flush();
       page.blocks.push_back({HelpBlockKind::Definition,
                              HelpSyntax(Trim(line.substr(0, separator))),
-                             std::string(Trim(line.substr(separator + 3)))});
+                             std::string(Trim(line.substr(separator + 2)))});
       definitionIndent = indent;
     } else if (definitionIndent != std::string::npos && indent > definitionIndent &&
                !page.blocks.empty() &&
                page.blocks.back().kind == HelpBlockKind::Definition) {
-      page.blocks.back().description.append(" ").append(line);
+      auto& description = page.blocks.back().description;
+      if (!description.text.empty()) {
+        description.append(" ");
+      }
+      description.append(line);
     } else {
       definitionIndent = std::string::npos;
       if (!paragraph.empty()) {
@@ -592,6 +616,9 @@ BuildCommandHelpPage(std::string_view name, std::string_view description,
   const auto selected =
       std::find_if(spec.topics.begin(), spec.topics.end(),
                    [&](const auto& topic) { return topic.path == path; });
+  const auto* focused = !all && selected != spec.topics.end() && !selected->marker.empty()
+                            ? &*selected
+                            : nullptr;
   if (selected == spec.topics.end() || selected->marker.empty()) {
     page.blocks.push_back({HelpBlockKind::Section, "USAGE", {}});
     auto command = "eos " + std::string(name);
@@ -602,10 +629,12 @@ BuildCommandHelpPage(std::string_view name, std::string_view description,
                            HelpCommandText(command).append(HelpSyntax(" [options]")),
                            {}});
   }
-  page.blocks.push_back(
-      {HelpBlockKind::Paragraph,
-       selected == spec.topics.end() ? std::string(description) : selected->summary,
-       {}});
+  if (!focused) {
+    page.blocks.push_back(
+        {HelpBlockKind::Paragraph,
+         selected == spec.topics.end() ? std::string(description) : selected->summary,
+         {}});
+  }
   if (!spec.common.empty()) {
     AppendFormatted(page, spec.common, name, spec);
   }
@@ -642,7 +671,7 @@ BuildCommandHelpPage(std::string_view name, std::string_view description,
         end = std::min(end, MarkerOffsets(manual, topic.endMarker).front());
       }
     }
-    AppendFormatted(page, manual.substr(start, end - start), name, spec);
+    AppendFormatted(page, manual.substr(start, end - start), name, spec, focused);
   }
   bool operations = false;
   for (const auto& topic : spec.topics) {

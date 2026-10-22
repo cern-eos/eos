@@ -68,10 +68,8 @@ std::string MakeFsHelp()
       << std::endl
       << std::endl
       << "  fs config <fsid> <key>=<value>" << std::endl
-      << "    configure the filesystem parameter, where <key> and <value> "
-         "can be:"
       << std::endl
-      << "    configstatus=rw|wo|ro|drain|off|empty [--comment "
+      << "    ## configstatus=rw|wo|ro|drain|off|empty [--comment "
          "\"<comment>\"]"
       << std::endl
       << "      the legacy compatibility key: one word covering what the "
@@ -86,7 +84,7 @@ std::string MakeFsHelp()
       << "      empty     : empty filesystem, possible only if there are no" << std::endl
       << "                  more files stored on it" << std::endl
       << "      --comment : pass a reason for the status change" << std::endl
-      << "    sched=<spec> [--comment \"<comment>\"]" << std::endl
+      << "    ## sched=<spec> [--comment \"<comment>\"]" << std::endl
       << "      what the filesystem accepts, per traffic class. Client traffic"
       << std::endl
       << "      is what users ask for; internal traffic is drain, balancing," << std::endl
@@ -99,7 +97,7 @@ std::string MakeFsHelp()
       << "        internal : no client traffic at all, internal unrestricted" << std::endl
       << "        clientro : clients may read, internal unrestricted" << std::endl
       << "        none     : nothing at all" << std::endl
-      << "      or the explicit form, a comma separated list of per-class terms"
+      << "      Explicit form: use a comma-separated list of traffic-class terms"
       << std::endl
       << "      such as 'client:r,internal:ruc', where the direction letters" << std::endl
       << "      are 'r' read, 'u' update, 'c' create and 'w' for both writes."
@@ -108,65 +106,65 @@ std::string MakeFsHelp()
       << "      the complete permission set and replaces the previous one, it"
       << std::endl
       << "      is never added to it." << std::endl
-      << "    drain=on|off" << std::endl
+      << "    ## drain=on|off" << std::endl
       << "      start or stop draining this filesystem. Independent of sched=:"
       << std::endl
       << "      a replicated or erasure coded file is re-created from its other"
       << std::endl
       << "      copies, so the mask here only matters for data that exists" << std::endl
       << "      nowhere else, which needs an internal read to be moved off." << std::endl
-      << "    headroom=<size>" << std::endl
+      << "    ## headroom=<size>" << std::endl
       << "      headroom to keep per filesystem. <size> can be (>0)[BMGT]" << std::endl
-      << "    scaninterval=<seconds>\n"
+      << "    ## scaninterval=<seconds>\n"
       << "      entry rescan interval (default 7 days), 0 disables scanning" << std::endl
-      << "    scan_rain_interval=<seconds>\n"
+      << "    ## scan_rain_interval=<seconds>\n"
       << "      rain entry rescan interval (default 4 weeks), 0 disables "
          "scanning"
       << std::endl
-      << "    scanrate=<MB/s>" << std::endl
+      << "    ## scanrate=<MB/s>" << std::endl
       << "      maximum IO scan rate per filesystem" << std::endl
-      << "    scan_disk_interval=<seconds>\n"
+      << "    ## scan_disk_interval=<seconds>\n"
       << "      disk consistency thread scan interval (default 4h)" << std::endl
-      << "    scan_ns_interval=<seconds>\n"
+      << "    ## scan_ns_interval=<seconds>\n"
       << "      namespace consistency thread scan interval (default 3 days)" << std::endl
-      << "    scan_ns_rate=<entries/s>\n"
+      << "    ## scan_ns_rate=<entries/s>\n"
       << "      maximum scan rate of ns entries for the NS consistency. This\n"
       << "      is bound by the maxium number of IOPS per disk." << std::endl
-      << "    fsck_refresh_interval=<sec>\n"
+      << "    ## fsck_refresh_interval=<sec>\n"
       << "       time interval after which fsck inconsistencies are refreshed"
       << std::endl
-      << "    scan_altxs_rate=<entries/s>\n"
+      << "    ## scan_altxs_rate=<entries/s>\n"
       << "       maximum scan rate of ns entries for checking if alternative\n"
       << "       checksums have been computed." << std::endl
-      << "    scan_altxs_interval=<sec>\n"
+      << "    ## scan_altxs_interval=<sec>\n"
       << "       alternative checksum computing interval (default 30 days), "
          "0 disables scanning"
       << std::endl
-      << "    altxs_sync=0|1\n"
+      << "    ## altxs_sync=0|1\n"
       << "       enable synchronization of alternative checksums settings "
          "from namespace"
       << std::endl
-      << "    altxs_sync_interval=<seconds>\n"
+      << "    ## altxs_sync_interval=<seconds>\n"
       << "       time interval after which synchronization of alternative "
          "checksums\n"
       << "       settings are refreshed. If 0 it is synchronized only once "
          "(default 0)"
       << std::endl
-      << "    graceperiod=<seconds>\n"
+      << "    ## graceperiod=<seconds>\n"
       << "      grace period before a filesystem with an operation error gets\n"
       << "      automatically drained" << std::endl
-      << "    drainperiod=<seconds>\n"
+      << "    ## drainperiod=<seconds>\n"
       << "      period a drain job is allowed to finish the drain procedure" << std::endl
-      << "    forcegeotag=<geotag>" << std::endl
+      << "    ## forcegeotag=<geotag>" << std::endl
       << "      set the filesystem's geotag, overriding the host geotag value."
       << std::endl
       << "      The special value \"<none>\" is the same as no value and means"
       << std::endl
       << "      no override" << std::endl
-      << "    s3credentials=<accesskey>:<secretkey>" << std::endl
+      << "    ## s3credentials=<accesskey>:<secretkey>" << std::endl
       << "      the access and secret key pair used to authenticate" << std::endl
       << "      with the S3 storage endpoint" << std::endl
-      << "    sharedfs=<name>" << std::endl
+      << "    ## sharedfs=<name>" << std::endl
       << "      the sharedfs this filesystem is to be assigned to. To "
          "unlabel set the sharedfs name to 'none' !"
       << std::endl
@@ -279,6 +277,26 @@ std::string MakeFsHelp()
   return oss.str();
 }
 
+eos::console::CommandHelpSpec
+MakeFsHelpSpec()
+{
+  return {{{{"add"}, "  fs add ", "Add and assign a filesystem."},
+           {{"boot"}, "  fs boot ", "Boot one or more filesystems."},
+           {{"clone"}, "  fs clone ", "Replicate files between filesystems."},
+           {{"compare"}, "  fs compare ", "Compare files on two filesystems."},
+           {{"config"}, "  fs config ", "Configure filesystem parameters."},
+           {{"dropdeletion"}, "  fs dropdeletion ", "Drop pending deletions."},
+           {{"dropghosts"},
+            "  fs dropghosts ",
+            "Drop accounted files without namespace metadata."},
+           {{"dropfiles"}, "  fs dropfiles ", "Drop all files on a filesystem."},
+           {{"dumpmd"}, "  fs dumpmd ", "Dump or count filesystem metadata."},
+           {{"ls"}, "  fs ls ", "List filesystems."},
+           {{"mv"}, "  fs mv ", "Move a filesystem."},
+           {{"rm"}, "  fs rm ", "Remove a filesystem."},
+           {{"status"}, "  fs status ", "Inspect filesystem state and removal risk."}}};
+}
+
 class FsProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -332,7 +350,8 @@ public:
   void
   printHelp() const override
   {
-    eos::console::PrintLegacyHelp(helpText());
+    eos::console::PrintHelpPage(eos::console::BuildCommandHelpPage(
+        name(), description(), helpText(), MakeFsHelpSpec(), {}, true));
   }
 };
 } // namespace
@@ -341,20 +360,5 @@ void
 RegisterFsProtoNativeCommand()
 {
   CommandRegistry::instance().reg(eos::console::WithCommandHelp(
-      std::make_unique<FsProtoCommand>(),
-      {{{{"add"}, "  fs add ", "Add and assign a filesystem."},
-        {{"boot"}, "  fs boot ", "Boot one or more filesystems."},
-        {{"clone"}, "  fs clone ", "Replicate files between filesystems."},
-        {{"compare"}, "  fs compare ", "Compare files on two filesystems."},
-        {{"config"}, "  fs config ", "Configure filesystem parameters."},
-        {{"dropdeletion"}, "  fs dropdeletion ", "Drop pending deletions."},
-        {{"dropghosts"},
-         "  fs dropghosts ",
-         "Drop accounted files without namespace metadata."},
-        {{"dropfiles"}, "  fs dropfiles ", "Drop all files on a filesystem."},
-        {{"dumpmd"}, "  fs dumpmd ", "Dump or count filesystem metadata."},
-        {{"ls"}, "  fs ls ", "List filesystems."},
-        {{"mv"}, "  fs mv ", "Move a filesystem."},
-        {{"rm"}, "  fs rm ", "Remove a filesystem."},
-        {{"status"}, "  fs status ", "Inspect filesystem state and removal risk."}}}));
+      std::make_unique<FsProtoCommand>(), MakeFsHelpSpec()));
 }

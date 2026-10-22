@@ -8,9 +8,11 @@
 #include "unit_tests/console/ConsoleTestFixture.hh"
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace eos::console;
@@ -182,6 +184,114 @@ TEST_F(ConsoleCommandHelpTest, BareCli11HeadingsRetainTheOwningCommand)
                            spec, {"info"})
           .render(80);
   EXPECT_NE(text.find("eos file info <path>"), std::string::npos);
+}
+
+TEST_F(ConsoleCommandHelpTest, FocusedAnchoredHelpLeadsWithItsSynopsisAndAliasSummary)
+{
+  const auto spec = specification();
+  const auto page = BuildCommandHelpPage("sample", "Manage samples.", manual, spec,
+                                         {"group", "update"});
+  ASSERT_GE(page.blocks.size(), 3u);
+  EXPECT_EQ(page.blocks[0].kind, HelpBlockKind::Section);
+  EXPECT_EQ(page.blocks[0].text.text, "USAGE");
+  EXPECT_EQ(page.blocks[1].kind, HelpBlockKind::Usage);
+  EXPECT_EQ(page.blocks[1].text.text, "eos sample group set <name> <value>");
+  EXPECT_EQ(page.blocks[2].kind, HelpBlockKind::Paragraph);
+  EXPECT_EQ(page.blocks[2].text.text, "Set a value (alias).");
+  const auto text = page.render(80);
+  const auto synopsis = text.find("eos sample group set <name> <value>");
+  ASSERT_NE(synopsis, std::string::npos);
+  EXPECT_EQ(text.find("eos sample group set <name> <value>", synopsis + 1),
+            std::string::npos);
+  EXPECT_GT(text.find("Set a value (alias)."), synopsis);
+  for (const auto& path : std::vector<std::vector<std::string>>{{}, {"group"}}) {
+    const auto expanded =
+        BuildCommandHelpPage("sample", "Manage samples.", manual, spec, path, true);
+    EXPECT_TRUE(std::any_of(expanded.blocks.begin(), expanded.blocks.end(),
+                            [](const auto& block) {
+                              return block.kind == HelpBlockKind::Section &&
+                                     block.text.text == "eos sample group set";
+                            }));
+  }
+}
+
+TEST_F(ConsoleCommandHelpTest, AuthoredSettingHeadingsKeepPresetsAndProseInTheirSections)
+{
+  const std::string source =
+      "  sample config <id> <key>=<value>\n"
+      "    ## drain=on|off\n"
+      "      Start or stop draining this filesystem.\n"
+      "      Recreate files using their other copies.\n"
+      "    ## headroom=<size>\n"
+      "      Keep free capacity per filesystem; (>0)[BMGT] is accepted.\n"
+      "    ## sched=<spec>\n"
+      "      Choose a preset:\n"
+      "        internal : no client traffic; internal unrestricted\n"
+      "        none : deny both classes\n"
+      "      Explicit terms preserve 'client:r,internal:ruc'.\n"
+      "    ## s3credentials=<accesskey>:<secretkey>\n"
+      "      Authenticate with the S3 endpoint.\n"
+      "      --limit <count> :\n"
+      "        Limit entries per filesystem while keeping the original\n"
+      "        explanation together.\n";
+  const CommandHelpSpec spec{
+      {{{"config"}, "  sample config ", "Configure sample filesystem parameters."}}};
+  const auto page =
+      BuildCommandHelpPage("sample", "Sample interface.", source, spec, {"config"});
+  const std::vector<std::pair<std::string, std::string>> headings{
+      {"drain=on|off", "Start or stop draining this filesystem. Recreate files using "
+                       "their other copies."},
+      {"headroom=<size>", "Keep free capacity per filesystem; (>0)[BMGT] is accepted."},
+      {"sched=<spec>", "Choose a preset:"},
+      {"s3credentials=<accesskey>:<secretkey>", "Authenticate with the S3 endpoint."}};
+  const std::vector<std::pair<std::string, std::string>> definitions{
+      {"internal", "no client traffic; internal unrestricted"},
+      {"none", "deny both classes"},
+      {"--limit <count>", "Limit entries per filesystem while keeping the original "
+                          "explanation together."}};
+  auto findBlock = [&](HelpBlockKind kind, const std::string& label) {
+    return std::find_if(page.blocks.begin(), page.blocks.end(), [&](const auto& entry) {
+      return entry.kind == kind && entry.text.text == label;
+    });
+  };
+  for (const auto& [label, description] : headings) {
+    SCOPED_TRACE(label);
+    const auto section = findBlock(HelpBlockKind::Section, label);
+    ASSERT_NE(section, page.blocks.end());
+    const auto paragraph = std::next(section);
+    ASSERT_NE(paragraph, page.blocks.end());
+    EXPECT_EQ(paragraph->kind, HelpBlockKind::Paragraph);
+    EXPECT_EQ(paragraph->text.text, description);
+  }
+  for (const auto& [label, description] : definitions) {
+    const auto block = findBlock(HelpBlockKind::Definition, label);
+    ASSERT_NE(block, page.blocks.end()) << label;
+    EXPECT_EQ(block->description.text, description);
+  }
+  const auto explicitTerms = findBlock(
+      HelpBlockKind::Paragraph, "Explicit terms preserve 'client:r,internal:ruc'.");
+  ASSERT_NE(explicitTerms, page.blocks.end());
+  EXPECT_LT(findBlock(HelpBlockKind::Definition, "none"), explicitTerms);
+  EXPECT_LT(explicitTerms,
+            findBlock(HelpBlockKind::Section, "s3credentials=<accesskey>:<secretkey>"));
+  for (const size_t width : {40, 80, 120}) {
+    SCOPED_TRACE(width);
+    const auto text = page.render(width);
+    std::istringstream lines(text);
+    std::string line;
+    while (std::getline(lines, line)) {
+      EXPECT_LE(HelpDisplayWidth(line), width) << line;
+    }
+    for (const auto& [label, description] : headings) {
+      EXPECT_NE(text.find("\n" + label + "\n"), std::string::npos) << label;
+      EXPECT_NE(Words(text).find(description), std::string::npos) << description;
+    }
+    for (const auto& [label, description] : definitions) {
+      EXPECT_NE(text.find("\n  " + label), std::string::npos) << label;
+      EXPECT_NE(Words(text).find(description), std::string::npos) << description;
+    }
+    EXPECT_EQ(text.find("##"), std::string::npos);
+  }
 }
 
 TEST_F(ConsoleCommandHelpTest, FocusedPagesKeepSharedOptionsAndExcludeBoundedAppendices)
@@ -366,6 +476,91 @@ TEST_F(ConsoleCommandHelpTest, FilesystemHelpRetainsConfigurationAndScopesExampl
   EXPECT_EQ(boot.find("eos fs mv 100"), std::string::npos);
 }
 
+TEST_F(ConsoleCommandHelpTest, FilesystemConfigurationKeepsEachSettingOnItsOwnLine)
+{
+  EnsureNativeCommandRegistryInitialized();
+  const auto* fs = CommandRegistry::instance().find("fs");
+  ASSERT_NE(fs, nullptr);
+  testing::internal::CaptureStderr();
+  fs->printHelp({"config"});
+  const auto text = testing::internal::GetCapturedStderr();
+  EXPECT_EQ(text.substr(0, 6), "USAGE\n");
+  const std::string synopsis = "eos fs config <fsid> <key>=<value>";
+  const auto usage = text.find(synopsis);
+  ASSERT_NE(usage, std::string::npos);
+  EXPECT_EQ(text.find(synopsis, usage + 1), std::string::npos);
+  const auto summary = text.find("Configure filesystem parameters.");
+  ASSERT_NE(summary, std::string::npos);
+  EXPECT_GT(summary, usage);
+  EXPECT_EQ(text.find("Configure filesystem parameters.", summary + 1),
+            std::string::npos);
+  EXPECT_EQ(Words(text).find("configure the filesystem parameter, where"),
+            std::string::npos);
+  const std::vector<std::string> settings{"configstatus=",
+                                          "sched=",
+                                          "drain=",
+                                          "headroom=",
+                                          "scaninterval=",
+                                          "scan_rain_interval=",
+                                          "scanrate=",
+                                          "scan_disk_interval=",
+                                          "scan_ns_interval=",
+                                          "scan_ns_rate=",
+                                          "fsck_refresh_interval=",
+                                          "scan_altxs_rate=",
+                                          "scan_altxs_interval=",
+                                          "altxs_sync=",
+                                          "altxs_sync_interval=",
+                                          "graceperiod=",
+                                          "drainperiod=",
+                                          "forcegeotag=",
+                                          "s3credentials=",
+                                          "sharedfs="};
+  std::vector<std::string> lines;
+  std::istringstream input(text);
+  std::string line;
+  while (std::getline(input, line)) {
+    EXPECT_LE(HelpDisplayWidth(line), 80u) << line;
+    lines.push_back(line);
+  }
+  std::vector<size_t> positions;
+  for (const auto& setting : settings) {
+    SCOPED_TRACE(setting);
+    size_t matches = 0;
+    for (size_t index = 0; index < lines.size(); ++index) {
+      const auto first = lines[index].find_first_not_of(' ');
+      if (first == 0 && lines[index].compare(first, setting.size(), setting) == 0) {
+        positions.push_back(index);
+        ++matches;
+      }
+    }
+    ASSERT_EQ(matches, 1u);
+  }
+  EXPECT_TRUE(std::is_sorted(positions.begin(), positions.end()));
+  auto description = [&](size_t setting) {
+    std::string result;
+    for (auto index = positions[setting]; index < positions[setting + 1]; ++index) {
+      result += lines[index] + ' ';
+    }
+    return Words(result);
+  };
+  const auto drain = description(2), headroom = description(3);
+  EXPECT_NE(drain.find("start or stop draining this filesystem."), std::string::npos);
+  EXPECT_NE(drain.find("a replicated or erasure coded file"), std::string::npos);
+  EXPECT_EQ(drain.find("headroom to keep"), std::string::npos);
+  const auto scheduling = description(1);
+  EXPECT_NE(
+      scheduling.find("Explicit form: use a comma-separated list of traffic-class terms"),
+      std::string::npos);
+  EXPECT_NE(scheduling.find("The spec is the complete permission set"),
+            std::string::npos);
+  EXPECT_EQ(text.find("##"), std::string::npos);
+  EXPECT_NE(headroom.find("headroom to keep per filesystem."), std::string::npos);
+  EXPECT_NE(headroom.find("(>0)[BMGT]"), std::string::npos);
+  EXPECT_EQ(headroom.find("start or stop draining"), std::string::npos);
+  EXPECT_NE(text.find("s3credentials=<accesskey>:<secretkey>"), std::string::npos);
+}
+
 namespace {
 class ConsoleCommandHelpRequestTest : public ConsoleTestFixture {
 protected:
@@ -402,6 +597,23 @@ protected:
   }
 };
 } // namespace
+
+TEST_F(ConsoleCommandHelpRequestTest, InvalidFilesystemInputKeepsFormattedManual)
+{
+  const auto* fs = CommandRegistry::instance().find("fs");
+  ASSERT_NE(fs, nullptr);
+  testing::internal::CaptureStderr();
+  fs->printHelp({"--help-all"});
+  const auto manual = testing::internal::GetCapturedStderr();
+  testing::internal::CaptureStderr();
+  run("fs", {"config"});
+  const auto error = testing::internal::GetCapturedStderr();
+  EXPECT_EQ(global_retc, EINVAL);
+  EXPECT_EQ(error.find("##"), std::string::npos);
+  EXPECT_NE(error.find(manual), std::string::npos);
+  std::lock_guard<std::mutex> lock(mutex);
+  EXPECT_TRUE(requests.empty());
+}
 
 TEST_F(ConsoleCommandHelpRequestTest,
        EveryEnabledRootAndTopicIsLocalAndPreservesShellState)
