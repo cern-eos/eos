@@ -761,6 +761,9 @@ try {
       }
       const std::chrono::milliseconds reportInterval(safe_period);
       common::IntervalStopwatch stopwatch(reportInterval);
+      const int64_t garbage_collection_cycles =
+          std::max<int64_t>(1, 60000 / reportInterval.count());
+      const bool cleanup_due = loop_counter + 1 >= garbage_collection_cycles;
 
       eos::traffic_shaping::FstIoReport report;
       report.set_node_id(node_id);
@@ -790,11 +793,15 @@ try {
       };
       std::vector<PendingUpdate> pending_updates;
       std::vector<eos::fst::traffic_shaping::IoStatsKey> active_keys;
+      size_t active_streams = 0;
 
       gOFS.mIoStatsCollector.VisitEntries(
           [&](const eos::fst::traffic_shaping::IoStatsKey& key,
               const eos::fst::traffic_shaping::IoStatsEntry& entry) {
-            active_keys.push_back(key);
+            ++active_streams;
+            if (cleanup_due) {
+              active_keys.push_back(key);
+            }
 
             uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
             uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
@@ -848,12 +855,10 @@ try {
 
       // Run roughly every 60 seconds
       loop_counter++;
-      const int64_t garbage_collection_cycles =
-          std::max<int64_t>(1, 60000 / reportInterval.count());
-      if (loop_counter >= garbage_collection_cycles) {
+      if (cleanup_due) {
         eos_static_info("msg=\"FST Traffic Shaping Stats - Garbage Collection loop "
                         "checkpoint\" active_streams=%zu rejected_streams_total=%llu",
-                        active_keys.size(),
+                        active_streams,
                         static_cast<unsigned long long>(
                             gOFS.mIoStatsCollector.GetRejectedEntryCount()));
         loop_counter = 0;
