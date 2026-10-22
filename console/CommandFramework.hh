@@ -38,6 +38,7 @@ public:
     return {};
   }
   virtual bool requiresMgm(const std::string& args) const { return !wants_help(args.c_str()); }
+  virtual bool requiresMgmArguments(const std::vector<std::string>& args) const;
   virtual std::vector<std::string>
   complete(const std::vector<std::string>& args) const
   {

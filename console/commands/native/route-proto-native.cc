@@ -2,174 +2,192 @@
 // File: route-proto-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/ParseUtils.hh"
-#include "common/StringConversion.hh"
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
-#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <charconv>
-#include <iomanip>
+#include <cstdint>
 #include <memory>
-#include <sstream>
 
 namespace {
-std::string MakeRouteHelp()
+struct RouteEndpoint {
+  std::string host;
+  uint32_t xrdPort = 1094;
+  uint32_t httpPort = 8000;
+};
+
+bool
+ParsePort(const std::string& text, uint32_t& port)
 {
-  std::ostringstream oss;
-  oss << "Usage: route [ls|link|unlink]" << std::endl
-      << "    namespace routing to redirect clients to external instances"
-      << std::endl
-      << std::endl
-      << "  route ls [<path>]" << std::endl
-      << "    list all routes or the one matching for the given path"
-      << std::endl
-      << "      * as the first character means the node is a master"
-      << std::endl
-      << "      _ as the first character means the node is offline"
-      << std::endl
-      << std::endl
-      << "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],..."
-      << std::endl
-      << "    create routing from <path> to destination host. If the xrd_port"
-      << std::endl
-      << "    is omitted the default 1094 is used, if the http_port is omitted"
-      << std::endl
-      << "    the default 8000 is used. Several dst_hosts can be specified by"
-      << std::endl
-      << "    separating them with \",\". The redirection will go to the MGM"
-      << std::endl
-      << "    from the specified list"
-      << std::endl
-      << "    e.g route /eos/dummy/ foo.bar:1094:8000" << std::endl
-      << std::endl
-      << "  route unlink <path>" << std::endl
-      << "    remove routing matching path" << std::endl;
-  return oss.str();
+  const auto result = std::from_chars(text.data(), text.data() + text.size(), port);
+  return result.ec == std::errc{} && result.ptr == text.data() + text.size() &&
+         port > 0 && port <= 65535;
 }
 
-void ConfigureRouteApp(CLI::App& app)
+bool
+ValidRouteHost(const std::string& hostname)
 {
-  app.name("route");
-  app.description("Routing interface");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeRouteHelp();
-      }));
+  std::string host = hostname;
+  if (!host.empty() && host.back() == '.') {
+    host.pop_back();
+  }
+  if (host.empty() || host.size() > 253) {
+    return false;
+  }
+  if (host.find('.') != std::string::npos &&
+      std::all_of(host.begin(), host.end(), [](unsigned char ch) {
+        return (ch >= '0' && ch <= '9') || ch == '.';
+      })) {
+    size_t begin = 0;
+    for (size_t component = 0; component < 4; ++component) {
+      const size_t end = host.find('.', begin);
+      const std::string part = host.substr(begin, end - begin);
+      uint32_t value = 0;
+      const auto parsed = std::from_chars(part.data(), part.data() + part.size(), value);
+      if (part.empty() || (part.size() > 1 && part.front() == '0') ||
+          parsed.ec != std::errc{} || parsed.ptr != part.data() + part.size() ||
+          value > 255 || (component < 3 && end == std::string::npos) ||
+          (component == 3 && end != std::string::npos)) {
+        return false;
+      }
+      begin = end + 1;
+    }
+    return true;
+  }
+  size_t begin = 0;
+  while (begin < host.size()) {
+    const size_t end = host.find('.', begin);
+    const std::string label = host.substr(begin, end - begin);
+    if (label.empty() || label.size() > 63 || label.front() == '-' ||
+        label.back() == '-' ||
+        !std::all_of(label.begin(), label.end(), [](unsigned char ch) {
+          return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+                 (ch >= '0' && ch <= '9') || ch == '-';
+        })) {
+      return false;
+    }
+    if (end == std::string::npos) {
+      return true;
+    }
+    begin = end + 1;
+  }
+  return false;
 }
 
-// Ported from legacy com_proto_route.cc
+std::string
+ParseEndpoints(const std::string& text, std::vector<RouteEndpoint>& endpoints)
+{
+  size_t begin = 0;
+  do {
+    const size_t end = text.find(',', begin);
+    const std::string item = text.substr(begin, end - begin);
+    const size_t firstColon = item.find(':');
+    RouteEndpoint endpoint;
+    endpoint.host = item.substr(0, firstColon);
+    if (!ValidRouteHost(endpoint.host)) {
+      return "invalid destination hostname";
+    }
+    if (firstColon != std::string::npos) {
+      const size_t secondColon = item.find(':', firstColon + 1);
+      if (!ParsePort(item.substr(firstColon + 1, secondColon - firstColon - 1),
+                     endpoint.xrdPort) ||
+          (secondColon != std::string::npos &&
+           !ParsePort(item.substr(secondColon + 1), endpoint.httpPort))) {
+        return "route ports must be integers between 1 and 65535";
+      }
+    }
+    endpoints.push_back(std::move(endpoint));
+    if (end == std::string::npos) {
+      return {};
+    }
+    begin = end + 1;
+  } while (begin <= text.size());
+  return "destination must not be empty";
+}
+
+const CLI::Validator RoutePath{
+    [](const std::string& value) {
+      if (value.empty() || value.front() != '/') {
+        return std::string("path must be absolute and non-empty");
+      }
+      const std::string path = value.back() == '/' ? value : value + '/';
+      if (path.find_first_of(" \t\r\n\v\f\\") != std::string::npos ||
+          path.find("/../") != std::string::npos ||
+          path.find("/./") != std::string::npos) {
+        return std::string(
+            "route path must not contain whitespace, backslashes, or dot components");
+      }
+      return std::string{};
+    },
+    "ROUTE_PATH"};
+
+struct RouteOptions {
+  CLI::App app{"Redirect namespace paths to external instances", "route"};
+  CLI::App *ls, *link, *unlink;
+  std::string path, destinations;
+
+  RouteOptions()
+  {
+    app.require_subcommand(1, 1);
+    ls = app.add_subcommand("ls", "List all routes or the route matching a path");
+    ls->add_option("path", path)->check(RoutePath);
+    link = app.add_subcommand("link", "Create a route to one or more destination hosts");
+    link->add_option("path", path)->required()->check(RoutePath);
+    link->add_option("destinations", destinations,
+                     "host[:xrd_port[:http_port]],... (defaults: 1094 and 8000)")
+        ->required()
+        ->check(CLI::Validator(
+            [](const std::string& value) {
+              std::vector<RouteEndpoint> parsed;
+              return ParseEndpoints(value, parsed);
+            },
+            "HOST[:PORT[:PORT]],..."));
+    unlink = app.add_subcommand("unlink", "Remove the route matching a path");
+    unlink->add_option("path", path)->required()->check(RoutePath);
+  }
+};
+
 class RouteHelper : public ICmdHelper {
 public:
-  RouteHelper(const GlobalOptions& opts) : ICmdHelper(opts) {}
-  ~RouteHelper() override = default;
+  explicit RouteHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
   bool
   ParseCommand(const char* arg) override
   {
-    const char* option;
-    std::string soption;
-    eos::console::RouteProto* route = mReq.mutable_route();
-    eos::common::StringTokenizer tokenizer(arg);
-    tokenizer.GetLine();
-    option = tokenizer.GetToken();
-    std::string cmd = (option ? option : "");
-    if (cmd == "ls") {
-      using eos::console::RouteProto_ListProto;
-      RouteProto_ListProto* list = route->mutable_list();
-      if (!(option = tokenizer.GetToken())) {
-        list->set_path("");
-      } else {
-        soption = option;
-        if (!ValidatePath(soption))
-          return false;
-        list->set_path(soption);
-      }
-    } else if (cmd == "unlink") {
-      using eos::console::RouteProto_UnlinkProto;
-      RouteProto_UnlinkProto* unlink = route->mutable_unlink();
-      if (!(option = tokenizer.GetToken()))
-        return false;
-      soption = option;
-      if (!ValidatePath(soption))
-        return false;
-      unlink->set_path(soption);
-    } else if (cmd == "link") {
-      if (!(option = tokenizer.GetToken()))
-        return false;
-      soption = option;
-      if (!ValidatePath(soption))
-        return false;
-      eos::console::RouteProto_LinkProto* link = route->mutable_link();
-      link->set_path(soption);
-      if (!(option = tokenizer.GetToken()))
-        return false;
-      soption = option;
-      std::vector<std::string> endpoints;
-      eos::common::StringConversion::EmptyTokenize(soption, endpoints, ",");
-      if (endpoints.empty() || soption.front() == ',') {
+    std::vector<std::string> args;
+    return eos::console::TokenizeArguments(arg, args) && ParseArguments(args);
+  }
+  bool
+  ParseArguments(const std::vector<std::string>& args)
+  {
+    RouteOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
+      return false;
+    }
+    if (!options.path.empty() && options.path.back() != '/') {
+      options.path += '/';
+    }
+    auto* route = mReq.mutable_route();
+    if (*options.ls) {
+      route->mutable_list()->set_path(options.path);
+    } else if (*options.unlink) {
+      route->mutable_unlink()->set_path(options.path);
+    } else if (*options.link) {
+      auto* link = route->mutable_link();
+      link->set_path(options.path);
+      std::vector<RouteEndpoint> endpoints;
+      if (!ParseEndpoints(options.destinations, endpoints).empty()) {
         return false;
       }
       for (const auto& endpoint : endpoints) {
-        std::vector<std::string> elems;
-        eos::common::StringConversion::EmptyTokenize(endpoint, elems, ":");
-        if (elems.empty() || elems.size() > 3 || endpoint.front() == ':' ||
-            elems[0].empty()) {
-          return false;
-        }
-        const std::string& fqdn = elems[0];
-        if (!eos::common::ValidHostnameOrIP(fqdn)) {
-          std::cerr << "error: invalid hostname specified" << std::endl;
-          return false;
-        }
-        uint32_t xrd_port = 1094;
-        uint32_t http_port = 8000;
-        if ((elems.size() >= 2 && !ParsePort(elems[1], xrd_port)) ||
-            (elems.size() == 3 && !ParsePort(elems[2], http_port))) {
-          std::cerr << "error: route ports must be integers between 1 and 65535"
-                    << std::endl;
-          return false;
-        }
-        auto* ep = link->add_endpoints();
-        ep->set_fqdn(fqdn);
-        ep->set_xrd_port(xrd_port);
-        ep->set_http_port(http_port);
-      }
-    } else {
-      return false;
-    }
-    return tokenizer.GetToken() == nullptr;
-  }
-
-private:
-  static bool
-  ParsePort(const std::string& text, uint32_t& port)
-  {
-    const auto result = std::from_chars(text.data(), text.data() + text.size(), port);
-    return result.ec == std::errc{} && result.ptr == text.data() + text.size() &&
-           port > 0 && port <= 65535;
-  }
-
-  bool
-  ValidatePath(std::string& path) const
-  {
-    if (path.empty() || path[0] != '/') {
-      std::cerr << "error: path should be non-empty and start with '/'"
-                << std::endl;
-      return false;
-    }
-    if (path.back() != '/') {
-      path += '/';
-    }
-    std::set<std::string> forbidden{" ", "/../", "/./", "\\"};
-    for (const auto& needle : forbidden) {
-      if (path.find(needle) != std::string::npos) {
-        std::cerr
-            << "error: path should no contain any of the following sequences "
-               "of characters: \" \", \"/../\", \"/./\" or \"\\\""
-            << std::endl;
-        return false;
+        auto* destination = link->add_endpoints();
+        destination->set_fqdn(endpoint.host);
+        destination->set_xrd_port(endpoint.xrdPort);
+        destination->set_http_port(endpoint.httpPort);
       }
     }
     return true;
@@ -196,23 +214,8 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      if (args[i].find(' ') != std::string::npos)
-        oss << std::quoted(args[i]);
-      else
-        oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
     RouteHelper helper(*ctx.globalOpts);
-    if (!helper.ParseCommand(joined.c_str())) {
+    if (!helper.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -220,12 +223,15 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return RouteOptions{}.app.help();
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureRouteApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

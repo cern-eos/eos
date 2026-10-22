@@ -70,14 +70,9 @@ RunRegisteredCommand(const std::string& cmdName,
   }
 
   CommandContext ctx;
-  ctx.serverUri = serveruri.c_str();
   ctx.globalOpts = &gGlobalOpts;
   ctx.json = json;
   ctx.silent = silent;
-  ctx.interactive = interactive;
-  ctx.timing = timing;
-  ctx.userRole = user_role.c_str();
-  ctx.groupRole = group_role.c_str();
   ctx.clientCommand = &client_command;
   ctx.outputResult = &output_result;
 
@@ -689,11 +684,4 @@ void
 RegisterOldfindNativeCommand()
 {
   CommandRegistry::instance().reg(std::make_unique<OldfindCommand>());
-}
-
-// Legacy compatibility symbol required by ConsoleMain and other modules
-int
-com_old_find(char* arg)
-{
-  return native_com_old_find(arg);
 }

@@ -5,7 +5,6 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
-#include <sstream>
 #include <vector>
 
 namespace {
@@ -43,20 +42,13 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
     IConsoleCommand* fileCmd = CommandRegistry::instance().find("file");
     if (!fileCmd) {
       fprintf(stderr, "error: 'file' command not available\n");
       global_retc = EINVAL;
       return 0;
     }
-    if (args.empty() || wants_help(joined.c_str())) {
+    if (args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;

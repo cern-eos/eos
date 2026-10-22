@@ -24,7 +24,6 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
-#include "common/StringTokenizer.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
@@ -182,16 +181,6 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
   return true;
 }
 
-std::vector<std::string> TokenizeRcloneArgs(const char* argin)
-{
-  std::vector<std::string> result;
-  eos::common::StringTokenizer tokenizer(argin);
-  tokenizer.GetLine();
-  XrdOucString tok;
-  while ((tok = tokenizer.GetToken()).length())
-    result.push_back(tok.c_str());
-  return result;
-}
 } // namespace
 
 static void rclone_usage()
@@ -1594,16 +1583,6 @@ static int rclone_impl(const RcloneOptions& opts)
   }
 
   return 0;
-}
-
-/* Entry point for legacy callers */
-int com_rclone(char* arg1)
-{
-  std::vector<std::string> args = TokenizeRcloneArgs(arg1);
-  RcloneOptions opts;
-  if (!ParseRcloneArgs(args, opts))
-    return -1;
-  return rclone_impl(opts);
 }
 
 // ----------------------------------------------------------------------------

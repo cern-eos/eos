@@ -35,19 +35,20 @@ set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
 
 set(CONSOLE_UT_SRCS
+  console/AclCmdTest.cc
   console/AliasCliValidationTest.cc
-  console/ConsoleArgumentsTest.cc
+  console/CommandDispatchTest.cc
   console/ConsoleCliValidationTest.cc
+  console/ConsoleArgumentsTest.cc
   console/ConsoleProcessTest.cc
+  console/ConsoleIdentifierTest.cc
   console/DuCliTest.cc
   console/EvictRegisterCliTest.cc
-  console/FileCliTest.cc
   console/LegacyCliValidationTest.cc
   console/RecycleCliTest.cc
-  console/AclCmdTest.cc
-  console/CommandDispatchTest.cc
   console/ConsoleCompletionTest.cc
   console/FileHelperTest.cc
+  console/FileCliTest.cc
   console/FusexCommandTest.cc
   console/JwkGeneratorTests.cc
   console/NewfindHelperTest.cc

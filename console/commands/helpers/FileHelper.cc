@@ -22,653 +22,495 @@
  ************************************************************************/
 
 #include "console/commands/helpers/FileHelper.hh"
-#include "common/StringConversion.hh"
-#include <XrdOuc/XrdOucString.hh>
+#include "console/ConsoleCli.hh"
+#include "console/commands/helpers/PathIdentifier.hh"
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
-#include <vector>
+#include <charconv>
+#include <cmath>
+#include <cstdint>
+#include <ctime>
+#include <limits>
+#include <map>
 
 namespace {
-//------------------------------------------------------------------------------
-//! Extract a file id given as "fid:<dec>" or "fxid:<hex>".
-//!
-//! Equivalent to ConsoleMain's Path2FileDenominator(), reproduced here so that
-//! this helper stays linkable outside the console (eos-grpc-ns links it
-//! without ConsoleMain)
-//!
-//! @param raw input, either a path or an id specifier
-//! @param id extracted id, only valid if the function returns true
-//!
-//! @return true if raw holds an id specifier, otherwise false
-//------------------------------------------------------------------------------
+using eos::console::IdentifierType;
+using eos::console::ParsePathIdentifier;
+
+template <typename Number>
 bool
-ExtractFileId(const std::string& raw, unsigned long long& id)
+ParseUnsigned(const std::string& text, Number& value, int base = 10)
 {
-  auto try_prefix = [&raw, &id](const std::string& prefix, int base) {
-    auto is_digit = [base](char c) {
-      const auto uc = static_cast<unsigned char>(c);
-      return (base == 16) ? (std::isxdigit(uc) != 0) : (std::isdigit(uc) != 0);
-    };
-
-    for (size_t pos = raw.find(prefix); pos != std::string::npos;
-         pos = raw.find(prefix, pos + 1)) {
-      size_t start = pos + prefix.size();
-      size_t end = start;
-
-      while ((end < raw.size()) && is_digit(raw[end])) {
-        ++end;
-      }
-
-      // At least one digit, and the run must reach the end of the string or
-      // of the line - this is what the trailing '$' anchors under REG_NEWLINE
-      if ((end == start) || ((end != raw.size()) && (raw[end] != '\n'))) {
-        continue;
-      }
-
-      id = strtoull(raw.substr(start, end - start).c_str(), nullptr, base);
-      return true;
-    }
-
-    return false;
-  };
-  // 'fxid:' is tried first, matching ConsoleMain's ordering
-  return try_prefix("fxid:", 16) || try_prefix("fid:", 10);
+  const auto parsed =
+      std::from_chars(text.data(), text.data() + text.size(), value, base);
+  return parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size();
 }
+
+CLI::Validator
+TargetValidator(bool info = false, bool pathOnly = false)
+{
+  return CLI::Validator(
+      [](const std::string& text) {
+        if (text.empty()) {
+          return std::string("target must not be empty");
+        }
+        const auto identifier = ParsePathIdentifier(text);
+        if (identifier.type == IdentifierType::Invalid) {
+          return std::string("malformed or out-of-range identifier");
+        }
+        return std::string{};
+      },
+      info       ? "PATH_OR_IDENTIFIER"
+      : pathOnly ? "PATH"
+                 : "PATH_OR_FILE_ID");
+}
+
+const CLI::Validator LocationSpec{
+    [](const std::string& text) {
+      const bool prefixed = !text.empty() && (text.front() == '+' ||
+                                              text.front() == '-' || text.front() == '~');
+      uint32_t fsid = 0;
+      return ParseUnsigned(text.substr(prefixed ? 1 : 0), fsid)
+                 ? std::string{}
+                 : std::string(
+                       "location must be a uint32 filesystem id prefixed by +, -, or ~");
+    },
+    "[+|-|~]FSID"};
+
+const CLI::Validator VersionName{
+    [](const std::string& value) {
+      return !value.empty() && value != "." && value != ".." &&
+                     value.find('/') == std::string::npos
+                 ? std::string{}
+                 : std::string("version name must be a non-empty basename");
+    },
+    "VERSION_NAME"};
+
+const CLI::Validator DecimalDuration{
+    [](const std::string& text) {
+      size_t offset = 0;
+      bool digits = false;
+      while (offset < text.size() && text[offset] >= '0' && text[offset] <= '9') {
+        ++offset;
+        digits = true;
+      }
+      if (offset < text.size() && text[offset] == '.') {
+        ++offset;
+        while (offset < text.size() && text[offset] >= '0' && text[offset] <= '9') {
+          ++offset;
+          digits = true;
+        }
+      }
+      while (offset < text.size() &&
+             std::isspace(static_cast<unsigned char>(text[offset]))) {
+        ++offset;
+      }
+      for (; offset < text.size(); ++offset) {
+        if (!std::isalpha(static_cast<unsigned char>(text[offset]))) {
+          return std::string(
+              "expected a non-negative decimal duration with an optional unit");
+        }
+      }
+      return digits ? std::string{}
+                    : std::string("duration must contain a decimal number");
+    },
+    "DECIMAL_DURATION"};
+
+struct FileOptions {
+  CLI::App app{"File handling", "file"};
+  std::map<std::string, CLI::App*> commands;
+  std::string source, destination, dropLocation, tagLocation, first, second;
+  std::string layoutChecksum, layoutType, grabVersion = "-1";
+  std::string conversionLayout, space, placement, checksum, workflow, event;
+  uint32_t fsid1 = 0, fsid2 = 0, stripes = 0, rate = 0, excludeFs = 0;
+  int32_t purgeVersion = -1, subgroup = -1;
+  double lifetime = 28 * 86400;
+  bool force = false, silent = false, clone = false, noLayout = false;
+  bool truncate = false, absorb = false, lock = false, unlock = false;
+  bool rewrite = false, createFolder = false, noDrop = false;
+  bool verifyChecksum = false, commitChecksum = false, commitSize = false;
+  bool commitFmd = false, resync = false;
+  bool infoPath = false, infoFid = false, infoFxid = false, infoSize = false;
+  bool infoChecksum = false, fullPath = false, proxy = false, monitoring = false;
+  bool env = false;
+
+  CLI::App*
+  Add(const std::string& name, const std::string& description, bool info = false,
+      bool pathOnly = false)
+  {
+    auto* command = app.add_subcommand(name, description);
+    commands.emplace(name, command);
+    command->add_option("source", source)
+        ->required()
+        ->check(TargetValidator(info, pathOnly));
+    return command;
+  }
+
+  FileOptions()
+  {
+    app.require_subcommand(1, 1);
+    auto* rename = Add("rename", "Rename a file or directory");
+    rename->add_option("new-path", destination)->required()->check(TargetValidator());
+    auto* renameLink = Add("rename_with_symlink",
+                           "Move a file and create a symlink at its original path");
+    renameLink->add_option("destination-dir", destination)
+        ->required()
+        ->check(TargetValidator());
+    auto* symlink = Add("symlink", "Create a symlink");
+    symlink->add_flag("-f", force, "Overwrite the destination");
+    symlink->add_option("target", destination)->required()->check(TargetValidator());
+    auto* drop = Add("drop", "Drop a disk replica or read-through cache location");
+    drop->add_option("location", dropLocation)
+        ->required()
+        ->check(CLI::Validator(
+            [](const std::string& value) {
+              uint32_t fsid = 0;
+              return value == "cache" || ParseUnsigned(value, fsid)
+                         ? std::string{}
+                         : std::string(
+                               "location must be a uint32 filesystem id or cache");
+            },
+            "FSID_OR_CACHE"));
+    drop->add_flag("-f", force, "Force replica removal");
+    auto* touch = Add("touch", "Create or touch a file, or manage an attribute lock");
+    touch->add_flag("-n", noLayout, "Disable placement logic");
+    touch->add_flag("-0", truncate, "Truncate the file");
+    touch->add_flag("-a", absorb, "Absorb a file from its hardlink path");
+    auto* lockFlag = touch->add_flag("-l", lock, "Create an attribute lock");
+    auto* unlockFlag = touch->add_flag("-u", unlock, "Remove an attribute lock");
+    lockFlag->excludes(unlockFlag);
+    auto* firstArgument = touch->add_option("size-or-link-or-lifetime", first)
+                              ->check(eos::console::NonEmptyArgument);
+    auto* secondArgument = touch->add_option("checksum-or-audience", second)
+                               ->check(eos::console::NonEmptyArgument)
+                               ->needs(firstArgument);
+    unlockFlag->excludes(firstArgument)->excludes(secondArgument);
+    for (const auto* name : {"move", "replicate"}) {
+      auto* transfer = Add(name, "Transfer a file replica between filesystems");
+      transfer->add_option("source-fsid", fsid1)
+          ->required()
+          ->transform(eos::console::DecimalNumber);
+      transfer->add_option("destination-fsid", fsid2)
+          ->required()
+          ->transform(eos::console::DecimalNumber);
+    }
+    auto* copy = Add("copy", "Copy a file or directory");
+    copy->add_flag("-f", force, "Overwrite the destination");
+    copy->add_flag("-s", silent, "Suppress copy output");
+    copy->add_flag("-c", clone, "Preserve ctime and mtime");
+    copy->add_option("destination", destination)->required()->check(TargetValidator());
+    for (const auto* name : {"purge", "version"}) {
+      auto* version = Add(name, "Manage file version retention", false, true);
+      auto* count = version->add_option("purge-version", purgeVersion)
+                        ->transform(eos::console::SignedDecimalNumber)
+                        ->check(CLI::Range(-1, std::numeric_limits<int32_t>::max()));
+      if (std::string(name) == "version") {
+        count->check(CLI::Validator(
+            [](const std::string& value) {
+              return value == "0" ? std::string("version count must be -1 or positive")
+                                  : std::string{};
+            },
+            "NONZERO"));
+        version
+            ->add_flag("--create-folder", createFolder,
+                       "Only create the version directory")
+            ->excludes(count);
+      }
+    }
+    auto* versions = Add("versions", "List versions or stage a version");
+    versions->add_option("grab-version", grabVersion)->check(VersionName);
+    auto* layout = Add("layout", "Change one layout property");
+    layout->allow_non_standard_option_names();
+    auto* layoutSelector =
+        layout->add_option_group("selector", "Choose exactly one layout property");
+    layoutSelector->allow_non_standard_option_names();
+    layoutSelector->require_option(1, 1);
+    layoutSelector->add_option("-stripes", stripes)
+        ->transform(eos::console::DecimalNumber)
+        ->check(CLI::Range(1, 255));
+    layoutSelector->add_option("-checksum", layoutChecksum)
+        ->check(eos::console::NonEmptyArgument);
+    layoutSelector->add_option("-type", layoutType)
+        ->check(CLI::Validator(
+            [](const std::string& text) {
+              const std::string value = text.substr(0, 2) == "0x" ? text.substr(2) : text;
+              uint32_t parsed = 0;
+              return ParseUnsigned(value, parsed, 16)
+                         ? std::string{}
+                         : std::string("layout type must be a hexadecimal uint32 value");
+            },
+            "HEX_LAYOUT"));
+    auto* tag = Add("tag", "Add, remove, or unlink a filesystem location");
+    tag->add_option("location", tagLocation)->required()->check(LocationSpec);
+    auto* convert = Add("convert", "Convert a file layout");
+    convert->add_option("layout", conversionLayout)
+        ->check(eos::console::NonEmptyArgument);
+    convert->add_option("target-space", space)->check(eos::console::NonEmptyArgument);
+    convert->add_option("placement-policy", placement)
+        ->check(eos::console::NonEmptyArgument);
+    convert->add_option("checksum", checksum)->check(eos::console::NonEmptyArgument);
+    convert->add_flag("--rewrite", rewrite, "Rewrite all replicas");
+    auto* verify = Add("verify", "Verify a file against its disk replicas");
+    verify->allow_non_standard_option_names();
+    verify->add_option("fsid", fsid1)->transform(eos::console::DecimalNumber);
+    verify->add_flag("-checksum", verifyChecksum);
+    verify->add_flag("-commitchecksum", commitChecksum);
+    verify->add_flag("-commitsize", commitSize);
+    verify->add_flag("-commitfmd", commitFmd);
+    verify->add_flag("-resync", resync);
+    verify->add_option("-rate", rate)->transform(eos::console::DecimalNumber);
+    auto* adjust = Add("adjustreplica", "Adjust the number of file replicas");
+    adjust->add_option("space", space)->check(eos::console::NonEmptyArgument);
+    adjust->add_option("subgroup", subgroup)
+        ->transform(eos::console::SignedDecimalNumber)
+        ->check(CLI::Range(-1, std::numeric_limits<int32_t>::max()));
+    adjust->add_flag("--nodrop", noDrop);
+    adjust->add_option("--exclude-fs", excludeFs)->transform(eos::console::DecimalNumber);
+    auto* share = Add("share", "Create a share link", false, true);
+    share
+        ->add_option("lifetime", lifetime,
+                     "Lifetime in seconds, s, min, h, d, w, mo, or y (default: 28d)")
+        ->transform(
+            CLI::AsNumberWithUnit(std::map<std::string, double>{{"s", 1},
+                                                                {"min", 60},
+                                                                {"h", 3600},
+                                                                {"d", 86400},
+                                                                {"w", 7 * 86400},
+                                                                {"mo", 31 * 86400},
+                                                                {"y", 365 * 86400}}))
+        ->transform(DecimalDuration)
+        ->check(
+            CLI::Range(0.0, static_cast<double>(std::numeric_limits<uint32_t>::max())));
+    auto* trigger = Add("workflow", "Trigger a workflow event");
+    trigger->add_option("workflow", workflow)
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    trigger->add_option("event", event)
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    auto* info = Add("info", "Show file, container, or inode information", true);
+    info->add_flag("-s,--silent", silent);
+    info->add_flag("--path", infoPath);
+    info->add_flag("--fid", infoFid);
+    info->add_flag("--fxid", infoFxid);
+    info->add_flag("--size", infoSize);
+    info->add_flag("--checksum", infoChecksum);
+    info->add_flag("--fullpath", fullPath);
+    info->add_flag("--proxy", proxy);
+    info->add_flag("-m", monitoring);
+    info->add_flag("--env", env);
+  }
+};
 } // namespace
 
-//------------------------------------------------------------------------------
-// Apply the path resolver, if any
-//------------------------------------------------------------------------------
 std::string
 FileHelper::AbsPath(const char* in) const
 {
   return mPathResolver ? mPathResolver(in) : std::string(in ? in : "");
 }
 
-//------------------------------------------------------------------------------
-// Detect whether token is a path/fid/fxid-style specifier (as opposed to a
-// flag like "-f")
-//------------------------------------------------------------------------------
-bool
-FileHelper::IsPathOrId(const std::string& s)
-{
-  return !s.empty() &&
-         (s[0] == '/' || s.find("fid:") == 0 || s.find("fxid:") == 0 ||
-          s.find("pid:") == 0 || s.find("pxid:") == 0 || s.find("inode:") == 0 ||
-          s.find("cid:") == 0 || s.find("cxid:") == 0 || s[0] != '-');
-}
-
-//------------------------------------------------------------------------------
-// Populate the shared eos::console::Metadata target (path or numeric file id)
-// from a raw token that may be a plain path, "fid:<dec>" or "fxid:<hex>".
-//------------------------------------------------------------------------------
 void
-FileHelper::SetPathOrId(eos::console::Metadata* md, const std::string& raw) const
+FileHelper::SetPathOrId(eos::console::Metadata* md, const std::string& raw, bool info,
+                        bool pathOnly) const
 {
-  unsigned long long id = 0ull;
-
-  if (ExtractFileId(raw, id)) {
-    md->set_id(id);
+  const auto identifier = ParsePathIdentifier(raw);
+  if (!pathOnly && (identifier.type == IdentifierType::File ||
+                    (info && identifier.type == IdentifierType::Container))) {
+    md->set_id(identifier.value);
+    md->set_type(identifier.type == IdentifierType::File ? eos::console::FILE
+                                                         : eos::console::CONTAINER);
+  } else if (info && identifier.type == IdentifierType::Inode) {
+    md->set_ino(identifier.value);
   } else {
     md->set_path(AbsPath(raw.c_str()));
   }
 }
 
-//------------------------------------------------------------------------------
-// Like SetPathOrId, but also understands the container/inode specifiers
-// accepted by 'file info': pid:<dec>, pxid:<hex> (container id) and
-// inode:<dec> (fuse inode)
-//------------------------------------------------------------------------------
-void
-FileHelper::SetInfoPathOrId(eos::console::Metadata* md, const std::string& raw) const
-{
-  if (raw.find("inode:") == 0) {
-    try {
-      md->set_ino(std::stoull(raw.substr(6)));
-      return;
-    } catch (const std::exception&) {
-      // fall through and treat as a path
-    }
-  }
-
-  if (raw.find("pid:") == 0 || raw.find("pxid:") == 0) {
-    bool isHex = (raw.find("pxid:") == 0);
-    std::string num = raw.substr(isHex ? 5 : 4);
-
-    try {
-      md->set_id(std::stoull(num, nullptr, isHex ? 16 : 10));
-      md->set_type(eos::console::CONTAINER);
-      return;
-    } catch (const std::exception&) {
-      // fall through and treat as a path
-    }
-  }
-
-  SetPathOrId(md, raw);
-}
-
-//------------------------------------------------------------------------------
-// Parse command line input
-//------------------------------------------------------------------------------
 bool
 FileHelper::ParseCommand(const char* arg)
 {
-  eos::console::FileProto* file = mReq.mutable_file();
-  static const char kBackslashSentinel = '\x01';
-  std::string sanitized = arg;
-  std::replace(sanitized.begin(), sanitized.end(), '\\', kBackslashSentinel);
-  std::vector<std::string> all_tokens;
-  eos::common::StringConversion::TokenizeQuoted(sanitized, all_tokens, " ");
-
-  for (auto& tok : all_tokens) {
-    std::replace(tok.begin(), tok.end(), kBackslashSentinel, '\\');
-  }
-
-  if (all_tokens.empty()) {
+  std::vector<std::string> args;
+  if (!eos::console::TokenizeArguments(arg, args)) {
+    mReq.clear_file();
+    mIsSilent = false;
     return false;
   }
+  return ParseArguments(args);
+}
 
-  const std::string& token = all_tokens[0];
-  std::vector<std::string> rest(all_tokens.begin() + 1, all_tokens.end());
-
-  if (token == "rename") {
-    if (rest.size() < 2) {
-      return false;
-    }
-    eos::console::FileRenameProto* rename = file->mutable_rename();
-    SetPathOrId(file->mutable_md(), rest[0]);
-    rename->set_new_path(AbsPath(rest[1].c_str()));
-  } else if (token == "rename_with_symlink") {
-    if (rest.size() < 2) {
-      return false;
-    }
-    eos::console::FileRenameWithSymlinkProto* rws = file->mutable_rename_with_symlink();
-    SetPathOrId(file->mutable_md(), rest[0]);
-    rws->set_destination_dir(AbsPath(rest[1].c_str()));
-  } else if (token == "symlink") {
-    std::vector<std::string> positionals;
-    bool force = false;
-
-    for (const auto& a : rest) {
-      if (a == "-f") {
-        force = true;
-      } else {
-        positionals.push_back(a);
+bool
+FileHelper::ParseArguments(const std::vector<std::string>& args)
+{
+  mReq.clear_file();
+  mIsSilent = false;
+  FileOptions options;
+  if (!eos::console::ParseCliArguments(options.app, args)) {
+    return false;
+  }
+  eos::console::FileProto file;
+  const std::string command = options.app.get_subcommands().front()->get_name();
+  SetPathOrId(command == "info" ? file.mutable_fileinfo()->mutable_md()
+                                : file.mutable_md(),
+              options.source, command == "info",
+              command == "purge" || command == "version" || command == "share");
+  if (command == "rename") {
+    file.mutable_rename()->set_new_path(AbsPath(options.destination.c_str()));
+  } else if (command == "rename_with_symlink") {
+    file.mutable_rename_with_symlink()->set_destination_dir(
+        AbsPath(options.destination.c_str()));
+  } else if (command == "symlink") {
+    auto* symlink = file.mutable_symlink();
+    symlink->set_target_path(options.destination);
+    symlink->set_force(options.force);
+  } else if (command == "drop") {
+    auto* drop = file.mutable_drop();
+    if (options.dropLocation == "cache") {
+      if (options.force) {
+        std::cerr << "error: force removal does not apply to cache locations\n";
+        return false;
       }
-    }
-
-    if (positionals.size() < 2) {
-      return false;
-    }
-
-    eos::console::FileSymlinkProto* symlink = file->mutable_symlink();
-    // positionals[0]=link (symlink name), positionals[1]=target
-    SetPathOrId(file->mutable_md(), positionals[0]);
-    symlink->set_target_path(positionals[1]);
-    symlink->set_force(force);
-  } else if (token == "drop") {
-    if (rest.size() < 2) {
-      return false;
-    }
-
-    eos::console::FileDropProto* drop = file->mutable_drop();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    if (rest[1] == "cache") {
       drop->set_dropcache(true);
     } else {
-      try {
-        drop->set_fsid(std::stoul(rest[1]));
-      } catch (...) {
-        return false;
-      }
-
-      if (rest.size() > 2 && rest[2] == "-f") {
-        drop->set_force(true);
-      }
+      uint32_t fsid = 0;
+      ParseUnsigned(options.dropLocation, fsid);
+      drop->set_fsid(fsid);
+      drop->set_force(options.force);
     }
-  } else if (token == "touch") {
-    eos::console::TouchProto* touch = file->mutable_touch();
-    std::string option;
-    size_t idx = 0;
-
-    for (; idx < rest.size(); ++idx) {
-      if (!rest[idx].empty() && rest[idx][0] == '-') {
-        std::string t = rest[idx];
-        t.erase(std::remove(t.begin(), t.end(), '-'), t.end());
-        option += t;
-      } else {
-        break;
-      }
-    }
-
-    if (idx >= rest.size()) {
-      return false;
-    }
-
-    SetPathOrId(file->mutable_md(), rest[idx]);
-    std::string fsid1 = (idx + 1 < rest.size()) ? rest[idx + 1] : "";
-    std::string fsid2 = (idx + 2 < rest.size()) ? rest[idx + 2] : "";
-
-    if (option.find('n') != std::string::npos) {
-      touch->set_nolayout(true);
-    }
-    if (option.find('0') != std::string::npos) {
-      touch->set_truncate(true);
-    }
-    if (option.find('a') != std::string::npos) {
-      touch->set_absorb(true);
-    }
-    if (option.find('l') != std::string::npos) {
+  } else if (command == "touch") {
+    auto* touch = file.mutable_touch();
+    touch->set_nolayout(options.noLayout);
+    touch->set_truncate(options.truncate);
+    touch->set_absorb(options.absorb);
+    if (options.lock) {
       touch->set_lockop("lock");
-      if (!fsid1.empty()) {
-        touch->set_lockop_lifetime(fsid1);
-        fsid1.clear();
-      }
-      if (!fsid2.empty()) {
-        if ((fsid2 != "app") && (fsid2 != "user")) {
+      if (!options.first.empty()) {
+        uint32_t lifetime = 0;
+        if (!ParseUnsigned(options.first, lifetime) ||
+            lifetime > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+          std::cerr
+              << "error: lock lifetime must be a non-negative int32 number of seconds\n";
           return false;
         }
-        if (fsid2 == "app") {
-          touch->set_wildcard("user");
-        } else {
-          touch->set_wildcard("app");
-        }
-        fsid2.clear();
+        touch->set_lockop_lifetime(options.first);
       }
-    }
-    if (option.find('u') != std::string::npos) {
+      if (!options.second.empty()) {
+        if (options.second != "app" && options.second != "user") {
+          std::cerr << "error: lock audience must be app or user\n";
+          return false;
+        }
+        touch->set_wildcard(options.second == "app" ? "user" : "app");
+      }
+    } else if (options.unlock) {
       touch->set_lockop("unlock");
-      fsid1.clear();
-      fsid2.clear();
-    }
-    if (!fsid1.empty()) {
-      if (fsid1[0] == '/') {
-        touch->set_hardlinkpath(fsid1);
-      } else {
-        try {
-          touch->set_size(std::stoull(fsid1));
-        } catch (const std::exception&) {
-          return false;
-        }
-      }
-    }
-    if (!fsid2.empty()) {
-      touch->set_checksuminfo(fsid2);
-    }
-  } else if (token == "move") {
-    if (rest.size() < 3) {
-      return false;
-    }
-
-    eos::console::FileMoveProto* move = file->mutable_move();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    try {
-      move->set_fsid1(std::stoul(rest[1]));
-      move->set_fsid2(std::stoul(rest[2]));
-    } catch (...) {
-      return false;
-    }
-  } else if (token == "copy") {
-    std::string option;
-    size_t idx = 0;
-
-    for (; idx < rest.size(); ++idx) {
-      if (!rest[idx].empty() && rest[idx][0] == '-') {
-        std::string t = rest[idx];
-        t.erase(std::remove(t.begin(), t.end(), '-'), t.end());
-        option += t;
-      } else {
-        break;
-      }
-    }
-
-    if (idx + 1 >= rest.size()) {
-      return false;
-    }
-
-    eos::console::FileCopyProto* copy = file->mutable_copy();
-    SetPathOrId(file->mutable_md(), rest[idx]);
-
-    if (!option.empty()) {
-      std::string checkoption = option;
-      checkoption.erase(std::remove(checkoption.begin(), checkoption.end(), 'f'),
-                        checkoption.end());
-      checkoption.erase(std::remove(checkoption.begin(), checkoption.end(), 's'),
-                        checkoption.end());
-      checkoption.erase(std::remove(checkoption.begin(), checkoption.end(), 'c'),
-                        checkoption.end());
-
-      if (!checkoption.empty()) {
-        return false;
-      }
-
-      if (option.find('f') != std::string::npos) {
-        copy->set_force(true);
-      }
-      if (option.find('s') != std::string::npos) {
-        copy->set_silent(true);
-      }
-      if (option.find('c') != std::string::npos) {
-        copy->set_clone(true);
-      }
-    }
-
-    copy->set_dst(AbsPath(rest[idx + 1].c_str()));
-  } else if (token == "replicate") {
-    if (rest.size() < 3) {
-      return false;
-    }
-
-    eos::console::FileReplicateProto* replicate = file->mutable_replicate();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    try {
-      replicate->set_fsid1(std::stoul(rest[1]));
-      replicate->set_fsid2(std::stoul(rest[2]));
-    } catch (...) {
-      return false;
-    }
-  } else if (token == "purge" || token == "version") {
-    bool create_folder = false;
-    std::vector<std::string> positionals;
-
-    for (const auto& a : rest) {
-      if ((token == "version") && (a == "--create-folder")) {
-        create_folder = true;
-      } else {
-        positionals.push_back(a);
-      }
-    }
-
-    if (positionals.empty()) {
-      return false;
-    }
-
-    int32_t purge_version = -1;
-
-    if (positionals.size() > 1) {
-      // --create-folder creates no version, hence there is nothing to purge
-      if (create_folder) {
-        return false;
-      }
-
-      try {
-        purge_version = std::stoi(positionals[1]);
-      } catch (...) {
-        return false;
-      }
-    }
-
-    file->mutable_md()->set_path(AbsPath(positionals[0].c_str()));
-
-    if (token == "purge") {
-      file->mutable_purge()->set_purge_version(purge_version);
     } else {
-      eos::console::FileVersionProto* version = file->mutable_version();
-      version->set_purge_version(purge_version);
-      version->set_create_folder(create_folder);
-    }
-  } else if (token == "versions") {
-    if (rest.empty()) {
-      return false;
-    }
-
-    eos::console::FileVersionsProto* versions = file->mutable_versions();
-    SetPathOrId(file->mutable_md(), rest[0]);
-    versions->set_grab_version(rest.size() > 1 ? rest[1] : "-1");
-  } else if (token == "layout") {
-    if (rest.size() < 2) {
-      return false;
-    }
-
-    eos::console::FileLayoutProto* layout = file->mutable_layout();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    if (rest[1] == "-stripes" && rest.size() > 2) {
-      try {
-        layout->set_stripes(std::stoul(rest[2]));
-      } catch (...) {
-        return false;
-      }
-    } else if (rest[1] == "-checksum" && rest.size() > 2) {
-      layout->set_checksum(rest[2]);
-    } else if (rest[1] == "-type" && rest.size() > 2) {
-      layout->set_type(rest[2]);
-    } else {
-      return false;
-    }
-  } else if (token == "tag") {
-    if (rest.size() < 2) {
-      return false;
-    }
-
-    eos::console::FileTagProto* tag = file->mutable_tag();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    // rest[1] format: +|-|~<fsid>
-    std::string spec = rest[1];
-
-    if (spec.empty()) {
-      return false;
-    }
-
-    char prefix = spec[0];
-    std::string fsid_str = spec.substr(1);
-
-    if (prefix == '+') {
-      tag->set_add(true);
-    } else if (prefix == '-') {
-      tag->set_remove(true);
-    } else if (prefix == '~') {
-      tag->set_unlink(true);
-    } else {
-      fsid_str = spec;
-    }
-
-    try {
-      tag->set_fsid(std::stoul(fsid_str));
-    } catch (...) {
-      return false;
-    }
-  } else if (token == "convert") {
-    bool rewrite = false;
-    std::vector<std::string> positionals;
-
-    for (const auto& a : rest) {
-      if (a == "--rewrite") {
-        rewrite = true;
-      } else if (a == "--sync") {
-        std::cerr << "error: --sync is currently not supported" << std::endl;
-        return false;
-      } else {
-        positionals.push_back(a);
-      }
-    }
-
-    if (positionals.empty()) {
-      return false;
-    }
-
-    eos::console::FileConvertProto* convert = file->mutable_convert();
-    SetPathOrId(file->mutable_md(), positionals[0]);
-
-    if (positionals.size() > 1) {
-      convert->set_layout(positionals[1]);
-    }
-    if (positionals.size() > 2) {
-      convert->set_target_space(positionals[2]);
-    }
-    if (positionals.size() > 3) {
-      convert->set_placement_policy(positionals[3]);
-    }
-    if (positionals.size() > 4) {
-      convert->set_checksum(positionals[4]);
-    }
-
-    convert->set_rewrite(rewrite);
-  } else if (token == "verify") {
-    std::string path;
-    std::string filter_fsid;
-    std::string rate_val;
-    eos::console::FileVerifyProto* verify = file->mutable_verify();
-
-    for (size_t i = 0; i < rest.size(); ++i) {
-      const std::string& opt = rest[i];
-
-      if (opt == "-checksum") {
-        verify->set_checksum(true);
-      } else if (opt == "-commitchecksum") {
-        verify->set_commitchecksum(true);
-      } else if (opt == "-commitsize") {
-        verify->set_commitsize(true);
-      } else if (opt == "-commitfmd") {
-        verify->set_commitfmd(true);
-      } else if (opt == "-rate") {
-        if (i + 1 < rest.size()) {
-          rate_val = rest[++i];
-
-          try {
-            verify->set_rate(std::stoul(rate_val));
-          } catch (...) {
+      if (!options.first.empty()) {
+        if (options.first.front() == '/') {
+          touch->set_hardlinkpath(options.first);
+        } else {
+          uint64_t size = 0;
+          if (!ParseUnsigned(options.first, size)) {
+            std::cerr << "error: touch size must be a uint64 number of bytes\n";
             return false;
           }
-        } else {
-          return false;
+          touch->set_size(size);
         }
-      } else if (opt == "-resync") {
-        verify->set_resync(true);
-      } else if (!path.empty() && !opt.empty() &&
-                 std::isdigit(static_cast<unsigned char>(opt[0]))) {
-        filter_fsid = opt;
-
-        try {
-          verify->set_fsid(std::stoul(filter_fsid));
-        } catch (...) {
-          return false;
-        }
-      } else if (IsPathOrId(opt)) {
-        if (path.empty()) {
-          path = opt;
-        } else {
-          return false;
-        }
-      } else {
+      }
+      if (!options.second.empty() &&
+          (options.second.size() > 64 || options.second.size() % 2 != 0 ||
+           !std::all_of(options.second.begin(), options.second.end(),
+                        [](unsigned char ch) { return std::isxdigit(ch) != 0; }))) {
+        std::cerr << "error: checksum must contain at most 64 hexadecimal digits in "
+                     "complete bytes\n";
         return false;
       }
+      touch->set_checksuminfo(options.second);
     }
-
-    if (path.empty()) {
+  } else if (command == "move") {
+    file.mutable_move()->set_fsid1(options.fsid1);
+    file.mutable_move()->set_fsid2(options.fsid2);
+  } else if (command == "replicate") {
+    file.mutable_replicate()->set_fsid1(options.fsid1);
+    file.mutable_replicate()->set_fsid2(options.fsid2);
+  } else if (command == "copy") {
+    auto* copy = file.mutable_copy();
+    copy->set_dst(AbsPath(options.destination.c_str()));
+    copy->set_force(options.force);
+    copy->set_silent(options.silent);
+    copy->set_clone(options.clone);
+  } else if (command == "purge") {
+    file.mutable_purge()->set_purge_version(options.purgeVersion);
+  } else if (command == "version") {
+    file.mutable_version()->set_purge_version(options.purgeVersion);
+    file.mutable_version()->set_create_folder(options.createFolder);
+  } else if (command == "versions") {
+    file.mutable_versions()->set_grab_version(options.grabVersion);
+  } else if (command == "layout") {
+    auto* layout = file.mutable_layout();
+    layout->set_stripes(options.stripes);
+    layout->set_checksum(options.layoutChecksum);
+    layout->set_type(options.layoutType);
+  } else if (command == "tag") {
+    auto* tag = file.mutable_tag();
+    const char prefix = options.tagLocation.front();
+    const bool prefixed = prefix == '+' || prefix == '-' || prefix == '~';
+    uint32_t fsid = 0;
+    ParseUnsigned(options.tagLocation.substr(prefixed ? 1 : 0), fsid);
+    tag->set_fsid(fsid);
+    tag->set_add(prefix == '+');
+    tag->set_remove(prefix == '-');
+    tag->set_unlink(prefix == '~');
+  } else if (command == "convert") {
+    auto* convert = file.mutable_convert();
+    convert->set_layout(options.conversionLayout);
+    convert->set_target_space(options.space);
+    convert->set_placement_policy(options.placement);
+    convert->set_checksum(options.checksum);
+    convert->set_rewrite(options.rewrite);
+  } else if (command == "verify") {
+    auto* verify = file.mutable_verify();
+    verify->set_fsid(options.fsid1);
+    verify->set_rate(options.rate);
+    verify->set_checksum(options.verifyChecksum);
+    verify->set_commitchecksum(options.commitChecksum);
+    verify->set_commitsize(options.commitSize);
+    verify->set_commitfmd(options.commitFmd);
+    verify->set_resync(options.resync);
+  } else if (command == "adjustreplica") {
+    auto* adjust = file.mutable_adjustreplica();
+    adjust->set_space(options.space);
+    adjust->set_nodrop(options.noDrop);
+    const auto* parsed = options.commands.at(command);
+    if (parsed->get_option("subgroup")->count()) {
+      adjust->set_subgroup(std::to_string(options.subgroup));
+    }
+    if (parsed->get_option("--exclude-fs")->count()) {
+      adjust->set_exclude_fs(std::to_string(options.excludeFs));
+    }
+  } else if (command == "share") {
+    const std::time_t now = std::time(nullptr);
+    if (now < 0 || !std::isfinite(options.lifetime) ||
+        options.lifetime > static_cast<double>(std::numeric_limits<uint32_t>::max()) -
+                               static_cast<double>(now)) {
+      std::cerr << "error: share expiration exceeds the uint32 epoch range\n";
       return false;
     }
-
-    SetPathOrId(file->mutable_md(), path);
-  } else if (token == "adjustreplica") {
-    if (rest.empty()) {
-      return false;
-    }
-
-    eos::console::FileAdjustreplicaProto* adjust = file->mutable_adjustreplica();
-    SetPathOrId(file->mutable_md(), rest[0]);
-
-    std::vector<std::string> args(rest.begin() + 1, rest.end());
-    int positional_index = 0;
-
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (args[i] == "--exclude-fs") {
-        if (i + 1 < args.size()) {
-          adjust->set_exclude_fs(args[i + 1]);
-          i++;
-        } else {
-          return false;
-        }
-      } else if (args[i] == "--nodrop") {
-        adjust->set_nodrop(true);
-      } else {
-        if (positional_index == 0) {
-          adjust->set_space(args[i]);
-          positional_index++;
-        } else if (positional_index == 1) {
-          adjust->set_subgroup(args[i]);
-          positional_index++;
-        } else {
-          return false;
-        }
-      }
-    }
-  } else if (token == "share") {
-    if (rest.empty()) {
-      return false;
-    }
-
-    eos::console::FileShareProto* share = file->mutable_share();
-    file->mutable_md()->set_path(AbsPath(rest[0].c_str()));
-    unsigned long long expires = (28ull * 86400ull);
-
-    if (rest.size() > 1) {
-      try {
-        expires = std::stoull(rest[1]);
-      } catch (...) {
-        return false;
-      }
-    }
-
-    share->set_expires(expires);
-  } else if (token == "workflow") {
-    if (rest.size() < 3) {
-      return false;
-    }
-
-    eos::console::FileWorkflowProto* workflow = file->mutable_workflow();
-    file->mutable_md()->set_path(AbsPath(rest[0].c_str()));
-    workflow->set_workflow(rest[1]);
-    workflow->set_event(rest[2]);
-  } else if (token == "info") {
-    eos::console::FileinfoProto* info = file->mutable_fileinfo();
-    std::string path;
-
-    for (const auto& arg : rest) {
-      if (IsPathOrId(arg)) {
-        if (!path.empty()) {
-          return false;
-        }
-
-        path = arg;
-      } else if (arg == "s" || arg == "-s" || arg == "--silent") {
-        mIsSilent = true;
-      } else if (arg == "--path") {
-        info->set_path(true);
-      } else if (arg == "--fid") {
-        info->set_fid(true);
-      } else if (arg == "--fxid") {
-        info->set_fxid(true);
-      } else if (arg == "--size") {
-        info->set_size(true);
-      } else if (arg == "--checksum") {
-        info->set_checksum(true);
-      } else if (arg == "--fullpath") {
-        info->set_fullpath(true);
-      } else if (arg == "--proxy") {
-        info->set_proxy(true);
-      } else if (arg == "-m") {
-        info->set_monitoring(true);
-      } else if (arg == "--env") {
-        info->set_env(true);
-      } else {
-        return false;
-      }
-    }
-
-    if (path.empty()) {
-      return false;
-    }
-
-    SetInfoPathOrId(info->mutable_md(), path);
-  } else {
-    return false;
+    file.mutable_share()->set_expires(static_cast<uint32_t>(now + options.lifetime));
+  } else if (command == "workflow") {
+    file.mutable_workflow()->set_workflow(options.workflow);
+    file.mutable_workflow()->set_event(options.event);
+  } else if (command == "info") {
+    auto* info = file.mutable_fileinfo();
+    mIsSilent = options.silent;
+    info->set_path(options.infoPath);
+    info->set_fid(options.infoFid);
+    info->set_fxid(options.infoFxid);
+    info->set_size(options.infoSize);
+    info->set_checksum(options.infoChecksum);
+    info->set_fullpath(options.fullPath);
+    info->set_proxy(options.proxy);
+    info->set_monitoring(options.monitoring);
+    info->set_env(options.env);
   }
-
+  *mReq.mutable_file() = std::move(file);
   return true;
 }
