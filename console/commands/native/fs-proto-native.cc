@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include <iomanip>
@@ -328,7 +329,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    eos::console::PrintLegacyHelp(helpText());
   }
 };
 } // namespace

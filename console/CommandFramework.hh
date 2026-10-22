@@ -44,6 +44,11 @@ public:
   virtual std::vector<std::string> complete(const std::vector<std::string>& args) const;
   virtual int run(const std::vector<std::string>& args, CommandContext& ctx) = 0;
   virtual void printHelp() const = 0;
+  virtual void
+  printHelp(const std::vector<std::string>&) const
+  {
+    printHelp();
+  }
 };
 
 class CommandRegistry {

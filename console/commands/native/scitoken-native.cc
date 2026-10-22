@@ -9,6 +9,7 @@
 #include "common/Mapping.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <json/json.h>
 #include <memory>
@@ -346,7 +347,7 @@ public:
         << "    eos scitoken create --issuer eos.cern.ch --keyid eos profile wlcg --claim sub=foo --claim scope=storage.read:/eos\n"
         << "    eos scitoken dump eyJhb ...\n"
         << "    eos scitoken create-keys --keyid eos > /etc/xrootd/eos.jwk\n";
-    fprintf(stderr, "%s", oss.str().c_str());
+    eos::console::PrintLegacyHelp(oss.str());
   }
 };
 } // namespace

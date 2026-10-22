@@ -1,7 +1,9 @@
 #pragma once
 
 #include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMetadata.hh"
+#include <map>
 
 namespace eos::console {
 
@@ -11,6 +13,8 @@ struct ConsoleOptions {
   bool help = false;
   bool version = false;
   bool status = false;
+  bool noPager = false;
+  ColorMode color = ColorMode::Auto;
   std::vector<std::string> role;
   std::string application;
   std::string endpoint;
@@ -60,6 +64,13 @@ ParseConsoleOptions(const std::vector<std::string>& arguments, ConsoleOptions& o
   app.add_flag("-h,--help", options.help);
   app.add_flag("-v,--version", options.version);
   app.add_flag("-s", options.status);
+  app.add_flag("--no-pager", options.noPager);
+  const std::map<std::string, ColorMode> colorModes{{"auto", ColorMode::Auto},
+                                                    {"always", ColorMode::Always},
+                                                    {"never", ColorMode::Never}};
+  app.add_option("--color", options.color, "Color policy: auto, always, never")
+      ->transform(CLI::IsMember(colorModes) & CLI::CheckedTransformer(colorModes))
+      ->take_last();
   app.add_option("-r,--role", options.role, "user role and group role")
       ->expected(2)
       ->allow_extra_args(false)

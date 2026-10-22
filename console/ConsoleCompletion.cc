@@ -122,8 +122,9 @@ filter_candidates(const std::vector<std::string>& candidates, const std::string&
 std::vector<std::string>
 global_option_candidates()
 {
-  return {"--app", "--batch", "--help", "--json", "--role", "--version", "-a",
-          "-b",    "-h",      "-j",     "-r",     "-s",     "-v"};
+  return {"--color", "--app",     "--batch",    "--help", "--json",
+          "--role",  "--version", "--no-pager", "-a",     "-b",
+          "-h",      "-j",        "-r",         "-s",     "-v"};
 }
 
 size_t
@@ -136,7 +137,7 @@ find_command_token_index(const std::vector<std::string>& tokens)
       continue;
     }
 
-    if (token == "-a" || token == "--app") {
+    if (token == "-a" || token == "--app" || token == "--color") {
       ++i;
       continue;
     }
@@ -449,14 +450,21 @@ completion_candidates(const std::vector<std::string>& precedingTokens,
       // A global option value is pending; it is not a command position.
       for (size_t i = 0; i < precedingTokens.size(); ++i) {
         const auto& token = precedingTokens[i];
-        const size_t required = token == "-r" || token == "--role"  ? 2
-                                : token == "-a" || token == "--app" ? 1
-                                                                    : 0;
+        const size_t required = token == "-r" || token == "--role" ? 2
+                                : token == "-a" || token == "--app" || token == "--color"
+                                    ? 1
+                                    : 0;
         if (required && i + required >= precedingTokens.size()) {
-          return {};
+          return token == "--color"
+                     ? filter_candidates({"auto", "always", "never"}, currentWord)
+                     : std::vector<std::string>{};
         }
         i += required;
       }
+    }
+    if (starts_with(currentWord, "--color=")) {
+      return filter_candidates({"--color=auto", "--color=always", "--color=never"},
+                               currentWord);
     }
     std::vector<std::string> candidates = global_option_candidates();
     for (const auto* command : CommandRegistry::instance().all()) {

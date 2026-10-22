@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <algorithm>
 #include <memory>
@@ -32,31 +34,56 @@ public:
   {
     if (args.empty()) {
       auto& all = CommandRegistry::instance().all();
-      fprintf(stderr, "Available commands:\n");
       // Make a copy and sort by command name
       std::vector<IConsoleCommand*> sorted(all.begin(), all.end());
       std::sort(sorted.begin(), sorted.end(),
                 [](const IConsoleCommand* a, const IConsoleCommand* b) {
                   return std::string(a->name()) < std::string(b->name());
                 });
+      if (eos::console::HelpWidth(STDERR_FILENO)) {
+        eos::console::HelpPage page;
+        page.blocks.push_back(
+            {eos::console::HelpBlockKind::Section, "Available commands:", {}});
+        for (const auto* command : sorted) {
+          page.blocks.push_back({eos::console::HelpBlockKind::Definition,
+                                 eos::console::HelpCommandText(command->name()),
+                                 command->description()});
+        }
+        eos::console::PrintHelpPage(page);
+        return 0;
+      }
+      fprintf(stderr, "%s\n",
+              eos::console::Colorize(
+                  "Available commands:", eos::console::TextStyle::Heading, STDERR_FILENO)
+                  .c_str());
       for (auto* c : sorted) {
-        fprintf(stderr, "  %-16s %s\n", c->name(), c->description());
+        const std::string name = c->name();
+        fprintf(
+            stderr, "  %s%s %s\n",
+            eos::console::Colorize(name, eos::console::TextStyle::Command, STDERR_FILENO)
+                .c_str(),
+            std::string(name.size() < 16 ? 16 - name.size() : 0, ' ').c_str(),
+            c->description());
       }
       return 0;
     }
     // Print detailed help for a specific command
     IConsoleCommand* cmd = CommandRegistry::instance().find(args[0].c_str());
     if (!cmd) {
-      fprintf(stderr, "error: unknown command '%s'\n", args[0].c_str());
+      fprintf(
+          stderr, "%s unknown command '%s'\n",
+          eos::console::Colorize("error:", eos::console::TextStyle::Error, STDERR_FILENO)
+              .c_str(),
+          args[0].c_str());
       return (global_retc = EINVAL);
     }
-    cmd->printHelp();
+    cmd->printHelp(std::vector<std::string>(args.begin() + 1, args.end()));
     return 0;
   }
   void
   printHelp() const override
   {
-    fprintf(stderr, "usage: help [command]\n");
+    eos::console::PrintLegacyHelp("usage: help [command]\n");
   }
 };
 
@@ -89,9 +116,10 @@ public:
     case JSON:
       ::json = (!::json);
       gGlobalOpts.mJsonFormat = ::json;
+      eos::console::SetJsonColorOutput(::json);
+      eos::console::SetJsonHelpOutput(::json);
       if (::json) {
         ::interactive = false;
-        ::global_highlighting = false;
       }
       if (!::silent) {
         fprintf(stderr, "json=%d\n", ::json);

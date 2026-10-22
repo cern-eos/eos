@@ -4,9 +4,10 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -174,7 +175,7 @@ public:
   {
     CLI::App app;
     ConfigureInspectorApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace

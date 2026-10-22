@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -147,7 +148,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMapHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeMapHelp());
   }
 };
 } // namespace

@@ -46,7 +46,6 @@ extern XrdOucString global_comment;
 extern XrdOucString pwdfile;
 extern void exit_handler(int a);
 extern int global_retc;
-extern bool global_highlighting;
 extern bool global_debug;
 extern bool interactive;
 extern bool hasterminal;

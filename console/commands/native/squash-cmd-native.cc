@@ -21,23 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "console/CommandFramework.hh"
-#include "console/ConsoleMain.hh"
-#include "common/StringTokenizer.hh"
-#include "common/StringConversion.hh"
 #include "common/Path.hh"
+#include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
+#include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucString.hh>
-#include <pwd.h>
-#include <thread>
 #include <chrono>
+#include <cstring>
 #include <memory>
+#include <pwd.h>
 #include <sstream>
 #include <string>
-#include <vector>
-#include <cstring>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 
 /*----------------------------------------------------------------------------*/
 
@@ -79,7 +80,7 @@ std::string MakeSquashHelp()
 
 static void squash_usage()
 {
-  std::cerr << MakeSquashHelp();
+  eos::console::PrintLegacyHelp(MakeSquashHelp());
   global_retc = EINVAL;
 }
 
@@ -835,7 +836,7 @@ public:
   void
   printHelp() const override
   {
-    std::cerr << MakeSquashHelp();
+    eos::console::PrintLegacyHelp(MakeSquashHelp());
   }
 };
 

@@ -5,6 +5,7 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
@@ -14,8 +15,8 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <sys/stat.h>
+#include <vector>
 
 static void
 EnsureRegistryInitialized()
@@ -637,7 +638,7 @@ native_com_old_find(char* arg1)
   }
   return 0;
 com_find_usage:
-  fprintf(stderr, "%s", MakeOldfindHelp().c_str());
+  eos::console::PrintLegacyHelp(MakeOldfindHelp());
   global_retc = EINVAL;
   return 0;
 }
@@ -675,7 +676,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeOldfindHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeOldfindHelp());
   }
 };
 } // namespace

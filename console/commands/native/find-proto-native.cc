@@ -3,9 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
 #include "console/commands/helpers/NewfindHelper.hh"
+#include <CLI/CLI.hpp>
 #include <algorithm>
 #include <iomanip>
 #include <memory>
@@ -171,7 +172,7 @@ public:
   {
     CLI::App app;
     ConfigureFindApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 

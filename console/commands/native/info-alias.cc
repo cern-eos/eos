@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include <memory>
 #include <vector>
 
@@ -30,7 +31,8 @@ public:
     return fileCmd->run(forwarded, ctx);
   }
   void printHelp() const override {
-    fprintf(stderr, "Usage: info <path> [options] (alias for 'file info')\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: info <path> [options] (alias for 'file info')\n");
   }
 };
 } // namespace

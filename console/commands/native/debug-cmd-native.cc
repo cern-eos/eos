@@ -4,6 +4,7 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -172,7 +173,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeDebugHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeDebugHelp());
   }
 };
 } // namespace

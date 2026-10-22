@@ -26,6 +26,7 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/native/CpOptions.hh"
 #include <CLI/CLI.hpp>
@@ -133,7 +134,7 @@ bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
   try {
     app.parse(cli_args);
   } catch (const CLI::ParseError& e) {
-    std::cerr << MakeCpHelp();
+    eos::console::PrintLegacyHelp(MakeCpHelp());
     return false;
   }
 
@@ -172,7 +173,7 @@ std::vector<std::string> TokenizeCpArgs(const char* argin)
 
 static int com_cp_usage()
 {
-  std::cerr << MakeCpHelp();
+  eos::console::PrintLegacyHelp(MakeCpHelp());
   return EINVAL;
 }
 
@@ -1734,7 +1735,7 @@ public:
   void
   printHelp() const override
   {
-    std::cerr << MakeCpHelp();
+    eos::console::PrintLegacyHelp(MakeCpHelp());
   }
 };
 } // namespace
