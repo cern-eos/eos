@@ -71,15 +71,55 @@ if 'python3' in command:
     sys.stdin.read()
     event('preflight', pod)
     finish('storage ready', 1 if scenario == 'preflight-failure' else 0)
+if 'mgm-ha-hook-install' in command:
+    event('hook-install')
+    if scenario == 'existing-hook':
+        finish('refusing to replace an existing post-promotion hook', 1)
+    state['hook_installed'] = True
+    state['hook_index'] = 0 if pod == 'eos-mgm1-pod' else 1
+    state['hook_dir'] = command[-2]
+    state['hook_records'] = []
+    finish()
+if 'mgm-ha-hook-restore' in command:
+    event('hook-restore')
+    state['hook_installed'] = False
+    finish()
+if 'mgm-ha-hook-remove' in command:
+    event('hook-remove')
+    state['hook_dir'] = ''
+    finish()
 if 'find_mgm()' in ' '.join(command):
     action = command[-1]
     index = 0 if pod == 'eos-mgm1-pod' else 1
     event(action, index)
+    was_running = state['running'][index]
+    if (scenario == 'hook-stop-failure' and action in ('stop', 'stop-if-running') and
+            state['hook_loaded'][index]):
+        finish('MGM could not be stopped', 1)
     state['running'][index] = action == 'start'
-    if action == 'stop':
-        state['leader'] = 1 - index
+    if action in ('stop', 'stop-if-running'):
+        state['hook_loaded'][index] = False
+    elif not was_running:
+        state['hook_loaded'][index] = state['hook_installed'] and state['hook_index'] == index
+    if action in ('stop', 'stop-if-running') and state['leader'] == index:
+        state['leader'] = 1 - index if state['running'][1 - index] else None
+    if action == 'start' and (state['leader'] is None or not state['running'][state['leader']]):
+        state['leader'] = index
+        if state['hook_installed'] and state['hook_index'] == index:
+            event('boot-hook', index)
+            identity = host(1 - index if scenario == 'boot-hook-wrong-identity' else index) + ':1094'
+            record = '\t' + identity
+            if scenario != 'boot-hook-missing':
+                state['hook_records'].append(record)
+            if scenario == 'boot-hook-duplicate':
+                state['hook_records'].append(record)
+    if scenario == 'boot-hook-start-after-spawn' and action == 'start' and state['hook_loaded'][index]:
+        finish('MGM start failed after spawning xrootd', 1)
     finish()
 command = command[command.index('mgm-ha') + 1:]
+if command[0] == 'cat' and command[1].endswith('/invocations'):
+    event('hook-read')
+    finish('\n'.join(state['hook_records']))
 if command[0] == 'hostname':
     finish(host(0 if pod == 'eos-mgm1-pod' else 1))
 if command[0] == 'getent':
@@ -190,10 +230,12 @@ class BootstrapReadinessTest(unittest.TestCase):
 
     def run_scenario(self, scenario):
         self.state.write_text(json.dumps(dict(leader=0, running=[True, True],
-                                             alias=None, run_id="", uploads={}, removed=[])))
+                                             alias=None, run_id="", uploads={}, removed=[],
+                                             hook_installed=False, hook_index=None,
+                                             hook_dir="", hook_records=[], hook_loaded=[False, False])))
         self.events_file.unlink(missing_ok=True)
         if scenario in ("persistent", "metadata-prefix", "metadata-suffix",
-                        "missing-later-payload"):
+                        "missing-later-payload") or scenario.startswith("boot-hook-"):
             # Shorten only the copied harness script; production keeps its 180s deadline.
             script = self.ci / "test_mgm_ha.sh"
             script.write_text(script.read_text().replace("phase_timeout=180", "phase_timeout=2"))
@@ -203,6 +245,7 @@ class BootstrapReadinessTest(unittest.TestCase):
                                 capture_output=True, text=True, timeout=25)
         self.elapsed = time.monotonic() - start
         self.events = [json.loads(line) for line in self.events_file.read_text().splitlines()]
+        self.cluster = json.loads(self.state.read_text())
         return result
 
     def uploads(self, phase):
@@ -302,6 +345,57 @@ class BootstrapReadinessTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.uploads("initial"), [])
         self.assert_cleanup_without_failover()
+
+    def test_boot_master_hook_runs_once_and_restores_the_fixture(self):
+        result = self.run_scenario("success")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.events.count(["boot-hook", 0]), 1)
+        self.assertIn(["hook-read"], self.events)
+        self.assertIn(["hook-restore"], self.events)
+        self.assertIn(["hook-remove"], self.events)
+        self.assertEqual(self.cluster["running"], [True, True])
+        self.assertFalse(self.cluster["hook_installed"])
+        self.assertEqual(self.cluster["hook_dir"], "")
+
+    def test_bad_boot_hook_records_fail_and_restore_both_mgms(self):
+        for scenario in ("boot-hook-missing", "boot-hook-duplicate", "boot-hook-wrong-identity"):
+            with self.subTest(scenario=scenario):
+                result = self.run_scenario(scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('boot post-promotion hook completes exactly once timed out', result.stderr)
+                self.assertIn(["hook-restore"], self.events)
+                self.assertIn(["hook-remove"], self.events)
+                self.assertEqual(self.cluster["running"], [True, True])
+                self.assertFalse(self.cluster["hook_installed"])
+                self.assertEqual(self.cluster["hook_dir"], "")
+
+    def test_existing_post_hook_is_not_replaced(self):
+        result = self.run_scenario("existing-hook")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('refusing to replace an existing post-promotion hook', result.stderr)
+        self.assertEqual(sum(event[0] == "stop" for event in self.events), 2)
+        self.assertEqual(self.cluster["running"], [True, True])
+
+    def test_failed_start_after_spawn_is_stopped_before_hook_files_are_removed(self):
+        result = self.run_scenario("boot-hook-start-after-spawn")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('MGM start failed after spawning xrootd', result.stderr)
+        stopped = self.events.index(["stop-if-running", 0])
+        self.assertLess(stopped, self.events.index(["hook-remove"]))
+        self.assertEqual(self.cluster["running"], [True, True])
+        self.assertEqual(self.cluster["hook_loaded"], [False, False])
+        self.assertEqual(self.cluster["hook_dir"], "")
+
+    def test_failed_stop_retains_files_for_the_process_still_using_the_hook(self):
+        result = self.run_scenario("hook-stop-failure")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('retaining its owned files', result.stdout)
+        self.assertIn(["stop-if-running", 0], self.events)
+        self.assertNotIn(["hook-remove"], self.events)
+        self.assertEqual(self.cluster["running"], [True, True])
+        self.assertEqual(self.cluster["hook_loaded"], [True, False])
+        self.assertFalse(self.cluster["hook_installed"])
+        self.assertNotEqual(self.cluster["hook_dir"], "")
 
 
 if __name__ == "__main__":

@@ -42,6 +42,10 @@ mgm_hosts=()
 mgm_ips=()
 fst_pods=()
 stopped=(false false)
+hook_index=-1
+hook_dir=''
+hook_configured=false
+hook_loaded=false
 storage_check="$(dirname -- "${BASH_SOURCE[0]}")/check_mgm_ha_storage.py"
 
 # Both kubectl and its command inside the pod have deadlines. A lost MGM must
@@ -303,7 +307,8 @@ mgm_control() {
       done
     }
     mapfile -t pids < <(find_mgm)
-    if [[ $1 == stop ]]; then
+    if [[ $1 == stop || $1 == stop-if-running ]]; then
+      [[ $1 == stop-if-running && ${#pids[@]} == 0 ]] && exit 0
       [[ ${#pids[@]} == 1 ]] || { echo "expected exactly one MGM xrootd PID" >&2; exit 1; }
       kill -KILL "${pids[0]}"
       for ((attempt=0; attempt<10; attempt++)); do
@@ -333,6 +338,67 @@ start_mgm() {
   mgm_control "$index" start || return $?
   stopped[index]=false
 }
+install_boot_hook() {
+  hook_index=$1
+  hook_dir="/tmp/eos-mgm-ha-hook-${run_id}"
+  hook_configured=true
+  # shellcheck disable=SC2016 # Install literal hook arguments inside the pod.
+  pod_command "${mgm_pods[hook_index]}" bash -lc '
+    set -eu
+    directory=$1 owner=$2
+    [[ ! -e $directory ]] || { echo "hook directory already exists" >&2; exit 1; }
+    if grep -Eq "^[[:space:]]*mgmofs[.]postslavetomaster([[:space:]]|$)" /etc/xrd.cf.mgm; then
+      echo "refusing to replace an existing post-promotion hook" >&2
+      exit 1
+    fi
+    mkdir -m 0755 "$directory"
+    printf "%s\n" "$owner" > "$directory/owner"
+    printf "%s\n" "#!/bin/bash" "set -eu" \
+      "printf \"%s\\t%s\\n\" \"\$1\" \"\$2\" >> \"$directory/invocations\"" > "$directory/hook"
+    chmod 0755 "$directory/hook"
+    touch "$directory/invocations"
+    chown daemon:daemon "$directory/invocations"
+    chmod 0600 "$directory/invocations"
+    printf "\nmgmofs.postslavetomaster %s/hook\n" "$directory" >> /etc/xrd.cf.mgm
+  ' mgm-ha-hook-install "$hook_dir" "$run_id"
+}
+check_boot_hook() {
+  local output
+  if ! output=$(pod_command "${mgm_pods[hook_index]}" cat "$hook_dir/invocations" 2>&1); then
+    last_error="could not read the boot post-promotion hook record: $output"
+    return 1
+  fi
+  # A fresh process starts with no remembered master identity. Require one
+  # invocation with both arguments, not merely a file created during startup.
+  [[ $output == $'\t'"${mgm_hosts[hook_index]}:1094" ]] || {
+    last_error="boot post-promotion hook must run exactly once with the new master identity; got [$output]"
+    return 1
+  }
+}
+restore_hook_config() {
+  # Remove only our exact directive, retaining any other configuration changes.
+  # shellcheck disable=SC2016 # Ownership checks run inside the pod.
+  pod_command "${mgm_pods[hook_index]}" bash -lc '
+    set -eu
+    directory=$1 owner=$2
+    [[ -e $directory ]] || exit 0
+    [[ $(cat "$directory/owner") == "$owner" ]] || exit 1
+    awk -v owned="mgmofs.postslavetomaster $directory/hook" \
+      "\$0 != owned" /etc/xrd.cf.mgm > "$directory/config-restored"
+    cat "$directory/config-restored" > /etc/xrd.cf.mgm
+  ' mgm-ha-hook-restore "$hook_dir" "$run_id" || return $?
+  hook_configured=false
+}
+remove_hook_files() {
+  # shellcheck disable=SC2016 # Only delete this run's owned temporary files.
+  pod_command "${mgm_pods[hook_index]}" bash -lc '
+    set -eu
+    [[ -e $1 ]] || exit 0
+    [[ $(cat "$1/owner") == "$2" ]] || exit 1
+    rm -rf -- "$1"
+  ' mgm-ha-hook-remove "$hook_dir" "$run_id" || return $?
+  hook_dir=''
+}
 diagnostics() {
   log 'Failure diagnostics'
   k8s_cmd get pods,services,endpoints -o wide || true
@@ -360,6 +426,24 @@ cleanup() {
   trap - EXIT
   set +e
   (( rc == 0 )) || diagnostics
+  if [[ $hook_configured == true ]] && ! restore_hook_config; then
+    log 'ERROR: could not restore the post-promotion hook configuration'
+    cleanup_failed=true
+  fi
+  if [[ -n $hook_dir && $hook_configured == false ]]; then
+    if [[ $hook_loaded == true ]]; then
+      # A failed start may still have spawned xrootd; the bookkeeping flag is
+      # insufficient proof that the process no longer has our hook loaded.
+      stopped[hook_index]=true
+      if mgm_control "$hook_index" stop-if-running; then
+        hook_loaded=false
+      else
+        log 'ERROR: could not stop the MGM with the temporary hook; retaining its owned files'
+        cleanup_failed=true
+      fi
+    fi
+    if [[ $hook_loaded == false ]] && ! remove_hook_files; then cleanup_failed=true; fi
+  fi
   for index in 0 1; do
     if [[ ${stopped[index]} == true ]]; then
       if ! start_mgm "$index"; then
@@ -472,5 +556,28 @@ start_mgm "$other"
 wait_for 'both MGMs are healthy with exactly one original leader' check_pair "$original_leader"
 wait_for 'shared metadata visible on the final follower' visible_from "$other"
 check_follower_writes "$other" reverse-rejoin
+
+# Keep the peer stopped so this process must acquire leadership during its
+# initial boot, rather than exercising another runtime follower promotion.
+install_boot_hook "$original_leader"
+stop_mgm "$other"
+stop_mgm "$original_leader"
+hook_loaded=true
+start_mgm "$original_leader"
+wait_for 'the sole restarted MGM boots as master and accepts writes' \
+  check_active "$original_leader" boot
+wait_for 'the boot post-promotion hook completes exactly once' check_boot_hook
+
+# Restore the original configuration in memory as well as on disk before the
+# peer rejoins. The EXIT trap repeats recovery if any preceding step fails.
+restore_hook_config
+stop_mgm "$original_leader"
+remove_hook_files
+start_mgm "$original_leader"
+hook_loaded=false
+wait_for 'the original leader boots with its original hook configuration' \
+  check_active "$original_leader" restored
+start_mgm "$other"
+wait_for 'both MGMs are healthy after the boot-promotion regression' check_pair "$original_leader"
 verify_data
-log 'PASS: local leadership, DNS alias, writes, and payloads survived both hard failovers'
+log 'PASS: local leadership, DNS alias, writes, payloads, and boot post-promotion hook survived failover'
