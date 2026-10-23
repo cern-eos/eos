@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 CERN/Switzerland. GPL-3.0-or-later.
-"""Run the HA script against a fake cluster to check initial upload readiness."""
+"""Run the HA script against a fake cluster to check storage readiness and cleanup."""
 
 import json
 import os
@@ -37,6 +37,9 @@ def finish(output='', status=0):
 def host(index):
     name = f'eos-mgm{index + 1}'
     return f'{name}.{name}.{namespace}.svc.cluster.local'
+
+def post_boot():
+    return state['hook_index'] is not None and not state['hook_dir']
 
 if args[:2] == ['get', 'namespace']:
     finish('true')
@@ -142,6 +145,11 @@ if command[0] == 'eos':
         event('metadata-visible', command[position])
         value = state['run_id']
         alias_url = f'root://eos-mgm.{namespace}.svc.cluster.local:1094'
+        if post_boot():
+            if scenario == 'post-boot-metadata-error':
+                finish('metadata read failed', 17)
+            if scenario == 'post-boot-metadata-mismatch':
+                value += '-corrupted'
         if scenario in ('metadata-prefix', 'metadata-suffix') or (
                 scenario in ('alias-metadata-prefix', 'alias-metadata-suffix') and
                 command[position] == alias_url):
@@ -170,11 +178,40 @@ if command[0] == 'mktemp':
     finish('/tmp/eos-mgm-ha.abcdefgh')
 if command[0] == 'sha256sum':
     event('checksum', 'download' if command[1].endswith('/download') else 'source')
-    digest = 'b' * 64 if scenario == 'checksum-failure' and command[1].endswith('/download') else 'a' * 64
+    download = command[1].endswith('/download')
+    if download and post_boot() and scenario == 'post-boot-checksum-command-error':
+        finish('a' * 64 + '  ' + command[1], 19)
+    bad_digest = download and (scenario == 'checksum-failure' or
+                              post_boot() and scenario == 'post-boot-checksum-mismatch')
+    digest = 'b' * 64 if bad_digest else 'a' * 64
     finish(digest + '  ' + command[1])
 if command[0] == 'xrdcp':
     if command[-2].startswith('root://'):
-        event('download', command[-2].rsplit('/', 1)[1])
+        filename = command[-2].rsplit('/', 1)[1]
+        event('download', filename)
+        unavailable = '[3014] Unable to open file /mock/payload; Network is unreachable'
+        if post_boot():
+            attempt = state['downloads'].get(filename, 0) + 1
+            state['downloads'][filename] = attempt
+            event('post-boot-download', filename, attempt)
+            if (scenario == 'post-boot-transient' and filename == 'payload-initial' and attempt <= 2 or
+                    scenario == 'post-boot-persistent'):
+                finish(unavailable, 54)
+            errors = {
+                'post-boot-wrong-status': (unavailable, 13),
+                'post-boot-wrong-code': (unavailable.replace('[3014]', '[3011]'), 54),
+                'post-boot-missing-code': (unavailable.replace('[3014] ', ''), 54),
+                'post-boot-missing-open': (unavailable.replace('Unable to open file ', ''), 54),
+                'post-boot-wrong-message': (unavailable.replace('Network is unreachable', 'No servers available'), 54),
+                'post-boot-enoent': ('[3011] Unable to open file; No such file or directory', 54),
+                'post-boot-denied': ('[3014] Unable to open file; Permission denied', 54),
+                'post-boot-timeout': (unavailable, 137),
+            }
+            if scenario in errors:
+                finish(*errors[scenario])
+        elif (scenario == 'initial-read-unavailable' or
+              scenario == 'runtime-read-unavailable' and not all(state['running'])):
+            finish(unavailable, 54)
         finish()
     phase = command[-1].rsplit('payload-', 1)[1]
     attempt = state['uploads'].get(phase, 0) + 1
@@ -230,11 +267,11 @@ class BootstrapReadinessTest(unittest.TestCase):
 
     def run_scenario(self, scenario):
         self.state.write_text(json.dumps(dict(leader=0, running=[True, True],
-                                             alias=None, run_id="", uploads={}, removed=[],
+                                             alias=None, run_id="", uploads={}, downloads={}, removed=[],
                                              hook_installed=False, hook_index=None,
                                              hook_dir="", hook_records=[], hook_loaded=[False, False])))
         self.events_file.unlink(missing_ok=True)
-        if scenario in ("persistent", "metadata-prefix", "metadata-suffix",
+        if scenario in ("persistent", "post-boot-persistent", "metadata-prefix", "metadata-suffix",
                         "missing-later-payload") or scenario.startswith("boot-hook-"):
             # Shorten only the copied harness script; production keeps its 180s deadline.
             script = self.ci / "test_mgm_ha.sh"
@@ -250,6 +287,20 @@ class BootstrapReadinessTest(unittest.TestCase):
 
     def uploads(self, phase):
         return [event for event in self.events if event[:2] == ["upload", phase]]
+
+    def post_boot_downloads(self, filename=None):
+        return [event for event in self.events if event[0] == "post-boot-download" and
+                (filename is None or event[1] == filename)]
+
+    def assert_boot_fixture_restored(self):
+        self.assertEqual(self.events.count(["boot-hook", 0]), 1)
+        self.assertIn(["hook-restore"], self.events)
+        self.assertIn(["hook-remove"], self.events)
+        self.assertEqual(self.cluster["running"], [True, True])
+        self.assertFalse(self.cluster["hook_installed"])
+        self.assertEqual(self.cluster["hook_dir"], "")
+        for name in ("cleanup-path", "cleanup-temp", "cleanup-alias"):
+            self.assertIn([name], self.events)
 
     def assert_cleanup_without_failover(self):
         self.assertFalse(any(event[0] == "stop" for event in self.events))
@@ -396,6 +447,77 @@ class BootstrapReadinessTest(unittest.TestCase):
         self.assertEqual(self.cluster["hook_loaded"], [True, False])
         self.assertFalse(self.cluster["hook_installed"])
         self.assertNotEqual(self.cluster["hook_dir"], "")
+
+    def test_post_boot_replica_unavailability_is_retried_then_all_payloads_are_hashed(self):
+        result = self.run_scenario("post-boot-transient")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(self.post_boot_downloads("payload-initial")), 3)
+        for filename in ("payload-first", "payload-reverse"):
+            self.assertEqual(len(self.post_boot_downloads(filename)), 1)
+        final_reads = next(i for i, event in enumerate(self.events)
+                           if event[0] == "post-boot-download")
+        self.assertEqual(self.events[final_reads:].count(["checksum", "download"]), 3)
+        self.assertEqual([len(self.uploads(phase)) for phase in ("initial", "first", "reverse")],
+                         [1, 1, 1])
+        self.assertIn('Ready: post-boot payload replicas are readable', result.stdout)
+        self.assert_boot_fixture_restored()
+
+    def test_persistent_post_boot_replica_unavailability_is_bounded_and_cleans_up(self):
+        result = self.run_scenario("post-boot-persistent")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('post-boot payload replicas are readable with matching checksums timed out',
+                      result.stderr)
+        self.assertGreaterEqual(len(self.post_boot_downloads()), 1)
+        self.assertLessEqual(len(self.post_boot_downloads()), 2)
+        self.assertIn('rc=54', result.stderr)
+        self.assertIn('[3014]', result.stderr)
+        self.assertLess(self.elapsed, 15)
+        self.assert_boot_fixture_restored()
+
+    def test_other_post_boot_read_errors_and_timeout_fail_without_retry(self):
+        for scenario in ("post-boot-wrong-status", "post-boot-wrong-code", "post-boot-missing-code",
+                         "post-boot-missing-open", "post-boot-wrong-message", "post-boot-enoent",
+                         "post-boot-denied", "post-boot-timeout"):
+            with self.subTest(scenario=scenario):
+                result = self.run_scenario(scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('payload read failed', result.stderr)
+                self.assertNotIn('matching checksums timed out', result.stderr)
+                self.assertEqual(len(self.post_boot_downloads()), 1)
+                self.assert_boot_fixture_restored()
+
+    def test_post_boot_metadata_errors_are_fatal_without_read_retry(self):
+        for scenario, message in (("post-boot-metadata-error", 'could not read test metadata'),
+                                  ("post-boot-metadata-mismatch", 'metadata changed across failover')):
+            with self.subTest(scenario=scenario):
+                result = self.run_scenario(scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(self.post_boot_downloads(), [])
+                self.assert_boot_fixture_restored()
+
+    def test_post_boot_checksum_errors_are_fatal_without_read_retry(self):
+        for scenario, message in (("post-boot-checksum-command-error", 'could not hash downloaded'),
+                                  ("post-boot-checksum-mismatch", 'payload checksum mismatch')):
+            with self.subTest(scenario=scenario):
+                result = self.run_scenario(scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(len(self.post_boot_downloads()), 1)
+                self.assert_boot_fixture_restored()
+
+    def test_replica_unavailability_before_boot_remains_a_strict_read_failure(self):
+        for scenario, reads in (("initial-read-unavailable", 1), ("runtime-read-unavailable", 2)):
+            with self.subTest(scenario=scenario):
+                result = self.run_scenario(scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('payload read failed', result.stderr)
+                self.assertEqual(self.events.count(["download", "payload-initial"]), reads)
+                self.assertEqual(self.post_boot_downloads(), [])
+                self.assertNotIn(["hook-install"], self.events)
+                self.assertEqual(self.cluster["running"], [True, True])
+                for name in ("cleanup-path", "cleanup-temp", "cleanup-alias"):
+                    self.assertIn([name], self.events)
 
 
 if __name__ == "__main__":

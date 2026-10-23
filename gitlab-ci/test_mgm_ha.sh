@@ -277,14 +277,30 @@ check_follower_writes() {
     fail "could not verify deletion of $path on leader (rc=$rc): $output"
 }
 verify_data() {
-  local filename actual output
-  output=$(eos_command "$alias_host" attr -V get user.mgm_ha "$test_path")
+  local wait_for_storage=${1:-false} filename actual output rc
+  if ! output=$(eos_command "$alias_host" attr -V get user.mgm_ha "$test_path" 2>&1); then
+    fail "could not read test metadata: $output"
+  fi
   [[ $output == "$run_id" ]] || fail 'metadata changed across failover'
   for filename in "${data_files[@]}"; do
     log "Reading and hashing $filename through alias"
-    pod_command "$client_pod" xrdcp -f \
-      "root://${alias_host}:1094/$test_path/$filename" "$client_tmp/download"
-    actual=$(pod_command "$client_pod" sha256sum "$client_tmp/download")
+    if output=$(pod_command "$client_pod" xrdcp -f \
+        "root://${alias_host}:1094/$test_path/$filename" "$client_tmp/download" 2>&1); then
+      :
+    else
+      rc=$?
+      last_error="payload read failed for $filename (rc=$rc): $output"
+      # Cold boot restores namespace leadership before the FST heartbeat and
+      # scheduler snapshot necessarily make replicas readable. Earlier reads
+      # remain strict so this wait cannot hide a runtime failover regression.
+      [[ $wait_for_storage == true && $rc == 54 && $output == *'[3014]'* &&
+          $output == *'Unable to open file'* && $output == *'Network is unreachable'* ]] ||
+        fail "$last_error"
+      return 1
+    fi
+    if ! actual=$(pod_command "$client_pod" sha256sum "$client_tmp/download" 2>&1); then
+      fail "could not hash downloaded payload $filename: $actual"
+    fi
     [[ ${actual%% *} == "$payload_sha" ]] || fail "payload checksum mismatch: $filename"
   done
 }
@@ -579,5 +595,5 @@ wait_for 'the original leader boots with its original hook configuration' \
   check_active "$original_leader" restored
 start_mgm "$other"
 wait_for 'both MGMs are healthy after the boot-promotion regression' check_pair "$original_leader"
-verify_data
+wait_for 'post-boot payload replicas are readable with matching checksums' verify_data true
 log 'PASS: local leadership, DNS alias, writes, payloads, and boot post-promotion hook survived failover'
