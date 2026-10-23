@@ -292,6 +292,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
         }
 
         SlaveToMaster();
+        PostSlaveToMaster(old_master_id, GetMasterId());
         mDoMasterDelay = false;
         gOFS->mTracker.SetAcceptingRequests(true);
       } else {
