@@ -285,12 +285,21 @@ target_link_libraries(eos-unit-tests-with-instance PRIVATE
 add_executable(eos-unit-tests-with-qdb
   with_qdb/Main.cc
   with_qdb/configuration.cc
+  with_qdb/FsViewStaleQueuePathTests.cc
   with_qdb/TestUtils.cc)
 
+# The FsView tests instantiate an XrdMgmOfs, which needs the same objects
+# as eos-unit-tests
 target_link_libraries(eos-unit-tests-with-qdb
+  EosConsoleHelpers-Objects
+  EosConsoleCommands-Objects
+  EosSciToken-Objects
+  EosMgmHttp-Objects
   GTest::Main
   GTest::gmock
   qclient
+  XROOTD::POSIX
+  XROOTD::SERVER
   RestAnnot-Objects
   XrdEosMgm-Static
   READLINE::READLINE
