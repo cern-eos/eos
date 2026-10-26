@@ -3401,13 +3401,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
     try {
       std::unique_lock<std::mutex> connectionMutex(zmq_socket_mutex);
       eos_static_debug("");
-      zmq::pollitem_t items[] = {
-        {static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}
-      };
       struct timespec ts;
       eos::common::Timing::GetTimeSpec(ts);
 
       do {
+        // z_socket may change if we reconnect
+        zmq::pollitem_t items[] = {{static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}};
+
         // if there is a ZMQ reconnection to be done we release the ZQM socket mutex
         if (zmq_wants_to_connect()) {
           connectionMutex.unlock();
