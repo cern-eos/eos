@@ -2469,11 +2469,12 @@ runtest "### Ls -lrt     " unix SUCCESS "" eos ls "-lrt $lsOptTestDir | grep fil
 runtest "### Ls -a-l-h   " unix SUCCESS "" eos ls "-a -l -h -r -t $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
 runtest "### Ls -l -h    " unix SUCCESS "" eos ls "-l -h $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
 runtest "### Ls -h -l    " unix SUCCESS "" eos ls "-h -l $lsOptTestDir | grep file2M | grep -q '2\.00 M'"
-# 'ls -h' alone keeps asking for the usage, '--help' always does
-runtest "### Ls -h       " unix ERROR   "" eos ls "-h"
-runtest "### Ls --help   " unix ERROR   "" eos ls "--help"
-runtest "### Ls --help   " unix ERROR   "" eos ls "--help $lsOptTestDir"
-runtest "### Ls -h       " unix SUCCESS "" shell "command eos -b root://$EOS_TEST_REDIRECTOR ls -h 2>&1 | grep -q 'Usage: ls'"
+# 'ls -h' alone keeps asking for the usage, '--help' always does. Help is
+# printed to stderr by the common console help page and exits successfully.
+runtest "### Ls -h       " unix SUCCESS "" shell "command eos -b ls -h 2>&1 | grep -q 'ls \[OPTIONS\] \[path\.\.\.\]'"
+runtest "### Ls --help   " unix SUCCESS "" shell "command eos -b ls --help 2>&1 | grep -q 'ls \[OPTIONS\] \[path\.\.\.\]'"
+runtest "### Ls --help   " unix SUCCESS "" shell "command eos -b ls --help $lsOptTestDir 2>&1 | grep -q 'ls \[OPTIONS\] \[path\.\.\.\]'"
+runtest "### Ls -h       " unix SUCCESS "" shell "command eos -b ls -h 2>&1 | grep -qx 'USAGE'"
 # '-h' must not silently imply '-l'
 runtest "### Ls -ah      " unix ERROR   "" eos ls "-ah $lsOptTestDir | grep -qE '^[-d][rwxst+-]{9} '"
 # '-a' shows the hidden entries
