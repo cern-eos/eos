@@ -186,6 +186,7 @@ public:
     capx& operator=(eos::fusex::cap other)
     {
       mCapProto = other;
+      deferinv = false;
       return *this;
     }
 
@@ -239,6 +240,7 @@ public:
   private:
     XrdSysMutex mLock;
     time_t lastusage;
+    std::atomic<bool> deferinv{false};
     eos::fusex::cap mCapProto;
   };
 

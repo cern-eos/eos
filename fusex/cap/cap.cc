@@ -486,6 +486,11 @@ bool
 cap::capx::valid(bool debug)
 {
   struct timespec ts;
+  if (deferinv) {
+    (*this)()->set_vtime(0);
+    (*this)()->set_vtime_ns(0);
+    deferinv = false;
+  }
   ts.tv_sec = (*this)()->vtime();
   ts.tv_nsec = (*this)()->vtime_ns();
 
@@ -532,8 +537,12 @@ cap::capx::lifetime()
 void
 cap::capx::invalidate()
 {
-  XrdSysMutexHelper cLock(Locker());
-  (*this)()->set_vtime(0);
+  // avoid taking mLock here to avoid deadlock or self-deadlock. e.g. this
+  // method is used by invalidate_all(), which in turn may be used by a ZQM
+  // reconncect during getCAP, called by refresh() called by acquire().
+  // refresh() will generally be holding the mLock of the cap it is refreshing,
+  // and the caller of acquire() could hold mLock of some other cap.
+  deferinv = true;
 }
 
 /* -------------------------------------------------------------------------- */
