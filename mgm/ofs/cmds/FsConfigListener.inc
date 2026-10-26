@@ -90,10 +90,12 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
     return;
   }
 
-  fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
+  // The views are keyed by the id the object was registered with, which is
+  // not the shared one if the master reused the queuepath for a new fs
+  fsid = FsView::gFsView.mIdView.lookupByPtr(fs);
   newgeotag = fs->GetString("stat.geotag");
 
-  if (fsid == 0 && newgeotag.empty()) {
+  if (fsid == 0) {
     return;
   }
 
@@ -138,57 +140,43 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
     eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
                 "new_geotag=\"%s\"", (unsigned long)fsid,
                 oldgeotag.c_str(), newgeotag.c_str());
-    eos::common::FileSystem::fs_snapshot_t snapshot;
-    fs->SnapShotFileSystem(snapshot);
+    // Only move the fs inside the views it is registered in. The shared
+    // schedgroup can already name another group, inserting the fs there would
+    // create a membership the GeoTreeEngine does not know about.
+    std::string group_name;
+    std::string space_name;
 
-    // Update node view tree structure
-    if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
-      FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
-      eos_debug("msg=\"update geotag of fsid=%lu in node=%s",
-                (unsigned long)fsid, node->mName.c_str());
-
-      if (!static_cast<GeoTree*>(node)->erase(fsid)) {
-        eos_err("msg=\"error removing fsid=%lu from node=%s\"",
-                (unsigned long)fsid, node->mName.c_str());
-      }
-
-      if (!static_cast<GeoTree*>(node)->insert(fsid)) {
-        eos_err("msg=\"error inserting fsid=%lu into node=%s\"",
-                (unsigned long)fsid, node->mName.c_str());
-      }
+    if (!FsView::gFsView.GetFsMembership(fsid, group_name, space_name)) {
+      return;
     }
 
-    // Update group view tree structure
-    if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
-      FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
-      eos_debug("msg=\"updating geotag of fsid=%lu in group=%s\"",
-                (unsigned long)fsid, group->mName.c_str());
+    std::vector<std::pair<std::string, GeoTree*>> trees;
+    auto it_node = FsView::gFsView.mNodeView.find(fs->GetQueue());
 
-      if (!static_cast<GeoTree*>(group)->erase(fsid)) {
-        eos_err("msg=\"error removing fsid=%lu from group=%s\"",
-                (unsigned long)fsid, group->mName.c_str());
-      }
-
-      if (!static_cast<GeoTree*>(group)->insert(fsid)) {
-        eos_err("msg=\"error inserting fsid=%lu into group=%s\"",
-                (unsigned long)fsid, group->mName.c_str());
-      }
+    if (it_node != FsView::gFsView.mNodeView.end()) {
+      trees.emplace_back("node=" + it_node->first, it_node->second);
     }
 
-    // Update space view tree structure
-    if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
-      FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
-      eos_debug("msg=\"updating geotag of fsid=%lu in space=%s\"",
-                (unsigned long)fsid, space->mName.c_str());
+    if (!group_name.empty()) {
+      trees.emplace_back("group=" + group_name, FsView::gFsView.mGroupView[group_name]);
+    }
 
-      if (!static_cast<GeoTree*>(space)->erase(fsid)) {
-        eos_err("msg=\"error removing fsid=%lu from space=%s\"",
-                (unsigned long)fsid, space->mName.c_str());
+    if (!space_name.empty()) {
+      trees.emplace_back("space=" + space_name, FsView::gFsView.mSpaceView[space_name]);
+    }
+
+    for (const auto& [name, tree] : trees) {
+      eos_debug("msg=\"update geotag\" fsid=%lu %s", (unsigned long)fsid, name.c_str());
+
+      if (!tree->erase(fsid)) {
+        eos_err("msg=\"error removing fsid=%lu from %s\"", (unsigned long)fsid,
+                name.c_str());
+        continue;
       }
 
-      if (!static_cast<GeoTree*>(space)->insert(fsid)) {
-        eos_err("msg=\"error inserting fsid=%lu into space=%s\"",
-                (unsigned long)fsid, space->mName.c_str());
+      if (!tree->insert(fsid)) {
+        eos_err("msg=\"error inserting fsid=%lu into %s\"", (unsigned long)fsid,
+                name.c_str());
       }
     }
   }
