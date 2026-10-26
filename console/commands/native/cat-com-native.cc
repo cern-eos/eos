@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -39,10 +41,16 @@ public:
     std::string joined = oss.str();
     return com_cat((char*)joined.c_str());
   }
+  std::string
+  helpText() const override
+  {
+    return "Usage: cat <path>\n\nPrint the contents of an EOS or supported remote "
+           "file.\n";
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: cat <path>\n");
+    eos::console::PrintLegacyHelp("Usage: cat <path>\n");
   }
 };
 } // namespace
@@ -50,5 +58,6 @@ public:
 void
 RegisterCatNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<CatCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<CatCommand>(), {}));
 }

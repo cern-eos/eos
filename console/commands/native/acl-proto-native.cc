@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/commands/helpers/AclHelper.hh"
 #include <CLI/CLI.hpp>
 #include <iomanip>
@@ -83,6 +85,11 @@ public:
   {
     return "Acl Interface";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeAclHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -120,7 +127,7 @@ public:
   {
     CLI::App app;
     ConfigureAclApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace
@@ -128,5 +135,8 @@ public:
 void
 RegisterAclProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<AclProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.valueOptions = {{"-p", 1}, {"--position", 1}};
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<AclProtoCommand>(), std::move(help)));
 }

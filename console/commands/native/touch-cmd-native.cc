@@ -3,9 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
-#include <sstream>
 #include <vector>
 
 namespace {
@@ -43,20 +44,13 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
     IConsoleCommand* fileCmd = CommandRegistry::instance().find("file");
     if (!fileCmd) {
       fprintf(stderr, "error: 'file' command not available\n");
       global_retc = EINVAL;
       return 0;
     }
-    if (args.empty() || wants_help(joined.c_str())) {
+    if (args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -70,10 +64,15 @@ public:
     fargs.insert(fargs.end(), args.begin(), args.end());
     return fileCmd->run(fargs, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeTouchHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeTouchHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeTouchHelp());
   }
 };
 } // namespace
@@ -81,5 +80,6 @@ public:
 void
 RegisterTouchNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TouchCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<TouchCommand>()));
 }

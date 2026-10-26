@@ -4,6 +4,8 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -63,6 +65,11 @@ public:
   description() const override
   {
     return "Set debug level";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeDebugHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -172,7 +179,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeDebugHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeDebugHelp());
   }
 };
 } // namespace
@@ -180,5 +187,20 @@ public:
 void
 RegisterDebugNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<DebugCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"get"}, "debug get ", "Get the current log level."},
+      {{"this"}, "debug this ", "Toggle console debug mode."},
+      {{"debug"}, "debug  <level> [--filter ", "Set the debug log level."},
+      {{"info"}, "debug  <level> [--filter ", "Set the info log level."},
+      {{"warning"}, "debug  <level> [--filter ", "Set the warning log level."},
+      {{"notice"}, "debug  <level> [--filter ", "Set the notice log level."},
+      {{"err"}, "debug  <level> [--filter ", "Set the err log level."},
+      {{"crit"}, "debug  <level> [--filter ", "Set the crit log level."},
+      {{"alert"}, "debug  <level> [--filter ", "Set the alert log level."},
+      {{"emerg"}, "debug  <level> [--filter ", "Set the emerg log level."},
+  };
+  help.valueOptions = {{"--filter", 1}};
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<DebugCommand>(), std::move(help)));
 }

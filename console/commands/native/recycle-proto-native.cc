@@ -3,10 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
 #include "console/commands/helpers/RecycleHelper.hh"
-#include <memory>
 #include <sstream>
 
 namespace {
@@ -40,7 +40,7 @@ std::string MakeRecycleHelp()
       << "\n"
       << "  recycle purge [--all] [--uid] [--rid <val>] <date> | -k <key>\n"
       << "    purge files in the recycle bin either by date or by key\n"
-      << "    --all       : purge entries of all users - only if root or admin\n"
+      << "    --all       : as root, purge the entire recycle bin, ignoring <date>\n"
       << "    --uid       : purge entries for the current user [default]\n"
       << "    --rid <val> : purge entries corresponding to the given recycle id\n"
       << "    <date>      : can be <year>, <year>/<month> or <year>/<month>/<day>\n"
@@ -77,17 +77,18 @@ std::string MakeRecycleHelp()
       << "    --enforce <on/off>\n"
       << "      enforce default recycle bin location globally on the instance\n"
       << "      Default value: off\n"
-      << "    --lifetime <seconds>\n"
+      << "    --lifetime <seconds>[s|min|h|d|w|mo|y]\n"
       << "      configure FIFO lifetime for the recycle bin\n"
-      << "    --ratio <0..1.0>\n"
+      << "    --ratio <0..0.99>\n"
       << "      configure the volume/inode keep ratio. E.g.: 0.8 means files\n"
       << "      will only be recycled if more than 80% of the volume/inodes\n"
       << "      quota is used. The low-watermark is by default 10% below the\n"
       << "      the given ratio.\n"
-      << "    --size <value>[K|M|G]\n"
+      << "    --size <value>[K|M|G|T|P|E|KiB|MiB|...]\n"
       << "      configure the quota for the maximum size of the recycle bin\n"
-      << "      If no unit is set explicitly then bytes is assumed.\n"
-      << "    --inodes <value>[K|M|G]\n"
+      << "      If no unit is set explicitly then bytes is assumed. Fractions must\n"
+      << "      convert to whole bytes; K/M/G use 1000, KiB/MiB/GiB use 1024.\n"
+      << "    --inodes <value>[K|M|G|T|P|E|KiB|MiB|...]\n"
       << "      configure the quota for the maximum number of inodes in the\n"
       << "      recycle bin.\n"
       << "    --dry-run <yes/no>\n"
@@ -108,20 +109,14 @@ std::string MakeRecycleHelp()
   return oss.str();
 }
 
-void ConfigureRecycleApp(CLI::App& app)
-{
-  app.name("recycle");
-  app.description("Recycle Bin Functionality");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeRecycleHelp();
-      }));
-}
-
 class RecycleProtoCommand : public IConsoleCommand {
 public:
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    RecycleHelper helper(gGlobalOpts);
+    return helper.CompleteArguments(args);
+  }
   const char*
   name() const override
   {
@@ -138,23 +133,10 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    RecycleHelper recycle(gGlobalOpts);
-    if (!recycle.ParseCommand(joined.c_str())) {
+    RecycleHelper recycle(*ctx.globalOpts);
+    if (!recycle.ParseArguments(args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -163,12 +145,15 @@ public:
     global_retc = recycle.Execute(true, true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRecycleHelp();
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureRecycleApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(MakeRecycleHelp());
   }
 };
 } // namespace
@@ -176,5 +161,28 @@ public:
 void
 RegisterRecycleProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RecycleProtoCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RecycleProtoCommand>(),
+      {{{{"ls"}, "  recycle ls ", "List recycled files and directories."},
+        {{"purge"}, "  recycle purge ", "Permanently remove recycled entries."},
+        {{"restore"}, "  recycle restore ", "Restore a recycled entry."},
+        {{"project"}, "  recycle project ", "Configure a shared recycle project."},
+        {{"config"}, "  recycle config ", "Configure recycle-bin policies."}},
+       eos::console::ShortHelpPolicy::Always,
+       {{"--rid", 1},
+        {"--project", 1},
+        {"-k", 1},
+        {"--path", 1},
+        {"--acl", 1},
+        {"--add-bin", 1},
+        {"--remove-bin", 1},
+        {"--lifetime", 1},
+        {"--ratio", 1},
+        {"--size", 1},
+        {"--inodes", 1},
+        {"--collect-interval", 1},
+        {"--remove-interval", 1},
+        {"--dry-run", 1},
+        {"--enable", 1},
+        {"--enforce", 1}}}));
 }

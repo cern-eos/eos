@@ -4,9 +4,11 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -298,12 +300,17 @@ public:
     global_retc = helper.Execute(true, true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeQuotaHelp();
+  }
   void
   printHelp() const override
   {
     CLI::App app;
     ConfigureQuotaApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace
@@ -311,5 +318,33 @@ public:
 void
 RegisterQuotaProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<QuotaProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "    quota ls ", "List configured quotas."},
+      {{"set"}, "    quota set ", "Set user or group quota limits."},
+      {{"rm"}, "    quota rm ", "Remove user or group quota limits."},
+      {{"rmnode"}, "    quota rmnode ", "Remove a quota node.", "  General options:"},
+  };
+  help.common =
+      "With no operation, quota [<path>] shows personal quota for all nodes or only "
+      "the quota node responsible for <path>.\n\n"
+      "General options:\n"
+      "  -m : print information in monitoring <key>=<value> format\n"
+      "  -n : don't translate ids, print uid and gid number\n"
+      "  -u/--uid <uid> : print information only for uid <uid>\n"
+      "  -g/--gid <gid> : print information only for gid <gid>\n"
+      "  -p/--path <path> : print information only for path <path>; the path can "
+      "also be given without -p or --path\n"
+      "  -v/--volume <bytes> : refer to volume limit in <bytes>\n"
+      "  -i/--inodes <inodes> : refer to inode limit in number of <inodes>\n\n"
+      "Notes:\n"
+      "Specify either the user or the group, identified by a Unix ID or name.\n\n"
+      "The space argument is assumed to be 'default'.\n\n"
+      "Specify at least a volume or an inode limit to set quota.\n\n"
+      "All commands can use <path> as the last argument, omitting -p or --path, "
+      "for example quota ls /eos/.\n\n"
+      "A path without a trailing '/' is treated as a file and will not match "
+      "the quota node with <path>/.\n";
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<QuotaProtoCommand>(), std::move(help)));
 }

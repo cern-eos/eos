@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <sstream>
 
@@ -56,7 +58,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMotdHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeMotdHelp());
   }
 };
 } // namespace
@@ -64,5 +66,7 @@ public:
 void
 RegisterMotdNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MotdCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<MotdCommand>(),
+      {{}, eos::console::ShortHelpPolicy::Always, {}, MakeMotdHelp()}));
 }

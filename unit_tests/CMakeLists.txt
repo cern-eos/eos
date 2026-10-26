@@ -35,19 +35,27 @@ set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
 
 set(CONSOLE_UT_SRCS
+  console/ConsoleColorTest.cc
+  console/ConsoleColorRequestTest.cc
+  console/ConsoleColorProcessTest.cc
+  console/IoShapingOutputTest.cc
+  console/ConsoleHelpTest.cc
+  console/ConsoleCommandHelpTest.cc
+  console/ConsoleHelpProcessTest.cc
+  console/AclCmdTest.cc
   console/AliasCliValidationTest.cc
-  console/ConsoleArgumentsTest.cc
+  console/CommandDispatchTest.cc
   console/ConsoleCliValidationTest.cc
+  console/ConsoleArgumentsTest.cc
   console/ConsoleProcessTest.cc
+  console/ConsoleIdentifierTest.cc
   console/DuCliTest.cc
   console/EvictRegisterCliTest.cc
-  console/FileCliTest.cc
   console/LegacyCliValidationTest.cc
   console/RecycleCliTest.cc
-  console/AclCmdTest.cc
-  console/CommandDispatchTest.cc
   console/ConsoleCompletionTest.cc
   console/FileHelperTest.cc
+  console/FileCliTest.cc
   console/FusexCommandTest.cc
   console/JwkGeneratorTests.cc
   console/NewfindHelperTest.cc
@@ -225,7 +233,7 @@ set(UT_FST_SRCS
 #-------------------------------------------------------------------------------
 add_executable(eos-unit-tests ${UT_SRCS})
 add_dependencies(eos-unit-tests eos)
-set_source_files_properties(console/ConsoleProcessTest.cc PROPERTIES
+set_source_files_properties(console/ConsoleProcessTest.cc console/ConsoleColorProcessTest.cc console/ConsoleHelpProcessTest.cc PROPERTIES
   COMPILE_DEFINITIONS
   "EOS_CONSOLE_COMPLETION_SCRIPT=\"${CMAKE_SOURCE_DIR}/misc/etc/bash_completion.d/eos\";EOS_CONSOLE_EXECUTABLE=\"$<TARGET_FILE:eos>\";EOS_CONSOLE_INSTALLED_EXECUTABLE=\"${CMAKE_INSTALL_FULL_BINDIR}/eos\"")
 

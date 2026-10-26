@@ -4,11 +4,14 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleCompletion.hh"
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleHelp.hh"
 #include "console/ConsoleMain.hh"
+#include "console/IoShapingOutput.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
-#include <iomanip>
+#include <algorithm>
 #include <memory>
 #include <sstream>
 
@@ -63,169 +66,13 @@ EnabledConfigValue(const std::string& value)
 
 constexpr const char* kAutomaticDetailCardinalityPrefix = "auto-cardinality:";
 
-std::string MakeIoHelp()
-{
-  std::ostringstream oss;
-  oss << "Usage:\n"
-      << std::endl
-      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si] : print io "
-         "statistics\n"
-      << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not "
-         "selected)\n"
-      << "\t  -a : break down by uid/gid\n"
-      << "\t  -m : print in <key>=<val> monitoring format\n"
-      << "\t  -n : print numerical uid/gids\n"
-      << "\t  -t : print top user stats\n"
-      << "\t  -d : break down by domains\n"
-      << "\t  -x : break down by application\n"
-      << "\t  --ss : show table with transfer sample statistics\n"
-      << "\t  --sa : start collection of statistics given number of seconds ago\n"
-      << "\t  --si : collect statistics over given interval of seconds\n"
-      << "\t  Note: this tool shows data for finished transfers only (using storage node "
-         "reports)\n"
-      << "\t  Example: asking for data of finished transfers which were transferred "
-         "during interval [now - 180s, now - 120s]:\n"
-      << "\t           eos io stat -x --sa 120 --si 60\n"
-      << std::endl
-      << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io "
-         "statistics\n"
-      << "\t         no arg. : start the collection thread\n"
-      << "\t              -r : enable collection of io reports\n"
-      << "\t              -p : enable popularity accounting\n"
-      << "\t              -n : enable report namespace\n"
-      << "\t --udp <address> : add a UDP message target for io UDP packets (the "
-         "configured targets are shown by 'io stat -l')\n"
-      << std::endl
-      << "io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io "
-         "statistics\n"
-      << "\t         no arg. : stop the collection thread\n"
-      << "\t              -r : disable collection of io reports\n"
-      << "\t              -p : disable popularity accounting\n"
-      << "\t              -n : disable report namespace\n"
-      << "\t --udp <address> : remove a UDP message target for io UDP packets (the "
-         "configured targets are shown by 'io stat -l')\n"
-      << std::endl
-      << "io report <path> : show contents of report namespace for <path>\n"
-      << std::endl
-      << "io ns [-a] [-m] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO "
-         "ranking (popularity)\n"
-      << "\t      -a :  don't limit the output list\n"
-      << "\t      -m :  print in <key>=<val> monitoring format\n"
-      << "\t      -n :  show ranking by number of accesses\n"
-      << "\t      -b :  show ranking by number of bytes\n"
-      << "\t    -100 :  show the first 100 in the ranking\n"
-      << "\t   -1000 :  show the first 1000 in the ranking\n"
-      << "\t  -10000 :  show the first 10000 in the ranking\n"
-      << "\t      -w :  show history for the last 7 days\n"
-      << "\t      -f :  show the 'hotfiles' which are the files with highest number of "
-         "present file opens\n"
-      << std::endl
-      << "io shaping [subcommand] [options...] : interact with the Traffic Shaping "
-         "engine\n"
-      << std::endl
-      << "   SUBCOMMANDS\n"
-      << "     ls [options...] : view real-time IO rates and shaping status\n"
-      << "\t   --apps   : show rates by application\n"
-      << "\t   --users  : show rates by user (uid)\n"
-      << "\t   --groups : show rates by group (gid)\n"
-      << "\t   --nodes  : show rates by storage node (FST)\n"
-      << "\t   --fs     : show rates by storage node and filesystem id\n"
-      << "\t   --all    : show rates by storage node, filesystem id, application, "
-         "user, and group\n"
-      << "\t   --json   : output in JSON format\n"
-      << "\t   --resolve-ids    : resolve uid/gid values to names\n"
-      << "\t   --no-resolve-ids : keep uid/gid values numeric\n"
-      << "\t   --sys    : include meta statistics about Traffic Shaping system\n"
-      << "\t   --window <1|5|15|60|300> : time window in seconds for SMA (default 60)\n"
-      << std::endl
-      << "     enable  : globally enable traffic shaping\n"
-      << "     disable : globally disable traffic shaping\n"
-      << std::endl
-      << "     policy [action] [options...] : manage shaping limits and reservations\n"
-      << "\t   action 'ls' : list configured policies\n"
-      << "\t     usage: policy ls [options...]\n"
-      << "\t       --apps       : filter by applications\n"
-      << "\t       --users      : filter by users (uid)\n"
-      << "\t       --groups     : filter by groups (gid)\n"
-      << "\t       --controller : show ephemeral controller limits\n"
-      << "\t       --json       : output in JSON format\n"
-      << "\t   action 'set' : configure a new policy or modify an existing one\n"
-      << "\t     usage: policy set <identity> [parameters...] [--enable|--disable]\n"
-      << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
-      << "\t       [parameters] : --limit-read <rate> | --limit-write <rate> | "
-         "--reservation-read <rate> | --reservation-write <rate>\n"
-      << "\t                      (reservations are supported for applications only)\n"
-      << "\t                      | --controller-limit-read <rate> | "
-         "--controller-limit-write <rate>\n"
-      << "\t                      (rate can use suffixes, e.g., 10M, 500K, or 0 to "
-         "remove)\n"
-      << "\t   action 'rm' : completely remove a configured policy\n"
-      << "\t     usage: policy rm <identity>\n"
-      << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
-      << std::endl
-      << "     pressure [action] [options...] : inspect reservation IO pressure\n"
-      << "\t   action 'ls' : list pressure, controller state, and exact published "
-         "FST actuator values\n"
-      << "\t     usage: pressure ls [--json]\n"
-      << "\t       --json       : output in JSON format\n"
-      << std::endl
-      << "     config [action] [options...] : manage traffic shaping thread "
-         "configurations\n"
-      << "\t   action 'ls' : list current thread update periods\n"
-      << "\t     usage: config ls [--json]\n"
-      << "\t   action 'set' : modify configuration settings such as update periods for "
-         "estimators and policy enforcement\n"
-      << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
-         "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
-         "[--limits enabled|disabled] "
-         "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
-         "[--active-node-rate-threshold <rate>] [--io-pressure-threshold <value>] "
-         "[--max-delay <ms>] [--gc-idle <s>]\n"
-      << std::endl
-      << "   EXAMPLES\n"
-      << "\t   # Show current application rates\n"
-      << "\t   eos io shaping ls --apps\n"
-      << std::endl
-      << "\t   # Globally enable the traffic shaping engine\n"
-      << "\t   eos io shaping enable\n"
-      << std::endl
-      << "\t   # Globally disable the traffic shaping engine\n"
-      << "\t   eos io shaping disable\n"
-      << std::endl
-      << "\t   # Limit 'eoscp' read rate to 10 MB/s and write rate to 50 MB/s\n"
-      << "\t   eos io shaping policy set --app eoscp --limit-read 10M --limit-write 50M\n"
-      << std::endl
-      << "\t   # Temporarily disable the policy for 'eoscp'\n"
-      << "\t   eos io shaping policy set --app eoscp --disable\n"
-      << std::endl
-      << "\t   # Remove the read limit for 'eoscp' but keep the write limit\n"
-      << "\t   eos io shaping policy set --app eoscp --limit-read 0\n"
-      << std::endl
-      << "\t   # Completely delete the policy for user 1001\n"
-      << "\t   eos io shaping policy rm --uid 1001\n"
-      << std::endl
-      << "\t   # List all configured application policies including machine limits\n"
-      << "\t   eos io shaping policy ls --apps --controller\n"
-      << std::endl
-      << "\t   # Show reservation pressure by application and node\n"
-      << "\t   eos io shaping pressure ls\n"
-      << std::endl
-      << "\t   # Show current thread configurations\n"
-      << "\t   eos io shaping config ls\n"
-      << std::endl
-      << "\t   # Change the estimators update period to 200 ms\n"
-      << "\t   eos io shaping config set --estimators-period 200\n"
-      << std::endl;
-  return oss.str();
-}
-
 //------------------------------------------------------------------------------
-// Build full CLI11 app with all io subcommands and populate proto
+// Share the execution schema with every IO help entry point.
 //------------------------------------------------------------------------------
-bool
-BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
+void
+ConfigureIoApp(CLI::App& app, eos::console::IoProto* io)
 {
-  CLI::App app{"IO Interface", "io"};
+  app.set_help_all_flag("--help-all", "Show all IO subcommands and options");
   auto formatter = std::make_shared<CLI::Formatter>();
   formatter->enable_footer_formatting(false);
   app.formatter(formatter);
@@ -233,7 +80,12 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   // stat
   auto* stat_cmd = app.add_subcommand("stat", "Print IO statistics");
-  stat_cmd->add_flag("-l", "Show summary");
+  stat_cmd->description(
+      "Print IO statistics for finished transfers using storage node reports");
+  stat_cmd->footer("\nEXAMPLES:\n"
+                   "  # Transfers finished between 180 and 120 seconds ago\n"
+                   "  eos io stat -x --sa 120 --si 60\n");
+  stat_cmd->add_flag("-l", "Show summary (default without -a, -t, -d or -x)");
   stat_cmd->add_flag("-a", "Break down by uid/gid");
   stat_cmd->add_flag("-m", "Monitoring format");
   stat_cmd->add_flag("-n", "Numerical uid/gids");
@@ -263,6 +115,12 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   // ns
   auto* ns_cmd = app.add_subcommand("ns", "Show namespace IO ranking");
+  ns_cmd->footer("\nEXAMPLES:\n"
+                 "  # Show the top 100 paths ranked by access count\n"
+                 "  eos io ns -n -100\n"
+                 "\n"
+                 "  # Show files with the most current opens\n"
+                 "  eos io ns -f\n");
   ns_cmd->add_flag("-m", "Monitoring format");
   ns_cmd->add_flag("-b", "Rank by bytes");
   ns_cmd->add_flag("-n", "Rank by access count");
@@ -298,7 +156,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   });
 
   // enable
-  auto* enable_cmd = app.add_subcommand("enable", "Enable IO statistics collection");
+  auto* enable_cmd = app.add_subcommand(
+      "enable",
+      "Enable IO statistics collection (no options starts the collection thread)");
   enable_cmd->add_flag("-r", "Enable reports");
   enable_cmd->add_flag("-p", "Enable popularity");
   enable_cmd->add_flag("-n", "Enable report namespace");
@@ -314,7 +174,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   });
 
   // disable
-  auto* disable_cmd = app.add_subcommand("disable", "Disable IO statistics collection");
+  auto* disable_cmd = app.add_subcommand(
+      "disable",
+      "Disable IO statistics collection (no options stops the collection thread)");
   disable_cmd->add_flag("-r", "Disable reports");
   disable_cmd->add_flag("-p", "Disable popularity");
   disable_cmd->add_flag("-n", "Disable report namespace");
@@ -425,9 +287,11 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   pgrp->add_option("--limit-read", "Read limit rate; use 0 to remove")->type_name("RATE");
   pgrp->add_option("--limit-write", "Write limit rate; use 0 to remove")
       ->type_name("RATE");
-  pgrp->add_option("--reservation-read", "Reserved read rate; use 0 to remove")
+  pgrp->add_option("--reservation-read",
+                   "Reserved read rate for applications only; use 0 to remove")
       ->type_name("RATE");
-  pgrp->add_option("--reservation-write", "Reserved write rate; use 0 to remove")
+  pgrp->add_option("--reservation-write",
+                   "Reserved write rate for applications only; use 0 to remove")
       ->type_name("RATE");
   pgrp->add_option("--controller-limit-read", "Ephemeral controller read limit")
       ->type_name("RATE");
@@ -633,15 +497,19 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
           config_set->get_option("--gc-idle")->as<uint32_t>());
     }
   });
+}
 
-  std::string to_parse = "io " + input;
-  try {
-    app.parse(to_parse, true);
-  } catch (const CLI::ParseError& e) {
-    app.exit(e);
-    return false;
+void
+PrintIoHelp(CLI::App& app, CLI::AppFormatMode mode, std::FILE* stream = stderr)
+{
+  if (mode == CLI::AppFormatMode::All) {
+    // CLI11's default All formatter expands only one subcommand level.
+    if (const auto page = eos::console::BuildCliHelpPage(app, mode)) {
+      eos::console::PrintHelpPage(*page, stream);
+      return;
+    }
   }
-  return true;
+  eos::console::PrintCliHelp(app, mode, stream);
 }
 
 class IoHelper : public ICmdHelper {
@@ -651,8 +519,82 @@ public:
   bool
   ParseCommand(const char* arg) override
   {
-    return BuildAndParseIoApp(arg, mReq.mutable_io());
+    std::vector<std::string> args;
+    return eos::console::TokenizeArguments(arg, args) && ParseArguments(args);
   }
+
+  bool
+  ParseArguments(const std::vector<std::string>& args, std::FILE* helpStream = stdout)
+  {
+    CLI::App app{"IO Interface", "io"};
+    ConfigureIoApp(app, mReq.mutable_io());
+    std::vector<std::string> reversed(args.rbegin(), args.rend());
+    mParseRetc = EINVAL;
+    try {
+      app.parse(reversed);
+    } catch (const CLI::CallForHelp&) {
+      PrintIoHelp(app, CLI::AppFormatMode::Normal, helpStream);
+      mParseRetc = 0;
+      return false;
+    } catch (const CLI::CallForAllHelp&) {
+      PrintIoHelp(app, CLI::AppFormatMode::All, helpStream);
+      mParseRetc = 0;
+      return false;
+    } catch (const CLI::ParseError& error) {
+      app.exit(error);
+      return false;
+    }
+    return true;
+  }
+
+  int
+  parseRetc() const
+  {
+    return mParseRetc;
+  }
+
+  int
+  ExecuteAndPrint()
+  {
+    const bool renderTable =
+        eos::console::PrepareIoShapingHumanOutput(mReq, mGlobalOpts.mJsonFormat);
+    const auto& shaping = mReq.io().shaping();
+    const bool renderSuccess =
+        !mGlobalOpts.mJsonFormat &&
+        (shaping.has_enable() || shaping.has_disable() || shaping.policy().has_set() ||
+         shaping.policy().has_remove() || shaping.config().has_set());
+    if (!renderTable && !renderSuccess) {
+      return Execute();
+    }
+
+    const int retc = ExecuteWithoutPrint();
+    if (!mIsSilent && !mOutcome.result.empty()) {
+      std::optional<std::string> rendered;
+      if (renderTable && retc == 0) {
+        const auto width = eos::console::HelpWidth(STDOUT_FILENO);
+        rendered = eos::console::RenderIoShapingOutput(
+            shaping, mOutcome.result, width ? width : 120, STDOUT_FILENO);
+      }
+      if (rendered) {
+        std::cout << *rendered;
+      } else if (renderSuccess && retc == 0 &&
+                 mOutcome.result.compare(0, 8, "success:") == 0) {
+        std::cout << eos::console::Colorize("success:", eos::console::TextStyle::Success,
+                                            STDOUT_FILENO)
+                  << GetResult().substr(8);
+      } else {
+        std::cout << GetResult();
+      }
+    }
+    if (!mOutcome.error.empty()) {
+      std::cerr << eos::console::Colorize(GetError(), eos::console::TextStyle::Error,
+                                          STDERR_FILENO);
+    }
+    return retc;
+  }
+
+private:
+  int mParseRetc = EINVAL;
 };
 
 class IoProtoCommand : public IConsoleCommand {
@@ -670,49 +612,62 @@ public:
   std::string
   helpText() const override
   {
-    return MakeIoHelp();
-  }
-  std::vector<std::string>
-  complete(const std::vector<std::string>& args) const override
-  {
-    return eos_help_completion_candidates(name(), helpText(), args);
+    eos::console::IoProto io;
+    CLI::App app{"IO Interface", "io"};
+    ConfigureIoApp(app, &io);
+    if (const auto page = eos::console::BuildCliHelpPage(app, CLI::AppFormatMode::All)) {
+      return page->render(80);
+    }
+    return app.help("", CLI::AppFormatMode::All);
   }
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    return requiresMgmArguments(eos::console::TokenizeArguments(args.c_str()));
+  }
+  bool
+  requiresMgmArguments(const std::vector<std::string>& args) const override
+  {
+    const auto end = std::find(args.begin(), args.end(), "--");
+    return !args.empty() && std::none_of(args.begin(), end, [](const auto& arg) {
+      return arg == "-h" || arg == "--help" || arg == "--help-all";
+    });
   }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      if (args[i].find(' ') != std::string::npos)
-        oss << std::quoted(args[i]);
-      else
-        oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
+    if (args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
     IoHelper helper(*ctx.globalOpts);
-    if (!helper.ParseCommand(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
+    if (!helper.ParseArguments(args)) {
+      global_retc = helper.parseRetc();
       return 0;
     }
-    global_retc = helper.Execute();
+    global_retc = helper.ExecuteAndPrint();
     return 0;
   }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", helpText().c_str());
+    eos::console::IoProto io;
+    CLI::App app{"IO Interface", "io"};
+    ConfigureIoApp(app, &io);
+    PrintIoHelp(app, CLI::AppFormatMode::All);
+  }
+  void
+  printHelp(const std::vector<std::string>& args) const override
+  {
+    if (args.empty()) {
+      printHelp();
+      return;
+    }
+    auto helpArgs = args;
+    helpArgs.emplace_back("--help");
+    IoHelper helper(GlobalOptions{});
+    helper.ParseArguments(helpArgs, stderr);
   }
 };
 } // namespace

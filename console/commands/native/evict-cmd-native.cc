@@ -2,15 +2,17 @@
 // File: evict-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include "console/commands/helpers/PathIdentifier.hh"
 #include <CLI/CLI.hpp>
-#include <algorithm>
+#include <charconv>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 
 namespace {
 std::string MakeEvictHelp()
@@ -31,23 +33,48 @@ std::string MakeEvictHelp()
   return oss.str();
 }
 
-void ConfigureEvictApp(CLI::App& app,
-                       bool& opt_ignore_evict_counter,
-                       bool& opt_ignore_removal_on_fst,
-                       std::string& fsid,
-                       std::vector<std::string>& paths)
+void
+ConfigureEvictApp(CLI::App& app, bool& ignore_counter, bool& ignore_removal,
+                  uint64_t& fsid, std::vector<std::string>& paths)
 {
   app.name("evict");
-  app.set_help_flag("");
+  app.set_help_flag("-h,--help");
   app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeEvictHelp();
-      }));
-  app.add_flag("--ignore-evict-counter", opt_ignore_evict_counter,
-               "ignore evict counter");
-  app.add_flag("--ignore-removal-on-fst", opt_ignore_removal_on_fst, "ns-only");
-  app.add_option("--fsid", fsid, "single fsid");
-  app.add_option("paths", paths);
+      [](const CLI::App*, std::string, CLI::AppFormatMode) { return MakeEvictHelp(); }));
+  auto* counter =
+      app.add_flag("--ignore-evict-counter", ignore_counter, "ignore evict counter")
+          ->disable_flag_override();
+  auto* filesystem =
+      app.add_option("--fsid", fsid, "single filesystem id")
+          ->transform(CLI::Validator{
+              [](std::string& value) {
+                uint64_t parsed = 0;
+                const auto result =
+                    std::from_chars(value.data(), value.data() + value.size(), parsed);
+                if (value.empty() || result.ec != std::errc{} ||
+                    result.ptr != value.data() + value.size()) {
+                  return std::string("expected an unsigned decimal filesystem id");
+                }
+                value = std::to_string(parsed);
+                return std::string{};
+              },
+              "FSID"})
+          ->needs(counter);
+  app.add_flag("--ignore-removal-on-fst", ignore_removal, "namespace-only eviction")
+      ->needs(filesystem);
+  app.add_option("paths", paths, "file paths or file identifiers")
+      ->required()
+      ->check(eos::console::NonEmptyArgument)
+      ->check(CLI::Validator{
+          [](const std::string& value) {
+            const auto identifier = eos::console::ParsePathIdentifier(value);
+            return identifier.type == eos::console::IdentifierType::Path ||
+                           identifier.type == eos::console::IdentifierType::File
+                       ? std::string{}
+                       : std::string(
+                             "expected a path, fid:<decimal> or fxid:<hexadecimal>");
+          },
+          "FILE"});
 }
 
 class EvictHelper : public ICmdHelper {
@@ -59,66 +86,33 @@ public:
   bool
   ParseCommand(const char* arg) override
   {
-    eos::common::StringTokenizer tokenizer(arg);
-    tokenizer.GetLine();
-    std::vector<std::string> args;
-    while (const char* token = tokenizer.GetTokenUnquoted(false)) {
-      args.emplace_back(token);
-    }
-    return ParseArguments(args);
+    std::vector<std::string> arguments;
+    return eos::console::TokenizeArguments(arg, arguments) && ParseArguments(arguments);
   }
   bool
   ParseArguments(const std::vector<std::string>& args)
   {
     mReq.clear_evict();
     CLI::App app;
-    app.allow_extras(false);
-    bool opt_ignore_evict_counter = false;
-    bool opt_ignore_removal_on_fst = false;
-    std::string fsid;
-    std::vector<std::string> pos;
-    ConfigureEvictApp(app, opt_ignore_evict_counter, opt_ignore_removal_on_fst, fsid,
-                      pos);
-
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
-    try {
-      app.parse(cli_args);
-    } catch (const CLI::ParseError&) {
-      return false;
-    }
-    if (pos.empty() ||
-        std::any_of(pos.begin(), pos.end(),
-                    [](const std::string& path) { return path.empty(); }) ||
-        (app.get_option("--fsid")->count() && fsid.empty())) {
-      return false;
-    }
-    if ((!fsid.empty() && !opt_ignore_evict_counter) ||
-        (fsid.empty() && opt_ignore_removal_on_fst)) {
+    bool ignore_counter = false, ignore_removal = false;
+    uint64_t fsid = 0;
+    std::vector<std::string> paths;
+    ConfigureEvictApp(app, ignore_counter, ignore_removal, fsid, paths);
+    if (!eos::console::ParseCliArguments(app, args)) {
       return false;
     }
 
     auto* evict = mReq.mutable_evict();
-    evict->set_ignoreevictcounter(opt_ignore_evict_counter);
-    evict->set_ignoreremovalonfst(opt_ignore_removal_on_fst);
-    if (!fsid.empty()) {
-      try {
-        if (!std::all_of(fsid.begin(), fsid.end(),
-                         [](char c) { return c >= '0' && c <= '9'; })) {
-          throw std::invalid_argument("invalid fsid");
-        }
-        const auto value = std::stoull(fsid);
-        evict->mutable_evictsinglereplica()->set_fsid(value);
-      } catch (const std::exception&) {
-        return false;
-      }
+    evict->set_ignoreevictcounter(ignore_counter);
+    evict->set_ignoreremovalonfst(ignore_removal);
+    if (*app.get_option("--fsid")) {
+      evict->mutable_evictsinglereplica()->set_fsid(fsid);
     }
-    for (const auto& a : pos) {
-      XrdOucString path = a.c_str();
-      unsigned long long fid = 0ull;
+    for (const auto& path : paths) {
       auto* file = evict->add_file();
-      if (Path2FileDenominator(path, fid)) {
-        file->set_fid(fid);
+      const auto identifier = eos::console::ParsePathIdentifier(path);
+      if (identifier.type == eos::console::IdentifierType::File) {
+        file->set_fid(identifier.value);
       } else {
         file->set_path(abspath(path.c_str()));
       }
@@ -147,19 +141,6 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (args.empty() || wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
     EvictHelper helper(*ctx.globalOpts);
     if (!helper.ParseArguments(args)) {
       printHelp();
@@ -169,18 +150,34 @@ public:
     global_retc = helper.Execute();
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CLI::App app;
+    bool counter = false, removal = false;
+    uint64_t fsid = 0;
+    std::vector<std::string> paths;
+    ConfigureEvictApp(app, counter, removal, fsid, paths);
+    return CompleteCliArguments(app, args, {},
+                                {{app.get_option("paths"), CompletionPath::Eos}});
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeEvictHelp();
+  }
   void
   printHelp() const override
   {
     CLI::App app;
     bool opt_ignore_evict_counter = false;
     bool opt_ignore_removal_on_fst = false;
-    std::string fsid;
+    uint64_t fsid = 0;
     std::vector<std::string> pos;
     ConfigureEvictApp(app, opt_ignore_evict_counter, opt_ignore_removal_on_fst,
                       fsid, pos);
     const std::string help = app.help();
-    std::cerr << help << std::endl;
+    eos::console::PrintLegacyHelp(help + "\n");
   }
 };
 } // namespace
@@ -188,5 +185,7 @@ public:
 void
 RegisterEvictNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<EvictCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<EvictCommand>(),
+      {{}, eos::console::ShortHelpPolicy::Always, {{"--fsid", 1}}}));
 }

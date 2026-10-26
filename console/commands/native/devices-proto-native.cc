@@ -4,9 +4,11 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
@@ -92,6 +94,11 @@ public:
   {
     return "Get Device Information";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeDevicesHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -127,7 +134,7 @@ public:
   {
     CLI::App app;
     ConfigureDevicesApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace
@@ -135,5 +142,10 @@ public:
 void
 RegisterDevicesProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<DevicesProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "Usage: devices ls ", "Inspect storage device statistics."},
+  };
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<DevicesProtoCommand>(), std::move(help)));
 }

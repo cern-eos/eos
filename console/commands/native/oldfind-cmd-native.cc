@@ -5,6 +5,8 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
@@ -14,8 +16,8 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <sys/stat.h>
+#include <vector>
 
 static void
 EnsureRegistryInitialized()
@@ -70,14 +72,9 @@ RunRegisteredCommand(const std::string& cmdName,
   }
 
   CommandContext ctx;
-  ctx.serverUri = serveruri.c_str();
   ctx.globalOpts = &gGlobalOpts;
   ctx.json = json;
   ctx.silent = silent;
-  ctx.interactive = interactive;
-  ctx.timing = timing;
-  ctx.userRole = user_role.c_str();
-  ctx.groupRole = group_role.c_str();
   ctx.clientCommand = &client_command;
   ctx.outputResult = &output_result;
 
@@ -86,7 +83,7 @@ RunRegisteredCommand(const std::string& cmdName,
 
 static std::string MakeOldfindHelp()
 {
-  return "Usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n>] "
+  return "Usage: oldfind [-name <pattern>] [--xurl] [--childcount] [--purge <n>] "
          "[--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] "
          "[-x <key>=<val>] [-p <key>] [-b] [-c %tags] [-layoutstripes <n>] <path>\n\n"
          "Find files/directories (old implementation).\n";
@@ -642,7 +639,7 @@ native_com_old_find(char* arg1)
   }
   return 0;
 com_find_usage:
-  fprintf(stderr, "%s", MakeOldfindHelp().c_str());
+  eos::console::PrintLegacyHelp(MakeOldfindHelp());
   global_retc = EINVAL;
   return 0;
 }
@@ -677,10 +674,15 @@ public:
     std::string joined = oss.str();
     return native_com_old_find((char*)joined.c_str());
   }
+  std::string
+  helpText() const override
+  {
+    return MakeOldfindHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeOldfindHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeOldfindHelp());
   }
 };
 } // namespace
@@ -688,12 +690,6 @@ public:
 void
 RegisterOldfindNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<OldfindCommand>());
-}
-
-// Legacy compatibility symbol required by ConsoleMain and other modules
-int
-com_old_find(char* arg)
-{
-  return native_com_old_find(arg);
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<OldfindCommand>(), {}));
 }

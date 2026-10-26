@@ -9,6 +9,8 @@
 #include "common/Mapping.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <json/json.h>
 #include <memory>
@@ -314,8 +316,8 @@ public:
     return 0;
 #endif
   }
-  void
-  printHelp() const override
+  std::string
+  helpText() const override
   {
     std::ostringstream oss;
     oss << "Usage: scitoken create|dump|create-keys\n"
@@ -346,7 +348,12 @@ public:
         << "    eos scitoken create --issuer eos.cern.ch --keyid eos profile wlcg --claim sub=foo --claim scope=storage.read:/eos\n"
         << "    eos scitoken dump eyJhb ...\n"
         << "    eos scitoken create-keys --keyid eos > /etc/xrootd/eos.jwk\n";
-    fprintf(stderr, "%s", oss.str().c_str());
+    return oss.str();
+  }
+  void
+  printHelp() const override
+  {
+    eos::console::PrintLegacyHelp(helpText());
   }
 };
 } // namespace
@@ -354,5 +361,17 @@ public:
 void
 RegisterScitokenNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ScitokenCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"create"}, "  scitoken create ", "Create a SciToken."},
+      {{"dump"}, "  scitoken dump ", "Decode a SciToken without verification."},
+      {{"create-keys"},
+       "  scitoken create-keys ",
+       "Create a signing key pair and public JWK."},
+  };
+  help.valueOptions = {{"--issuer", 1}, {"--keyid", 1},   {"--expires", 1},
+                       {"--claim", 1},  {"--profile", 1}, {"--privkey", 1},
+                       {"--pubkey", 1}};
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<ScitokenCommand>(), std::move(help)));
 }

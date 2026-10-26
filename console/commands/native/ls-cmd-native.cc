@@ -4,125 +4,240 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "namespace/utils/Mode.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <dirent.h>
 #include <memory>
-#include <sstream>
+#include <spawn.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <vector>
 
-namespace {
-std::string MakeLsHelp(const CLI::App* app)
-{
-  std::ostringstream oss;
-  const std::string& name = app->get_name();
-  oss << "Usage: " << (name.empty() ? "ls" : name)
-      << " [OPTION]... [--no-globbing] [PATH]...\n";
-  const std::string desc = app->get_description();
-  if (!desc.empty()) {
-    oss << desc << "\n";
-  }
-  oss << "\nOptions:\n";
+extern char** environ;
 
-  std::vector<std::pair<std::string, std::string>> lines;
-  size_t max_name = 0;
-  for (const auto* opt : app->get_options()) {
-    if (!opt || !opt->nonpositional()) {
-      continue;
+namespace {
+struct LsOptions {
+  CLI::App app{"List directories or files", "ls"};
+  bool longListing = false, backend = false, all = false, inode = false;
+  bool checksum = false, readable = false, directory = false, numeric = false;
+  bool classify = false, exists = false, reverse = false, time = false;
+  bool noGlobbing = false;
+  std::vector<std::string> paths;
+
+  LsOptions()
+  {
+    app.set_help_flag("--help", "Print this help message and exit");
+    app.add_flag("-l", longListing, "Show long listing");
+    app.add_flag("-y", backend, "Show long listing with backend (tape) status");
+    app.add_flag("-a", all, "Show hidden files");
+    app.add_flag("-i", inode, "Add inode information");
+    app.add_flag("-c", checksum, "Add checksum value (implies -l)");
+    app.add_flag("-h", readable,
+                 "Show readable sizes in the long listing; alone, show help");
+    app.add_flag("-d", directory,
+                 "List directories themselves instead of their contents");
+    app.add_flag("-n", numeric, "Show numeric user/group IDs");
+    app.add_flag("-F", classify, "Append '/' to directories");
+    app.add_flag("-s", exists, "Check directory existence without listing");
+    app.add_flag("-N,--no-globbing", noGlobbing, "Disable globbing");
+    app.add_flag("-r", reverse, "Accepted for compatibility; ignored");
+    app.add_flag("-t", time, "Accepted for compatibility; ignored");
+    app.add_option("path", paths, "Namespace paths (default: current directory)")
+        ->check(eos::console::NonEmptyArgument);
+    app.footer("file:... lists a local directory; root:... lists a plain XRootD server; "
+               "as3:... lists an S3 path. Other paths refer to EOS.");
+    // Keep the legacy synopsis while deriving its arguments from the schema.
+    app.usage("Usage: " +
+              CLI::detail::trim_copy(CLI::Formatter{}.make_usage(&app, app.get_name())));
+  }
+};
+
+bool
+LsWantsHelp(const std::vector<std::string>& args)
+{
+  const auto delimiter = std::find(args.begin(), args.end(), "--");
+  return std::find(args.begin(), delimiter, "--help") != delimiter ||
+         (args.size() == 1 && args.front() == "-h");
+}
+
+int
+ListPath(const std::string& path, const std::string& option, CommandContext& ctx)
+{
+  XrdOucString xpath = path.c_str();
+
+  // S3 scheme handling (legacy behaviour): as3:
+  if (xpath.beginswith("as3:")) {
+    XrdOucString hostport;
+    XrdOucString protocol;
+    XrdOucString sPath;
+    const char* v = 0;
+    if (!(v = eos::common::StringConversion::ParseUrl(xpath.c_str(), protocol,
+                                                      hostport))) {
+      fprintf(stderr, "error: illegal url <%s>\n", xpath.c_str());
+      return EINVAL;
     }
-    std::string opt_name = opt->get_name(false, true);
-    if (opt_name.empty()) {
-      continue;
+    sPath = v;
+    if (hostport.length()) {
+      setenv("S3_HOSTNAME", hostport.c_str(), 1);
     }
-    for (size_t i = 0; i + 1 < opt_name.size(); ++i) {
-      if (opt_name[i] == ',' && opt_name[i + 1] != ' ') {
-        opt_name.insert(i + 1, " ");
-        ++i;
+
+    XrdOucString envString = xpath;
+    int qpos = 0;
+    if ((qpos = envString.find("?")) != STR_NPOS) {
+      envString.erase(0, qpos + 1);
+      XrdOucEnv env(envString.c_str());
+      if (env.Get("s3.key")) {
+        setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
+      }
+      if (env.Get("s3.id")) {
+        setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
+      }
+      xpath.erase(xpath.find("?"));
+      sPath.erase(sPath.find("?"));
+    }
+    const char* cstr = getenv("S3_ACCESS_KEY");
+    if (cstr) {
+      setenv("S3_SECRET_ACCESS_KEY", cstr, 1);
+    }
+    cstr = getenv("S3_ACESSS_ID");
+    if (cstr) {
+      setenv("S3_ACCESS_KEY_ID", cstr, 1);
+    }
+    if (!getenv("S3_ACCESS_KEY_ID") || !getenv("S3_HOSTNAME") ||
+        !getenv("S3_SECRET_ACCESS_KEY")) {
+      fprintf(stderr, "error: you have to set the S3 environment variables "
+                      "S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use "
+                      "a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
+      return EINVAL;
+    }
+    char* arguments[] = {const_cast<char*>("s3"), const_cast<char*>("list"),
+                         const_cast<char*>(sPath.c_str()), nullptr};
+    pid_t child = 0;
+    const int spawned = posix_spawnp(&child, "s3", nullptr, nullptr, arguments, environ);
+    if (spawned) {
+      fprintf(stderr, "error: cannot execute s3: %s\n", strerror(spawned));
+      return spawned;
+    }
+    int status = 0;
+    while (waitpid(child, &status, 0) < 0) {
+      if (errno != EINTR) {
+        return errno;
       }
     }
-    std::string opt_desc = opt->get_description();
-    max_name = std::max(max_name, opt_name.size());
-    lines.emplace_back(std::move(opt_name), std::move(opt_desc));
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
   }
 
-  for (const auto& line : lines) {
-    oss << "  " << line.first;
-    if (!line.second.empty()) {
-      size_t pad = (max_name > line.first.size()) ? (max_name - line.first.size()) : 0;
-      oss << std::string(pad + 2, ' ') << line.second;
+  // Local file or plain XRootD path handling
+  if (xpath.beginswith("file:") || xpath.beginswith("root:")) {
+    bool isXrd = xpath.beginswith("root:");
+    if (isXrd && !xpath.beginswith("root://")) {
+      return EINVAL;
     }
-    oss << "\n";
-  }
-
-  oss << "\nNotes:\n"
-      << "  -lh: show long listing with readable sizes\n"
-      << "  path=file:... : list on a local file system\n"
-      << "  path=root:... : list on a plain XRootD server (does not work on native XRootD clusters)\n"
-      << "  path=...      : all other paths are considered to be EOS paths!\n";
-  return oss.str();
-}
-
-//------------------------------------------------------------------------------
-// Tell whether the given command line asks for the usage of the command.
-//
-// '-h' means 'readable sizes' as soon as anything else is given on the command
-// line, be it in a short flag group ('ls -alh <path>') or on its own
-// ('ls -a -l -h <path>'). It only shows the help when used alone, which keeps
-// the bare 'ls -h' of the legacy console working. '--help' is unambiguous and
-// always shows the help.
-//------------------------------------------------------------------------------
-bool
-LsWantsHelp(const std::string& args_line)
-{
-  std::istringstream iss(args_line);
-  std::vector<std::string> tokens;
-  std::string token;
-
-  while (iss >> token) {
-    if (token == "--help") {
-      return true;
+    XrdOucString protocol;
+    XrdOucString hostport;
+    XrdOucString sPath;
+    const char* v = 0;
+    if (!(v = eos::common::StringConversion::ParseUrl(xpath.c_str(), protocol,
+                                                      hostport))) {
+      return EINVAL;
     }
-
-    tokens.push_back(token);
+    sPath = v;
+    std::string Path = v;
+    if (sPath == "" && (protocol == "file")) {
+      const char* cwd = getenv("PWD");
+      if (!cwd) {
+        return EINVAL;
+      }
+      sPath = cwd;
+      Path = cwd;
+      if (!sPath.endswith("/")) {
+        sPath += "/";
+        Path += "/";
+      }
+    }
+    XrdOucString url = "";
+    eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
+                                             Path.c_str(), url);
+    if (!Path.empty() && Path.back() != '/') {
+      Path += '/';
+    }
+    DIR* dir = (isXrd) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(url.c_str());
+    if (dir) {
+      struct dirent* entry;
+      while ((entry = (isXrd) ? XrdPosixXrootd::Readdir(dir) : readdir(dir))) {
+        struct stat buf;
+        XrdOucString curl = "";
+        XrdOucString cpath = Path.c_str();
+        cpath += entry->d_name;
+        eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
+                                                 cpath.c_str(), curl);
+        if (option.find("a") == std::string::npos) {
+          if (entry->d_name[0] == '.') {
+            continue;
+          }
+        }
+        if (!((isXrd) ? XrdPosixXrootd::Stat(curl.c_str(), &buf)
+                      : stat(curl.c_str(), &buf))) {
+          if (option.find("l") == std::string::npos) {
+            fprintf(stdout, "%s\n", entry->d_name);
+          } else {
+            char t_creat[14];
+            char modestr[11];
+            eos::modeToBuffer(buf.st_mode, modestr);
+            XrdOucString suid = "";
+            suid += (int)buf.st_uid;
+            XrdOucString sgid = "";
+            sgid += (int)buf.st_gid;
+            XrdOucString sizestring = "";
+            struct tm* t_tm;
+            struct tm t_tm_local;
+            t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
+            strftime(t_creat, 13, "%b %d %H:%M", t_tm);
+            XrdOucString dirmarker = "";
+            if (option.find("F") != std::string::npos) {
+              dirmarker = "/";
+            }
+            if (modestr[0] != 'd') {
+              dirmarker = "";
+            }
+            fprintf(stdout, "%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr,
+                    (int)buf.st_nlink, suid.c_str(), sgid.c_str(),
+                    eos::common::StringConversion::GetSizeString(
+                        sizestring, (unsigned long long)buf.st_size),
+                    t_creat, entry->d_name, dirmarker.c_str());
+          }
+        }
+      }
+      (isXrd) ? XrdPosixXrootd::Closedir(dir) : closedir(dir);
+    }
+    if (!dir) {
+      const int status = errno ? errno : ENOENT;
+      fprintf(stderr, "error: cannot list %s: %s\n", path.c_str(), strerror(status));
+      return status;
+    }
+    return 0;
   }
 
-  return (tokens.size() == 1) && (tokens[0] == "-h");
-}
-
-void
-ConfigureLsApp(CLI::App& app, bool& opt_l, bool& opt_y, bool& opt_a, bool& opt_i,
-               bool& opt_c, bool& opt_h, bool& opt_d, bool& opt_n, bool& opt_F,
-               bool& opt_s, bool& opt_r, bool& opt_t, bool& opt_no_globbing)
-{
-  app.name("ls");
-  app.description("list directory <path>");
-  app.set_help_flag("");
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App* app, std::string, CLI::AppFormatMode) {
-        return MakeLsHelp(app);
-      }));
-
-  app.add_flag("-l", opt_l, "show long listing");
-  app.add_flag("-y", opt_y, "show long listing with backend(tape) status");
-  app.add_flag("-a", opt_a, "show hidden files");
-  app.add_flag("-i", opt_i, "add inode information");
-  app.add_flag("-c", opt_c, "add checksum value (implies -l)");
-  // Note: '-h' only shows the help when it is the whole command line, see
-  // LsWantsHelp
-  app.add_flag("-h", opt_h, "show readable sizes in the long listing");
-  app.add_flag("-d", opt_d, "list the directory itself and not its contents");
-  app.add_flag("-n", opt_n, "show numerical user/group ids");
-  app.add_flag("-F", opt_F, "append indicator '/' to directories");
-  app.add_flag("-s", opt_s, "checks only if the directory exists without listing");
-  app.add_flag("-N,--no-globbing", opt_no_globbing, "disables globbing");
-  // Hidden flag to make the parsing work also when we have flags that are
-  // common on Linux but not supported by EOS
-  app.add_flag("-r", opt_r, "")->group("");
-  app.add_flag("-t", opt_t, "")->group("");
+  // EOS path via MGM
+  XrdOucString ap = abspath(xpath.c_str());
+  if (strlen(ap.c_str()) >= FILENAME_MAX) {
+    fprintf(stderr, "error: path length longer than %i bytes", FILENAME_MAX);
+    return EINVAL;
+  }
+  XrdOucString esc = eos::common::StringConversion::curl_escaped(ap.c_str()).c_str();
+  XrdOucString in = "mgm.cmd=ls";
+  in += "&mgm.path=";
+  in += esc;
+  in += "&eos.encodepath=1";
+  in += "&mgm.option=";
+  in += option.c_str();
+  return ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
 }
 
 class LsCommand : public IConsoleCommand {
@@ -140,306 +255,88 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !LsWantsHelp(args);
+    std::vector<std::string> arguments;
+    return eos::console::TokenizeArguments(args.c_str(), arguments) &&
+           requiresMgmArguments(arguments);
   }
-
+  bool
+  requiresMgmArguments(const std::vector<std::string>& arguments) const override
+  {
+    if (LsWantsHelp(arguments)) {
+      return false;
+    }
+    LsOptions options;
+    std::vector<std::string> reversed(arguments.rbegin(), arguments.rend());
+    try {
+      options.app.parse(reversed);
+    } catch (const CLI::ParseError&) {
+      return false;
+    }
+    return options.paths.empty() ||
+           std::any_of(options.paths.begin(), options.paths.end(),
+                       [](const std::string& path) {
+                         return path.rfind("file:", 0) != 0 &&
+                                path.rfind("root:", 0) != 0 && path.rfind("as3:", 0) != 0;
+                       });
+  }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    // Setup CLI11 parser (ignore unknown options)
-    CLI::App app;
-    app.allow_extras();
-
-    bool opt_l = false;
-    bool opt_y = false;
-    bool opt_a = false;
-    bool opt_i = false;
-    bool opt_c = false;
-    bool opt_h = false;
-    bool opt_d = false;
-    bool opt_n = false;
-    bool opt_F = false;
-    bool opt_s = false;
-    bool opt_r = false;
-    bool opt_t = false;
-    bool opt_no_globbing = false;
-
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_h, opt_d, opt_n, opt_F,
-                   opt_s, opt_r, opt_t, opt_no_globbing);
-
-    std::vector<std::string> positionals;
-    app.add_option("path", positionals);
-
-    // Help handling, using the same predicate as requiresMgm so that both stay
-    // in sync
-    std::string args_line;
-
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i) {
-        args_line.push_back(' ');
+    LsOptions options;
+    if (LsWantsHelp(args) || !eos::console::ParseCliArguments(options.app, args)) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    std::string flags;
+    const auto add = [&](bool enabled, char flag) {
+      if (enabled) {
+        flags += '-';
+        flags += flag;
       }
-
-      args_line += args[i];
-    }
-
-    if (LsWantsHelp(args_line)) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
-    try {
-      app.parse(cli_args);
-    } catch (const CLI::ParseError&) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    // Build mgm.option string
-    std::string option;
-    auto add_flag = [&](char c) {
-      option += '-';
-      option.push_back(c);
     };
-    if (opt_l)
-      add_flag('l');
-    if (opt_y)
-      add_flag('y');
-    if (opt_a)
-      add_flag('a');
-    if (opt_i)
-      add_flag('i');
-    if (opt_c) {
-      add_flag('c');
-      if (!opt_l)
-        add_flag('l');
+    add(options.longListing || options.checksum, 'l');
+    add(options.backend, 'y');
+    add(options.all, 'a');
+    add(options.inode, 'i');
+    add(options.checksum, 'c');
+    add(options.readable, 'h');
+    add(options.directory, 'd');
+    add(options.numeric, 'n');
+    add(options.classify, 'F');
+    add(options.exists, 's');
+    add(options.noGlobbing, 'N');
+    if (options.paths.empty()) {
+      options.paths.emplace_back(gPwd.c_str());
     }
-    if (opt_h) {
-      add_flag('h');
-    }
-    if (opt_d) {
-      add_flag('d');
-    }
-    if (opt_n)
-      add_flag('n');
-    if (opt_F)
-      add_flag('F');
-    if (opt_s)
-      add_flag('s');
-    if (opt_no_globbing) {
-      option += "-N";
-    }
-
-    // Determine path from positionals (join to allow spaces)
-    std::ostringstream pathoss;
-    for (size_t i = 0; i < positionals.size(); ++i) {
-      if (i)
-        pathoss << ' ';
-      pathoss << positionals[i];
-    }
-    std::string path = pathoss.str();
-    if (path.empty())
-      path = gPwd.c_str();
-
-    // Unescape blanks (legacy behaviour: replace "\\ " -> " ")
-    {
-      std::string replaced;
-      replaced.reserve(path.size());
-      for (size_t i = 0; i < path.size(); ++i) {
-        if (path[i] == '\\' && i + 1 < path.size() && path[i + 1] == ' ') {
-          replaced.push_back(' ');
-          ++i;
-        } else
-          replaced.push_back(path[i]);
+    int status = 0;
+    for (const auto& path : options.paths) {
+      const int result = ListPath(path, flags, ctx);
+      if (!status) {
+        status = result;
       }
-      path.swap(replaced);
     }
-
-    XrdOucString xpath = path.c_str();
-
-    // S3 scheme handling (legacy behaviour): as3:
-    if (xpath.beginswith("as3:")) {
-      XrdOucString hostport;
-      XrdOucString protocol;
-      XrdOucString sPath;
-      const char* v = 0;
-      if (!(v = eos::common::StringConversion::ParseUrl(xpath.c_str(), protocol,
-                                                        hostport))) {
-        fprintf(stderr, "error: illegal url <%s>\n", xpath.c_str());
-        global_retc = EINVAL;
-        return 0;
-      }
-      sPath = v;
-      if (hostport.length())
-        setenv("S3_HOSTNAME", hostport.c_str(), 1);
-
-      XrdOucString envString = xpath;
-      int qpos = 0;
-      if ((qpos = envString.find("?")) != STR_NPOS) {
-        envString.erase(0, qpos + 1);
-        XrdOucEnv env(envString.c_str());
-        if (env.Get("s3.key"))
-          setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
-        if (env.Get("s3.id"))
-          setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
-        xpath.erase(xpath.find("?"));
-        sPath.erase(sPath.find("?"));
-      }
-      const char* cstr = getenv("S3_ACCESS_KEY");
-      if (cstr)
-        setenv("S3_SECRET_ACCESS_KEY", cstr, 1);
-      cstr = getenv("S3_ACESSS_ID");
-      if (cstr)
-        setenv("S3_ACCESS_KEY_ID", cstr, 1);
-      if (!getenv("S3_ACCESS_KEY_ID") || !getenv("S3_HOSTNAME") ||
-          !getenv("S3_SECRET_ACCESS_KEY")) {
-        fprintf(stderr, "error: you have to set the S3 environment variables "
-                        "S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use "
-                        "a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
-        exit(-1);
-      }
-      XrdOucString s3env;
-      s3env = "env S3_ACCESS_KEY_ID=";
-      s3env += getenv("S3_ACCESS_KEY_ID");
-      s3env += " S3_HOSTNAME=";
-      s3env += getenv("S3_HOSTNAME");
-      s3env += " S3_SECRET_ACCESS_KEY=";
-      s3env += getenv("S3_SECRET_ACCESS_KEY");
-      XrdOucString s3arg = sPath.c_str();
-      XrdOucString listcmd = "bash -c \"";
-      listcmd += s3env;
-      listcmd += " s3 list ";
-      listcmd += s3arg;
-      listcmd += " ";
-      listcmd += "\"";
-      global_retc = system(listcmd.c_str());
-      return 0;
-    }
-
-    // Local file or plain XRootD path handling
-    if (xpath.beginswith("file:") || xpath.beginswith("root:")) {
-      bool isXrd = xpath.beginswith("root:");
-      if (isXrd && !xpath.beginswith("root://")) {
-        global_retc = EINVAL;
-        return 0;
-      }
-      XrdOucString protocol;
-      XrdOucString hostport;
-      XrdOucString sPath;
-      const char* v = 0;
-      if (!(v = eos::common::StringConversion::ParseUrl(xpath.c_str(), protocol,
-                                                        hostport))) {
-        global_retc = EINVAL;
-        return 0;
-      }
-      sPath = v;
-      std::string Path = v;
-      if (sPath == "" && (protocol == "file")) {
-        sPath = getenv("PWD");
-        Path = getenv("PWD");
-        if (!sPath.endswith("/")) {
-          sPath += "/";
-          Path += "/";
-        }
-      }
-      XrdOucString url = "";
-      eos::common::StringConversion::CreateUrl(
-          protocol.c_str(), hostport.c_str(), Path.c_str(), url);
-      DIR* dir =
-          (isXrd) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(url.c_str());
-      if (dir) {
-        struct dirent* entry;
-        while (
-            (entry = (isXrd) ? XrdPosixXrootd::Readdir(dir) : readdir(dir))) {
-          struct stat buf;
-          XrdOucString curl = "";
-          XrdOucString cpath = Path.c_str();
-          cpath += entry->d_name;
-          eos::common::StringConversion::CreateUrl(
-              protocol.c_str(), hostport.c_str(), cpath.c_str(), curl);
-          if (option.find("a") == std::string::npos) {
-            if (entry->d_name[0] == '.')
-              continue;
-          }
-          if (!((isXrd) ? XrdPosixXrootd::Stat(curl.c_str(), &buf)
-                        : stat(curl.c_str(), &buf))) {
-            if (option.find("l") == std::string::npos) {
-              fprintf(stdout, "%s\n", entry->d_name);
-            } else {
-              char t_creat[14];
-              char modestr[11];
-              eos::modeToBuffer(buf.st_mode, modestr);
-              XrdOucString suid = "";
-              suid += (int)buf.st_uid;
-              XrdOucString sgid = "";
-              sgid += (int)buf.st_gid;
-              XrdOucString sizestring = "";
-              struct tm* t_tm;
-              struct tm t_tm_local;
-              t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
-              strftime(t_creat, 13, "%b %d %H:%M", t_tm);
-              XrdOucString dirmarker = "";
-              if (option.find("F") != std::string::npos)
-                dirmarker = "/";
-              if (modestr[0] != 'd')
-                dirmarker = "";
-              fprintf(stdout, "%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr,
-                      (int)buf.st_nlink, suid.c_str(), sgid.c_str(),
-                      eos::common::StringConversion::GetSizeString(
-                          sizestring, (unsigned long long)buf.st_size),
-                      t_creat, entry->d_name, dirmarker.c_str());
-            }
-          }
-        }
-        (isXrd) ? XrdPosixXrootd::Closedir(dir) : closedir(dir);
-      }
-      global_retc = 0;
-      return 0;
-    }
-
-    // EOS path via MGM
-    XrdOucString ap = abspath(xpath.c_str());
-    if (strlen(ap.c_str()) >= FILENAME_MAX) {
-      fprintf(stderr, "error: path length longer than %i bytes", FILENAME_MAX);
-      global_retc = EINVAL;
-      return 0;
-    }
-    XrdOucString esc =
-        eos::common::StringConversion::curl_escaped(ap.c_str()).c_str();
-    XrdOucString in = "mgm.cmd=ls";
-    in += "&mgm.path=";
-    in += esc;
-    in += "&eos.encodepath=1";
-    in += "&mgm.option=";
-    in += option.c_str();
-    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
+    global_retc = status;
     return 0;
   }
-
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    LsOptions options;
+    return CompleteCliArguments(
+        options.app, args, {},
+        {{options.app.get_option("path"), CompletionPath::EosOrFile}});
+  }
+  std::string
+  helpText() const override
+  {
+    return LsOptions{}.app.help();
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    bool opt_l = false;
-    bool opt_y = false;
-    bool opt_a = false;
-    bool opt_i = false;
-    bool opt_c = false;
-    bool opt_h = false;
-    bool opt_d = false;
-    bool opt_n = false;
-    bool opt_F = false;
-    bool opt_s = false;
-    bool opt_r = false;
-    bool opt_t = false;
-    bool opt_no_globbing = false;
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_h, opt_d, opt_n, opt_F,
-                   opt_s, opt_r, opt_t, opt_no_globbing);
-    const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    LsOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -447,5 +344,6 @@ public:
 void
 RegisterLsNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<LsCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<LsCommand>(), {{}, eos::console::ShortHelpPolicy::Standalone}));
 }

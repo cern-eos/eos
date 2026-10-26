@@ -46,7 +46,6 @@ extern XrdOucString global_comment;
 extern XrdOucString pwdfile;
 extern void exit_handler(int a);
 extern int global_retc;
-extern bool global_highlighting;
 extern bool global_debug;
 extern bool interactive;
 extern bool hasterminal;
@@ -78,15 +77,6 @@ using namespace XrdCl;
 extern XrdOucEnv* client_command(XrdOucString& in, bool is_admin = false,
                                  std::string* reply = nullptr);
 
-typedef int CFunction(char*);
-//! Structure which contains information on the commands this program
-//! understands.
-typedef struct {
-  char* name; /* User printable name of the function. */
-  CFunction* func; /* Function to call to do the job. */
-  char* doc; /* Documentation for this function.  */
-} COMMAND;
-
 //------------------------------------------------------------------------------
 //! Help flag filter function.
 //! Given a line containing command arguments, search for help keywords
@@ -111,12 +101,9 @@ extern bool wants_help(const char* args_line, bool no_h = false);
 //------------------------------------------------------------------------------
 extern bool IsLocalhostUri(const XrdOucString& uri);
 
-extern COMMAND commands[];
 extern int done;
 
 char* stripwhite(char* string);
-std::string parse_comment(const char* line, std::string& comment);
-COMMAND* find_command(const char* command);
 int execute_line(char* line);
 
 int Run(int argc, char* argv[]);
@@ -135,58 +122,11 @@ int Run(int argc, char* argv[]);
 std::string PathIdentifier(const char* in, bool escapeand = false);
 
 //------------------------------------------------------------------------------
-//! Check if input matches pattern and extract the file id if possible
-//!
-//! @param input input string which can also be a path
-//! @param pattern regular expression fxid:<hex_id> | fid: <dec_id>
-//!
-//! @return true if input matches pattern, false otherwise
+//! Parse a complete file or container identifier without modifying the input.
+//! Return false for paths, malformed identifiers, and values outside uint64.
 //------------------------------------------------------------------------------
-bool RegWrapDenominator(XrdOucString& input, const std::string& key);
-
-//------------------------------------------------------------------------------
-//! Extract file id specifier if input is in one of the following formats:
-//! fxid:<hex_id> | fid:<dec_id>
-//!
-//! @param input input following the above format or an actual path
-//!
-//! @return true if path is given as a file id specifier, otherwise false
-//------------------------------------------------------------------------------
-bool Path2FileDenominator(XrdOucString& path);
-
-//------------------------------------------------------------------------------
-//! Extract file id specifier if input is in one of the following formats:
-//! fxid:<hex_id> | fid:<dec_id>
-//!
-//! @param input input following the above format or an actual path
-//!
-//! @param id result with the extracted id
-//!
-//! @return true if path is given as a file id specifier, otherwise false
-//------------------------------------------------------------------------------
-bool Path2FileDenominator(XrdOucString& path, unsigned long long& id);
-
-//------------------------------------------------------------------------------
-//! Extract container id specifier if input is in one of the following formats:
-//! cxid:<hex_id> | cid:<dec_id>
-//!
-//! @param input input following the above format or an actual path
-//!
-//! @return true if path is given as a file id specifier, otherwise false
-//------------------------------------------------------------------------------
-bool Path2ContainerDenominator(XrdOucString& path);
-
-//------------------------------------------------------------------------------
-//! Extract container id specifier if input is in one of the following formats:
-//! cxid:<hex_id> | cid:<dec_id>
-//!
-//! @param input input following the above format or an actual path
-//!
-//! @param id result with the extracted id
-//!
-//! @return true if path is given as a file id specifier, otherwise false
-//------------------------------------------------------------------------------
-bool Path2ContainerDenominator(XrdOucString& path, unsigned long long& id);
+bool Path2FileDenominator(const XrdOucString& path, unsigned long long& id);
+bool Path2ContainerDenominator(const XrdOucString& path, unsigned long long& id);
 
 //------------------------------------------------------------------------------
 //! Check whether the given command performs an MGM call

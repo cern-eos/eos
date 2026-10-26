@@ -4,6 +4,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
 #include <vector>
 
@@ -29,13 +31,22 @@ public:
     forwarded.insert(forwarded.end(), args.begin(), args.end());
     return fileCmd->run(forwarded, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return "Usage: info <path> [options]\n\nAlias for eos file info. Show file or "
+           "directory metadata.\nOptions: --path, --fid, --fxid, --size, --checksum, "
+           "--fullpath, --proxy, -m, -s, --silent.\n";
+  }
   void printHelp() const override {
-    fprintf(stderr, "Usage: info <path> [options] (alias for 'file info')\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: info <path> [options] (alias for 'file info')\n");
   }
 };
 } // namespace
 
 void RegisterInfoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<InfoAliasCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<InfoAliasCommand>()));
 }
