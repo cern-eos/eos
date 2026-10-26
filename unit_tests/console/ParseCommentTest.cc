@@ -21,84 +21,57 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "console/ConsoleOptions.hh"
 #include "gtest/gtest.h"
-#include "console/ConsoleMain.hh"
 
-//------------------------------------------------------------------------------
-// Test valid comment syntax
-//------------------------------------------------------------------------------
-TEST(ParseComment, ValidSyntax)
+TEST(ParseComment, ExtractsOneNonemptyTokenValue)
 {
-  std::string comment;
-  char* line;
-  // Arguments as they are
-  line = (char*) "eos version --comment \"Hello Comment\"";
-  std::string cmd = parse_comment(line, comment);
-  ASSERT_STRNE(line, 0);
-  ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
-  // Arguments quote-encased
-  line = (char*) "eos \"version\" \"--comment\" \"Hello Comment\"";
-  cmd = parse_comment(line, comment);
-  ASSERT_FALSE(cmd.empty());
-  ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
+  std::vector<std::string> arguments{"register", "/eos/file", "--comment",
+                                     "hello & = \"quoted\"", "size=1"};
+  std::string comment, error;
+  ASSERT_TRUE(eos::console::ExtractConsoleComment(arguments, comment, error));
+  EXPECT_EQ(comment, "hello & = \"quoted\"");
+  EXPECT_EQ(arguments, (std::vector<std::string>{"register", "/eos/file", "size=1"}));
 }
 
-//------------------------------------------------------------------------------
-// Test invalid comment syntax
-//------------------------------------------------------------------------------
-TEST(ParseComment, InvalidSyntax)
+TEST(ParseComment, AllowsCommentBeforeCommand)
 {
-  std::string comment;
-  char* line;
-  // Missing comment text
-  line = (char*) "eos version --comment";
-  std::string cmd = parse_comment(line, comment);
-  ASSERT_TRUE(cmd.empty());
-  ASSERT_TRUE(comment.empty());
-  // Empty comment text
-  line = (char*) "eos version --comment \"\"";
-  cmd = parse_comment(line, comment);
-  ASSERT_TRUE(cmd.empty());
-  ASSERT_TRUE(comment.empty());
-  // Missing starting quote for comment text
-  line = (char*) "eos version --comment Hello Comment\"";
-  cmd = parse_comment(line, comment);
-  ASSERT_TRUE(cmd.empty());
-  ASSERT_TRUE(comment.empty());
-  // Missing ending quote for comment text
-  line = (char*) "eos version --comment \"Hello Comment";
-  cmd = parse_comment(line, comment);
-  ASSERT_TRUE(cmd.empty());
-  ASSERT_TRUE(comment.empty());
+  std::vector<std::string> arguments{"--comment", "audit", "version"};
+  std::string comment, error;
+  ASSERT_TRUE(eos::console::ExtractConsoleComment(arguments, comment, error));
+  EXPECT_EQ(comment, "audit");
+  EXPECT_EQ(arguments, (std::vector<std::string>{"version"}));
 }
 
-//------------------------------------------------------------------------------
-// Test comment extraction
-//------------------------------------------------------------------------------
-TEST(ParseComment, CommentExtraction)
+TEST(ParseComment, LeavesSimilarFlagsAndLiteralPathTextIntact)
 {
-  std::string comment;
-  char* line = (char*) "eos --comment \"Hello Comment\" version";
-  std::string cmd = parse_comment(line, comment);
-  ASSERT_STREQ(cmd.c_str(), "eos  version");
-  ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
+  std::vector<std::string> arguments{"register", "/eos/a --comment b",
+                                     "attr=user.note= --comment x", "--comments"};
+  const auto original = arguments;
+  std::string comment, error;
+  ASSERT_TRUE(eos::console::ExtractConsoleComment(arguments, comment, error));
+  EXPECT_TRUE(comment.empty());
+  EXPECT_EQ(arguments, original);
 }
 
-//------------------------------------------------------------------------------
-// Test no comment present
-//------------------------------------------------------------------------------
-TEST(ParseComment, NoCommentPresent)
+TEST(ParseComment, StopsAtOptionTerminator)
 {
-  std::string comment;
-  char* line;
-  // Comment flag missing completely
-  line = (char*) "eos version";
-  std::string cmd = parse_comment(line, comment);
-  ASSERT_STREQ(cmd.c_str(), "eos version");
-  ASSERT_TRUE(comment.empty());
-  // Similar flag containing --comment text
-  line = (char*) "eos config dump --comments";
-  cmd = parse_comment(line, comment);
-  ASSERT_STREQ(cmd.c_str(), "eos config dump --comments");
-  ASSERT_TRUE(comment.empty());
+  std::vector<std::string> arguments{"evict", "--", "--comment", "literal"};
+  const auto original = arguments;
+  std::string comment, error;
+  ASSERT_TRUE(eos::console::ExtractConsoleComment(arguments, comment, error));
+  EXPECT_TRUE(comment.empty());
+  EXPECT_EQ(arguments, original);
+}
+
+TEST(ParseComment, RejectsMissingEmptyAndDuplicateValues)
+{
+  for (auto arguments : std::vector<std::vector<std::string>>{
+           {"version", "--comment"},
+           {"version", "--comment", ""},
+           {"version", "--comment", "one", "--comment", "two"}}) {
+    std::string comment, error;
+    EXPECT_FALSE(eos::console::ExtractConsoleComment(arguments, comment, error));
+    EXPECT_FALSE(error.empty());
+  }
 }

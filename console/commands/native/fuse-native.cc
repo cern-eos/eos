@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -123,14 +125,25 @@ public:
     }
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return "Usage:\n"
+           "  fuse mount <mount-point>\n"
+           "    Mount EOS using the server URI to derive the filesystem name.\n"
+           "    Prepare the local mountpoint before starting the FUSE client.\n\n"
+           "  fuse umount <mount-point>\n"
+           "    Unmount an EOS FUSE mount.\n";
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage:\n"
-                    "  fuse mount <mount-point>\n"
-                    "  fuse umount <mount-point>\n"
-                    "Mount uses server URI to derive fsname and prepares the "
-                    "mountpoint.\n");
+    eos::console::PrintLegacyHelp(
+        "Usage:\n"
+        "  fuse mount <mount-point>\n"
+        "  fuse umount <mount-point>\n"
+        "Mount uses server URI to derive fsname and prepares the "
+        "mountpoint.\n");
   }
 };
 } // namespace
@@ -138,5 +151,8 @@ public:
 void
 RegisterFuseNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<FuseCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<FuseCommand>(),
+      {{{{"mount"}, "  fuse mount ", "Mount an EOS filesystem."},
+        {{"umount"}, "  fuse umount ", "Unmount an EOS filesystem."}}}));
 }

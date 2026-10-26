@@ -5,136 +5,128 @@ if [[ -n "${_EOS_BASH_COMPLETION_LOADED:-}" ]]; then
 fi
 _EOS_BASH_COMPLETION_LOADED=1
 
-_eos_comp()
+# COMP_WORDS splits unquoted ':' and '=' and retains shell quoting. Read the
+# logical argv directly, without evaluating expansions or executing user input.
+# Results use the caller's local eos_words, word, and eos_replacement_prefix.
+_eos_read_words()
 {
-  COMPREPLY=()
+  eos_words=()
+  word=
+  eos_replacement_prefix=
 
-  local reply
-  while IFS= read -r reply; do
-    [[ -z "${reply}" ]] && continue
-    [[ ${reply} != "${word}"* ]] && continue
-    COMPREPLY+=("${reply}")
-  done <<< "$1"
-
-  for reply in "${COMPREPLY[@]}"; do
-    if [[ ${reply} == *= || ${reply} == */ ]]; then
-      compopt -o nospace -o filenames 2>/dev/null
-      break
-    fi
-  done
-}
-
-_eos_dynamic_complete()
-{
-  local args=()
-  local i
-
-  for ((i = 1; i < COMP_CWORD; ++i)); do
-    args+=("${COMP_WORDS[i]}")
-  done
-
-  args+=("${word}")
-
-  local old_ifs="$IFS"
-  IFS=$'\n'
-  local opts
-  opts=$(eos __complete "${args[@]}" 2>/dev/null)
-  IFS="$old_ifs"
-
-  if [[ -n "${opts}" ]]; then
-    _eos_comp "${opts}"
-  else
-    COMPREPLY=()
+  if [[ -z "${COMP_LINE+x}" || -z "${COMP_POINT+x}" ]]; then
+    eos_words=("${COMP_WORDS[@]:0:COMP_CWORD}")
+    word="${COMP_WORDS[COMP_CWORD]}"
+    eos_words+=("${word}")
+    return 0
   fi
-}
 
-_eos_find_command_index()
-{
-  local i token
+  local LC_ALL=C
+  local line="${COMP_LINE:0:COMP_POINT}"
+  local quote= char next
+  local started=0 index
+  local replacement_length=0
 
-  for ((i = 1; i < COMP_CWORD; ++i)); do
-    token="${COMP_WORDS[i]}"
+  for ((index = 0; index < ${#line}; ++index)); do
+    char="${line:index:1}"
+    if [[ ${quote} == "'" ]]; then
+      if [[ ${char} == "'" ]]; then
+        quote=
+      else
+        word+="${char}"
+      fi
+      continue
+    fi
 
-    case "${token}" in
-      -a|--app)
-        ((++i))
-        continue
+    if [[ ${quote} == '"' ]]; then
+      case "${char}" in
+        '"') quote= ;;
+        '\')
+          next="${line:index+1:1}"
+          case "${next}" in
+            '$'|'`'|'"'|'\') word+="${next}"; ((++index)) ;;
+            $'\n') ((++index)) ;;
+            *) word+="${char}" ;;
+          esac
+          ;;
+        *) word+="${char}" ;;
+      esac
+      continue
+    fi
+
+    case "${char}" in
+      "'"|'"') quote="${char}"; started=1 ;;
+      '\')
+        next="${line:index+1:1}"
+        if [[ -n ${next} ]]; then
+          [[ ${next} == $'\n' ]] || word+="${next}"
+          ((++index))
+        fi
+        started=1
         ;;
-      -r|--role)
-        ((i += 2))
-        continue
+      ' '|$'\t'|$'\n')
+        if (( started )); then
+          eos_words+=("${word}")
+        fi
+        word=
+        started=0
+        replacement_length=0
         ;;
-      -b|--batch|-h|--help|-j|--json|-s|-v|--version)
-        continue
+      ';'|'|'|'&'|'('|')')
+        # Completion concerns the current simple command in a command list.
+        eos_words=()
+        word=
+        started=0
+        replacement_length=0
         ;;
-      root://*|ipc://*)
-        continue
+      '<'|'>'|'`') return 1 ;;
+      '$')
+        # Shell expansions are deliberately left to Bash, never evaluated here.
+        [[ ${line:index+1:1} == '(' ]] && return 1
+        word+="${char}"
+        started=1
         ;;
-      -*)
-        continue
+      '#')
+        (( started )) || return 1
+        word+="${char}"
         ;;
       *)
-        printf '%s\n' "${i}"
-        return 0
+        word+="${char}"
+        started=1
+        if [[ ${COMP_WORDBREAKS-} == *"${char}"* ]]; then
+          replacement_length=${#word}
+        fi
         ;;
     esac
   done
 
-  printf '0\n'
-}
-
-_eos_path_capable_command()
-{
-  local command_index command
-  command_index=$(_eos_find_command_index)
-
-  if [[ "${command_index}" == "0" ]]; then
-    return 1
-  fi
-
-  command="${COMP_WORDS[command_index]}"
-
-  case "${command}" in
-    acl|attr|cat|cd|chmod|chown|cp|du|file|fileinfo|find|info|ln|ls|mkdir|mv|rm|rmdir|stat|touch)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
-_eos_local_path_complete()
-{
-  COMPREPLY=()
-
-  local reply
-  while IFS= read -r reply; do
-    [[ -z "${reply}" ]] && continue
-    COMPREPLY+=("${reply}")
-  done < <(compgen -f -- "${word}")
-
-  [[ ${#COMPREPLY[@]} -gt 0 ]] || return 1
-  compopt -o filenames 2>/dev/null
-  return 0
+  eos_words+=("${word}")
+  eos_replacement_prefix="${word:0:replacement_length}"
 }
 
 _eos()
 {
   COMPREPLY=()
-  compopt +o default +o bashdefault 2>/dev/null
+  compopt +o default +o bashdefault +o nospace 2>/dev/null
 
-  local word="${COMP_WORDS[COMP_CWORD]}"
+  local -a eos_words args
+  local word eos_replacement_prefix reply
+  _eos_read_words || return 0
+  (( ${#eos_words[@]} )) || return 0
+  args=("${eos_words[@]:1}")
 
-  if [[ ${word} == ./* || ${word} == ../* || ${word} == ~/* ]]; then
-    _eos_local_path_complete && return 0
-  fi
+  while IFS= read -r reply; do
+    [[ -z ${reply} || ${reply} != "${word}"* ]] && continue
+    # Bash replaces only the fragment after the last active word break.
+    COMPREPLY+=("${reply:${#eos_replacement_prefix}}")
+    if [[ ${reply} == *= || ${reply} == */ || ${reply} == *: ]]; then
+      compopt -o nospace 2>/dev/null
+    fi
+  done < <(eos __complete "${args[@]}" 2>/dev/null)
 
-  _eos_dynamic_complete
-
-  if [[ ${#COMPREPLY[@]} -eq 0 && ${word} != -* && ${word} != /eos* ]] &&
-     _eos_path_capable_command; then
-    _eos_local_path_complete && return 0
-  fi
+  # Readline must quote spaces and metacharacters in returned paths/values.
+  compopt -o filenames 2>/dev/null
+  return 0
 }
 
-complete -F _eos eos
+complete -o filenames -F _eos eos

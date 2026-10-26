@@ -1,41 +1,40 @@
 // ----------------------------------------------------------------------
-// File: chmod-native.cc
+// File: chmod-cmd-native.cc
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCli.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
-#include <algorithm>
 #include <memory>
-#include <sstream>
-#include <vector>
 
 namespace {
-std::string MakeChmodHelp()
-{
-  std::ostringstream oss;
-  oss << "Usage: chmod [-r] <mode> <path>                             : set "
-         "mode for <path> (-r recursive)\n";
-  oss << "                 <mode> can be only numerical like 755, 644, 700\n";
-  return oss.str();
-}
+struct ChmodOptions {
+  CLI::App app{"Set file or directory permissions", "chmod"};
+  bool recursive = false;
+  std::string mode, path;
 
-void ConfigureChmodApp(CLI::App& app,
-                      bool& opt_r,
-                      std::string& mode,
-                      std::string& path)
-{
-  app.name("chmod");
-  app.description("Mode Interface");
-  app.set_help_flag("");
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeChmodHelp();
-      }));
-  app.add_flag("-r", opt_r, "recursive");
-  app.add_option("mode", mode, "mode (e.g. 755, 644, 700)")->required();
-  app.add_option("path", path, "path")->required();
-}
+  ChmodOptions()
+  {
+    app.add_flag("-r", recursive, "Change permissions recursively");
+    app.add_option("mode", mode, "Octal mode from 0 to 7777 (for example 755 or 2777)")
+        ->required()
+        ->check(CLI::Validator(
+            [](const std::string& value) {
+              const auto first = value.find_first_not_of('0');
+              if (value.empty() ||
+                  value.find_first_not_of("01234567") != std::string::npos ||
+                  (first != std::string::npos && value.size() - first > 4)) {
+                return std::string("mode must be an octal number from 0 to 7777");
+              }
+              return std::string{};
+            },
+            "OCTAL_MODE"));
+    app.add_option("path", path, "Namespace path")
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+  }
+};
 
 class ChmodCommand : public IConsoleCommand {
 public:
@@ -49,64 +48,49 @@ public:
   {
     return "Mode Interface";
   }
-  bool
-  requiresMgm(const std::string& args) const override
-  {
-    return !wants_help(args.c_str());
-  }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    std::ostringstream oss;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i)
-        oss << ' ';
-      oss << args[i];
-    }
-    std::string joined = oss.str();
-    if (args.empty() || wants_help(joined.c_str())) {
+    ChmodOptions options;
+    if (!eos::console::ParseCliArguments(options.app, args)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-
-    CLI::App app;
-    bool opt_r = false;
-    std::string mode;
-    std::string path;
-    ConfigureChmodApp(app, opt_r, mode, path);
-
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
-    try {
-      app.parse(cli_args);
-    } catch (const CLI::ParseError&) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
+    // The MGM expects octal digits without a leading zero, rather than the
+    // decimal representation of the parsed permission bits.
+    const auto first = options.mode.find_first_not_of('0');
+    const std::string mode =
+        first == std::string::npos ? "0" : options.mode.substr(first);
     XrdOucString in = "mgm.cmd=chmod";
-    if (opt_r)
+    if (options.recursive) {
       in += "&mgm.option=r";
-    XrdOucString ap = abspath(path.c_str());
+    }
     in += "&mgm.path=";
-    in += ap;
-    in += "&mgm.chmod.mode=";
+    in += eos::common::StringConversion::curl_escaped(abspath(options.path.c_str()))
+              .c_str();
+    in += "&eos.encodepath=1&mgm.chmod.mode=";
     in += mode.c_str();
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    ChmodOptions options;
+    return CompleteCliArguments(options.app, args, {},
+                                {{options.app.get_option("path"), CompletionPath::Eos}});
+  }
+  std::string
+  helpText() const override
+  {
+    return ChmodOptions{}.app.help();
+  }
   void
   printHelp() const override
   {
-    CLI::App app;
-    bool opt_r = false;
-    std::string mode;
-    std::string path;
-    ConfigureChmodApp(app, opt_r, mode, path);
-    const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    ChmodOptions options;
+    eos::console::PrintCliHelp(options.app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -114,5 +98,6 @@ public:
 void
 RegisterChmodNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<ChmodCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<ChmodCommand>(), {}));
 }

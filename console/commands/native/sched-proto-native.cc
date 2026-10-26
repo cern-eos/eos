@@ -5,9 +5,11 @@
 #include "common/ParseUtils.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
@@ -212,6 +214,11 @@ public:
   {
     return "Configure scheduler options";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeSchedHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -246,7 +253,7 @@ public:
   {
     CLI::App app;
     ConfigureSchedApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    eos::console::PrintLegacyHelp(app.help());
   }
 };
 } // namespace
@@ -254,5 +261,49 @@ public:
 void
 RegisterSchedProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<SchedProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"show"}, "", "Inspect scheduler state."},
+      {{"show", "type"}, "  show type ", "Show the configured scheduler."},
+      {{"show", "state"}, "  show state ", "Show per-space scheduler state."},
+      {{"ls"}, "  ls <spacename> ", "Inspect scheduler topology."},
+      {{"configure"}, "", "Configure the scheduler."},
+      {{"configure", "type"}, "  configure type ", "Set the default scheduler type."},
+      {{"configure", "weight"}, "  configure weight ", "Set a filesystem weight."},
+      {{"configure", "forcerefresh"},
+       "  configure forcerefresh",
+       "Refresh scheduler state."},
+      {{"configure", "show"}, "", "Inspect scheduler state."},
+      {{"configure", "show", "type"}, "  show type ", "Show the configured scheduler."},
+      {{"configure", "show", "state"},
+       "  show state ",
+       "Show per-space scheduler state."},
+      {{"config"}, "", "Configure the scheduler."},
+      {{"config", "type"}, "  configure type ", "Set the default scheduler type."},
+      {{"config", "weight"}, "  configure weight ", "Set a filesystem weight."},
+      {{"config", "forcerefresh"},
+       "  configure forcerefresh",
+       "Refresh scheduler state."},
+      {{"config", "show"}, "", "Inspect scheduler state."},
+      {{"config", "show", "type"}, "  show type ", "Show the configured scheduler."},
+      {{"config", "show", "state"}, "  show state ", "Show per-space scheduler state."},
+      {{"disable"}, "", "Manage disabled scheduling branches."},
+      {{"disable", "add"},
+       "  disable add ",
+       "Disable operations for a scheduling branch."},
+      {{"disable", "rm"},
+       "  disable rm ",
+       "Re-enable operations for a scheduling branch."},
+      {{"disable", "ls"}, "  disable ls ", "List disabled scheduling branches."},
+      {{"disabled"}, "", "Manage disabled scheduling branches."},
+      {{"disabled", "add"},
+       "  disable add ",
+       "Disable operations for a scheduling branch."},
+      {{"disabled", "rm"},
+       "  disable rm ",
+       "Re-enable operations for a scheduling branch."},
+      {{"disabled", "ls"}, "  disable ls ", "List disabled scheduling branches."},
+  };
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<SchedProtoCommand>(), std::move(help)));
 }

@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "proto/ConsoleRequest.pb.h"
 #include "unit_tests/console/ConsoleTestFixture.hh"
@@ -56,7 +57,6 @@ TEST_F(CommandDispatchTest, EvictRejectsInvalidOptionsBeforeSending)
 {
   for (const auto& args : std::vector<std::vector<std::string>>{
            {},
-           {"--help"},
            {"--fsid"},
            {"--fsid", "1", "fid:1"},
            {"--ignore-removal-on-fst", "fid:1"},
@@ -121,7 +121,7 @@ TEST_F(CommandDispatchTest, RegisterNamedOwnersAndPathTag)
 TEST_F(CommandDispatchTest, RegisterRejectsInvalidMetadataBeforeSending)
 {
   for (const auto& args : std::vector<std::vector<std::string>>{
-           {}, {"--help"}, {"-u"}, {"size=1"}, {"relative"}, {"path="}}) {
+           {}, {"-u"}, {"size=1"}, {"relative"}, {"path="}}) {
     expectRejected("register", args);
   }
   for (const char* tag :
@@ -287,7 +287,7 @@ TEST_P(ConsoleRequestTest, SerializesExpectedRequestAndPropagatesErrors)
     run(item.command, item.args);
     EXPECT_EQ(global_retc, retc);
     auto actual = protobuf(item.admin);
-    EXPECT_EQ(actual.dontcolor(), !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+    EXPECT_EQ(actual.dontcolor(), !eos::console::ServerColorEnabled());
     actual.clear_dontcolor();
     EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equivalent(expected, actual))
         << "Expected:\n"
@@ -845,17 +845,21 @@ INSTANTIATE_TEST_SUITE_P(
         {"ChmodMode",
          "chmod",
          {"640", "/eos/test"},
-         {{"mgm.path", "/eos/test"}, {"mgm.chmod.mode", "640"}}},
+         {{"mgm.path", "/#curl#/eos/test"},
+          {"mgm.chmod.mode", "640"},
+          {"eos.encodepath", "1"}}},
         {"ChmodRecursive",
          "chmod",
          {"-r", "755", "relative"},
-         {{"mgm.path", "/eos/dispatch-test/relative"},
+         {{"mgm.path", "/#curl#/eos/dispatch-test/relative"},
           {"mgm.chmod.mode", "755"},
           {"mgm.option", "r"}}},
         {"ChownUser",
          "chown",
          {"123", "/eos/test"},
-         {{"mgm.path", "/eos/test"}, {"mgm.chown.owner", "123"}}},
+         {{"mgm.path", "/#curl#/eos/test"},
+          {"mgm.chown.owner", "123"},
+          {"eos.encodepath", "1"}}},
         {"ChownGroup", "chown", {":456", "/eos/test"}, {{"mgm.chown.owner", ":456"}}},
         {"ChownRecursiveLink",
          "chown",

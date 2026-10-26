@@ -21,10 +21,12 @@
  ************************************************************************/
 
 #pragma once
-#include "proto/ConsoleRequest.pb.h"
+
+#include "console/ConsoleColor.hh"
 #include "console/GlobalOptions.hh"
-#include <queue>
+#include "proto/ConsoleRequest.pb.h"
 #include <iostream>
+#include <queue>
 #include <unistd.h>
 
 //------------------------------------------------------------------------------
@@ -63,7 +65,7 @@ public:
       mReq.set_comment(opts.mComment);
     }
 
-    if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
+    if (opts.mJsonFormat || !eos::console::ServerColorEnabled()) {
       mReq.set_dontcolor(true);
     }
   }

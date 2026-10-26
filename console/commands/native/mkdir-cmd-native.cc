@@ -5,6 +5,8 @@
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -94,10 +96,19 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeMkdirHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMkdirHelp().c_str());
+    CLI::App app;
+    bool parents = false;
+    std::string path;
+    ConfigureMkdirApp(app, parents, path);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -105,5 +116,6 @@ public:
 void
 RegisterMkdirNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MkdirCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<MkdirCommand>(), {}));
 }

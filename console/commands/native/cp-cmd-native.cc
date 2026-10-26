@@ -22,6 +22,20 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "common/Path.hh"
+#include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
+#include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/native/CpOptions.hh"
+#include <CLI/CLI.hpp>
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClURL.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdPosix/XrdPosixXrootd.hh>
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -29,39 +43,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "common/StringTokenizer.hh"
-#include "console/CommandFramework.hh"
-#include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
-#include "common/Path.hh"
-#include "common/StringConversion.hh"
-#include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdOuc/XrdOucEnv.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdCl/XrdClURL.hh>
-#include <XrdCl/XrdClFileSystem.hh>
 /*----------------------------------------------------------------------------*/
-
-/** Parsed options for cp command */
-struct CpOptions {
-  std::string rate;
-  std::string streams = "0";
-  std::string atomic;
-  std::vector<std::string> sources;
-  std::string target;
-  bool recursive = false;
-  bool summary = false;
-  bool noprogress = false;
-  bool append = false;
-  bool makeparent = false;
-  bool debug = false;
-  int debug_level = 0;
-  bool checksums = false;
-  bool silent = false;
-  bool nooverwrite = false;
-  bool preserve = false;
-  unsigned long depth = 0;
-};
 
 namespace {
 std::string MakeCpHelp()
@@ -93,9 +75,16 @@ Remark:
   source and target directories terminated with '/' for hierarchy copy.
 
 Examples:
+  # Copy one file to EOS
   eos cp /var/data/myfile /eos/foo/user/data/
+
+  # Copy files from a local directory
   eos cp /var/data/ /eos/foo/user/data/
+
+  # Copy a directory hierarchy
   eos cp -r /var/data/ /eos/foo/user/data/
+
+  # Copy a hierarchy with checksums and only error output
   eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/
 
 S3:
@@ -109,7 +98,7 @@ void ConfigureCpApp(CLI::App& app, CpOptions& opts)
 {
   app.name("cp");
   app.description("Copy files to/from EOS");
-  app.set_help_flag("");
+  app.set_help_flag("-h,--help", "Print this help message and exit");
   app.formatter(std::make_shared<CLI::FormatterLambda>(
       [](const CLI::App*, std::string, CLI::AppFormatMode) {
         return MakeCpHelp();
@@ -137,18 +126,13 @@ void ConfigureCpApp(CLI::App& app, CpOptions& opts)
       ->expected(2, -1);
 }
 
+} // namespace
+
 /** Parse cp args with CLI11. Returns true on success, false on help/error. */
 bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
 {
   if (args.empty())
     return false;
-
-  for (const auto& a : args) {
-    if (a == "--help" || a == "-h") {
-      std::cerr << MakeCpHelp();
-      return false;
-    }
-  }
 
   CLI::App app;
   ConfigureCpApp(app, opts);
@@ -158,7 +142,7 @@ bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
   try {
     app.parse(cli_args);
   } catch (const CLI::ParseError& e) {
-    std::cerr << MakeCpHelp();
+    eos::console::PrintLegacyHelp(MakeCpHelp());
     return false;
   }
 
@@ -178,6 +162,7 @@ bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
   return true;
 }
 
+namespace {
 /** Tokenize char* into vector of strings for CLI11 parsing */
 std::vector<std::string> TokenizeCpArgs(const char* argin)
 {
@@ -196,7 +181,7 @@ std::vector<std::string> TokenizeCpArgs(const char* argin)
 
 static int com_cp_usage()
 {
-  std::cerr << MakeCpHelp();
+  eos::console::PrintLegacyHelp(MakeCpHelp());
   return EINVAL;
 }
 
@@ -1743,7 +1728,7 @@ public:
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     (void)ctx;
-    if (args.empty() || wants_help(args[0].c_str())) {
+    if (args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -1755,10 +1740,15 @@ public:
     }
     return cp_impl(opts);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeCpHelp();
+  }
   void
   printHelp() const override
   {
-    std::cerr << MakeCpHelp();
+    eos::console::PrintLegacyHelp(MakeCpHelp());
   }
 };
 } // namespace
@@ -1766,7 +1756,11 @@ public:
 void
 RegisterCpNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<CpCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<CpCommand>(),
+                                    {{},
+                                     eos::console::ShortHelpPolicy::Always,
+                                     {{"--rate", 1}, {"--streams", 1}, {"--depth", 1}}}));
 }
 
 /* eos cat command - just eos cp with '-' destination */

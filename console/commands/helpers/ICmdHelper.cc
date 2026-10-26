@@ -57,7 +57,10 @@ ICmdHelper::PrintOutcome(bool print_err)
   }
 
   if (print_err && !mOutcome.error.empty()) {
-    std::cerr << GetError();
+    std::cerr << eos::console::Colorize(
+        GetError(), eos::console::TextStyle::Error, STDERR_FILENO,
+        mGlobalOpts.mJsonFormat ? eos::console::OutputKind::Machine
+                                : eos::console::OutputKind::Human);
   }
 }
 

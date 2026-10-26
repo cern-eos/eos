@@ -38,6 +38,9 @@
 //------------------------------------------------------------------------------
 char** eos_console_completion(const char* text, int start, int end);
 
+// Quote inserted completion text using the EOS shell lexer's rules.
+char* eos_completion_quote(char* text, int matchType, char* quotePointer);
+
 //------------------------------------------------------------------------------
 //! EOS entry (files/directories) generator
 //!
@@ -105,14 +108,6 @@ std::vector<std::string> eos_completion_tokenize_prefix(const std::string& input
 std::vector<std::string>
 eos_shell_completion_candidates(const std::vector<std::string>& precedingTokens,
                                 const std::string& currentWord);
-
-//------------------------------------------------------------------------------
-//! Return completion candidates derived from a command help text.
-//------------------------------------------------------------------------------
-std::vector<std::string>
-eos_help_completion_candidates(const std::string& commandName,
-                               const std::string& helpText,
-                               const std::vector<std::string>& args);
 
 //------------------------------------------------------------------------------
 //! Decide whether the current shell-completion context should offer EOS path

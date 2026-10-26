@@ -8,6 +8,27 @@
 Interfaces
 ===========
 
+Console help
+------------
+
+``eos help`` lists commands. In a terminal, namespace help supports focused pages: use
+``eos ns --help`` for the operation index, ``eos ns cache --help`` for the
+cache group, or ``eos ns cache set --help`` for one operation. The equivalent
+``eos help ns cache set`` form is also supported. ``eos ns --help-all``
+shows the complete namespace manual.
+
+Interactive top-level, namespace and standard CLI11 help adapts to the width
+of its output terminal. Descriptions wrap at word boundaries, continuation
+lines retain their indentation, and long option labels have their descriptions
+placed underneath. Section spacing is consistent. Examples and indivisible
+tokens are preserved, so an example or long URL can exceed the terminal width.
+Custom legacy help pages retain their existing layout until migrated.
+Formatting occurs before color is added; ``--color=never`` and ``NO_COLOR``
+still retain the adaptive layout.
+
+Automatic help width is limited to 120 columns, with an 80-column fallback
+when the terminal does not report a width. Redirected output, batch mode and
+JSON mode retain their existing layout. Ordinary command data is not reflowed.
 
 .. index::
    pair: Interfaces; Namespace

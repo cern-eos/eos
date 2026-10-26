@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/commands/helpers/TokenHelper.hh"
 #include <memory>
 #include <sstream>
@@ -50,6 +52,11 @@ public:
   {
     return "Token interface";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeTokenHelp();
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -83,7 +90,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeTokenHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeTokenHelp());
   }
 };
 } // namespace
@@ -91,5 +98,10 @@ public:
 void
 RegisterTokenProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TokenProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.valueOptions = {{"--token", 1},      {"--path", 1},  {"--expires", 1},
+                       {"--permission", 1}, {"--owner", 1}, {"--group", 1},
+                       {"--origin", 1}};
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<TokenProtoCommand>(), std::move(help)));
 }

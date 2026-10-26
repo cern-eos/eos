@@ -4,6 +4,8 @@
 
 #include "common/BuildVersion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -99,10 +101,18 @@ public:
     }
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeVersionHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeVersionHelp().c_str());
+    CLI::App app;
+    bool features = false, monitoring = false;
+    ConfigureVersionApp(app, features, monitoring);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -110,5 +120,6 @@ public:
 void
 RegisterVersionNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<VersionCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<VersionCommand>(), {}));
 }

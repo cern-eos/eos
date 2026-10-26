@@ -21,12 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
-#include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include <XrdPosix/XrdPosixXrootd.hh>
+#include "common/StringTokenizer.hh"
+#include "console/ConsoleMain.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <cerrno>
+#include <cstring>
+#include <regex.h>
+#include <spawn.h>
+#include <sstream>
+#include <sys/wait.h>
+#include <unistd.h>
+
+extern char** environ;
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -462,24 +471,8 @@ NewfindHelper::FindXroot(std::string path)
 int
 NewfindHelper::FindAs3(std::string path)
 {
-  // ----------------------------------------------------------------
-  // this is nightmare code because of a missing proper CLI for S3
-  // ----------------------------------------------------------------
   XrdOucString hostport;
   XrdOucString protocol;
-  int rc = system("which s3 >&/dev/null");
-
-  if (WEXITSTATUS(rc)) {
-    std::cerr <<
-              "error: you miss the <s3> executable provided by libs3 in your PATH" <<
-              std::endl;
-    exit(-1);
-  }
-
-  if (path.rfind('/') == path.length()) {
-    path.erase(path.length() - 1);
-  }
-
   XrdOucString sPath = path.c_str();
   XrdOucString sOpaque;
   int qpos = 0;
@@ -489,8 +482,16 @@ NewfindHelper::FindAs3(std::string path)
     sPath.erase(qpos);
   }
 
-  XrdOucString fPath = eos::common::StringConversion::ParseUrl(sPath.c_str(),
-                       protocol, hostport);
+  const char* parsed =
+      eos::common::StringConversion::ParseUrl(sPath.c_str(), protocol, hostport);
+  if (!parsed || protocol != "as3") {
+    std::cerr << "error: invalid S3 URI" << std::endl;
+    return EINVAL;
+  }
+  const std::string filePath = parsed;
+  if (hostport.length()) {
+    setenv("S3_HOSTNAME", hostport.c_str(), 1);
+  }
   XrdOucEnv env(sOpaque.c_str());
 
   if (env.Get("s3.key")) {
@@ -524,71 +525,126 @@ NewfindHelper::FindAs3(std::string path)
     return EINVAL;
   }
 
-  XrdOucString s3env;
-  s3env = "env S3_ACCESS_KEY_ID=";
-  s3env += getenv("S3_ACCESS_KEY_ID");
-  s3env += " S3_HOSTNAME=";
-  s3env += getenv("S3_HOSTNAME");
-  s3env += " S3_SECRET_ACCESS_KEY=";
-  s3env += getenv("S3_SECRET_ACCESS_KEY");
-  XrdOucString cmd = "bash -c \"";
-  cmd += s3env;
-  cmd += " s3 list ";
-  // extract bucket from path
-  int bpos = fPath.find("/");
-  XrdOucString bucket;
-
-  if (bpos != STR_NPOS) {
-    bucket.assign(fPath, 0, bpos - 1);
-  } else {
-    bucket = fPath.c_str();
-  }
-
-  XrdOucString match;
-
-  if (bpos != STR_NPOS) {
-    match.assign(fPath, bpos + 1);
-  } else {
-    match = "";
-  }
-
-  if ((!bucket.length()) || (bucket.find("*") != STR_NPOS)) {
+  const auto separator = filePath.find('/');
+  const std::string bucket = filePath.substr(0, separator);
+  std::string match =
+      separator == std::string::npos ? "" : filePath.substr(separator + 1);
+  if (bucket.empty() || bucket.find('*') != std::string::npos) {
     std::cerr << "error: no bucket specified or wildcard in bucket name!" <<
               std::endl;
     return EINVAL;
   }
 
-  cmd += bucket.c_str();
-  cmd += " | awk '{print \\$1}' ";
-
-  if (match.length()) {
-    if (match.endswith("*")) {
-      match.erase(match.length() - 1);
-      match.insert("^", 0);
+  struct MatchExpression {
+    regex_t value{};
+    bool initialized = false;
+    ~MatchExpression()
+    {
+      if (initialized) {
+        regfree(&value);
+      }
     }
+  } expression;
 
-    if (match.beginswith("*")) {
+  if (!match.empty()) {
+    // Preserve the original egrep filter and its prefix/suffix wildcard shorthand.
+    if (match.back() == '*') {
+      match.pop_back();
+      match.insert(0, "^");
+    }
+    if (match.front() == '*') {
       match.erase(0, 1);
-      match += "$";
+      match += '$';
     }
-
-    cmd += " | egrep '";
-    cmd += match.c_str();
-    cmd += "'";
+    if (regcomp(&expression.value, match.c_str(), REG_EXTENDED | REG_NOSUB) != 0) {
+      std::cerr << "error: invalid S3 path filter expression" << std::endl;
+      return EINVAL;
+    }
+    expression.initialized = true;
   }
 
-  cmd += " | grep -v 'Bucket' | grep -v '\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-' | grep -v 'Key' | awk -v prefix=";
-  cmd += "'";
-  cmd += bucket.c_str();
-  cmd += "' ";
-  cmd += "'{print \\\"as3:\\\"prefix\\\"/\\\"\\$1}'";
-  cmd += "\"";
-  rc = system(cmd.c_str());
-
-  if (WEXITSTATUS(rc)) {
-    std::cerr << "error: failed to run " << cmd << std::endl;
-    return rc;
+  int output[2];
+  if (pipe(output) != 0) {
+    return errno;
+  }
+  posix_spawn_file_actions_t actions;
+  int setup = posix_spawn_file_actions_init(&actions);
+  if (setup) {
+    close(output[0]);
+    close(output[1]);
+    return setup;
+  }
+  setup = posix_spawn_file_actions_addclose(&actions, output[0]);
+  if (!setup) {
+    setup = posix_spawn_file_actions_adddup2(&actions, output[1], STDOUT_FILENO);
+  }
+  if (!setup && output[1] != STDOUT_FILENO) {
+    setup = posix_spawn_file_actions_addclose(&actions, output[1]);
+  }
+  char* arguments[] = {const_cast<char*>("s3"), const_cast<char*>("list"),
+                       const_cast<char*>(bucket.c_str()), nullptr};
+  pid_t child = 0;
+  const int spawned =
+      setup ? setup : posix_spawnp(&child, "s3", &actions, nullptr, arguments, environ);
+  posix_spawn_file_actions_destroy(&actions);
+  close(output[1]);
+  if (spawned) {
+    close(output[0]);
+    std::cerr << "error: cannot execute s3: " << strerror(spawned) << std::endl;
+    return spawned;
   }
 
-  return 0;
+  const auto printEntry = [&](const std::string& line) {
+    std::istringstream fields(line);
+    std::string key;
+    fields >> key;
+    if (key.find("Bucket") == std::string::npos &&
+        key.find("----------") == std::string::npos &&
+        key.find("Key") == std::string::npos &&
+        (!expression.initialized ||
+         regexec(&expression.value, key.c_str(), 0, nullptr, 0) == 0)) {
+      std::cout << "as3:" << bucket << '/' << key << std::endl;
+    }
+  };
+  std::string pending;
+  char buffer[4096];
+  int readError = 0;
+  while (true) {
+    const ssize_t count = read(output[0], buffer, sizeof(buffer));
+    if (count == 0) {
+      break;
+    }
+    if (count < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      readError = errno;
+      break;
+    }
+    pending.append(buffer, static_cast<size_t>(count));
+    size_t begin = 0, end = 0;
+    while ((end = pending.find('\n', begin)) != std::string::npos) {
+      printEntry(pending.substr(begin, end - begin));
+      begin = end + 1;
+    }
+    pending.erase(0, begin);
+  }
+  close(output[0]);
+  if (!readError && !pending.empty()) {
+    printEntry(pending);
+  }
+  int status = 0;
+  while (waitpid(child, &status, 0) < 0) {
+    if (errno != EINTR) {
+      return errno;
+    }
+  }
+  if (readError) {
+    return readError;
+  }
+  const int result = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+  if (result) {
+    std::cerr << "error: s3 list failed with status " << result << std::endl;
+  }
+  return result;
 }

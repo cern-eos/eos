@@ -4,6 +4,8 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -88,10 +90,18 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRmdirHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeRmdirHelp().c_str());
+    CLI::App app;
+    std::string path;
+    ConfigureRmdirApp(app, path);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -99,5 +109,6 @@ public:
 void
 RegisterRmdirNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RmdirCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<RmdirCommand>(), {}));
 }

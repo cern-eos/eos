@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -11,16 +13,14 @@
 namespace {
 std::string MakeAccountingHelp()
 {
-  std::ostringstream oss;
-  oss << "Usage: accounting report [-f]\n"
-      << "       accounting config -e [<expired>] -i [<invalid>]\n\n"
-      << "  report  prints accounting report in JSON, data is served from "
-         "cache if possible\n"
-      << "          -f  force synchronous report instead of using cache\n\n"
-      << "  config  configure caching behaviour\n"
-      << "          -e  expiry time in minutes (default 10)\n"
-      << "          -i  invalidity time in minutes, must be > expiry\n";
-  return oss.str();
+  return "Usage: accounting <operation> [OPTIONS]\n\n"
+         "  accounting report [-f]\n"
+         "    Print an accounting report in JSON, using cached data if possible.\n"
+         "    -f  force a synchronous report instead of using the cache\n\n"
+         "  accounting config [-e <expired>] [-i <invalid>]\n"
+         "    Configure report caching.\n"
+         "    -e  expiry time in minutes (default 10)\n"
+         "    -i  invalidity time in minutes, greater than the expiry time\n";
 }
 
 void ConfigureAccountingApp(CLI::App& app)
@@ -44,6 +44,11 @@ public:
   description() const override
   {
     return "Accounting tools";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeAccountingHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -120,7 +125,7 @@ public:
     CLI::App app;
     ConfigureAccountingApp(app);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace
@@ -128,5 +133,12 @@ public:
 void
 RegisterAccountingNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<AccountingCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"report"}, "  accounting report ", "Print an accounting report."},
+      {{"config"}, "  accounting config ", "Configure report caching."},
+  };
+  help.valueOptions = {{"-e", 1}, {"-i", 1}};
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<AccountingCommand>(), std::move(help)));
 }

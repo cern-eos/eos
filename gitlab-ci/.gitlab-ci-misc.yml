@@ -88,12 +88,13 @@ pre_commit:
     PIP_NO_CACHE_DIR: "1"
     GIT_SUBMODULE_STRATEGY: none
   before_script:
-    - dnf install -y git python python-pip clang-tools-extra
+    - dnf install -y git python python-pip clang-tools-extra jq
     - python -m pip install --upgrade pip
     - pip install pre-commit
   script:
     - python3 gitlab-ci/tests/test_ci_helpers.py
     - python3 gitlab-ci/tests/test_mgm_ha_bootstrap.py
+    - python3 gitlab-ci/tests/test_traffic_shaping_config.py
     # Run pre-commit against all files starting from a given commit to HEAD
     # This is done to avoid issues with large diffs when running pre-commit on all files (blocks the CI for ~10 minutes)
     # When (if) the whole is formatted, we can remove the `--from-ref` and `--to-ref` options to always check all files

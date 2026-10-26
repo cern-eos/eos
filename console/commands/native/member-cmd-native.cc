@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -99,10 +101,28 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
+  CommandCompletionResult
+  completion(const std::vector<std::string>& args) const override
+  {
+    CLI::App app;
+    bool update = false;
+    std::string egroup;
+    ConfigureMemberApp(app, update, egroup);
+    return CompleteCliArguments(app, args);
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeMemberHelp();
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMemberHelp().c_str());
+    CLI::App app;
+    bool update = false;
+    std::string egroup;
+    ConfigureMemberApp(app, update, egroup);
+    eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
   }
 };
 } // namespace
@@ -110,5 +130,6 @@ public:
 void
 RegisterMemberNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MemberCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<MemberCommand>(), {}));
 }

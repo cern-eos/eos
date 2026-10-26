@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
 
 namespace {
@@ -39,5 +40,10 @@ public:
 void
 RegisterPwdNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<PwdCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<PwdCommand>(),
+      {{},
+       eos::console::ShortHelpPolicy::Always,
+       {},
+       "Usage: pwd\nPrint the current EOS working directory.\n"}));
 }

@@ -4,8 +4,9 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <memory>
-#include <sstream>
 #include <vector>
 
 namespace {
@@ -29,7 +30,7 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (wants_help(args.empty() ? "" : args[0].c_str()) || args.size() < 2) {
+    if (args.size() < 2) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -46,10 +47,16 @@ public:
     forwarded.insert(forwarded.end(), args.begin(), args.end());
     return fileCmd->run(forwarded, ctx);
   }
+  std::string
+  helpText() const override
+  {
+    return "Usage: mv <src> <dst>\n\nRename a file or directory. Alias for eos file "
+           "rename.\n";
+  }
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: mv <src> <dst>\n");
+    eos::console::PrintLegacyHelp("Usage: mv <src> <dst>\n");
   }
 };
 } // namespace
@@ -58,7 +65,8 @@ public:
 void
 RegisterMvNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MvAliasCommand>());
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<MvAliasCommand>()));
 }
 
 // Backward-compatible alias (if ever referenced elsewhere)

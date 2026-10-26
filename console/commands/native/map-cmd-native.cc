@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
@@ -56,6 +58,11 @@ public:
   description() const override
   {
     return "Mapping utilities";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeMapHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -147,7 +154,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeMapHelp().c_str());
+    eos::console::PrintLegacyHelp(MakeMapHelp());
   }
 };
 } // namespace
@@ -155,5 +162,14 @@ public:
 void
 RegisterMapNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<MapCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ls"}, "  ls ", "List namespace mappings."},
+      {{"link"}, "  link ", "Create a namespace mapping."},
+      {{"unlink"}, "  unlink ", "Remove a namespace mapping.", "Options:"},
+  };
+  help.common = "Options:\n"
+                "  -<option> : optional leading option passed to mgm.option\n";
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<MapCommand>(), std::move(help)));
 }

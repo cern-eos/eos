@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -16,14 +18,9 @@ int RunCmd(const std::string& name, const std::vector<std::string>& args) {
     return EINVAL;
   }
   CommandContext ctx;
-  ctx.serverUri = serveruri.c_str();
   ctx.globalOpts = &gGlobalOpts;
   ctx.json = json;
   ctx.silent = silent;
-  ctx.interactive = interactive;
-  ctx.timing = timing;
-  ctx.userRole = user_role.c_str();
-  ctx.groupRole = group_role.c_str();
   ctx.clientCommand = &client_command;
   ctx.outputResult = &output_result;
   return cmd->run(args, ctx);
@@ -33,6 +30,19 @@ class TestCommand : public IConsoleCommand {
 public:
   const char* name() const override { return "test"; }
   const char* description() const override { return "Run performance test"; }
+  std::string
+  helpText() const override
+  {
+    return "Usage: test <operation> <N>\n\n"
+           "  test mkdir <N>\n"
+           "    Create test directories under /test/.\n\n"
+           "  test rmdir <N>\n"
+           "    Remove test directories under /test/.\n\n"
+           "  test ls <N>\n"
+           "    List the test directories.\n\n"
+           "  test lsla <N>\n"
+           "    List the test directories with long output.\n";
+  }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
   int run(const std::vector<std::string>& args, CommandContext&) override {
     if (args.size() < 2) { printHelp(); global_retc = EINVAL; return 0; }
@@ -79,13 +89,22 @@ public:
     return 0;
   }
   void printHelp() const override {
-    fprintf(stderr,
-            "Usage: test [mkdir|rmdir|ls|lsla <N> ]                                             :  run performance test\n");
+    eos::console::PrintLegacyHelp(
+        "Usage: test [mkdir|rmdir|ls|lsla <N> ]                                          "
+        "   :  run performance test\n");
   }
 };
 } // namespace
 
 void RegisterTestNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<TestCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"mkdir"}, "  test mkdir ", "Create test directories."},
+      {{"rmdir"}, "  test rmdir ", "Remove test directories."},
+      {{"ls"}, "  test ls ", "List test directories."},
+      {{"lsla"}, "  test lsla ", "List test directories with long output."},
+  };
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<TestCommand>(), std::move(help)));
 }

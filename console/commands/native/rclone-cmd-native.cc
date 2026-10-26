@@ -21,30 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/CopyProcess.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/Timing.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
-#include "common/StringTokenizer.hh"
-#include "common/Timing.hh"
-#include "common/Path.hh"
-#include "common/LayoutId.hh"
-#include "common/CopyProcess.hh"
 #include <CLI/CLI.hpp>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClCopyProcess.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClPropertyList.hh>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-#include <iostream>
-#include <memory>
-#include <filesystem>
+#include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <memory>
 #include <optional>
+#include <string.h>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <vector>
 
 extern XrdOucString serveruri;
@@ -102,24 +103,23 @@ struct RcloneOptions {
 namespace {
 std::string MakeRcloneHelp()
 {
-  return R"(Usage: rclone copy <src-dir> <dst-dir> [OPTIONS]
-       rclone sync <dir1> <dir2> [OPTIONS]
-
-  copy : one-way sync from source to destination
-  sync : bi-directional sync based on modification times
-
-Options:
-  --delete    delete based on mtimes (currently unsupported)
-  --noreplace never update files, only create new ones
-  --dryrun    simulate and show actions, don't execute
-  --atomic    copy/sync also EOS atomic files
-  --versions  copy/sync also EOS version files
-  --hidden    copy/sync also hidden files/directories
-  -v,--verbose  display all actions, not only summary
-  -s,--silent   only show errors
-
-Run with: eos rclone copy|sync <src> <dst> [OPTIONS]
-)";
+  const std::string options =
+      "Options:\n"
+      "  --delete        delete based on mtimes (currently unsupported)\n"
+      "  --noreplace     never update files, only create new ones\n"
+      "  --dryrun        simulate and show actions without executing them\n"
+      "  --atomic        include EOS atomic files\n"
+      "  --versions      include EOS version files\n"
+      "  --hidden        include hidden files and directories\n"
+      "  -v,--verbose    display all actions\n"
+      "  -s,--silent     display errors only\n";
+  return "Usage: rclone <copy|sync> <src> <dst> [OPTIONS]\n\n"
+         "rclone copy <src-dir> <dst-dir> [OPTIONS]\n"
+         "  Copy source changes to the destination in one direction.\n\n" +
+         options +
+         "\nrclone sync <dir1> <dir2> [OPTIONS]\n"
+         "  Synchronize changes in both directions using modification times.\n\n" +
+         options;
 }
 
 void ConfigureRcloneApp(CLI::App& app, RcloneOptions& opts)
@@ -148,6 +148,15 @@ void ConfigureRcloneApp(CLI::App& app, RcloneOptions& opts)
   }
 }
 
+void
+PrintRcloneHelp()
+{
+  CLI::App app;
+  RcloneOptions opts;
+  ConfigureRcloneApp(app, opts);
+  eos::console::PrintCliHelp(app, CLI::AppFormatMode::Normal);
+}
+
 bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
 {
   if (args.empty())
@@ -155,7 +164,7 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
 
   for (const auto& a : args) {
     if (a == "--help" || a == "-h") {
-      std::cerr << MakeRcloneHelp();
+      PrintRcloneHelp();
       return false;
     }
   }
@@ -168,7 +177,7 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
   try {
     app.parse(cli_args);
   } catch (const CLI::ParseError&) {
-    std::cerr << MakeRcloneHelp();
+    PrintRcloneHelp();
     return false;
   }
 
@@ -182,21 +191,11 @@ bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
   return true;
 }
 
-std::vector<std::string> TokenizeRcloneArgs(const char* argin)
-{
-  std::vector<std::string> result;
-  eos::common::StringTokenizer tokenizer(argin);
-  tokenizer.GetLine();
-  XrdOucString tok;
-  while ((tok = tokenizer.GetToken()).length())
-    result.push_back(tok.c_str());
-  return result;
-}
 } // namespace
 
 static void rclone_usage()
 {
-  std::cerr << MakeRcloneHelp();
+  PrintRcloneHelp();
   exit(-1);
 }
 
@@ -1596,16 +1595,6 @@ static int rclone_impl(const RcloneOptions& opts)
   return 0;
 }
 
-/* Entry point for legacy callers */
-int com_rclone(char* arg1)
-{
-  std::vector<std::string> args = TokenizeRcloneArgs(arg1);
-  RcloneOptions opts;
-  if (!ParseRcloneArgs(args, opts))
-    return -1;
-  return rclone_impl(opts);
-}
-
 // ----------------------------------------------------------------------------
 // Native command registration
 // ----------------------------------------------------------------------------
@@ -1642,10 +1631,15 @@ public:
     }
     return rclone_impl(opts);
   }
+  std::string
+  helpText() const override
+  {
+    return MakeRcloneHelp();
+  }
   void
   printHelp() const override
   {
-    std::cerr << MakeRcloneHelp();
+    PrintRcloneHelp();
   }
 };
 } // namespace
@@ -1653,5 +1647,8 @@ public:
 void
 RegisterRcloneNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<RcloneCommand>());
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<RcloneCommand>(),
+      {{{{"copy"}, "rclone copy ", "Copy source changes to a destination."},
+        {{"sync"}, "rclone sync ", "Synchronize two directories."}}}));
 }

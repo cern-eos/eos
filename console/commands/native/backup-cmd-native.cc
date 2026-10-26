@@ -3,9 +3,11 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
+#include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
 #include <sys/time.h>
@@ -50,6 +52,11 @@ public:
   description() const override
   {
     return "Backup Interface";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeBackupHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -141,7 +148,7 @@ public:
     std::string excl_xattr;
     ConfigureBackupApp(app, ctime, mtime, excl_xattr);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace
@@ -149,5 +156,8 @@ public:
 void
 RegisterBackupNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<BackupCommand>());
+  eos::console::CommandHelpSpec help;
+  help.valueOptions = {{"--ctime", 1}, {"--mtime", 1}, {"--excl_xattr", 1}};
+  CommandRegistry::instance().reg(
+      eos::console::WithCommandHelp(std::make_unique<BackupCommand>(), std::move(help)));
 }

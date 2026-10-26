@@ -3,6 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleColor.hh"
+#include "console/ConsoleCommandHelp.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <memory>
@@ -12,6 +14,7 @@ namespace {
 std::string MakeAccessHelp()
 {
   std::ostringstream oss;
+  // clang-format off
   oss << "Usage: access ban|unban|allow|unallow|set|rm|ls [OPTIONS]\n"
         "'[eos] access ..' provides the access interface of EOS to "
         "allow/disallow hosts/domains and/or users\n\n"
@@ -101,47 +104,54 @@ std::string MakeAccessHelp()
         "access ls [-m] [-n] : print banned,unbanned user,group, hosts\n"
         "\t -m : output in monitoring format with <key>=<value>\n"
         "\t -n : don't translate uid/gids to names\n\n"
-        "Examples:\n"
-        " access ban host foo                            : Ban host foo\n"
-        " access ban domain bar                          : Ban domain bar\n"
-        " access allow domain nobody@bar                 : Allows user nobody "
-        "from domain bar\n"
-        " access allow domain -                          : use domain allow as "
-        "whitelist - e.g. nobody@bar will additionally allow the nobody user "
-        "from domain bar!\n"
-        " access allow domain bar                        : Allow only domain "
-        "bar\n"
-        " access set redirect foo                        : Redirect all "
-        "requests to host foo\n"
-        " access set redirect foo:1094:1000              : Redirect all "
-        "requests to host foo:1094 and hold each reqeust for 1000ms\n"
-        " access rm redirect                             : Remove redirection "
-        "to previously defined host foo\n"
-        " access set stall 60                            : Stall all clients "
-        "by 60 seconds\n"
-        " access ls                                      : Print all defined "
-        "access rules\n"
-        " access set limit 100  rate:user:*:OpenRead     : Limit the open for "
-        "read rate to a frequency of 100 Hz for all users\n"
-        " access set limit 0    rate:user:ab:OpenRead    : Limit the open for "
-        "read rate for the ab user to 0 Hz, to continuously stall it\n"
-        " access set limit 2000 rate:group:zp:Stat       : Limit the stat rate "
-        "for the zp group to 2kHz\n"
-        " access set limit 500 threads:*                 : Limit the thread "
-        "pool usage to 500 threads per user\n"
-        " access rm limit rate:user:*:OpenRead           : Removes the defined "
-        "limit\n"
-        " access rm limit threads:*                      : Removes the default "
-        "per user thread pool limit\n"
-        " access stallhosts add stall foo*.bar           : Add foo*.bar to the "
-        "list of hosts which are stalled by limit rules (white list)\n"
-        " access stallhosts remove stall foo*.bar        : Remove foo*.bar "
-        "from the list of hosts which are stalled by limit rules (white list)\n"
-        " access stallhosts add nostall foo*.bar         : Add foo*.bar to the "
-        "list of hosts which are never stalled by limit rules (black list)\n"
-        " access stallhosts remove nostall foo*.bar      : Remove foo*.bar "
-        "from the list of hosts which are never stalled by limit rules (black "
-        "list)\n";
+         "EXAMPLES:\n"
+         "  # Ban host foo\n"
+         "  eos access ban host foo\n\n"
+         "  # Ban domain bar\n"
+         "  eos access ban domain bar\n\n"
+         "  # Allows user nobody from domain bar\n"
+         "  eos access allow domain nobody@bar\n\n"
+         "  # Use domain allow as whitelist - e.g. nobody@bar will additionally "
+         "allow the nobody user from domain bar!\n"
+         "  eos access allow domain -\n\n"
+         "  # Allow only domain bar\n"
+         "  eos access allow domain bar\n\n"
+         "  # Redirect all requests to host foo\n"
+         "  eos access set redirect foo\n\n"
+         "  # Redirect all requests to host foo:1094 and hold each request for 1000ms\n"
+         "  eos access set redirect foo:1094:1000\n\n"
+         "  # Remove redirection to previously defined host foo\n"
+         "  eos access rm redirect\n\n"
+         "  # Stall all clients by 60 seconds\n"
+         "  eos access set stall 60\n\n"
+         "  # Print all defined access rules\n"
+         "  eos access ls\n\n"
+         "  # Limit the open for read rate to a frequency of 100 Hz for all users\n"
+         "  eos access set limit 100 'rate:user:*:OpenRead'\n\n"
+         "  # Limit the open for read rate for the ab user to 0 Hz, to continuously "
+         "stall it\n"
+         "  eos access set limit 0 rate:user:ab:OpenRead\n\n"
+         "  # Limit the stat rate for the zp group to 2kHz\n"
+         "  eos access set limit 2000 rate:group:zp:Stat\n\n"
+         "  # Limit the thread pool usage to 500 threads per user\n"
+         "  eos access set limit 500 'threads:*'\n\n"
+         "  # Removes the defined limit\n"
+         "  eos access rm limit 'rate:user:*:OpenRead'\n\n"
+         "  # Removes the default per user thread pool limit\n"
+         "  eos access rm limit 'threads:*'\n\n"
+         "  # Add foo*.bar to the list of hosts which are stalled by limit rules "
+         "(white list)\n"
+         "  eos access stallhosts add stall 'foo*.bar'\n\n"
+         "  # Remove foo*.bar from the list of hosts which are stalled by limit "
+         "rules (white list)\n"
+         "  eos access stallhosts remove stall 'foo*.bar'\n\n"
+         "  # Add foo*.bar to the list of hosts which are never stalled by limit "
+         "rules (black list)\n"
+         "  eos access stallhosts add nostall 'foo*.bar'\n\n"
+         "  # Remove foo*.bar from the list of hosts which are never stalled by "
+         "limit rules (black list)\n"
+         "  eos access stallhosts remove nostall 'foo*.bar'\n";
+  // clang-format on
   return oss.str();
 }
 
@@ -166,6 +176,11 @@ public:
   description() const override
   {
     return "Access Interface";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeAccessHelp();
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -342,7 +357,7 @@ public:
     CLI::App app;
     ConfigureAccessApp(app);
     const std::string help = app.help();
-    fprintf(stderr, "%s", help.c_str());
+    eos::console::PrintLegacyHelp(help);
   }
 };
 } // namespace
@@ -350,5 +365,40 @@ public:
 void
 RegisterAccessProtoNativeCommand()
 {
-  CommandRegistry::instance().reg(std::make_unique<AccessProtoCommand>());
+  eos::console::CommandHelpSpec help;
+  help.topics = {
+      {{"ban"}, "access ban ", "Ban an identity."},
+      {{"unban"}, "access unban ", "Remove an identity ban."},
+      {{"allow"}, "access allow ", "Allow an identity."},
+      {{"unallow"}, "access unallow ", "Remove an identity allowance."},
+      {{"ban", "user"}, "access ban ", "Ban user identities."},
+      {{"ban", "group"}, "access ban ", "Ban group identities."},
+      {{"ban", "host"}, "access ban ", "Ban host identities."},
+      {{"ban", "domain"}, "access ban ", "Ban domain identities."},
+      {{"unban", "user"}, "access unban ", "Unban user identities."},
+      {{"unban", "group"}, "access unban ", "Unban group identities."},
+      {{"unban", "host"}, "access unban ", "Unban host identities."},
+      {{"unban", "domain"}, "access unban ", "Unban domain identities."},
+      {{"allow", "user"}, "access allow ", "Allow user identities."},
+      {{"allow", "group"}, "access allow ", "Allow group identities."},
+      {{"allow", "host"}, "access allow ", "Allow host identities."},
+      {{"allow", "domain"}, "access allow ", "Allow domain identities."},
+      {{"unallow", "user"}, "access unallow ", "Unallow user identities."},
+      {{"unallow", "group"}, "access unallow ", "Unallow group identities."},
+      {{"unallow", "host"}, "access unallow ", "Unallow host identities."},
+      {{"unallow", "domain"}, "access unallow ", "Unallow domain identities."},
+      {{"set"}, "", "Configure access rules."},
+      {{"set", "redirect"}, "access set redirect ", "Redirect requests to another host."},
+      {{"set", "stall"}, "access set stall ", "Stall matching requests."},
+      {{"set", "limit"},
+       "access set limit <frequency> rate:",
+       "Set request-rate and query limits."},
+      {{"rm"}, "", "Remove access rules."},
+      {{"rm", "redirect"}, "access rm redirect ", "Remove request redirection."},
+      {{"rm", "stall"}, "access rm stall ", "Remove a request stall."},
+      {{"rm", "limit"}, "access rm limit rate:", "Remove request limits."},
+      {{"ls"}, "access ls ", "List configured access rules."},
+  };
+  CommandRegistry::instance().reg(eos::console::WithCommandHelp(
+      std::make_unique<AccessProtoCommand>(), std::move(help)));
 }
