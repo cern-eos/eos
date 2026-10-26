@@ -2253,19 +2253,34 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
     return false;
   }
 
+  // The shared hash is keyed by queuepath: once the master reuses it for a new
+  // filesystem, a standby still holding the old object sees the new id. Tear
+  // down what was installed under the registry id and leave the shared state
+  // and the configuration, which now belong to the new filesystem, alone.
+  eos::common::FileSystem::fsid_t fsid = mIdView.lookupByPtr(fs);
+  const bool stale_id = (fsid != 0) && (fsid != snapshot.mId);
+
+  if (fsid == 0) {
+    fsid = snapshot.mId;
+  } else if (stale_id) {
+    eos_warning("msg=\"unregister filesystem whose queuepath was reused\" "
+                "fsid=%lu shared_fsid=%lu qpath=\"%s\"",
+                fsid, snapshot.mId, key.c_str());
+  }
+
   // Shared schedgroup updates can arrive before the local config listener.
   // Deregister the memberships we installed, not the new shared group/space.
   std::string registered_group;
   std::string registered_space;
 
-  if (!GetFsMembership(snapshot.mId, registered_group, registered_space)) {
+  if (!GetFsMembership(fsid, registered_group, registered_space)) {
     return false;
   }
 
   if (unreg_from_geo_tree && registered_group.empty()) {
     eos_err("msg=\"filesystem has no registered group, abort deregistration\" "
             "fsid=%lu",
-            snapshot.mId);
+            fsid);
     return false;
   }
 
@@ -2281,27 +2296,27 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   }
 
   if (group && unreg_from_geo_tree &&
-      !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false)) {
+      !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false, fsid)) {
     eos_err("msg=\"failed to remove filesystem from GeoTreeEngine, "
             "keeping local views\" fsid=%lu group=%s",
-            snapshot.mId, registered_group.c_str());
+            fsid, registered_group.c_str());
     return false;
   }
 
   // Mirror the removal into the flat scheduler's snapshot, best effort.
   if (!scheduler_space.empty()) {
-    gOFS->mFsScheduler->RemoveFs(scheduler_space, snapshot.mId);
+    gOFS->mFsScheduler->RemoveFs(scheduler_space, fsid);
   }
 
   // Remove fs from node view & evt. remove node view
   if (mNodeView.count(snapshot.mQueue)) {
     FsNode* node = mNodeView[snapshot.mQueue];
-    node->erase(snapshot.mId);
+    node->erase(fsid);
   }
 
   // Remove fs from group view & evt. remove group view
   if (group) {
-    group->erase(snapshot.mId);
+    group->erase(fsid);
     eos_debug("msg=\"unregister group %s from group view\"",
               group->GetMember("name").c_str());
 
@@ -2317,7 +2332,7 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
 
   // Remove fs from space view & evt. remove space view
   if (space) {
-    space->erase(snapshot.mId);
+    space->erase(fsid);
     eos_debug("msg=\"unregister space %s from space view\"",
               space->GetMember("name").c_str());
 
@@ -2329,21 +2344,24 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
 
   // Remove view by filesystem object and filesystem id
   if (!mIdView.eraseByPtr(fs)) {
-    eos_static_crit("msg=\"no such fs to unregister\" fsid=%lu fs_ptr=%x",
-                    snapshot.mId, fs);
+    eos_static_crit("msg=\"no such fs to unregister\" fsid=%lu fs_ptr=%x", fsid, fs);
   }
 
-  // Remove mapping
-  RemoveMapping(snapshot.mId, snapshot.mUuid);
+  // Remove mapping, the shared uuid belongs to the new filesystem if stale
+  if (stale_id) {
+    RemoveMapping(fsid);
+  } else {
+    RemoveMapping(fsid, snapshot.mUuid);
+  }
 
-  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
-    eos_static_info("msg=\"calling delete config value\" fsid=%lu", fs->GetId());
+  if (!stale_id && gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
+    eos_static_info("msg=\"calling delete config value\" fsid=%lu", fsid);
     FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
   }
 
   // Notify the FST to delete the fs object from local maps is actually done
   // above but we also needs to notify about the node hash deletion if needed.
-  if (notify_fst) {
+  if (notify_fst && !stale_id) {
     fs->DeleteSharedHash(true);
 
     // Eventually delete the node
@@ -3352,14 +3370,34 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
   const std::string uuid = it->second;
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  if (first_unregister && fs) {
-    if (!UnRegister(fs)) {
-      eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu",
-                         fsid);
-      return false;
+  if (first_unregister) {
+    // A replaced disk can come back on the same queuepath with a new id. If
+    // the removal of the old id was not applied here, drop that object too,
+    // otherwise it stays registered and picks up the new shared id.
+    FileSystem* old_fs = mIdView.lookupByQueuePath(locator.getQueuePath());
+
+    if (old_fs && (old_fs != fs)) {
+      eos_static_warning("msg=\"unregister file system with reused queuepath\" "
+                         "fsid=%lu new_fsid=%lu qpath=\"%s\"",
+                         mIdView.lookupByPtr(old_fs), fsid,
+                         locator.getQueuePath().c_str());
+
+      if (!UnRegister(old_fs)) {
+        eos_static_warning("msg=\"failed to unregister file system\" "
+                           "qpath=\"%s\"",
+                           locator.getQueuePath().c_str());
+        return false;
+      }
     }
 
-    fs = nullptr;
+    if (fs) {
+      if (!UnRegister(fs)) {
+        eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu", fsid);
+        return false;
+      }
+
+      fs = nullptr;
+    }
   }
 
   // Apply only the registration for a new filesystem if it does not exist

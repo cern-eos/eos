@@ -1451,18 +1451,16 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       return rc;
     }
 
-    // @note We can only remove a file system only if it's empty and
-    // exceptionally if we are a slave MGM and the fs is draining
-    // and we got a request to remove it. The empty state from the
-    // master MGM is never propagated to the slaves.
+    // @note We can only remove a file system only if it's empty. A slave MGM
+    // only gets here to replay a removal the master already validated, and by
+    // then the master may have deleted the shared hash the lifecycle is read
+    // from, so the slave follows the master unconditionally.
     const eos::common::FsLifecycle lifecycle = fs->GetLifecycle();
-    const bool draining = fs->IsDrainRequested();
 
-    if ((lifecycle != eos::common::FsLifecycle::kEmpty) &&
-        !(draining && !gOFS->mMaster->IsMaster())) {
+    if ((lifecycle != eos::common::FsLifecycle::kEmpty) && gOFS->mMaster->IsMaster()) {
       eos_static_err("msg=\"only empty file systems can be removed\" "
-                     "lifecycle=\"%s\" draining=%d",
-                     eos::common::FileSystem::GetLifecycleAsString(lifecycle), draining);
+                     "lifecycle=\"%s\"",
+                     eos::common::FileSystem::GetLifecycleAsString(lifecycle));
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {

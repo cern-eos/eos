@@ -434,19 +434,34 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   return true;
 }
 
-
-bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
-                                      bool updateFastStruct)
+bool
+GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group, bool updateFastStruct,
+                                 FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
   SchedTME* mapEntry;
-  FileSystem::fsid_t fsid = fs->GetId();
+
+  if (fsid == 0) {
+    fsid = fs->GetId();
+  }
+
   {
     pTreeMapMutex.LockWrite();
 
     // ==== check that fs is registered
     if (!pFs2SchedTME.count(fsid)) {
       eos_err("error removing fs %lu from group %s : fs is not registered",
+              (unsigned long)fsid, group->mName.c_str());
+      pTreeMapMutex.UnLockWrite();
+      return false;
+    }
+
+    // ==== check that the id still belongs to this object
+    auto it_ptr = pFsId2FsPtr.find(fsid);
+
+    if ((it_ptr != pFsId2FsPtr.end()) && (it_ptr->second != fs)) {
+      eos_err("error removing fs %lu from group %s : fs id is registered "
+              "for another file system object",
               (unsigned long)fsid, group->mName.c_str());
       pTreeMapMutex.UnLockWrite();
       return false;

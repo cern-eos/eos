@@ -1729,12 +1729,16 @@ public:
   // @param group
   //   the group the file system belongs to
   // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
+  //   should the fast structures be updated immediately without waiting for the next time
+  //   frame
+  // @param fsid
+  //   the id the file system was inserted with, 0 to use the id currently
+  //   published in its shared hash
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool removeFsFromGroup(FileSystem* fs , FsGroup* group,
-                         bool updateFastStructures = true);
+  bool removeFsFromGroup(FileSystem* fs, FsGroup* group, bool updateFastStructures = true,
+                         FileSystem::fsid_t fsid = 0);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
