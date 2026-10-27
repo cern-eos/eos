@@ -27,10 +27,13 @@
 #include "common/AssistedThread.hh"
 #include "common/FileId.hh"
 #include "common/Mapping.hh"
+#include "common/StringConversion.hh"
 #include "common/ThreadPool.hh"
 #include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "mgm/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
 #include <Xrd/XrdJob.hh>
 #include <XrdOuc/XrdOucErrInfo.hh>
