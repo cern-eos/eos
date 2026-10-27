@@ -1055,6 +1055,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("wfe.ntx", "1");
     }
 
+    // Set the max number of pending wfe jobs kept in memory by default
+    if (GetConfigMember("wfe.maxpending").empty()) {
+      SetConfigMember("wfe.maxpending", "10000000");
+    }
+
     // Disable the 'file archived' garbage collector by default
     if (GetConfigMember("filearchivedgc").empty()) {
       SetConfigMember("filearchivedgc", "off");

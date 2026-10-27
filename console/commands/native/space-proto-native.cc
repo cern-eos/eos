@@ -158,6 +158,8 @@ std::string MakeSpaceHelp()
          "enable/disable the Workflow Engine [ default=off ]\n"
       << "space config <space-name> space.wfe.interval=<sec>                    : "
          "configure the default WFE scan interval\n"
+      << "space config <space-name> space.wfe.maxpending=<n>                    : "
+         "max number of pending WFE jobs kept in memory [ default=10M ]\n"
       << "space config <space-name> space.headroom=<size>                       : "
          "configure the default disk headroom if not defined on a filesystem (see fs for "
          "details)\n"

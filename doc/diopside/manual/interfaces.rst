@@ -3271,6 +3271,16 @@ The default is to run all workflow jobs sequentially with a single thread.
    # configure a thread pool of 16 workflow jobs in parallel
    eos space config default space.wfe.ntx=10
 
+Pending workflow jobs are kept in memory, ordered by the time they are due, so the engine
+does not have to scan the queues to find them. The **wfe.maxpending** space variable limits
+how many are kept in memory, the default is 10M. Jobs above the limit stay only in the queue
+directories and are loaded again once half of the limit is free.
+
+.. code-block:: bash
+
+   # keep at most 10 million pending workflow jobs in memory
+   eos space config default space.wfe.maxpending=10M
+
 Workflows are stored in a virtual queue system. The queues display the status of each workflow. By default workflows older than 7 days are cleaned up.
 This setting can be changed by the **wfe.keeptime** space variable. That is the time in seconds how long workflows are kept in the virtual queue system before
 they get deleted.
