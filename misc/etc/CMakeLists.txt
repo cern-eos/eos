@@ -21,7 +21,21 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(DIRECTORY systemd USE_SOURCE_PERMISSIONS DESTINATION lib)
+install(DIRECTORY systemd USE_SOURCE_PERMISSIONS DESTINATION lib
+  PATTERN "*.in" EXCLUDE)
+
+# Run the xrootd binary of the XRootD installation we build against
+if(XROOTD_INCLUDE_DIR)
+  get_filename_component(XROOTD_PREFIX "${XROOTD_INCLUDE_DIR}/../.." ABSOLUTE)
+else()
+  set(XROOTD_PREFIX "/usr")
+endif()
+
+set(EOS_XROOTD_BINARY "${XROOTD_PREFIX}/bin/xrootd")
+configure_file(systemd/system/eos@.service.in
+  ${CMAKE_CURRENT_BINARY_DIR}/eos@.service @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/eos@.service
+  DESTINATION lib/systemd/system)
 
 install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig auto.master.d profile.d
   USE_SOURCE_PERMISSIONS DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})

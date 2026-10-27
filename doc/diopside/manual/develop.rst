@@ -862,16 +862,18 @@ Also make sure the following 2 lines are present in each cfg file created above:
     fstofs.qdbpassword_file /etc/eos.keytab
 
 
-Each file system will run its own FST daemon (which communicates via MQ with the MGM). For each of these daemons, we need to create a special drop-in script specifying the connection port:
+Each file system will run its own FST daemon (which communicates via MQ with the MGM). For each of these daemons, we need to create a special drop-in script specifying the connection port and link the FST privileges drop-in shipped for ``eos@fst``:
 
 .. code-block:: bash
 
     for i in {1..3}; do
-        mkdir -p /usr/lib/systemd/system/eos@fst"${i}".service.d
-        cd /usr/lib/systemd/system/eos@fst"${i}".service.d
+        mkdir -p /etc/systemd/system/eos@fst"${i}".service.d
+        cd /etc/systemd/system/eos@fst"${i}".service.d
         echo "[Service]" > custom.conf;
         echo "Environment=EOS_FST_HTTP_PORT=900${i}" >> custom.conf;
+        ln -sf /usr/lib/systemd/system/eos@fst.service.d/50-fst.conf 50-fst.conf;
     done;
+    systemctl daemon-reload
 
 
 FST is usually represented by a disk server with many disks mounted on it.

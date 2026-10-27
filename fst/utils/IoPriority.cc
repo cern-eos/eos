@@ -103,6 +103,36 @@ int ioprio_needs_sysadm(int iopriority)
   }
 }
 
+#ifndef __APPLE__
+//------------------------------------------------------------------------------
+// Raise or lower CAP_SYS_ADMIN in the effective set of the calling thread. It
+// can only be raised if it is in the permitted set, which is the case when the
+// service grants it (AmbientCapabilities=) or when started as root with -R.
+//------------------------------------------------------------------------------
+static int set_sysadm_effective(bool enable)
+{
+  struct __user_cap_header_struct cap_header;
+  struct __user_cap_data_struct cap_data[_LINUX_CAPABILITY_U32S_3];
+  cap_header.version = _LINUX_CAPABILITY_VERSION_3;
+  cap_header.pid = 0;
+
+  if (capget(&cap_header, cap_data)) {
+    return -1;
+  }
+
+  auto& data = cap_data[CAP_TO_INDEX(CAP_SYS_ADMIN)];
+  const __u32 mask = CAP_TO_MASK(CAP_SYS_ADMIN);
+
+  if (enable) {
+    data.effective |= (data.permitted & mask);
+  } else {
+    data.effective &= ~mask;
+  }
+
+  return capset(&cap_header, cap_data);
+}
+#endif
+
 //------------------------------------------------------------------------------
 // Change IO priority
 //------------------------------------------------------------------------------
@@ -117,13 +147,7 @@ int ioprio_begin(int which, int iopriority, int local_iopriority)
 #ifndef __APPLE__
 
   if (ioprio_needs_sysadm(iopriority)) {
-    struct __user_cap_header_struct cap_header;
-    struct __user_cap_data_struct cap_data;
-    cap_header.pid = 0;
-    cap_header.version = _LINUX_CAPABILITY_VERSION_1;
-    cap_data.effective = cap_data.permitted = ~0u;
-    cap_data.inheritable = 0;
-    rc |= capset(&cap_header, &cap_data);
+    rc |= set_sysadm_effective(true);
   }
 
 #endif
@@ -139,14 +163,7 @@ int ioprio_end(int which, int iopriority)
 #ifndef __APPLE__
 
   if (ioprio_needs_sysadm(iopriority)) {
-    struct __user_cap_header_struct cap_header;
-    struct __user_cap_data_struct cap_data;
-    cap_header.pid = 0;
-    cap_header.version = _LINUX_CAPABILITY_VERSION_1;
-    cap_data.permitted = ~0u;
-    cap_data.effective = 0;
-    cap_data.inheritable = 0;
-    capset(&cap_header, &cap_data);
+    set_sysadm_effective(false);
   }
 
 #endif

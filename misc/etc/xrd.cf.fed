@@ -1,4 +1,10 @@
 ###########################################################################
+# Base configuration of the EOS federation proxy. It is not run through   #
+# eos@.service: deploy it as /etc/xrootd/xrootd-fed.cfg and start it with #
+# the XRootD services 'xrootd@fed' and 'cmsd@fed'. The EOS_PSS_* and      #
+# EOS_FED_MANAGER variables are read from the environment, e.g. through   #
+# a drop-in with EnvironmentFile=/etc/sysconfig/eos_env.                  #
+###########################################################################
 # This is a very simple sample configuration file sufficient to start an  #
 # xrootd data server using the default port 1094 and its companion cmsd.  #
 # Trying to use the xrootd will cause the client to simply wait because   #
@@ -34,7 +40,7 @@ xrootd.redirect $eospssmgm $eospsspath
 # to allow you to start the frm_xfrd to bring in missing files into '/tmp'.
 # Remove this attribute if you don't want to enable this feature.
 #
-all.export $eospsspath 
+all.export $eospsspath
 
 # The role directive tells xrootd to run as a data server as part of a
 # cluster. The causes the xrootd to try to contact the local cmsd which

@@ -817,6 +817,9 @@ XrdMgmOfs::OrderlyShutdown()
   FsView::gFsView.StopHeartBeat();
   FsView::gFsView.Reset();
 
+  eos_warning("%s", "msg=\"stopping tty broadcast\"");
+  StopTtyBroadcast();
+
   if (mErrLogEnabled) {
     eos_warning("%s", "msg=\"error log kill\"");
     std::string errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";

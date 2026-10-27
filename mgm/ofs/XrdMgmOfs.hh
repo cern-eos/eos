@@ -2063,6 +2063,17 @@ public:
   void SetupProcFiles();
 
   //----------------------------------------------------------------------------
+  //! Start the eos-tty-broadcast helper if EOS_TTY_BROADCAST_LISTEN_LOGFILE
+  //! and EOS_TTY_BROADCAST_EGREP are set
+  //----------------------------------------------------------------------------
+  void StartTtyBroadcast();
+
+  //----------------------------------------------------------------------------
+  //! Stop the eos-tty-broadcast helper started by this daemon, if any
+  //----------------------------------------------------------------------------
+  void StopTtyBroadcast();
+
+  //----------------------------------------------------------------------------
   //! Method called during shutdown to destroy the rest of the objects and
   //! clean up the threads.
   //----------------------------------------------------------------------------
@@ -2292,6 +2303,7 @@ private:
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
+  pid_t mTtyBroadcastPid{-1}; ///< Process group of eos-tty-broadcast
   bool mTpcRedirect {false}; ///< Mark if tpc rdr enabled
   //! Map for delegated/undelegated TPC redirection info
   std::map<bool, std::pair<std::string, int>> mTpcRdrInfo;

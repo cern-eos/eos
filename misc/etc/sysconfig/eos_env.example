@@ -29,16 +29,12 @@ LD_PRELOAD=/usr/lib64/libjemalloc.so.1
 # Disable the KRB5 replay cache
 KRB5RCACHETYPE=none
 
-# What roles should the xroot daemon run for. For each role you can overwrite
-# the default options using a dedicate sysconfig file
-# e.g. /etc/sysconfig/xrd.<role>. The role based mechanism allows for
-# multiple xrd's running with different options to be controlled via
-# the same systemd script
-
-#-------------------------------------------------------------------------------
-# EOS roles - Systemd Services
-#-------------------------------------------------------------------------------
-XRD_ROLES="mq mgm fst"
+# The EOS daemons of a node are systemd instances of eos@.service, each one
+# running with /etc/xrd.cf.<name>. Enable them with e.g.
+#   systemctl enable --now eos@mgm eos@fst
+# and control all of them at once through eos.target. Settings specific to one
+# instance belong in a drop-in, see 'systemctl edit eos@<name>'. This file is
+# shared by all the instances.
 
 #-------------------------------------------------------------------------------
 # EOS Configuration
@@ -178,9 +174,12 @@ EOS_AUDIT_ROTATION=3600
 # ZSTD-compressed Logging and Reports
 #-------------------------------------------------------------------------------
 # Enable ZSTD-compressed rotating logs (replaces fan-out files). Disabled by default.
-# When enabled, xrootd is started without '-l <logfile>' so its STDERR flows
-# into the EOS Logging ZSTD pipeline (handled by eos_start.sh / 'eos daemon run').
+# When enabled, xrootd must be started without '-l <logfile>' so its STDERR
+# flows into the EOS Logging ZSTD pipeline. For eos@<name> services this is
+# done by also setting EOS_XRD_LOG_ARGS to empty, 'eos daemon run' does it on
+# its own.
 #EOS_ZSTD_LOGGING=0
+#EOS_XRD_LOG_ARGS=
 # Rotation interval for ZSTD logging in seconds (default 3600 = 1 hour)
 #EOS_ZSTD_LOGGING_ROTATION=3600
 # ZSTD compression level for logging (1..19), default 1
@@ -353,6 +352,8 @@ EOS_AUDIT_ROTATION=3600
 #-------------------------------------------------------------------------------
 # Federation Configuration
 #-------------------------------------------------------------------------------
+# Used by /etc/xrd.cf.fed. The federation proxy is not an eos@ instance, it runs
+# as xrootd@fed and cmsd@fed from XRootD, see the systemd documentation.
 
 # The host[:port] name of the meta manager (global redirector)
 # EOS_FED_MANAGER=eos.cern.ch:1094

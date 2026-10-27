@@ -42,7 +42,8 @@ namespace
 //! of the **current thread** to root (uid=0) and then revert to the original
 //! setup once this object is destroyed. We need this to be able to access
 //! the block devices on the machine during start up to measure the IO
-//! performance.
+//! performance. This only applies when started as root with -R <user>, when
+//! running unprivileged the device access is granted through group membership.
 //----------------------------------------------------------------------------
 struct SwitchToRootEuid {
   //--------------------------------------------------------------------------
@@ -59,6 +60,10 @@ struct SwitchToRootEuid {
     eos_static_info("msg=\"initial user identity\" ruid=%i euid=%i suid=%i",
                     mRuid, mEuid, mSuid);
 
+    if (mRuid != sRootUid) {
+      return;
+    }
+
     // Switch to target user
     if (syscall(SYS_setresuid, sRootUid, sRootUid, sRootUid) == -1) {
       eos_static_err("msg=\"insuffcient priviledges to switch to root\" "
@@ -66,6 +71,8 @@ struct SwitchToRootEuid {
       mFailed = true;
       return;
     }
+
+    mSwitched = true;
   }
 
   //--------------------------------------------------------------------------
@@ -73,6 +80,10 @@ struct SwitchToRootEuid {
   //--------------------------------------------------------------------------
   ~SwitchToRootEuid()
   {
+    if (!mSwitched) {
+      return;
+    }
+
     // Put back the original effective UID
     if (syscall(SYS_setresuid, mRuid, mEuid, mSuid) == -1) {
       eos_static_err("msg=\"insuffcient priviledges to switch to user\" "
@@ -92,6 +103,8 @@ struct SwitchToRootEuid {
   uid_t mRuid, mEuid, mSuid;
   //! Flag to mark any failures
   bool mFailed {false};
+  //! Flag to mark that the identity was switched and needs reverting
+  bool mSwitched {false};
 };
 }
 

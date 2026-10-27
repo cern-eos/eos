@@ -61,25 +61,31 @@ The configuration files coming from an RPM installation have useful default sett
 Classical `Systemd` Services
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The systemctl services for the four types of daemon are:
+Every EOS daemon is an instance of the ``eos@.service`` template. The instance
+``eos@<name>`` runs ``xrootd`` with the configuration file ``/etc/xrd.cf.<name>``
+and logs to ``/var/log/eos/<name>/xrdlog.<name>``. The environment shared by all
+the instances is read from ``/etc/sysconfig/eos_env``.
+
+The daemons run as the ``daemon`` user and are granted ``CAP_NET_BIND_SERVICE``,
+so they can listen on ports below 1024 without running as root.
 
 .. code-block:: bash
 
-  systemctl start|stop|status xrootd@quarkdb
-  systemctl start|stop|status eos@mq
-  systemctl start|stop|status eos@mgm
-  systemctl start|stop|status eos@fst
+  systemctl start|stop|status|restart eos@qdb    # uses /etc/xrd.cf.qdb
+  systemctl start|stop|status|restart eos@mgm    # uses /etc/xrd.cf.mgm
+  systemctl start|stop|status|restart eos@fst    # uses /etc/xrd.cf.fst
+
+An instance fails to start if its ``/etc/xrd.cf.<name>`` configuration file
+does not exist.
 
 The logical startup order justified by their dependencies should be:
 
 1. QDB
-2. MQ
-3. MGM
-4. FSTs
+2. MGM
+3. FSTs
 
-The MGM service requires QDB and MQ to be up.
-The FST Service requires MGM, QDB and MQ to be up.
-QDB and MQ service have no dependencies.
+The MGM service requires QDB to be up. The FST service requires MGM and QDB to
+be up. QDB has no dependencies.
 
 Start `systemd` Services at Boot
 """""""""""""""""""""""""""""""""""
@@ -87,10 +93,114 @@ To start EOS services when a machine boots one needs only to enable the correspo
 
 .. code-block:: bash
 
-  systemctl enable xrootd@quarkdb
-  systemctl enable eos@mq
+  systemctl enable eos@qdb
   systemctl enable eos@mgm
   systemctl enable eos@fst
+
+Bulk Control of all Daemons
+"""""""""""""""""""""""""""""""""""
+All the enabled instances belong to ``eos.target``:
+
+.. code-block:: bash
+
+  systemctl start eos.target    # start all the enabled daemons
+  systemctl stop eos.target     # stop all the daemons
+  systemctl restart eos.target  # restart all the daemons
+  systemctl status 'eos@*'      # status of all the daemons
+
+The ``XRD_ROLES`` variable is no longer used. On upgrade the roles listed there
+are enabled once as ``eos@<role>`` instances. The ``eos.service`` unit is
+deprecated and only starts ``eos.target``.
+
+FST Instances
+"""""""""""""""""""""""""""""""""""
+FSTs need some extra privileges to access the block devices, query
+S.M.A.R.T. information and use the real-time IO priority class. These are
+granted to ``eos@fst`` by the drop-in
+``/usr/lib/systemd/system/eos@fst.service.d/50-fst.conf``. FST instances with
+a different name need to link it into their own drop-in directory:
+
+.. code-block:: bash
+
+  mkdir -p /etc/systemd/system/eos@fst1.service.d
+  ln -s /usr/lib/systemd/system/eos@fst.service.d/50-fst.conf \
+    /etc/systemd/system/eos@fst1.service.d/50-fst.conf
+  systemctl daemon-reload
+
+Federation Daemon
+"""""""""""""""""""""""""""""""""""
+The federation proxy is a plain XRootD proxy (``libXrdPss``) with its companion
+``cmsd`` subscribing to a global redirector. EOS ships only its base
+configuration ``/etc/xrd.cf.fed`` and no systemd unit for it: in production it
+runs through the ``xrootd@fed`` and ``cmsd@fed`` services of the XRootD
+packages, which use ``/etc/xrootd/xrootd-fed.cfg`` and run as the ``xrootd``
+user.
+
+.. code-block:: bash
+
+  cp /etc/xrd.cf.fed /etc/xrootd/xrootd-fed.cfg
+
+``xrd.cf.fed`` takes its settings from the ``EOS_FED_MANAGER``,
+``EOS_PSS_PORT``, ``EOS_PSS_MGM`` and ``EOS_PSS_PATH`` environment variables
+described in ``/etc/sysconfig/eos_env.example``. Either replace them with the
+actual values in ``/etc/xrootd/xrootd-fed.cfg`` or pass them to both services
+with a drop-in, created with ``systemctl edit xrootd@fed`` and
+``systemctl edit cmsd@fed``:
+
+.. code-block:: ini
+
+  [Service]
+  EnvironmentFile=/etc/sysconfig/eos_env
+
+Then start and enable both daemons:
+
+.. code-block:: bash
+
+  systemctl enable --now xrootd@fed cmsd@fed
+
+They are not part of ``eos.target`` and log to ``/var/log/xrootd/fed/``, where
+XRootD takes care of the log rotation. ``fed`` listed in ``XRD_ROLES`` is not
+migrated to an ``eos@fed`` instance on upgrade.
+
+Per Instance Settings
+"""""""""""""""""""""""""""""""""""
+Settings that apply to only one instance belong in a drop-in, for example to
+set an environment variable or raise a limit for the MGM:
+
+.. code-block:: bash
+
+  systemctl edit eos@mgm
+
+.. code-block:: ini
+
+  [Service]
+  Environment=EOS_MGM_GRPC_PORT=50051
+  LimitNOFILE=1048576
+
+``/etc/sysconfig/eos_env`` is read by systemd as an ``EnvironmentFile``: values
+are not expanded by a shell, so a setting like
+``LD_LIBRARY_PATH=/opt/eos/xrootd/lib64:$LD_LIBRARY_PATH`` keeps the literal
+``$LD_LIBRARY_PATH``. For ASan builds do not preload ``libasan`` or
+``libjemalloc``: the binaries already link the ASan runtime, and a preloaded
+ASan runtime is inherited by every helper the daemons spawn.
+
+When ``EOS_ZSTD_LOGGING`` is enabled set ``EOS_XRD_LOG_ARGS=`` (empty) in
+``/etc/sysconfig/eos_env`` so that ``xrootd`` logs to stderr, which is then
+ingested by the ZSTD logging pipeline.
+
+Files and Directories
+"""""""""""""""""""""""""""""""""""
+``/run/eos/<name>``
+   Runtime directory of the instance, used as xrootd admin path. Created on
+   start and removed on stop.
+
+``/var/log/eos/<name>``
+   Log directory of the instance.
+
+``/var/eos``, ``/var/spool/eos``
+   Persistent state, created by ``systemd-tmpfiles`` from
+   ``/usr/lib/tmpfiles.d/eos-server.conf`` which also enforces the ownership
+   and permissions of ``/etc/eos.keytab``.
 
 .. index::
    pair: Configuration; Log Files - Classical

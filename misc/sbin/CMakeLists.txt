@@ -23,8 +23,6 @@
 
 install(PROGRAMS
   eos-status
-  eos_start.sh
-  eos_start_pre.sh
   eos-reportstat
   eos-mdstat
   eos-mdreport

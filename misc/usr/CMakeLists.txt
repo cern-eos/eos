@@ -4,4 +4,4 @@ if(NOT SYSTEMD_TMPFILES)
   return()
 endif()
 
-install(FILES eosd.conf eos-fusex-core.conf DESTINATION lib/tmpfiles.d)
+install(FILES eosd.conf eos-fusex-core.conf eos-server.conf DESTINATION lib/tmpfiles.d)
