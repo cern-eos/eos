@@ -117,6 +117,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
   time_t snoozetime = 10;
   size_t lWFEntx = 0;
   time_t cleanuptime = 0;
+  bool pendingLoaded = false;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   if (assistant.terminationRequested()) {
@@ -132,8 +133,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
     time_t lStartTime = time(NULL);
     time_t lStopTime;
     time_t lKeepTime = 7 * 86400;
-    std::map<std::string, std::set<std::string> > wfedirs;
-    XrdOucString stdErr;
+    bool workLeft = false;
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -163,121 +163,90 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
 
     // Only a master needs to run WFE
     if (gOFS->mMaster->IsMaster() && IsEnabledWFE) {
-      eos_static_debug("msg=\"start WFE scan\"");
-      // Find all directories defining an WFE policy
+      // Scan the queues once per mastership, afterwards Job::Save keeps
+      // mPending up to date
+      if (!pendingLoaded) {
+        pendingLoaded = LoadPending();
+      }
+
       gOFS->MgmStats.Add("WFEFind", 0, 0, 1);
       EXEC_TIMING_BEGIN("WFEFind");
-      // prepare four queries today, yesterday for queued and error jobs
-      std::string queries[4];
+      time_t now = time(NULL);
 
-      for (size_t i = 0; i < 4; ++i) {
-        queries[i] = gOFS->MgmProcWorkflowPath.c_str();
-        queries[i] += "/";
-      }
+      while (!assistant.terminationRequested()) {
+        // stop scheduling if there are too many jobs running
+        if (lWFEntx && (lWFEntx <= GetActiveJobs())) {
+          workLeft = true;
+          break;
+        }
 
-      {
-        // today
-        time_t when = time(NULL);
-        std::string day = eos::common::Timing::UnixTimestamp_to_Day(when);
-        queries[0] += day;
-        queries[0] += "/q/";
-        queries[1] += day;
-        queries[1] += "/e/";
-        //yesterday
-        when -= (24 * 3600);
-        day = eos::common::Timing::UnixTimestamp_to_Day(when);
-        queries[2] += day;
-        queries[2] += "/q/";
-        queries[3] += day;
-        queries[3] += "/e/";
-      }
+        // return once per interval to pick up configuration changes
+        if ((time(NULL) - lStartTime) >= std::max<time_t>(lWFEInterval, 1)) {
+          workLeft = true;
+          break;
+        }
 
-      for (size_t i = 0; i < 4; ++i) {
-        eos_static_debug("query-path=%s", queries[i].c_str());
-        gOFS->_find(queries[i].c_str(), mError, stdErr, mRootVid, wfedirs, 0,
-                    0, false, 0, false, 0);
-      }
+        std::string f;
+        {
+          std::lock_guard<std::mutex> lock(mPendingMutex);
 
-      {
-        eos_static_debug("msg=\"finished WFE find\" WFE-dirs=%llu %s",
-                         wfedirs.size(), stdErr.c_str()
-                        );
-        time_t now = time(NULL);
-
-        for (auto it = wfedirs.begin(); it != wfedirs.end(); it++) {
-          // -------------------------------------------------------------------
-          // get workflows
-          // -------------------------------------------------------------------
-          if (it->second.size()) {
-            for (auto wit = it->second.begin(); wit != it->second.end(); ++wit) {
-              eos_static_debug("wfe-dir=\"%s\" wfe-job=\"%s\"", it->first.c_str(),
-                               wit->c_str());
-              std::string f = it->first;
-              f += *wit;
-              Job* job = new Job();
-
-              if (!job || job->Load(f)) {
-                eos_static_err("msg=\"cannot load workflow entry\" value=\"%s\"", f.c_str());
-
-                if (job) {
-                  delete job;
-                }
-              } else {
-                // don't schedule jobs for the future
-                if ((!job->mActions.size()) || (now < job->mActions[0].mTime)) {
-                  delete job;
-                  continue;
-                }
-
-                // stop scheduling if there are too many jobs running
-                if (lWFEntx <= GetActiveJobs()) {
-                  if (lWFEntx > 0) {
-                    mDoneSignal.WaitMS(100);
-
-                    if (lWFEntx <= GetActiveJobs()) {
-                      delete job;
-                      break;
-                    }
-                  }
-                }
-
-                if (!job->IsSync()) {
-                  // use the shared scheduler for asynchronous jobs
-                  XrdSysMutexHelper sLock(gSchedulerMutex);
-                  time_t storetime = 0;
-                  // move job into the scheduled queue
-                  job->Move(job->mActions[0].mQueue, "r", storetime);
-                  job->mActions[0].mQueue = "r";
-                  job->mActions[0].mTime = storetime;
-                  XrdOucString tst;
-                  job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
-                                           (unsigned long long) storetime);
-                  gScheduler->Schedule((XrdJob*) job);
-                  IncActiveJobs();
-                  eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
-                                  job->mDescription.c_str());
-                } else {
-                  delete job;
-                }
-              }
-            }
+          // don't schedule jobs for the future
+          if (mPending.empty() || (mPending.begin()->first > now)) {
+            break;
           }
+
+          f = mPending.begin()->second;
+          mPending.erase(mPending.begin());
+        }
+
+        auto job = std::make_unique<Job>();
+
+        if (job->Load(f) || !job->mActions.size()) {
+          eos_static_err("msg=\"cannot load workflow entry\" value=\"%s\"", f.c_str());
+          continue;
+        }
+
+        if (!job->IsSync()) {
+          // use the shared scheduler for asynchronous jobs
+          XrdSysMutexHelper sLock(gSchedulerMutex);
+          time_t storetime = 0;
+          // move job into the scheduled queue
+          job->Move(job->mActions[0].mQueue, "r", storetime);
+          job->mActions[0].mQueue = "r";
+          job->mActions[0].mTime = storetime;
+          XrdOucString tst;
+          job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(
+              tst, (unsigned long long)storetime);
+          eos_static_info("msg=\"scheduled workflow\" job=\"%s\"",
+                          job->mDescription.c_str());
+          gScheduler->Schedule((XrdJob*)job.release());
+          IncActiveJobs();
         }
       }
 
       EXEC_TIMING_END("WFEFind");
-      eos_static_debug("msg=\"finished WFE application\" WFE-dirs=%llu",
-                       wfedirs.size());
+    } else if (!gOFS->mMaster->IsMaster()) {
+      // another MGM owns the queues now, rescan them on the next promotion
+      pendingLoaded = false;
+      std::lock_guard<std::mutex> lock(mPendingMutex);
+      mPending.clear();
     }
 
     lStopTime = time(NULL);
-
-    if ((lStopTime - lStartTime) < lWFEInterval) {
-      snoozetime = lWFEInterval - (lStopTime - lStartTime);
-    }
+    // recompute every pass, a value kept from a disabled pass would make the
+    // engine sleep 6000s after any pass longer than the interval
+    snoozetime = (lWFEInterval > 0)
+                     ? std::max<time_t>(0, lWFEInterval - (lStopTime - lStartTime))
+                     : 10;
 
     if (!IsEnabledWFE) {
       snoozetime = 6000;
+    }
+
+    if (workLeft) {
+      // due jobs may be left, continue as soon as a slot frees up
+      mDoneSignal.WaitMS(100);
+      snoozetime = 0;
     }
 
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
@@ -454,6 +423,10 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     return -1;
   }
 
+  if ((queue == "q") || (queue == "e")) {
+    gOFS->WFEd.AddPending(when, workflowpath);
+  }
+
   return SFS_OK;
 }
 
@@ -497,7 +470,15 @@ WFE::Job::Load(std::string path2entry)
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path2entry);
       eos::common::RWMutexReadLock rLock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosView->getFile(path2entry);
+      std::shared_ptr<eos::IFileMD> fmd;
+
+      try {
+        fmd = gOFS->eosView->getFile(path2entry);
+      } catch (eos::MDException& ex) {
+        eos_static_err("msg=\"workflow entry not found\" path=\"%s\"",
+                       path2entry.c_str());
+        return SFS_ERROR;
+      }
 
       try {
         time_t t_when = strtoull(when.c_str(), 0, 10);
@@ -3235,6 +3216,50 @@ WFE::MoveFromRBackToQ()
       }
     }
   }
+}
+
+bool
+WFE::LoadPending()
+{
+  std::vector<std::string> days;
+  {
+    XrdMgmOfsDirectory dir;
+
+    if (dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "") != SFS_OK) {
+      eos_static_err("msg=\"failed to open proc workflow directory\"");
+      return false;
+    }
+
+    while (const char* entry = dir.nextEntry()) {
+      if (strcmp(entry, ".") && strcmp(entry, "..")) {
+        days.emplace_back(entry);
+      }
+    }
+  }
+  size_t count = 0;
+
+  for (const auto& day : days) {
+    for (const char* queue : {"/q/", "/e/"}) {
+      std::string query = gOFS->MgmProcWorkflowPath.c_str();
+      query += "/" + day + queue;
+      std::map<std::string, std::set<std::string>> wfedirs;
+      XrdOucErrInfo errInfo;
+      XrdOucString stdErr;
+      gOFS->_find(query.c_str(), errInfo, stdErr, mRootVid, wfedirs, nullptr, nullptr,
+                  false, 0, false, 0);
+
+      for (const auto& wfedir : wfedirs) {
+        for (const auto& entry : wfedir.second) {
+          // entries are named <when>:<fxid>:<event>
+          AddPending(strtoull(entry.c_str(), nullptr, 10), wfedir.first + entry);
+          ++count;
+        }
+      }
+    }
+  }
+
+  eos_static_info("msg=\"loaded pending workflow entries\" count=%zu", count);
+  return true;
 }
 
 EOSMGMNAMESPACE_END
