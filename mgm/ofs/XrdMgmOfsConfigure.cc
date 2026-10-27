@@ -87,10 +87,16 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <signal.h>
+#include <spawn.h>
 #include <sstream>
+#include <string>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <vector>
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -1366,27 +1372,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
-  XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
-  int rrc = system(ttybroadcastkillline.c_str());
-
-  if (WEXITSTATUS(rrc)) {
-    eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
-  }
-
-  if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") &&
-      getenv("EOS_TTY_BROADCAST_EGREP")) {
-    XrdOucString ttybroadcastline = "eos-tty-broadcast ";
-    ttybroadcastline += getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE");
-    ttybroadcastline += " ";
-    ttybroadcastline += getenv("EOS_TTY_BROADCAST_EGREP");
-    ttybroadcastline += " >& /dev/null &";
-    eos_info("%s\n", ttybroadcastline.c_str());
-    rrc = system(ttybroadcastline.c_str());
-
-    if (WEXITSTATUS(rrc)) {
-      eos_info("%s returned %d", ttybroadcastline.c_str(), rrc);
-    }
-  }
+  StartTtyBroadcast();
 
   int pos1 = MgmDefaultReceiverQueue.find("//");
   int pos2 = MgmDefaultReceiverQueue.find("//", pos1 + 2);
@@ -2622,4 +2608,84 @@ XrdMgmOfs::SetupProcFiles()
     fmd->setSize(4096);
     eosView->updateFileStore(fmd.get());
   }
+}
+
+//------------------------------------------------------------------------------
+// Start the eos-tty-broadcast helper if configured
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::StartTtyBroadcast()
+{
+  const char* logfile = getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE");
+  const char* egrep = getenv("EOS_TTY_BROADCAST_EGREP");
+
+  if (!logfile || !egrep) {
+    return;
+  }
+
+  // The helper is a shell pipeline and must not inherit the daemon's
+  // LD_PRELOAD: an ASan runtime preloaded into bash, tail or egrep deadlocks
+  // them at startup.
+  std::vector<std::string> env_store;
+
+  for (char** e = environ; e && *e; ++e) {
+    if (strncmp(*e, "LD_PRELOAD=", 11)) {
+      env_store.emplace_back(*e);
+    }
+  }
+
+  std::vector<char*> envp;
+
+  for (auto& e : env_store) {
+    envp.push_back(e.data());
+  }
+
+  envp.push_back(nullptr);
+  std::string prog = "eos-tty-broadcast";
+  std::string arg1 = logfile;
+  std::string arg2 = egrep;
+  char* argv[] = {prog.data(), arg1.data(), arg2.data(), nullptr};
+  posix_spawn_file_actions_t actions;
+  posix_spawnattr_t attr;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
+  posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+  posix_spawn_file_actions_adddup2(&actions, STDOUT_FILENO, STDERR_FILENO);
+  posix_spawnattr_init(&attr);
+  // Own process group so that the whole pipeline can be killed at shutdown
+  posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
+  posix_spawnattr_setpgroup(&attr, 0);
+  pid_t pid = -1;
+  int rc = posix_spawnp(&pid, prog.c_str(), &actions, &attr, argv, envp.data());
+  posix_spawnattr_destroy(&attr);
+  posix_spawn_file_actions_destroy(&actions);
+
+  if (rc) {
+    eos_err("msg=\"failed to start eos-tty-broadcast\" errc=%d err=\"%s\"", rc,
+            strerror(rc));
+    return;
+  }
+
+  mTtyBroadcastPid = pid;
+  eos_info("msg=\"started eos-tty-broadcast\" pid=%d logfile=\"%s\" "
+           "egrep=\"%s\"",
+           pid, logfile, egrep);
+}
+
+//------------------------------------------------------------------------------
+// Stop the eos-tty-broadcast helper started by this daemon
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::StopTtyBroadcast()
+{
+  if (mTtyBroadcastPid <= 0) {
+    return;
+  }
+
+  (void)kill(-mTtyBroadcastPid, SIGKILL);
+
+  while ((waitpid(mTtyBroadcastPid, nullptr, 0) < 0) && (errno == EINTR)) {
+  }
+
+  mTtyBroadcastPid = -1;
 }

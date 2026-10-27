@@ -396,14 +396,13 @@ The EOS server installation
 %{_prefix}/lib/systemd/system/eos.target
 %{_prefix}/lib/systemd/system/eos.service
 %{_prefix}/lib/systemd/system/eos@.service
-%{_prefix}/lib/systemd/system/eos@master.service
-%{_prefix}/lib/systemd/system/eos@slave.service
+%dir %{_prefix}/lib/systemd/system/eos@fst.service.d
+%{_prefix}/lib/systemd/system/eos@fst.service.d/50-fst.conf
+%{_tmpfilesdir}/eos-server.conf
 %{_prefix}/lib/systemd/system/eos5-fst@.service
 %{_prefix}/lib/systemd/system/eos5-mgm@.service
 %{_prefix}/lib/systemd/system/eos5-qdb@.service
 %{_prefix}/lib/systemd/system/eos5.service
-%{_sbindir}/eos_start_pre.sh
-%{_sbindir}/eos_start.sh
 %config(noreplace) %{_sysconfdir}/cron.d/eos-logs
 %config(noreplace) %{_sysconfdir}/cron.d/eos-reports
 %config(noreplace) %{_sysconfdir}/logrotate.d/eos-logs
@@ -418,8 +417,32 @@ The EOS server installation
 
 %post -n eos-server
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
-  echo "Starting conditional EOS services"
+  systemd-tmpfiles --create %{_tmpfilesdir}/eos-server.conf > /dev/null 2>&1 || :
   systemctl daemon-reload > /dev/null 2>&1 || :
+  # One time migration of the XRD_ROLES in /etc/sysconfig/eos_env to enabled
+  # eos@<role> instances, to be dropped together with eos.service
+  if [ -f /etc/sysconfig/eos_env ] && \
+     ! ls /etc/systemd/system/eos.target.wants/eos@*.service > /dev/null 2>&1; then
+    for role in $(. /etc/sysconfig/eos_env > /dev/null 2>&1; echo ${XRD_ROLES}); do
+      case "${role}" in
+        mq|sync) continue ;;
+        fed)
+          echo "Not enabling fed from XRD_ROLES, run it as xrootd@fed and cmsd@fed"
+          continue ;;
+        fst?*)
+          mkdir -p /etc/systemd/system/eos@${role}.service.d
+          ln -sf %{_prefix}/lib/systemd/system/eos@fst.service.d/50-fst.conf \
+            /etc/systemd/system/eos@${role}.service.d/50-fst.conf ;;
+      esac
+      echo "Enabling eos@${role}.service from XRD_ROLES"
+      systemctl enable eos@${role}.service > /dev/null 2>&1 || :
+    done
+    if systemctl -q is-enabled eos.service > /dev/null 2>&1; then
+      systemctl enable eos.target > /dev/null 2>&1 || :
+    fi
+    systemctl daemon-reload > /dev/null 2>&1 || :
+  fi
+  echo "Starting conditional EOS services"
   systemctl --no-legend list-units "eos@*" | grep -v "q.*db" | awk '{print $1}' | xargs --no-run-if-empty -n1 systemctl restart || :
 fi
 

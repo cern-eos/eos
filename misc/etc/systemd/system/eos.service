@@ -20,17 +20,17 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
+# Deprecated: kept for one release for setups that still run 'systemctl start
+# eos'. Use eos.target, which starts all the enabled eos@<name> instances.
 [Unit]
-Description=EOS All Services
+Description=EOS All Services (deprecated, use eos.target)
+Wants=eos.target
+After=eos.target
 
 [Service]
-ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-all"
-
-ExecStart=/bin/echo For status of daemons, \
-run \'journalctl -e\' or \'systemctl status eos@*\'.
-
 Type=oneshot
-KillMode=none
+ExecStart=/bin/echo eos.service is deprecated and will be removed, \
+use eos.target and \'systemctl status eos@*\' instead.
 
 [Install]
-RequiredBy=multi-user.target
+WantedBy=multi-user.target

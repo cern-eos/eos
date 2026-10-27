@@ -550,7 +550,9 @@ is advertised from the FST to the MGM and represents the port location
 where MGM will redirect incoming clients requesting HTTP(S) access to the data.
 
 This can easily be done by adding a systemd custom configuration file for the
-FST service in ``/usr/lib/systemd/system/eos@fst.service.d/custom.conf``.
+FST service in ``/etc/systemd/system/eos@fst.service.d/custom.conf``.
+``systemctl edit eos@fst`` does the same through an ``override.conf`` in that
+directory.
 
 .. :caption: Contents of the custom.conf file
 
@@ -558,6 +560,9 @@ FST service in ``/usr/lib/systemd/system/eos@fst.service.d/custom.conf``.
 
    [Service]
    Environment=EOS_FST_HTTP_PORT=9001
+
+Run ``systemctl daemon-reload`` after creating the file by hand and restart
+the FST for the setting to take effect.
 
 After starting the EOS service, one can check for the actual value of the HTTP
 port advertised by the individual FSTs by executing the following command:

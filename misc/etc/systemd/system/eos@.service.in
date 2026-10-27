@@ -1,11 +1,10 @@
 # ----------------------------------------------------------------------
 # File: eos@.service
-# Author: Ivan Arizanovic - ComTrade Solutions Engineering
 # ----------------------------------------------------------------------
 #
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -20,28 +19,52 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
+#
+# One EOS daemon per instance: eos@<name> runs xrootd with /etc/xrd.cf.<name>
+# and logs to /var/log/eos/<name>/xrdlog.<name>, e.g. eos@mgm, eos@qdb or
+# eos@fst1. Enable the instances of a node with 'systemctl enable eos@<name>'
+# and control all of them at once through eos.target. Per instance settings
+# belong in drop-ins, see 'systemctl edit eos@<name>'.
+
 [Unit]
-Description=EOS %i
-After=network-online.target nss-lookup.target local-fs.target remote-fs.target
-Wants=network-online.target local-fs.target remote-fs.target
+Description=EOS %i daemon
+Documentation=https://eos-docs.web.cern.ch/
+Wants=network-online.target
+After=network-online.target nss-lookup.target local-fs.target remote-fs.target time-sync.target
 PartOf=eos.target
+AssertPathExists=/etc/xrd.cf.%i
 
 [Service]
-WorkingDirectory=/var/eos
-EnvironmentFile=/etc/sysconfig/eos_env
-
-ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
-ExecStart=/usr/sbin/eos_start.sh -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -Rdaemon
-ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
-
 Type=simple
-User=root
-Group=root
+User=daemon
+Group=daemon
+WorkingDirectory=/var/eos
+# Avoid glibc checking /etc/localtime on every time conversion
+Environment="TZ=:/etc/localtime"
+# Set EOS_XRD_LOG_ARGS= (empty) in eos_env together with EOS_ZSTD_LOGGING=1
+# so that xrootd logs to stderr, which the ZSTD logging pipeline ingests.
+Environment="EOS_XRD_LOG_ARGS=-l /var/log/eos/xrdlog.%i"
+EnvironmentFile=-/etc/sysconfig/eos_env
+ExecStart=@EOS_XROOTD_BINARY@ -n %i -c /etc/xrd.cf.%i -a /run/eos $EOS_XRD_LOG_ARGS
+RuntimeDirectory=eos/%i
+LogsDirectory=eos/%i
+LogsDirectoryMode=0755
+
+# Allow binding to ports below 1024 without running as root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+LimitNOFILE=65000
+TasksMax=infinity
+
+# NoNewPrivileges= and the settings implying it are not used on purpose since
+# workflows and notifications run helpers like sendmail that rely on setgid.
+PrivateTmp=yes
+ProtectSystem=full
+ProtectControlGroups=yes
+
 Restart=on-failure
 RestartSec=5
-LimitNOFILE=65000
 TimeoutSec=120
-
 # Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
 KillMode=mixed
 # ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.

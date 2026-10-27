@@ -1,4 +1,6 @@
 [Unit]
-Description=eos target allowing to start/stop all eos@*.service instances at once
+Description=EOS services, groups all the enabled eos@<name> instances
+Documentation=https://eos-docs.web.cern.ch/
+
 [Install]
 WantedBy=multi-user.target

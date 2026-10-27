@@ -120,17 +120,20 @@ ShellCmd::monitor() noexcept
 {
   // set the active flag
   monitor_active = true;
-  // switch this thread to root to be able to attach
+  // When started as root with -R <user> switch this thread to root to be able
+  // to attach, otherwise rely on the child having the same identity.
+  if (getuid() == 0) {
 #ifdef __APPLE__
 
-  if (setreuid(-1, 0) < 0) {
-    perror("failed while calling setreuid\n");
-    return;
-  }
+    if (setreuid(-1, 0) < 0) {
+      perror("failed while calling setreuid\n");
+      return;
+    }
 
 #else
-  syscall(SYS_setresuid, 0, 0, 0);
+    syscall(SYS_setresuid, 0, 0, 0);
 #endif
+  }
 
   // Trace the 'command' process (without stopping it), in this way the given
   //process becomes its parent  and can use 'waitpid' for waiting
