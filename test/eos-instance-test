@@ -1827,6 +1827,7 @@ runtest "### Prepare   " unix SUCCESS "" meta prepare "/eos/$EOS_TEST_INSTANCE/t
 # Workflow names are unique per run, entries of earlier runs stay for keepTIME.
 WFEDIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 WFE_NTX=$(command eos -b root://$EOS_TEST_REDIRECTOR space status default 2>/dev/null | awk '$1 == "wfe.ntx" {print $3}')
+WFE_MAXPENDING=$(command eos -b root://$EOS_TEST_REDIRECTOR space status default 2>/dev/null | awk '$1 == "wfe.maxpending" {print $3}')
 # queued in q/, dispatched and moved to g/
 runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.async$$=noop "$WFEDIR"
 runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" async$$ asynctest 1
@@ -1854,6 +1855,14 @@ runtest "### Rm        " unix SUCCESS "" wfe_rm q gone$$
 runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
 runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" gone$$ asynctest 1
 runtest "### Dispatch  " unix SUCCESS "" wait_for 60 wfe_count g gone$$ 1
+# above wfe.maxpending entries stay only in q/ and are loaded by later scans
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=paused"
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.maxpending=4"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.cap$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" cap$$ asynctest 10
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
+runtest "### Dispatch  " unix SUCCESS "" wait_for 120 wfe_count g cap$$ 10
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.maxpending=${WFE_MAXPENDING:-10000000}"
 # EAGAIN from a bash action: retried through e/ with a due time in the future,
 # then moved to f/ once retry.max is reached
 runtest "### Attr      " unix SUCCESS "" eos attr set "'sys.workflow.asynctest.retry$$=bash:shell:wfetest exit 11'" "$WFEDIR"

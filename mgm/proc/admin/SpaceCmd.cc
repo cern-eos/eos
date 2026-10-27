@@ -44,6 +44,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/wfe/WFE.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
@@ -940,9 +941,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "inspector.price.disk.tbyear") ||
           (key == "inspector.price.tape.tbyear") || (key == "inspector.price.currency") ||
           (key == "lru") || (key == "lru.interval") || (key == "wfe") ||
-          (key == "wfe.interval") || (key == "wfe.ntx") || (key == "groupbalancer") ||
-          (key == "groupbalancer.ntx") || (key == "groupbalancer.threshold") ||
-          (key == "groupbalancer.min_threshold") ||
+          (key == "wfe.interval") || (key == "wfe.ntx") || (key == "wfe.maxpending") ||
+          (key == "groupbalancer") || (key == "groupbalancer.ntx") ||
+          (key == "groupbalancer.threshold") || (key == "groupbalancer.min_threshold") ||
           (key == "groupbalancer.max_threshold") ||
           (key == "groupbalancer.min_file_size") ||
           (key == "groupbalancer.max_file_size") ||
@@ -1271,6 +1272,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
               if (key == "lru.interval") {
                 gOFS->mLRUEngine->RefreshOptions();
+              }
+
+              if ((key == "wfe.maxpending") && (space->mName == "default")) {
+                gOFS->WFEd.SetMaxPending(size);
               }
 
               if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {

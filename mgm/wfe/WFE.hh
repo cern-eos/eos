@@ -74,8 +74,13 @@ private:
   /// scan the workflow queue directories
   std::mutex mPendingMutex;
   std::set<std::pair<time_t, std::string>> mPending;
+  /// max entries in mPending (space.wfe.maxpending), guarded by mPendingMutex
+  size_t mMaxPending = 10000000;
+  /// entries were refused at the limit, they exist only in the namespace
+  bool mPendingOverflow = false;
 
-  //! Rebuild mPending from the q/e directories of all days
+  //! Rebuild mPending from the q/e directories of all days, oldest day first,
+  //! until mMaxPending is reached
   //! @return false if the workflow directory could not be listed
   bool LoadPending();
 
@@ -411,13 +416,14 @@ public:
     return &mDoneSignal;
   }
 
-  //! Register an entry saved in a q/e queue for dispatch at time 'when'
-  void
-  AddPending(time_t when, const std::string& path)
-  {
-    std::lock_guard<std::mutex> lock(mPendingMutex);
-    mPending.emplace(when, path);
-  }
+  //! Register an entry saved in a q/e queue for dispatch at time 'when'. At
+  //! mMaxPending entries it is refused and only kept in the namespace, a
+  //! later LoadPending picks it up.
+  //! @return false if the entry was refused
+  bool AddPending(time_t when, const std::string& path);
+
+  //! Set the max number of pending entries kept in memory, 0 means 10M
+  void SetMaxPending(size_t max);
 
   // ---------------------------------------------------------------------------
   //! Decrement the number of active jobs in the workflow engine
