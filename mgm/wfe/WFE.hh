@@ -24,17 +24,22 @@
 #ifndef __EOSMGM_WFE__HH__
 #define __EOSMGM_WFE__HH__
 
-#include "mgm/Namespace.hh"
-#include "common/Mapping.hh"
-#include "common/Timing.hh"
-#include "common/FileId.hh"
-#include "common/ThreadPool.hh"
 #include "common/AssistedThread.hh"
+#include "common/FileId.hh"
+#include "common/Mapping.hh"
+#include "common/StringConversion.hh"
+#include "common/ThreadPool.hh"
+#include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "mgm/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucErrInfo.hh>
 #include <Xrd/XrdJob.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <mutex>
+#include <set>
 #include <sys/types.h>
 
 //! Forward declaration
@@ -67,6 +72,20 @@ private:
 
   /// condition variable to get signalled for a done job
   XrdSysCondVar mDoneSignal;
+
+  /// pending q/e entries ordered by due time, so dispatching never has to
+  /// scan the workflow queue directories
+  std::mutex mPendingMutex;
+  std::set<std::pair<time_t, std::string>> mPending;
+  /// max entries in mPending (space.wfe.maxpending), guarded by mPendingMutex
+  size_t mMaxPending = 10000000;
+  /// entries were refused at the limit, they exist only in the namespace
+  bool mPendingOverflow = false;
+
+  //! Rebuild mPending from the q/e directories of all days, oldest day first,
+  //! until mMaxPending is reached
+  //! @return false if the workflow directory could not be listed
+  bool LoadPending();
 
 public:
 
@@ -184,6 +203,8 @@ public:
     {
       std::string errorMsg;
       DoIt(false, errorMsg);
+      // only called by the XrdScheduler, which owns but never frees jobs
+      delete this;
     }
 
     //! @ininfo original opaque information of the URL that triggered the event
@@ -278,7 +299,6 @@ public:
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
-    
 
     //! @brief Execute evict as user root
     //!
@@ -398,6 +418,15 @@ public:
   {
     return &mDoneSignal;
   }
+
+  //! Register an entry saved in a q/e queue for dispatch at time 'when'. At
+  //! mMaxPending entries it is refused and only kept in the namespace, a
+  //! later LoadPending picks it up.
+  //! @return false if the entry was refused
+  bool AddPending(time_t when, const std::string& path);
+
+  //! Set the max number of pending entries kept in memory, 0 means 10M
+  void SetMaxPending(size_t max);
 
   // ---------------------------------------------------------------------------
   //! Decrement the number of active jobs in the workflow engine

@@ -828,6 +828,36 @@ wait_for () {
     done
 }
 ################################################################################
+# WFE helpers. Async workflow entries are stored as
+# /eos/<instance>/proc/workflow/<day>/<queue>/<workflow>/<when>:<fxid>:<event>
+# Usage: wfe_trigger <dir> <workflow> <event> <n>  - event on <n> new files
+#        wfe_count <queue> <workflow> <n>          - queue holds exactly <n>
+#        wfe_rm <queue> <workflow>                 - remove the queue entries
+################################################################################
+wfe_entries () {
+    command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR find -f "/eos/$EOS_TEST_INSTANCE/proc/workflow/" 2>/dev/null | grep "/$1/$2/"
+}
+
+wfe_trigger () {
+    local i
+    for i in $(seq 1 $4); do
+        command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR touch "$1/$2.$i" &&
+        command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR file workflow "$1/$2.$i" $2 $3 || return 1
+    done >> $EOSCERTLOG 2>&1
+}
+
+wfe_count () {
+    [ "$(wfe_entries $1 $2 | wc -l)" -eq "$3" ]
+}
+
+wfe_rm () {
+    local entries=$(wfe_entries $1 $2) entry
+    [ -n "$entries" ] || return 1
+    for entry in $entries; do
+        command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR rm "$entry" || return 1
+    done >> $EOSCERTLOG 2>&1
+}
+################################################################################
 # Count total number of runtest calls in this script
 if [ "$1" != "list" ]; then
   echo "Counting total number of tests..."
@@ -1793,6 +1823,54 @@ runtest "### Attr      " unix SUCCESS "" eos attr set sys.acl=u:${NOBODY_UID}:p 
 runtest "### Prepare   " unix SUCCESS "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Attr      " unix SUCCESS "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix SUCCESS "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0"
+# Async events. A 'noop' action is an unknown method, its job ends in g/.
+# Workflow names are unique per run, entries of earlier runs stay for keepTIME.
+WFEDIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
+WFE_NTX=$(command eos -b root://$EOS_TEST_REDIRECTOR space status default 2>/dev/null | awk '$1 == "wfe.ntx" {print $3}')
+WFE_MAXPENDING=$(command eos -b root://$EOS_TEST_REDIRECTOR space status default 2>/dev/null | awk '$1 == "wfe.maxpending" {print $3}')
+# queued in q/, dispatched and moved to g/
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.async$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" async$$ asynctest 1
+runtest "### Dispatch  " unix SUCCESS "" wait_for 60 wfe_count g async$$ 1
+# paused: recorded in q/, dispatched only once the engine is on again
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=paused"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.pause$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" pause$$ asynctest 1
+runtest "### Queued    " unix SUCCESS "" wfe_count q pause$$ 1
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
+runtest "### Dispatch  " unix SUCCESS "" wait_for 60 wfe_count g pause$$ 1
+# a backlog larger than wfe.ntx is fully dispatched as job slots free up
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=paused"
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.ntx=1"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.many$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" many$$ asynctest 20
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
+runtest "### Dispatch  " unix SUCCESS "" wait_for 60 wfe_count g many$$ 20
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.ntx=${WFE_NTX:-0}"
+# an entry removed from q/ before dispatch is skipped and the engine goes on
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=paused"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.gone$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" gone$$ asynctest 1
+runtest "### Rm        " unix SUCCESS "" wfe_rm q gone$$
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" gone$$ asynctest 1
+runtest "### Dispatch  " unix SUCCESS "" wait_for 60 wfe_count g gone$$ 1
+# above wfe.maxpending entries stay only in q/ and are loaded by later scans
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=paused"
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.maxpending=4"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.cap$$=noop "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" cap$$ asynctest 10
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=on"
+runtest "### Dispatch  " unix SUCCESS "" wait_for 120 wfe_count g cap$$ 10
+runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe.maxpending=${WFE_MAXPENDING:-10000000}"
+# EAGAIN from a bash action: retried through e/ with a due time in the future,
+# then moved to f/ once retry.max is reached
+runtest "### Attr      " unix SUCCESS "" eos attr set "'sys.workflow.asynctest.retry$$=bash:shell:wfetest exit 11'" "$WFEDIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.retry$$.retry.max=1 "$WFEDIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.workflow.asynctest.retry$$.retry.delay=1 "$WFEDIR"
+runtest "### Workflow  " unix SUCCESS "" wfe_trigger "$WFEDIR" retry$$ asynctest 1
+runtest "### Retry     " unix SUCCESS "" wait_for 60 wfe_count f retry$$ 1
+runtest "### Retry     " unix SUCCESS "" shell "command eos -b root://$EOS_TEST_REDIRECTOR attr get sys.wfe.retry \$(wfe_entries f retry$$) | grep -w 1"
 runtest "### Space     " unix SUCCESS "" eos space config "default space.wfe=off"
 
 ################################################################################

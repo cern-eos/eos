@@ -315,6 +315,7 @@ SpaceConfiguration()
                           "fs.max.ropen=",
                           "fs.max.wopen=",
                           "space.wfe.interval=",
+                          "space.wfe.maxpending=",
                           "space.headroom=",
                           "space.scaninterval=",
                           "space.scan_rain_interval=",
