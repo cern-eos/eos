@@ -332,6 +332,18 @@ public:
                                      int64_t elapsed_ms);
 
   //----------------------------------------------------------------------------
+  //! Add data written to a RAIN stripe file to the stripe checksum, which does
+  //! not cover the RAIN header at the beginning of the file
+  //!
+  //! @param xs stripe checksum object
+  //! @param offset offset of the data in the stripe file
+  //! @param buffer data written
+  //! @param length length of the data
+  //----------------------------------------------------------------------------
+  static void AddToStripeChecksum(eos::fst::CheckSum& xs, off_t offset,
+                                  const char* buffer, size_t length);
+
+  //----------------------------------------------------------------------------
   //! Regulate the IO bandwidth of the current stream by sleeping whenever the
   //! bytes transferred so far are ahead of the schedule imposed by the
   //! bandwidth limit (mgm.iobw in MB/s).
