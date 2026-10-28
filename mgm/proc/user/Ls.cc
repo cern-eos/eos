@@ -116,7 +116,6 @@ ProcCommand::Ls()
     XrdMgmOfsDirectory dir;
     struct stat buf;
     int listrc = 0;
-    eos::common::Glob glob;
     eos::common::Path cPath(spath.c_str());
     // Allow users to pass `--no-globbing` with ls.
     option.replace("no-globbing", 'N');
@@ -221,7 +220,7 @@ ProcCommand::Ls()
             continue;
           }
 
-          if ((filter.length()) && !glob.Match(filter.c_str(), entryname.c_str())) {
+          if ((filter.length()) && !eos::common::Glob::Match(filter.c_str(), val)) {
             // apply filter & skip single file/directories
             if (ls_file.length()) {
               break;
