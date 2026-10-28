@@ -118,7 +118,6 @@ target_include_directories(
 
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
-  EosCrc32c-Objects
   qclient
   ROCKSDB::ROCKSDB)
 
@@ -145,7 +144,6 @@ if (Linux)
 
   target_link_libraries(EosNsCommon-Static PUBLIC
     EosNsCommon-Objects
-    EosCrc32c-Objects
     EosCommon-Static
     qclient
     ROCKSDB::ROCKSDB)

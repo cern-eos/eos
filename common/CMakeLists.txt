@@ -44,16 +44,6 @@ if (NOT CLIENT AND Linux)
 endif()
 
 #-------------------------------------------------------------------------------
-# EosCrc32c-Objects library
-#-------------------------------------------------------------------------------
-add_library(EosCrc32c-Objects OBJECT
-  crc32c/crc32c.cc
-  crc32c/crc32ctables.cc)
-
-set_target_properties(EosCrc32c-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
-#-------------------------------------------------------------------------------
 # EosSciToken-Objects library
 #-------------------------------------------------------------------------------
 add_library(EosSciToken-Objects OBJECT
