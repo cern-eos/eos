@@ -919,10 +919,10 @@ DrainTransferJob::UpdateMgmStats()
 {
   std::string tag_stats;
 
-  // The counter names are what "eos ns stat" has always shown, they are not
+  // The counter names shown by "eos ns stat" are not necessarily
   // the application tags of the transfers themselves
   if (mAppTag == eos::common::EOS_APP_DRAIN) {
-    tag_stats = "DrainCentral";
+    tag_stats = "Drain";
   } else if (mAppTag == eos::common::EOS_APP_BALANCER) {
     tag_stats = "Balance";
   } else {

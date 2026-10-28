@@ -392,9 +392,9 @@ Here is an example output of `eos ns stat`, the header columns are explained her
    all Delay::threads::102888                        1.55 K     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    ...
    ...
-   all DrainCentralFailed                            3.42 K     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
-   all DrainCentralStarted                           1.96 M     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
-   all DrainCentralSuccessful                        1.96 M     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
+   all DrainFailed                                   3.42 K     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
+   all DrainStarted                                  1.96 M     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
+   all DrainSuccessful                               1.96 M     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all Drop                                         14.62 M     4.25    18.68    28.03    28.37     0.29      0.09     0.56     0.56       1d
    all DropStripe                                       872     0.00     0.00     0.00     0.00     0.29      0.32     2.81     1.41       0s
    all DumpMd                                        8.37 K     0.00     0.00     0.00     0.03     -NA-      -NA-     -NA-     -NA-     -NA-
@@ -628,11 +628,11 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     CopyStripe                                   calls to copy a stripe from one filesystem to another
     Delay::threads::101090                       number of times a thread for user 101090 has been delayed to enforce a rate limit
     Delay::threads::101981                       as above for user 101981 aso ...
-    DrainCentralFailed                           number of failed drain jobs
-    DrainCentralStarted                          number of started drain jobs
-    DrainCentralSuccessful                       number of successful drain jobs
+    DrainFailed                                  number of failed drain jobs
     DrainRainReconstruct                         number of successful RAIN drain jobs done by reconstructing the stripe
     DrainRainStripeCopy                          number of successful RAIN drain jobs done by copying the stripe as is
+    DrainStarted                                 number of started drain jobs
+    DrainSuccessful                              number of successful drain jobs
     Drop                                         calls to drop a replica
     DropStripe                                   calls of function to drop a stripe via 'eos file drop'
     DumpMd                                       calls to dump meta-data (unused when meta-data in fst XATTR)
