@@ -34,6 +34,7 @@
 #include "cta_frontend.pb.h"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/checksum/Adler.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/layout/Layout.hh"
@@ -318,6 +319,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     mIsReplication = true;
+    // A drain copying a RAIN stripe as is passes the source stripe checksum
+    // which the copy must match before it is committed
+    const char* stripe_xs = mCapOpaque->Get("mgm.stripechecksum");
+    const char* src_lid = mCapOpaque->Get("mgm.source.lid");
+
+    if (stripe_xs && src_lid &&
+        eos::common::LayoutId::IsRain(strtoul(src_lid, nullptr, 10))) {
+      mExpectedStripeXs = stripe_xs;
+      mRainStripeXs = std::make_unique<eos::fst::Adler>();
+    }
   }
 
   COMMONTIMING("path::print", &tm);
@@ -1286,6 +1297,18 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                           static_cast<off_t>(fileOffset));
     }
 
+    if (mRainStripeXs) {
+      // The stripe checksum does not cover the RAIN header
+      const off_t hdr_sz = eos::common::LayoutId::OssXsBlockSize;
+      const off_t end_off = fileOffset + rc;
+
+      if (end_off > hdr_sz) {
+        const off_t skip = (fileOffset < hdr_sz) ? (hdr_sz - fileOffset) : 0;
+        mRainStripeXs->Add(buffer + skip, static_cast<size_t>(rc - skip),
+                           fileOffset + skip - hdr_sz);
+      }
+    }
+
     totalBytes += rc;
 
     if (static_cast<unsigned long long>(fileOffset + buffer_size) >
@@ -1919,6 +1942,19 @@ XrdFstOfsFile::_close_wr()
     }
 
     checksum_err = VerifyChecksum();
+
+    if (mRainStripeXs && !checksum_err) {
+      mRainStripeXs->Finalize();
+
+      if (mRainStripeXs->NeedsRecalculation() ||
+          (mExpectedStripeXs != mRainStripeXs->GetHexChecksum())) {
+        mChecksumErr = "stripe checksum " + std::string(mRainStripeXs->GetHexChecksum()) +
+                       " does not match source stripe checksum " + mExpectedStripeXs;
+        eos_err("msg=\"%s\" fxid=%08llx fsid=%u", mChecksumErr->c_str(), mFileId, mFsId);
+        checksum_err = true;
+      }
+    }
+
     eos_debug("checksum_err=%i target_sz_err=%i max_offset_written=%zu "
               "target_size=%lli", checksum_err, target_sz_err,
               mMaxOffsetWritten, mTargetSize);
@@ -4528,6 +4564,11 @@ XrdFstOfsFile::CommitToLocalFmd(const struct stat& info)
               mCapOpaque->Get("mgm.source.lid"),
               mCapOpaque->Get("mgm.bookingsize"));
     }
+  }
+
+  // Only reached once the stripe checksum matched the source
+  if (mRainStripeXs) {
+    mFmd->mProtoFmd.set_stripechecksum(mRainStripeXs->GetHexChecksum());
   }
 
   if (mCapOpaque->Get("mgm.source.ruid")) {

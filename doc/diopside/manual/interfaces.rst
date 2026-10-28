@@ -631,6 +631,8 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     DrainCentralFailed                           number of failed drain jobs
     DrainCentralStarted                          number of started drain jobs
     DrainCentralSuccessful                       number of successful drain jobs
+    DrainRainReconstruct                         number of successful RAIN drain jobs done by reconstructing the stripe
+    DrainRainStripeCopy                          number of successful RAIN drain jobs done by copying the stripe as is
     Drop                                         calls to drop a replica
     DropStripe                                   calls of function to drop a stripe via 'eos file drop'
     DumpMd                                       calls to dump meta-data (unused when meta-data in fst XATTR)

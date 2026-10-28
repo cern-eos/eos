@@ -336,6 +336,16 @@ private:
   //----------------------------------------------------------------------------
   void PurgeFailedRecycleEntry(const FileDrainInfo& fdrain);
 
+  //----------------------------------------------------------------------------
+  //! Check if the source RAIN stripe can be copied as is, which requires the
+  //! source file system to be readable and the stripe checksum to be known
+  //!
+  //! @param src_snapshot filled with the source file system snapshot
+  //!
+  //! @return true if the stripe copy can be attempted, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetupRainStripeCopy(eos::common::FileSystem::fs_snapshot_t& src_snapshot);
+
   std::string mAppTag; ///< Application tag for the transfer
   std::atomic<eos::IFileMD::id_t> mFileId; ///< File id to transfer
   //! Source and destination file system
@@ -350,6 +360,9 @@ private:
   std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest
   bool mRainAttempt; ///< Rain transfers are attempted only once
   bool mRainReconstruct; ///< Mark rain reconstruction
+  bool mRainCopyAttempt{false}; ///< Rain stripe copy is attempted only once
+  bool mRainStripeCopy{false};  ///< Mark rain stripe copy without reconstruction
+  std::string mSrcStripeXs;     ///< Stripe checksum of the source rain stripe
   bool mDropSrc; ///< Mark if source replicas should be dropped
   //! In balance mode the source and destination file systems are enforced
   bool mBalanceMode;

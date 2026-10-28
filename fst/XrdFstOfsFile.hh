@@ -421,6 +421,10 @@ public:
   std::unique_ptr<eos::fst::ChecksumGroup> mChecksumGroup;
   std::optional<std::string> mChecksumErr; ///< Checksum error string object, to be used
                                            ///< by other layers (HTTP for example)
+  //! Checksum of a RAIN stripe received as a plain copy, computed without the
+  //! header, and the source stripe checksum it must match
+  std::unique_ptr<eos::fst::CheckSum> mRainStripeXs;
+  std::string mExpectedStripeXs;
   // @todo(esindril) this is not properly enforced everywhere ...
   std::unique_ptr<Layout> mLayout; ///< Layout object
   std::string mTident; ///< Client identity using the file object
