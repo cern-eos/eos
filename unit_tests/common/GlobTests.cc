@@ -23,6 +23,9 @@
 
 #include "common/Glob.hh"
 #include "gtest/gtest.h"
+#include <atomic>
+#include <thread>
+#include <vector>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -51,5 +54,43 @@ TEST(Glob, Performance)
     ASSERT_FALSE(glob.Match("asdf*.txt", a)) ;
     ASSERT_TRUE(glob.Match("asdf*.txt", "asdf1.txt"));
   }
+}
+
+TEST(Glob, Semantics)
+{
+  using eos::common::Glob;
+  Glob glob;
+  ASSERT_TRUE(glob.Match("*.txt", "/eos/dir/asdf1.txt"));
+  ASSERT_TRUE(glob.Match("[ab]sdf*", "bsdf1.txt"));
+  ASSERT_FALSE(glob.Match("*", ".hidden"));
+  ASSERT_TRUE(glob.Match(".*", ".hidden"));
+  ASSERT_TRUE(glob.Match("a\\*b*", "a*bc"));
+  ASSERT_FALSE(glob.Match("a\\*b*", "axbc"));
+}
+
+TEST(Glob, Concurrent)
+{
+  using eos::common::Glob;
+  std::atomic<int> failures{0};
+  std::vector<std::thread> threads;
+
+  for (int t = 0; t < 8; ++t) {
+    threads.emplace_back([&failures, t]() {
+      Glob glob;
+      const std::string match = "file" + std::to_string(t) + ".txt";
+
+      for (int i = 0; i < 10000; ++i) {
+        if (!glob.Match("file*.txt", match) || glob.Match("file*.txt", "other")) {
+          ++failures;
+        }
+      }
+    });
+  }
+
+  for (auto& th : threads) {
+    th.join();
+  }
+
+  ASSERT_EQ(0, failures.load());
 }
 EOSCOMMONNAMESPACE_END

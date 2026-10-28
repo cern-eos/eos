@@ -25,25 +25,15 @@
 //! @brief  Class applying bash pattern amtching
 //-----------------------------------------------------------------------------
 #pragma once
-#include <glob.h>
-#include <mutex>
-#include <string.h>
-#include <vector>
-#include <stdexcept>
-#include <string>
-#include <sstream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <dirent.h>
 #include "common/Namespace.hh"
 #include "common/Path.hh"
+#include <fnmatch.h>
+#include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Static Class running bash pattern matching
-//! To use this static functions include this header file
+//! Class running bash pattern matching
 //! Example (call this for each entry in a listing)
 //!   using eos::common::Glob;
 //!   Glob glob;
@@ -53,75 +43,15 @@ class Glob
 {
 public:
   //----------------------------------------------------------------------------
-  //!
+  //! Match the basename of path against a shell wildcard pattern. Wildcards do
+  //! not match a leading '.', as with glob(3). Reentrant and lock-free.
   //----------------------------------------------------------------------------
-
-  Glob() : mIt(0) {}
-
-  virtual ~Glob() {}
-  static void *opendir(const char *name) {
-    return (DIR*) (gGlob);
-  }
-
-  static struct dirent *readdir(void *dirp) {
-    Glob* thisglob = (Glob*) dirp;
-    return thisglob->getEntry();
-  }
-
-  static void closedir(void *dirp) {return;}
-  static int stat(const char *pathname, struct stat *statbuf)  { statbuf->st_mode = S_IFREG; return 0;}
-  static int lstat(const char *pathname, struct stat *statbuf) { statbuf->st_mode = S_IFREG; return 0;}
-
-  struct dirent* getEntry() {
-    if (mIt < mNames.size()) {
-      mEntry.d_ino = mIt+1; // 0 leads to NOMATCH with glibc 2-17!!!
-#ifdef __LINUX__
-      mEntry.d_off = mIt;
- #endif
-      mEntry.d_reclen = 255;
-      mEntry.d_type = DT_REG;;
-      snprintf(mEntry.d_name, mEntry.d_reclen, "%s",mNames[mIt++].c_str());
-      return &mEntry;
-    } else {
-      return nullptr;
-    }
-  }
-
-  bool Match(const std::string& pattern, const std::string& path) {
-    static std::mutex g_i_mutex;
-    mIt=0;
-    mNames.clear();
-    std::lock_guard<std::mutex> lock(g_i_mutex);
-    gGlob = this;
-    bool result = false;
+  bool
+  Match(const std::string& pattern, const std::string& path) const
+  {
     eos::common::Path cPath(path.c_str());
-    mNames.resize(1);
-    mNames[0] = cPath.GetName();
-    glob_t globbuf;
-    memset(&globbuf,0, sizeof(globbuf));
-    //    globbuf.gl_offs = 2;
-    globbuf.gl_opendir=opendir;
-    globbuf.gl_readdir=readdir;
-    globbuf.gl_closedir=closedir;
-    globbuf.gl_stat=stat;
-    globbuf.gl_lstat=lstat;
-
-    glob(pattern.c_str(), GLOB_ALTDIRFUNC, NULL, &globbuf);
-    if (globbuf.gl_pathc && mIt){ //mIt = 1 if getEntry() was called
-      result = true;
-    } else {
-      result = false;
-    }
-    globfree(&globbuf);
-    return result;
+    return ::fnmatch(pattern.c_str(), cPath.GetName(), FNM_PERIOD) == 0;
   }
-
-  static Glob* gGlob;
-
-private:
-  std::vector<std::string> mNames;
-  uint64_t mIt;
-  struct dirent mEntry;
 };
 
 EOSCOMMONNAMESPACE_END
