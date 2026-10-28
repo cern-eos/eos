@@ -27,7 +27,6 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucString.hh>
