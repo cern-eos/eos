@@ -2499,6 +2499,8 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DrainCentralStarted", 0, 0, 0);
   MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
   MgmStats.Add("DrainCentralFailed", 0, 0, 0);
+  MgmStats.Add("DrainRainStripeCopy", 0, 0, 0);
+  MgmStats.Add("DrainRainReconstruct", 0, 0, 0);
   MgmStats.Add("QueryResync", 0, 0, 0);
   MgmStats.Add("Sched::Access::Flat", 0, 0, 0);
   MgmStats.Add("Sched::Access::GeoTree", 0, 0, 0);

@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/drain/DrainTransferJob.hh"
+#include "common/Fmd.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
@@ -34,6 +35,7 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include <XrdCl/XrdClFileSystem.hh>
 
 namespace
 {
@@ -281,6 +283,15 @@ DrainTransferJob::DoTransfer(const FileDrainInfo& fdrain)
         eos_info("msg=\"%s successful\" logid=%s fxid=%s", mAppTag.c_str(),
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
+
+        // Account how RAIN drains were done, fsck and balance jobs excluded
+        if (LayoutId::IsRain(fdrain.mProto.layout_id()) && !mBalanceMode &&
+            (mAppTag != eos::common::EOS_APP_FSCK) && gOFS) {
+          gOFS->MgmStats.Add(mRainStripeCopy ? "DrainRainStripeCopy"
+                                             : "DrainRainReconstruct",
+                             mVid.uid, mVid.gid, 1);
+        }
+
         return;
       }
     } else {
@@ -334,6 +345,76 @@ DrainTransferJob::GetFileInfo() const
   }
 
   return fdrain;
+}
+
+//------------------------------------------------------------------------------
+// Check if the source RAIN stripe can be copied as is
+//------------------------------------------------------------------------------
+bool
+DrainTransferJob::SetupRainStripeCopy(
+    eos::common::FileSystem::fs_snapshot_t& src_snapshot)
+{
+  eos::common::FileSystem::fs_snapshot_t snapshot;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
+
+    if (!fs) {
+      return false;
+    }
+
+    fs->SnapShotFileSystem(snapshot);
+  }
+
+  if (!eos::common::IsSelectableFor(snapshot, eos::common::kInternalRead)) {
+    return false;
+  }
+
+  // The stripe checksum is only known to the FST holding the stripe
+  XrdCl::URL url;
+  url.SetProtocol("root");
+  url.SetHostName(snapshot.mHost.c_str());
+  url.SetPort(snapshot.mPort);
+  url.SetUserName("daemon");
+  url.SetParams("xrd.wantprot=sss");
+  XrdCl::FileSystem xrd_fs(url);
+  XrdCl::Buffer arg;
+  arg.FromString(SSTR("/?fst.pcmd=getfmd&fst.getfmd.fsid="
+                      << snapshot.mId << "&fst.getfmd.fid=" << std::hex
+                      << mFileId.load()));
+  XrdCl::Buffer* raw_response{nullptr};
+  XrdCl::XRootDStatus st =
+      xrd_fs.Query(XrdCl::QueryCode::OpaqueFile, arg, raw_response, 10);
+  std::unique_ptr<XrdCl::Buffer> response(raw_response);
+  eos::common::FmdHelper fmd;
+
+  // The reconstruct fallback already treats this stripe as missing
+  if (!st.IsOK()) {
+    eos_warning("msg=\"no reply to stripe metadata query, fall back to "
+                "reconstruct\" fxid=%08llx fsid=%u err=\"%s\"",
+                mFileId.load(), snapshot.mId, st.ToStr().c_str());
+    return false;
+  }
+
+  if ((response == nullptr) || (strncmp(response->GetBuffer(), "ERROR", 5) == 0)) {
+    eos_info("msg=\"failed stripe metadata query, fall back to reconstruct\" "
+             "fxid=%08llx fsid=%u",
+             mFileId.load(), snapshot.mId);
+    return false;
+  }
+
+  XrdOucEnv fmd_env(response->GetBuffer());
+
+  if (!eos::common::EnvToFstFmd(fmd_env, fmd) || fmd.mProtoFmd.stripechecksum().empty()) {
+    eos_info("msg=\"no stripe checksum, fall back to reconstruct\" "
+             "fxid=%08llx fsid=%u",
+             mFileId.load(), snapshot.mId);
+    return false;
+  }
+
+  mSrcStripeXs = fmd.mProtoFmd.stripechecksum();
+  src_snapshot = snapshot;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -409,8 +490,22 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       return url_src;
     }
   } else {
+    // An available stripe is first copied as is and verified against its
+    // stripe checksum, any failure falls back to the RAIN reconstruction.
+    // Fsck repairs always do the full RAIN reconstruction.
+    mRainStripeCopy = false;
+
+    if (!mRainCopyAttempt && !mBalanceMode && (mFsIdSource != 0u) &&
+        (mAppTag != eos::common::EOS_APP_FSCK)) {
+      mRainCopyAttempt = true;
+      mRainStripeCopy = SetupRainStripeCopy(src_snapshot);
+    }
+
     // For RAIN layouts we trigger an attempt only once
-    if (mRainAttempt) {
+    if (mRainStripeCopy) {
+      // The logical file checksum does not apply to a stripe
+      target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
+    } else if (mRainAttempt) {
       ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
                          fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
@@ -419,7 +514,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       mRainAttempt = true;
     }
 
-    mRainReconstruct = true;
+    mRainReconstruct = !mRainStripeCopy;
 
     // If source/dest fses are forced we want to trigger a balance rather than
     // a drain reconstruct operation
@@ -540,7 +635,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
   }
 
-  if (LayoutId::IsRain(lid) && mBalanceMode) {
+  if (LayoutId::IsRain(lid) && (mBalanceMode || mRainStripeCopy)) {
     target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
   }
 
@@ -589,6 +684,11 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
     // is useful for fsck for eg.
     if (mDropSrc) {
       dst_params << "&mgm.drainfsid=" << mFsIdSource;
+    }
+
+    // The destination verifies the copied stripe before committing it
+    if (mRainStripeCopy) {
+      dst_params << "&mgm.stripechecksum=" << mSrcStripeXs;
     }
 
     // Checksum enforcement done only for non-rain layouts

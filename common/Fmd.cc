@@ -176,6 +176,10 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
     fmd.mProtoFmd.set_locations("");
   }
 
+  if (env.Get("stripechecksum")) {
+    fmd.mProtoFmd.set_stripechecksum(env.Get("stripechecksum"));
+  }
+
   if (env.Get("stripeerror")) {
     fmd.mProtoFmd.clear_stripeerror();
 
@@ -438,6 +442,10 @@ FmdHelper::FmdToEnv()
   } else {
     oss << "&stripeerror=" << eos::common::StringTokenizer::merge(
           mProtoFmd.stripeerror(), ',');
+  }
+
+  if (!mProtoFmd.stripechecksum().empty()) {
+    oss << "&stripechecksum=" << mProtoFmd.stripechecksum();
   }
 
   oss << '&';
