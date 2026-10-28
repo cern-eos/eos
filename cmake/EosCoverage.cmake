@@ -68,7 +68,6 @@ add_custom_target(
   COMMAND lcov --remove ${CMAKE_BINARY_DIR}/raw-trace.info
       "${CMAKE_BINARY_DIR}/\\*"
       "${CMAKE_SOURCE_DIR}/common/backward-cpp/\\*"
-      "${CMAKE_SOURCE_DIR}/common/crc32c/\\*"
       "${CMAKE_SOURCE_DIR}/common/eos_cta_pb/\\*"
       "${CMAKE_SOURCE_DIR}/common/fmt/\\*"
       "${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/\\*"
@@ -120,4 +119,3 @@ if (COV_CROSS_PROFILE)
     PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   )
 endif()
-
