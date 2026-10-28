@@ -2496,9 +2496,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Rename", 0, 0, 0);
   MgmStats.Add("RmDir", 0, 0, 0);
   MgmStats.Add("Rm", 0, 0, 0);
-  MgmStats.Add("DrainCentralStarted", 0, 0, 0);
-  MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
-  MgmStats.Add("DrainCentralFailed", 0, 0, 0);
+  MgmStats.Add("DrainStarted", 0, 0, 0);
+  MgmStats.Add("DrainSuccessful", 0, 0, 0);
+  MgmStats.Add("DrainFailed", 0, 0, 0);
   MgmStats.Add("DrainRainStripeCopy", 0, 0, 0);
   MgmStats.Add("DrainRainReconstruct", 0, 0, 0);
   MgmStats.Add("QueryResync", 0, 0, 0);
