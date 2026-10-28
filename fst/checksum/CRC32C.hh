@@ -27,8 +27,8 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
+#include <XrdOuc/XrdOucCRC.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
@@ -84,7 +84,7 @@ public:
 #ifdef ISAL_FOUND
     crcsum = crc32_iscsi((unsigned char*) buffer, length, crcsum);
 #else
-    crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
+    crcsum = ~XrdOucCRC::Calc32C(buffer, length, ~crcsum);
 #endif
     crc32coffset += length;
     return true;
@@ -123,7 +123,7 @@ public:
   void
   Reset()
   {
-    crcsum = checksum::crc32cInit();
+    crcsum = ~0u;
     crc32coffset = 0;
     needsRecalculation = 0;
     finalized = false;
@@ -133,7 +133,7 @@ public:
   Finalize() const override
   {
     if (!finalized) {
-      crcsum = checksum::crc32cFinish(crcsum);
+      crcsum = ~crcsum;
       finalized = true;
     }
   }

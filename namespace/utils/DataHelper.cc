@@ -23,12 +23,12 @@
 
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/MDException.hh"
-#include "common/crc32c/crc32c.h"
-#include <zlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <XrdOuc/XrdOucCRC.hh>
 #include <cerrno>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <zlib.h>
 
 namespace eos
 {
@@ -54,7 +54,7 @@ uint32_t DataHelper::updateCRC32(uint32_t crc, void* buffer, uint32_t len)
 //------------------------------------------------------------------------------
 uint32_t DataHelper::computeCRC32C(void* buffer, uint32_t len)
 {
-  return checksum::crc32c(checksum::crc32cInit(), (const Bytef*)buffer, len);
+  return ~XrdOucCRC::Calc32C(buffer, len);
 }
 
 //------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ uint32_t DataHelper::computeCRC32C(void* buffer, uint32_t len)
 //------------------------------------------------------------------------------
 uint32_t DataHelper::updateCRC32C(uint32_t crc, void* buffer, uint32_t len)
 {
-  return checksum::crc32c(crc, (const Bytef*)buffer, len);
+  return ~XrdOucCRC::Calc32C(buffer, len, ~crc);
 }
 
 //------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ uint32_t DataHelper::updateCRC32C(uint32_t crc, void* buffer, uint32_t len)
 //------------------------------------------------------------------------------
 uint32_t DataHelper::finalizeCRC32C(uint32_t crc)
 {
-  return checksum::crc32cFinish(crc);
+  return ~crc;
 }
 
 //----------------------------------------------------------------------------
@@ -114,4 +114,3 @@ void DataHelper::copyOwnership(const std::string& target,
   }
 }
 }
-

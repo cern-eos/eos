@@ -180,7 +180,6 @@ target_link_libraries(EosFstIo PUBLIC
   EosFstIo-Objects
   Jerasure-Objects
   GfComplete-Objects
-  EosCrc32c-Objects
   EosBlake3-Objects
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
@@ -206,7 +205,6 @@ target_link_libraries(EosFstIo-Static PUBLIC
   EosFstIo-Objects
   Jerasure-Objects
   GfComplete-Objects
-  EosCrc32c-Objects
   EosBlake3-Objects
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
@@ -252,7 +250,6 @@ add_library(EosFstOss MODULE
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   utils/ScanRate.cc utils/ScanRate.hh
-  $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
 
 target_link_libraries(EosFstOss PRIVATE
@@ -267,7 +264,6 @@ add_library(EosFstOss-Static STATIC
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   utils/ScanRate.cc utils/ScanRate.hh
-  $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
 
 target_link_libraries(EosFstOss-Static PRIVATE
