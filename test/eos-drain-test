@@ -34,6 +34,8 @@ cleanup() {
   eos rmdir "${EOS_DRAIN_DIR}/replica/"
   eos rmdir "${EOS_DRAIN_DIR}/raiddp/"
   eos rmdir "${EOS_DRAIN_DIR}/rain/"
+  eos rm -rF "${EOS_DRAIN_DIR}/rain_xs/*"
+  eos rmdir "${EOS_DRAIN_DIR}/rain_xs/"
   eos rm -rF "${EOS_DRAIN_DIR}/recycle/*"
   eos recycle config --remove-bin "${EOS_DRAIN_DIR}/recycle/"
   eos rmdir "${EOS_DRAIN_DIR}/recycle/"
@@ -120,6 +122,131 @@ test_drain_purge_recycle() {
 
   for i in ${all_fsids}; do
     eos fs config ${i} configstatus=rw
+  done
+
+  return ${rc}
+}
+
+# Print the total of the given "eos ns stat" counter
+ns_stat_total() {
+  eos ns stat -m | grep "^uid=all gid=all cmd=$1 " | tr ' ' '\n' |
+    grep "^total=" | cut -d= -f2
+}
+
+# Upload a file to EOS. File system configuration changes reach the scheduler
+# asynchronously, so retry while placement still sees them read-only.
+upload() {
+  for i in {1..15}; do
+    xrdcp -f --nopbar $1 root://${EOS_MGM_HOSTNAME}/$2 && return 0
+    sleep 2
+  done
+
+  echo "error: failed to upload $2"
+  return 1
+}
+
+# Print the sorted file system ids holding the given file
+file_fsids() {
+  eos fileinfo $1 -m | tr ' ' '\n' | grep "^fsid=" | cut -d= -f2 | sort
+}
+
+# Drain a file system holding a stripe of a RAIN file written with stripe
+# checksums enabled and one written without. The former can be drained by
+# copying the stripe as is, the latter falls back to the reconstruction.
+run_drain_rain_stripe_copy() {
+  local dir="${EOS_DRAIN_DIR}/rain_xs/"
+  local nodes=$(eos node ls -m | tr ' ' '\n' | grep "^hostport=" | cut -d= -f2)
+  local rc=0
+  eos mkdir -p ${dir}
+  eos chmod 2777 ${dir}
+  eos attr set default=raid6 ${dir}
+  upload ${TEST_FN2} ${dir}/no_stripexs.dat || return 1
+
+  for node in ${nodes}; do
+    eos node config ${node} stripexs=on
+  done
+
+  # Give the FSTs time to apply the node configuration
+  sleep 5
+  upload ${TEST_FN2} ${dir}/stripexs.dat || rc=1
+
+  for node in ${nodes}; do
+    eos node config ${node} stripexs=off
+  done
+
+  [[ ${rc} -ne 0 ]] && return ${rc}
+
+  local fsid=$(comm -12 <(file_fsids ${dir}/no_stripexs.dat) \
+                        <(file_fsids ${dir}/stripexs.dat) | head -1)
+
+  if [[ -z "${fsid}" ]]; then
+    echo "error: no file system holds a stripe of both RAIN test files"
+    return 1
+  fi
+
+  local nstripes=$(file_fsids ${dir}/stripexs.dat | wc -l)
+  local copy_before=$(ns_stat_total DrainRainStripeCopy)
+  local rec_before=$(ns_stat_total DrainRainReconstruct)
+  start_drain ${fsid}
+  wait_drain_end ${fsid}
+
+  if ! eos fs ls | grep " ${fsid} " | grep "empty" | grep -q "drained"; then
+    echo "error: file system ${fsid} is not drained"
+    eos fs dumpmd ${fsid}
+    rc=1
+  fi
+
+  local copies=$(( $(ns_stat_total DrainRainStripeCopy) - copy_before ))
+  local recs=$(( $(ns_stat_total DrainRainReconstruct) - rec_before ))
+  echo "info: RAIN drains of fsid=${fsid} stripe_copy=${copies} reconstruct=${recs}"
+
+  if [[ ${copies} -lt 1 || ${recs} -lt 1 ]]; then
+    echo "error: expected both RAIN stripe copy and reconstruct drains"
+    rc=1
+  fi
+
+  for fn in no_stripexs stripexs; do
+    local fsids=$(file_fsids ${dir}/${fn}.dat)
+
+    if echo "${fsids}" | grep -qx "${fsid}" ||
+       [[ $(echo "${fsids}" | wc -l) -ne ${nstripes} ]]; then
+      echo "error: wrong locations for ${fn}.dat after drain: ${fsids}"
+      rc=1
+    fi
+
+    if ! xrdcp -f --nopbar root://${EOS_MGM_HOSTNAME}/${dir}/${fn}.dat \
+         /var/tmp/${fn}.dat || ! cmp -s ${TEST_FN2} /var/tmp/${fn}.dat; then
+      echo "error: ${fn}.dat content differs after drain"
+      rc=1
+    fi
+
+    rm -f /var/tmp/${fn}.dat
+  done
+
+  eos fs config ${fsid} configstatus=rw
+  return ${rc}
+}
+
+# The FST scanner stores the stripe checksum of any RAIN stripe it scans for
+# the first time, even with stripexs off, which would let no_stripexs.dat be
+# drained by copy. Disable the RAIN scan during the test, so that the file is
+# guaranteed to go through the reconstruction, and restore it afterwards.
+test_drain_rain_stripe_copy() {
+  local fsids=$(eos fs ls -m | tr ' ' '\n' | grep "^id=" | cut -d= -f2)
+  local -A rain_scan
+  local rc=0
+
+  for i in ${fsids}; do
+    rain_scan[${i}]=$(eos fs status ${i} |
+                        awk '$1 == "scan_rain_interval" {print $3}')
+    eos fs config ${i} scan_rain_interval=0
+  done
+
+  run_drain_rain_stripe_copy || rc=1
+
+  # Fall back to the FST default of 4 weeks if the value was never set
+  for i in ${fsids}; do
+    eos fs config ${i} scan_rain_interval=${rain_scan[${i}]:-2419200}
   done
 
   return ${rc}
@@ -245,6 +372,11 @@ fi
 wait ${xrdcpslowwriter_pid}
 
 if ! test_drain_purge_recycle; then
+  cleanup
+  exit 1
+fi
+
+if ! test_drain_rain_stripe_copy; then
   cleanup
   exit 1
 fi

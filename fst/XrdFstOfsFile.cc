@@ -965,6 +965,23 @@ XrdFstOfsFile::GetBandwidthSleepMs(int bandwidth_mb, unsigned long long total_by
 }
 
 //------------------------------------------------------------------------------
+// Add data written to a RAIN stripe file to the stripe checksum
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::AddToStripeChecksum(eos::fst::CheckSum& xs, off_t offset,
+                                   const char* buffer, size_t length)
+{
+  const off_t hdr_sz = eos::common::LayoutId::OssXsBlockSize;
+
+  if (offset + static_cast<off_t>(length) <= hdr_sz) {
+    return;
+  }
+
+  const off_t skip = (offset < hdr_sz) ? (hdr_sz - offset) : 0;
+  xs.Add(buffer + skip, length - skip, offset + skip - hdr_sz);
+}
+
+//------------------------------------------------------------------------------
 // Regulate the IO bandwidth of the current stream
 //------------------------------------------------------------------------------
 void
@@ -1298,15 +1315,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
 
     if (mRainStripeXs) {
-      // The stripe checksum does not cover the RAIN header
-      const off_t hdr_sz = eos::common::LayoutId::OssXsBlockSize;
-      const off_t end_off = fileOffset + rc;
-
-      if (end_off > hdr_sz) {
-        const off_t skip = (fileOffset < hdr_sz) ? (hdr_sz - fileOffset) : 0;
-        mRainStripeXs->Add(buffer + skip, static_cast<size_t>(rc - skip),
-                           fileOffset + skip - hdr_sz);
-      }
+      AddToStripeChecksum(*mRainStripeXs, fileOffset, buffer, static_cast<size_t>(rc));
     }
 
     totalBytes += rc;

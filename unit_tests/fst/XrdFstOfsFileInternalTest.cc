@@ -25,6 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #undef IN_TEST_HARNESS
 #include "common/LayoutId.hh"
+#include "fst/checksum/Adler.hh"
 #include "gtest/gtest.h"
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysLogger.hh>
@@ -33,6 +34,7 @@
 #include <memory>
 #include <new>
 #include <sys/time.h>
+#include <vector>
 
 using namespace eos::fst;
 
@@ -308,4 +310,41 @@ TEST(XrdFstOfsFileTest, RegulateBandwidthNoSleepAccumulation)
   ASSERT_LE(max_stall_ms, 2 * chunk_ms);
   // The throttle did engage and the sleeping is accounted in the io report
   ASSERT_GT(file->msSleep, 0u);
+}
+
+TEST(XrdFstOfsFileTest, AddToStripeChecksumSkipsRainHeader)
+{
+  const size_t hdr_sz = eos::common::LayoutId::OssXsBlockSize;
+  std::string payload(3 * hdr_sz + 123, '\0');
+
+  for (size_t i = 0; i < payload.size(); ++i) {
+    payload[i] = static_cast<char>((i * 31) % 251);
+  }
+
+  const std::string stripe = std::string(hdr_sz, 'H') + payload;
+  eos::fst::Adler ref;
+  ref.Add(payload.data(), payload.size(), 0);
+  ref.Finalize();
+
+  // Write sequences: one write, header aligned writes, and writes that end
+  // inside the header or straddle its end
+  const std::vector<std::vector<size_t>> all_cuts = {
+      {stripe.size()},
+      {hdr_sz, stripe.size()},
+      {100, hdr_sz + 500, 2 * hdr_sz, stripe.size()}};
+
+  for (const auto& cuts : all_cuts) {
+    eos::fst::Adler xs;
+    size_t offset = 0;
+
+    for (const auto cut : cuts) {
+      XrdFstOfsFile::AddToStripeChecksum(xs, offset, stripe.data() + offset,
+                                         cut - offset);
+      offset = cut;
+    }
+
+    xs.Finalize();
+    ASSERT_FALSE(xs.NeedsRecalculation());
+    ASSERT_STREQ(ref.GetHexChecksum(), xs.GetHexChecksum());
+  }
 }
