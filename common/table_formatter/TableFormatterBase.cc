@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "TableFormatterBase.hh"
+#include <cstdlib>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -466,6 +467,16 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
 
     if (value == "exceeded") {
       return BRED;
+    }
+  }
+
+  // Fill level of "quota ls", same thresholds as the volume status
+  if (header == "filled[%]") {
+    char* end = nullptr;
+    const double filled = strtod(value.c_str(), &end);
+
+    if (end != value.c_str()) {
+      return (filled < 90) ? BGREEN : ((filled < 99) ? BYELLOW : BRED);
     }
   }
 
