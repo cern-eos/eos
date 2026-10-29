@@ -277,9 +277,12 @@ void ConversionJob::DoIt() noexcept
 
   // TPC job succeeded:
   //  - Verify new file has all fragments according to layout
+  //  - Verify new file has no obfuscation key of its own
   //  - Verify initial file hasn't changed
   //  - Merge the conversion entry
   // Verify new file has all fragments according to layout
+  bool conversion_obfuscated = false;
+
   try {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(mConversionPath);
@@ -291,10 +294,20 @@ void ConversionJob::DoIt() noexcept
                   SSTR("expected=" << expected << " actual=" << actual));
       return;
     }
+
+    conversion_obfuscated = fmd->hasAttribute(eos::kAttrObfuscateKey);
   } catch (eos::MDException& e) {
     HandleError("failed to retrieve converted file metadata",
                 SSTR("path=" << mConversionPath << " ec=" << e.getErrno()
                      << " emsg=\"" << e.getMessage().str() << "\""));
+    return;
+  }
+
+  // The initial file keeps its own keys, bytes stored with a key of the new
+  // file would read back as garbage once merged
+  if (conversion_obfuscated) {
+    HandleError("converted file has an obfuscation key of its own",
+                SSTR("path=" << mConversionPath));
     return;
   }
 

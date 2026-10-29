@@ -1865,17 +1865,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // A new file is created - if the space it is placed in defines an
         // instance encryption key, encrypt it with that key. Has to happen
         // before the namespace write lock is taken since the placement policy
-        // needs the filesystem view.
-        if (ApplySpaceEncryption(path, attrmap, attrmapF, isRW, true)) {
+        // needs the filesystem view. The copy a conversion writes under
+        // proc/conversion holds the stored bytes of the converted file, which
+        // keeps its own keys: it gets no key, whatever its directory or space
+        // say, or the bytes would be obfuscated twice.
+        const bool isConversion = Policy::IsProcConversion(path);
+
+        if (isConversion) {
+          mEosKey.clear();
+          mEncryptionSpace.clear();
+        } else if (ApplySpaceEncryption(path, attrmap, attrmapF, isRW, true)) {
           return SFS_ERROR;
         }
 
         // Generate the obfuscation key and its fingerprint before taking the
         // namespace write lock, they only depend on the space key. The policy
         // of the directory wins over eos.obfuscate=0.
-        const bool obfuscate = (mEosObfuscate > 0) ||
-                               (attrmap.count(eos::kAttrFileObfuscate) &&
-                                (attrmap[eos::kAttrFileObfuscate] == "1"));
+        const bool obfuscate =
+            !isConversion &&
+            ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
+                                     (attrmap[eos::kAttrFileObfuscate] == "1")));
         std::string obfuscate_key;
         std::string obfuscate_fprint;
 
