@@ -17,43 +17,82 @@ namespace {
 std::string MakeQuotaHelp()
 {
   std::ostringstream oss;
-  oss << "Usage:\n"
-      << "    quota [<path>]                    : show personal quota for all or "
+  oss << "  quota [-m] [[-p|-x|-q] <path>]\n"
+      << "    -m : print in monitoring <key>=<value> format\n"
+      << "    -p/--path <path> : show only the quota node responsible for <path>; "
+         "<path> can also be given as the last argument without -p\n"
+      << "    -x <path> : as -p, but <path> has to exist\n"
+      << "    -q <path> : as -p, but <path> has to be a quota node\n"
+      << std::endl
+      << "    Without <path>, your quota on every quota node is shown.\n"
+      << std::endl
+      << "    A path without a trailing '/' that is not an existing directory is "
+         "treated as a file and does not match the quota node <path>/.\n"
+      << std::endl
+      << "  quota ls [-m] [-n] [-r] [-s] [-u <uid>] [-g <gid>] [[-p|-x|-q] <path>]\n"
+      << "    -m : print in monitoring <key>=<value> format\n"
+      << "    -n : print uid and gid numbers instead of names\n"
+      << "    -r/--recursive : select every quota node at or below <path> instead of "
          "only the quota node responsible for <path>\n"
-      << "    quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p|x|q] <path>] : list "
-         "configured quota and quota node(s)\n"
-      << "                                                                       -p : "
-         "find closest matching quotanode\n"
-      << "                                                                       -x : "
-         "as -p but <path> has to exist\n"
-      << "                                                                       -q : "
-         "as -p but <path> has to be a quotanode\n"
-      << "    quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>] : set "
-         "volume and/or inode quota by uid or gid\n"
-      << "    quota rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>] : remove configured "
-         "quota type(s) for uid/gid in path\n"
-      << "    quota rmnode [-p] <path> : remove quota node and every "
-         "defined quota on that node\n"
+      << "    -s/--summary : print one line per selected quota node and a total line "
+         "instead of the full tables\n"
+      << "    -u/--uid <uid> : show only the quota of user <uid>, a name or a number\n"
+      << "    -g/--gid <gid> : show only the quota of group <gid>, a name or a number\n"
+      << "    -p/--path <path> : select the quota node responsible for <path>; "
+         "<path> can also be given as the last argument without -p\n"
+      << "    -x <path> : as -p, but <path> has to exist\n"
+      << "    -q <path> : as -p, but <path> has to be a quota node\n"
       << std::endl
-      << "  General options:\n"
-      << "    -m : print information in monitoring <key>=<value> format\n"
-      << "    -n : don't translate ids, print uid and gid number\n"
-      << "    -u/--uid <uid> : print information only for uid <uid>\n"
-      << "    -g/--gid <gid> : print information only for gid <gid>\n"
-      << "    -p/--path <path> : print information only for path <path> - this can also "
-         "be given without -p or --path\n"
-      << "    -v/--volume <bytes> : refer to volume limit in <bytes>\n"
-      << "    -i/--inodes <inodes> : refer to inode limit in number of <inodes>\n"
+      << "    Without <path>, every quota node is selected.\n"
       << std::endl
-      << "  Notes:\n"
-      << "    => you have to specify either the user or the group identified by the "
-         "unix id or the user/group name\n"
-      << "    => the space argument is by default assumed as 'default'\n"
-      << "    => you have to specify at least a volume or an inode limit to set quota\n"
-      << "    => for convenience all commands can just use <path> as last argument "
-         "omitting the -p|--path e.g. quota ls /eos/ ...\n"
-      << "    => if <path> is not terminated with a '/' it is assumed to be a file so "
-         "it won't match the quota node with <path>/ !\n";
+      << "    A path without a trailing '/' that is not an existing directory is "
+         "treated as a file and does not match the quota node <path>/.\n"
+      << std::endl
+      << "    The summary shows the project quota of a node if one is defined, "
+         "otherwise the sum of all user quotas or, if there are none, the sum of "
+         "all group quotas. With -u or -g it shows the quota of that user or "
+         "group and skips the nodes where it has neither quota nor usage.\n"
+      << std::endl
+      << "    The total line sums the usage of all listed nodes. A limit is only "
+         "summed if every listed node defines it with the same type, otherwise it "
+         "is shown as '-'.\n"
+      << std::endl
+      << "  quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [-p] <path>\n"
+      << "    -u/--uid <uid> : set the quota of user <uid>, a name or a number\n"
+      << "    -g/--gid <gid> : set the quota of group <gid>, a name or a number\n"
+      << "    -v/--volume <bytes> : volume limit, for example 10T\n"
+      << "    -i/--inodes <inodes> : limit on the number of files\n"
+      << "    -p/--path <path> : directory of the quota node; it can also be given "
+         "as the last argument without -p\n"
+      << std::endl
+      << "    Specify at least -v or -i. The quota node is created if <path> is not "
+         "one yet.\n"
+      << std::endl
+      << "  quota rm -u <uid>|-g <gid> [-v|-i] [-p] <path>\n"
+      << "    -u/--uid <uid> : remove the quota of user <uid>, a name or a number\n"
+      << "    -g/--gid <gid> : remove the quota of group <gid>, a name or a number\n"
+      << "    -v/--volume : remove only the volume limit\n"
+      << "    -i/--inodes : remove only the inode limit\n"
+      << "    -p/--path <path> : directory of the quota node; it can also be given "
+         "as the last argument without -p\n"
+      << std::endl
+      << "    Without -v or -i, both limits are removed.\n"
+      << std::endl
+      << "  quota rmnode [-p] <path>\n"
+      << "    -p/--path <path> : directory of the quota node; it can also be given "
+         "as the last argument without -p\n"
+      << std::endl
+      << "    Removes the quota node and every quota defined on it.\n"
+      << std::endl
+      << "Examples:\n"
+      << "    quota -> show your quota on every quota node\n"
+      << "    quota ls /eos/lhc/raw/ -> quota node responsible for /eos/lhc/raw/\n"
+      << "    quota ls -r -s /eos/lhc/ -> one line per quota node below /eos/lhc/\n"
+      << "    quota ls -r -s -u alice /eos/lhc/ -> quota of alice on every quota "
+         "node below /eos/lhc/\n"
+      << "    quota set -g 99 -v 100T -i 10M /eos/lhc/raw/ -> project quota on "
+         "/eos/lhc/raw/\n"
+      << "    quota rm -u alice -v /eos/lhc/ -> remove the volume limit of alice\n";
   return oss.str();
 }
 
@@ -133,10 +172,14 @@ public:
             return false;
         } else if (token == "-m") {
           ls->set_format(true);
+        } else if (token == "-s" || token == "--summary") {
+          ls->set_summary(true);
+        } else if (token == "-r" || token == "--recursive") {
+          ls->set_recursive(true);
         } else if (token == "-n") {
           ls->set_printid(true);
-        } else if (token == "--path" || token == "-p" || token == "-x" ||
-                   token == "-q" || (token.find('/') == 0)) {
+        } else if (token == "--path" || token == "-p" || token == "-x" || token == "-q" ||
+                   (token.find('/') == 0)) {
           if (token == "-x")
             ls->set_exists(true);
           if (token == "-q")
@@ -210,10 +253,9 @@ public:
             return false;
         } else if (token == "--volume" || token == "-v") {
           rm->set_type(eos::console::QuotaProto_RmProto::VOLUME);
-        } else if (token == "--inode" || token == "-i") {
+        } else if (token == "--inodes" || token == "--inode" || token == "-i") {
           rm->set_type(eos::console::QuotaProto_RmProto::INODE);
-        } else if (token == "--path" || token == "-p" ||
-                   (token.find('/') == 0)) {
+        } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
           if (token == "--path" || token == "-p") {
             if (tokenizer.NextToken(token))
               rm->set_space(token);
@@ -320,31 +362,12 @@ RegisterQuotaProtoNativeCommand()
 {
   eos::console::CommandHelpSpec help;
   help.topics = {
-      {{"ls"}, "    quota ls ", "List configured quotas."},
-      {{"set"}, "    quota set ", "Set user or group quota limits."},
-      {{"rm"}, "    quota rm ", "Remove user or group quota limits."},
-      {{"rmnode"}, "    quota rmnode ", "Remove a quota node.", "  General options:"},
+      {{}, "  quota [-m]", "Show your quota on the quota nodes."},
+      {{"ls"}, "  quota ls ", "List configured quotas."},
+      {{"set"}, "  quota set ", "Set user or group quota limits."},
+      {{"rm"}, "  quota rm ", "Remove user or group quota limits."},
+      {{"rmnode"}, "  quota rmnode ", "Remove a quota node."},
   };
-  help.common =
-      "With no operation, quota [<path>] shows personal quota for all nodes or only "
-      "the quota node responsible for <path>.\n\n"
-      "General options:\n"
-      "  -m : print information in monitoring <key>=<value> format\n"
-      "  -n : don't translate ids, print uid and gid number\n"
-      "  -u/--uid <uid> : print information only for uid <uid>\n"
-      "  -g/--gid <gid> : print information only for gid <gid>\n"
-      "  -p/--path <path> : print information only for path <path>; the path can "
-      "also be given without -p or --path\n"
-      "  -v/--volume <bytes> : refer to volume limit in <bytes>\n"
-      "  -i/--inodes <inodes> : refer to inode limit in number of <inodes>\n\n"
-      "Notes:\n"
-      "Specify either the user or the group, identified by a Unix ID or name.\n\n"
-      "The space argument is assumed to be 'default'.\n\n"
-      "Specify at least a volume or an inode limit to set quota.\n\n"
-      "All commands can use <path> as the last argument, omitting -p or --path, "
-      "for example quota ls /eos/.\n\n"
-      "A path without a trailing '/' is treated as a file and will not match "
-      "the quota node with <path>/.\n";
   CommandRegistry::instance().reg(eos::console::WithCommandHelp(
       std::make_unique<QuotaProtoCommand>(), std::move(help)));
 }

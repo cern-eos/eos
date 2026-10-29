@@ -476,6 +476,36 @@ TEST_F(ConsoleCommandHelpTest, FilesystemHelpRetainsConfigurationAndScopesExampl
   EXPECT_EQ(boot.find("eos fs mv 100"), std::string::npos);
 }
 
+TEST_F(ConsoleCommandHelpTest, QuotaHelpScopesOptionsToTheirOperation)
+{
+  EnsureNativeCommandRegistryInitialized();
+  const auto* quota = CommandRegistry::instance().find("quota");
+  ASSERT_NE(quota, nullptr);
+  ASSERT_TRUE(HasStructuredCommandHelp(*quota));
+  auto help = [&](const std::vector<std::string>& args) {
+    testing::internal::CaptureStderr();
+    quota->printHelp(args);
+    return testing::internal::GetCapturedStderr();
+  };
+  const auto root = help({});
+  EXPECT_NE(root.find("eos quota [-m]"), std::string::npos);
+  EXPECT_NE(root.find("OPERATIONS"), std::string::npos);
+  EXPECT_EQ(root.find("--summary"), std::string::npos);
+  EXPECT_EQ(root.find("--volume"), std::string::npos);
+  const auto ls = help({"ls"});
+  EXPECT_NE(ls.find("-r/--recursive"), std::string::npos);
+  EXPECT_NE(ls.find("-s/--summary"), std::string::npos);
+  EXPECT_NE(ls.find("eos quota ls -r -s /eos/lhc/"), std::string::npos);
+  EXPECT_EQ(ls.find("--volume"), std::string::npos);
+  EXPECT_EQ(ls.find("your quota on every quota node"), std::string::npos);
+  const auto set = help({"set"});
+  EXPECT_NE(set.find("-i/--inodes <inodes>"), std::string::npos);
+  EXPECT_EQ(set.find("--summary"), std::string::npos);
+  const auto rm = help({"rm"});
+  EXPECT_NE(rm.find("-i/--inodes"), std::string::npos);
+  EXPECT_EQ(rm.find("--recursive"), std::string::npos);
+}
+
 TEST_F(ConsoleCommandHelpTest, FilesystemConfigurationKeepsEachSettingOnItsOwnLine)
 {
   EnsureNativeCommandRegistryInitialized();

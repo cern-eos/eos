@@ -564,6 +564,7 @@ TEST(ConsoleCompletion, AdministrativeAndStorageNestedGrammars)
       {"io", {"shaping", "config", "set", "--detail"}, {"aggregate", "fs"}},
       {"io", {"shaping", "policy"}, {"ls", "set", "rm"}},
       {"node", {"set", "host.example:1095"}, {"on", "off"}},
+      {"quota", {"ls"}, {"--summary", "--recursive", "--uid", "--gid", "--path"}},
       {"quota", {"set"}, {"--uid", "--gid", "--volume", "--inodes", "--path"}},
       {"rclone", {"copy"}, {"--dryrun", "--atomic", "--delete"}},
       {"sched", {"configure", "type"}, {"geotree", "flat:roundrobin"}},

@@ -462,7 +462,7 @@ ConfigureQuota(Schema& schema)
   schema.flag(app, "-m");
   path(app, true);
   auto& ls = schema.sub(app, "ls");
-  Flags(schema, ls, {"-n", "-m"});
+  Flags(schema, ls, {"-n", "-m", "-s,--summary", "-r,--recursive"});
   Values(schema, ls, {"-u,--uid", "-g,--gid"});
   path(ls, true);
   auto& set = schema.sub(app, "set");
@@ -470,8 +470,8 @@ ConfigureQuota(Schema& schema)
   path(set, false);
   auto& rm = schema.sub(app, "rm");
   Values(schema, rm, {"-u,--uid", "-g,--gid"});
-  // The existing rm parser calls the long inode flag --inode (singular).
-  Flags(schema, rm, {"-v,--volume", "-i,--inode"});
+  // rm also accepts the historical --inode spelling
+  Flags(schema, rm, {"-v,--volume", "-i,--inodes"});
   path(rm, false);
   auto& rmnode = schema.sub(app, "rmnode");
   path(rmnode, false);

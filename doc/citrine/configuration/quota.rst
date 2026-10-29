@@ -129,6 +129,55 @@ To see the quota node for a particular directory/subtree:
 
    eosdevsrv1:# eos quota ls /eos/lhc/higgs-project/
 
+Add ``-r`` (``--recursive``) to list every quota node at or below the given
+path instead of only the one responsible for it. Without a path, ``quota ls``
+already lists every quota node:
+
+.. code-block:: bash
+
+   eosdevsrv1:# eos quota ls -r /eos/lhc/
+
+Add ``-s`` (``--summary``) to print one line per selected quota node and a
+total line instead of the full tables. Combined with ``-r`` this gives an
+overview of a subtree:
+
+.. code-block:: bash
+
+   eosdevsrv1:# eos quota ls -r -s /eos/lhc/
+
+The columns follow ``quota ls``: used bytes (physical), used logical bytes and
+used files, then the corresponding limits, the filled percentage of the logical
+volume and the volume and inode status. For a project quota node the project
+quota is shown, otherwise the sum of all user quotas or, if there is no user
+quota, the sum of all group quotas; the **type** column tells which one. Limits
+which are not defined are shown as ``-``.
+
+Since every file is accounted only to the deepest quota node above it, the
+usage in the total line is the sum of all listed quota nodes. A limit in the
+total line is only shown if every listed quota node defines it with the same
+type, otherwise it is shown as ``-`` and the type as ``mixed``.
+
+With ``-u`` or ``-g`` the summary shows the quota of that user or group on
+every selected quota node, skipping the nodes where it has neither quota nor
+usage. This shows where a user or group consumes quota in a subtree:
+
+.. code-block:: bash
+
+   eosdevsrv1:# eos quota ls -r -s -u alice /eos/lhc/
+
+Add ``-m`` to get the same information in monitoring ``<key>=<value>`` format,
+or use the global ``--json`` option:
+
+.. code-block:: bash
+
+   eosdevsrv1:# eos quota ls -r -s -m /eos/lhc/
+   quota=summary space=/eos/lhc/raw/ type=project usedbytes=... usedlogicalbytes=... usedfiles=... maxbytes=... maxlogicalbytes=... maxfiles=... percentageusedbytes=... statusbytes=ok statusfiles=ok
+   ...
+   quota=total space=/eos/lhc/ type=mixed usedbytes=... usedlogicalbytes=... usedfiles=... maxbytes=0 maxlogicalbytes=0 maxfiles=0 percentageusedbytes=... statusbytes=ignored statusfiles=ignored
+
+   eosdevsrv1:# eos quota ls -r -s -m -u alice /eos/lhc/
+   quota=summary uid=alice space=/eos/lhc/raw/ usedbytes=... ...
+
 Set Quota
 +++++++++
 
