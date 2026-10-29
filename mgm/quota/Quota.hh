@@ -118,6 +118,31 @@ public:
                 bool translate_ids = false);
 
   //----------------------------------------------------------------------------
+  //! Aggregated limits and usage of a quota node, as used by the quota
+  //! summary listing
+  //----------------------------------------------------------------------------
+  struct Summary {
+    std::string type{"none"}; ///< project, user, group, none or mixed
+    unsigned long long used_bytes{0};
+    unsigned long long used_logical_bytes{0};
+    unsigned long long used_files{0};
+    unsigned long long max_bytes{0};
+    unsigned long long max_logical_bytes{0};
+    unsigned long long max_files{0};
+  };
+
+  //----------------------------------------------------------------------------
+  //! Get the aggregated limits and usage of the quota node. With a uid or gid
+  //! selection the values of that user or group are used. Otherwise, if a
+  //! project quota is defined its values are used, else the sum over all
+  //! users or, if no user quota is defined, the sum over all groups.
+  //!
+  //! @param uid_sel uid selection, -1 for none
+  //! @param gid_sel gid selection, -1 for none, ignored if uid_sel is given
+  //----------------------------------------------------------------------------
+  Summary GetSummary(long long int uid_sel = -1, long long int gid_sel = -1);
+
+  //----------------------------------------------------------------------------
   //! Quota type tags
   //----------------------------------------------------------------------------
   enum eQuotaTag {
@@ -265,8 +290,7 @@ private:
   //!
   //! @return string representation of the percentage value
   //----------------------------------------------------------------------------
-  float
-  GetQuotaPercentage(unsigned long long is, unsigned long long avail);
+  static float GetQuotaPercentage(unsigned long long is, unsigned long long avail);
 
   //----------------------------------------------------------------------------
   //! Get quota status
@@ -276,7 +300,7 @@ private:
   //!
   //! @return string representing the status i.e. ignored/ok/warning/exceeded
   //----------------------------------------------------------------------------
-  const char* GetQuotaStatus(unsigned long long is, unsigned long long avail);
+  static const char* GetQuotaStatus(unsigned long long is, unsigned long long avail);
 
   //----------------------------------------------------------------------------
   //! Convert int tag to string representation
@@ -606,12 +630,37 @@ public:
   //----------------------------------------------------------------------------
   //! Print out quota information
   //!
+  //! @param path if empty all quota nodes are printed, otherwise only the
+  //!        quota node responsible for path or, if recursive, every quota
+  //!        node at or below path
+  //!
   //! @return true if operation successful, otherwise false and populate the
   //!         output string with the error messsage
   //----------------------------------------------------------------------------
   static bool PrintOut(const std::string& path, XrdOucString& output,
                        long long int uid_sel = -1, long long int gid_sel = -1,
-                       bool monitoring = false, bool translate_ids = false);
+                       bool monitoring = false, bool translate_ids = false,
+                       bool recursive = false);
+
+  //----------------------------------------------------------------------------
+  //! Print a summary with one line per quota node and a total line. The
+  //! quota nodes are selected as in PrintOut.
+  //!
+  //! @param path quota node selection, see PrintOut
+  //! @param output output string
+  //! @param uid_sel if >= 0 show the quota of this uid on every node
+  //! @param gid_sel if >= 0 show the quota of this gid on every node
+  //! @param monitoring if true print in monitoring <key>=<value> format
+  //! @param translate_ids if true print user/group names instead of ids
+  //! @param recursive select every quota node at or below path
+  //!
+  //! @return true if operation successful, otherwise false and populate the
+  //!         output string with the error messsage
+  //----------------------------------------------------------------------------
+  static bool PrintSummary(const std::string& path, XrdOucString& output,
+                           long long int uid_sel = -1, long long int gid_sel = -1,
+                           bool monitoring = false, bool translate_ids = false,
+                           bool recursive = false);
 
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system. The core of the
@@ -766,6 +815,15 @@ private:
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
 
+  //----------------------------------------------------------------------------
+  //! Select the quota nodes for listing - all if path is empty, otherwise the
+  //! one responsible for path or, if recursive, all at or below path. Caller
+  //! has to have a read lock on pMapMutex.
+  //!
+  //! @return selected SpaceQuota objects ordered by path
+  //----------------------------------------------------------------------------
+  static std::vector<SpaceQuota*> SelectSpaceQuotas(const std::string& path,
+                                                    bool recursive);
 
   //----------------------------------------------------------------------------
   //! Make sure the path ends with a /

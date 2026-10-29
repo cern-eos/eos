@@ -461,6 +461,18 @@ SpaceQuota::Refresh(time_t age)
   UpdateTargetSums();
 }
 
+//------------------------------------------------------------------------------
+// Table cell with the filled percentage, "-" if there is no limit
+//------------------------------------------------------------------------------
+static TableCell
+FilledCell(float percentage, unsigned long long avail)
+{
+  if (!avail) {
+    return TableCell("-", "s");
+  }
+
+  return TableCell(percentage, "f", "%");
+}
 
 //------------------------------------------------------------------------------
 // Print quota information
@@ -635,8 +647,10 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
                                       GetQuota(kUserLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "+l"));
-        table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "f", "%"));
+        table_data.back().push_back(
+            FilledCell(GetQuotaPercentage(GetQuota(kUserLogicalBytesIs, id),
+                                          GetQuota(kUserLogicalBytesTarget, id)),
+                       GetQuota(kUserLogicalBytesTarget, id)));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
@@ -729,8 +743,10 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
                                       GetQuota(kGroupLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "+l"));
-        table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "f", "%"));
+        table_data.back().push_back(
+            FilledCell(GetQuotaPercentage(GetQuota(kGroupLogicalBytesIs, id),
+                                          GetQuota(kGroupLogicalBytesTarget, id)),
+                       GetQuota(kGroupLogicalBytesTarget, id)));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
@@ -800,8 +816,10 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
                                     GetQuota(kAllUserLogicalBytesTarget, 0), "+l", "B"));
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllUserFilesTarget, 0), "+l"));
-      table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "f", "%"));
+      table_data.back().push_back(
+          FilledCell(GetQuotaPercentage(GetQuota(kAllUserLogicalBytesIs, 0),
+                                        GetQuota(kAllUserLogicalBytesTarget, 0)),
+                     GetQuota(kAllUserLogicalBytesTarget, 0)));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
@@ -820,8 +838,10 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
                                     GetQuota(kAllGroupLogicalBytesTarget, 0), "+l", "B"));
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllGroupFilesTarget, 0), "+l"));
-      table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "f", "%"));
+      table_data.back().push_back(
+          FilledCell(GetQuotaPercentage(GetQuota(kAllGroupLogicalBytesIs, 0),
+                                        GetQuota(kAllGroupLogicalBytesTarget, 0)),
+                     GetQuota(kAllGroupLogicalBytesTarget, 0)));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
@@ -911,6 +931,52 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       output += table_summary_group.GenerateTable().c_str();
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Get the aggregated limits and usage of the quota node
+//------------------------------------------------------------------------------
+SpaceQuota::Summary
+SpaceQuota::GetSummary(long long int uid_sel, long long int gid_sel)
+{
+  Summary summary;
+  auto fill = [&](const char* type, unsigned long tag_bytes_is,
+                  unsigned long tag_logical_bytes_is, unsigned long tag_files_is,
+                  unsigned long tag_bytes_target, unsigned long tag_logical_bytes_target,
+                  unsigned long tag_files_target, unsigned long id) {
+    summary.type = type;
+    summary.used_bytes = GetQuota(tag_bytes_is, id);
+    summary.used_logical_bytes = GetQuota(tag_logical_bytes_is, id);
+    summary.used_files = GetQuota(tag_files_is, id);
+    summary.max_bytes = GetQuota(tag_bytes_target, id);
+    summary.max_logical_bytes = GetQuota(tag_logical_bytes_target, id);
+    summary.max_files = GetQuota(tag_files_target, id);
+  };
+
+  if (uid_sel >= 0) {
+    fill("user", kUserBytesIs, kUserLogicalBytesIs, kUserFilesIs, kUserBytesTarget,
+         kUserLogicalBytesTarget, kUserFilesTarget, uid_sel);
+  } else if (gid_sel >= 0) {
+    fill((gid_sel == Quota::gProjectId) ? "project" : "group", kGroupBytesIs,
+         kGroupLogicalBytesIs, kGroupFilesIs, kGroupBytesTarget, kGroupLogicalBytesTarget,
+         kGroupFilesTarget, gid_sel);
+  } else if (GetQuota(kGroupBytesTarget, Quota::gProjectId) ||
+             GetQuota(kGroupFilesTarget, Quota::gProjectId)) {
+    fill("project", kGroupBytesIs, kGroupLogicalBytesIs, kGroupFilesIs, kGroupBytesTarget,
+         kGroupLogicalBytesTarget, kGroupFilesTarget, Quota::gProjectId);
+  } else if (GetQuota(kAllUserBytesTarget, 0) || GetQuota(kAllUserFilesTarget, 0)) {
+    fill("user", kAllUserBytesIs, kAllUserLogicalBytesIs, kAllUserFilesIs,
+         kAllUserBytesTarget, kAllUserLogicalBytesTarget, kAllUserFilesTarget, 0);
+  } else if (GetQuota(kAllGroupBytesTarget, 0) || GetQuota(kAllGroupFilesTarget, 0)) {
+    fill("group", kAllGroupBytesIs, kAllGroupLogicalBytesIs, kAllGroupFilesIs,
+         kAllGroupBytesTarget, kAllGroupLogicalBytesTarget, kAllGroupFilesTarget, 0);
+  } else {
+    // No limits defined, still report the usage accounted to the node
+    fill("none", kAllUserBytesIs, kAllUserLogicalBytesIs, kAllUserFilesIs,
+         kAllUserBytesTarget, kAllUserLogicalBytesTarget, kAllUserFilesTarget, 0);
+  }
+
+  return summary;
 }
 
 //------------------------------------------------------------------------------
@@ -2144,12 +2210,35 @@ Quota::LoadNodes()
 }
 
 //------------------------------------------------------------------------------
+// Select the quota nodes for listing
+//------------------------------------------------------------------------------
+std::vector<SpaceQuota*>
+Quota::SelectSpaceQuotas(const std::string& path, bool recursive)
+{
+  std::vector<SpaceQuota*> squotas;
+
+  if (path.empty() || recursive) {
+    const std::string prefix = NormalizePath(path);
+
+    for (const auto& [qpath, squota] : pMapQuota) {
+      if (prefix.empty() || common::startsWith(qpath, prefix)) {
+        squotas.push_back(squota);
+      }
+    }
+  } else if (SpaceQuota* squota = GetResponsibleSpaceQuota(path)) {
+    squotas.push_back(squota);
+  }
+
+  return squotas;
+}
+
+//------------------------------------------------------------------------------
 // Print out quota information
 //------------------------------------------------------------------------------
 bool
-Quota::PrintOut(const std::string& path, XrdOucString& output,
-                long long int uid_sel, long long int gid_sel, bool monitoring,
-                bool translate_ids)
+Quota::PrintOut(const std::string& path, XrdOucString& output, long long int uid_sel,
+                long long int gid_sel, bool monitoring, bool translate_ids,
+                bool recursive)
 {
   output = "";
   // Add this to have all quota nodes visible even if they are not in
@@ -2157,23 +2246,234 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  const auto squotas = SelectSpaceQuotas(path, recursive);
 
-  if (path.empty()) {
-    for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
-      it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
-    }
-  } else {
-    SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+  if (squotas.empty() && !path.empty()) {
+    output = (recursive ? "error: no quota node at or below path "
+                        : "error: no quota for path ");
+    output += path.c_str();
+    return false;
+  }
 
-    if (squota) {
-      squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
-    } else {
-      output = "error: no quota for path ";
-      output += path.c_str();
-      return false;
+  for (SpaceQuota* squota : squotas) {
+    squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Print a summary with one line per quota node and a total line
+//------------------------------------------------------------------------------
+bool
+Quota::PrintSummary(const std::string& path, XrdOucString& output, long long int uid_sel,
+                    long long int gid_sel, bool monitoring, bool translate_ids,
+                    bool recursive)
+{
+  output = "";
+
+  if (uid_sel >= 0) {
+    gid_sel = -1;
+  }
+
+  const bool by_id = (uid_sel >= 0) || (gid_sel >= 0);
+  const char* id_key = (uid_sel >= 0) ? "uid" : "gid";
+  std::string id_name;
+
+  if (by_id) {
+    // Translate the id before taking any lock
+    int errc = 0;
+    id_name = std::to_string((uid_sel >= 0) ? uid_sel : gid_sel);
+
+    if (translate_ids) {
+      id_name = (uid_sel >= 0) ? eos::common::Mapping::UidToUserName(uid_sel, errc)
+                               : eos::common::Mapping::GidToGroupName(gid_sel, errc);
     }
   }
 
+  // Add a row to the table, limits equal to 0 mean no limit is defined
+  auto add_row = [&](TableData& table_data, const std::string& name,
+                     const SpaceQuota::Summary& summary, const char* row_tag) {
+    const std::string& second = (by_id ? id_name : summary.type);
+    const char* vol_status =
+        SpaceQuota::GetQuotaStatus(summary.used_logical_bytes, summary.max_logical_bytes);
+    const char* ino_status =
+        SpaceQuota::GetQuotaStatus(summary.used_files, summary.max_files);
+    table_data.emplace_back();
+    auto& row = table_data.back();
+
+    if (monitoring) {
+      row.push_back(TableCell(row_tag, "os"));
+
+      if (by_id) {
+        row.push_back(TableCell(second, "os"));
+        row.push_back(TableCell(name, "os"));
+      } else {
+        row.push_back(TableCell(name, "os"));
+        row.push_back(TableCell(second, "os"));
+      }
+
+      row.push_back(TableCell(summary.used_bytes, "ol"));
+      row.push_back(TableCell(summary.used_logical_bytes, "ol"));
+      row.push_back(TableCell(summary.used_files, "ol"));
+      row.push_back(TableCell(summary.max_bytes, "ol"));
+      row.push_back(TableCell(summary.max_logical_bytes, "ol"));
+      row.push_back(TableCell(summary.max_files, "ol"));
+      row.push_back(TableCell(SpaceQuota::GetQuotaPercentage(summary.used_logical_bytes,
+                                                             summary.max_logical_bytes),
+                              "of"));
+      row.push_back(TableCell(vol_status, "os"));
+      row.push_back(TableCell(ino_status, "os"));
+    } else {
+      // Same column order as quota ls: usage, limits, then fill and status
+      auto add_limit = [&row](unsigned long long value, const char* unit) {
+        if (value) {
+          row.push_back(TableCell(value, "+l", unit));
+        } else {
+          row.push_back(TableCell("-", "s"));
+        }
+      };
+      row.push_back(TableCell(name, "-s"));
+      row.push_back(TableCell(second, "s"));
+      row.push_back(TableCell(summary.used_bytes, "+l", "B"));
+      row.push_back(TableCell(summary.used_logical_bytes, "+l", "B"));
+      row.push_back(TableCell(summary.used_files, "+l"));
+      add_limit(summary.max_bytes, "B");
+      add_limit(summary.max_logical_bytes, "B");
+      add_limit(summary.max_files, "");
+      row.push_back(FilledCell(SpaceQuota::GetQuotaPercentage(summary.used_logical_bytes,
+                                                              summary.max_logical_bytes),
+                               summary.max_logical_bytes));
+      row.push_back(TableCell(vol_status, "s"));
+      row.push_back(TableCell(ino_status, "s"));
+    }
+  };
+  TableFormatterBase table;
+
+  if (monitoring) {
+    TableHeader header{std::make_tuple("quota", 0, "os")};
+
+    if (by_id) {
+      header.push_back(std::make_tuple(id_key, 0, "os"));
+      header.push_back(std::make_tuple("space", 0, "os"));
+    } else {
+      header.push_back(std::make_tuple("space", 0, "os"));
+      header.push_back(std::make_tuple("type", 0, "os"));
+    }
+
+    for (const char* key : {"usedbytes", "usedlogicalbytes", "usedfiles", "maxbytes",
+                            "maxlogicalbytes", "maxfiles"}) {
+      header.push_back(std::make_tuple(key, 0, "ol"));
+    }
+
+    header.push_back(std::make_tuple("percentageusedbytes", 0, "of"));
+    header.push_back(std::make_tuple("statusbytes", 0, "os"));
+    header.push_back(std::make_tuple("statusfiles", 0, "os"));
+    table.SetHeader(header);
+  } else {
+    table.SetHeader(
+        {std::make_tuple("quota node", 10, "-s"),
+         std::make_tuple(by_id ? ((uid_sel >= 0) ? "user" : "group") : "type", 7, "s"),
+         std::make_tuple("used bytes", 10, "+l"),
+         std::make_tuple("used logical", 10, "+l"),
+         std::make_tuple("used files", 10, "+l"), std::make_tuple("max bytes", 10, "+l"),
+         std::make_tuple("max logical", 10, "+l"), std::make_tuple("max files", 10, "+l"),
+         std::make_tuple("filled[%]", 10, "f"), std::make_tuple("vol-status", 10, "s"),
+         std::make_tuple("ino-status", 10, "s")});
+  }
+
+  // Add this to have all quota nodes visible even if they are not in
+  // the configuration file
+  LoadNodes();
+  eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  const auto squotas = SelectSpaceQuotas(path, recursive);
+  TableData table_data;
+  SpaceQuota::Summary total;
+  // A total limit is only meaningful if every row defines it with the same type
+  bool same_type = true;
+  bool all_max_bytes = true;
+  bool all_max_logical_bytes = true;
+  bool all_max_files = true;
+
+  for (SpaceQuota* squota : squotas) {
+    const SpaceQuota::Summary summary = squota->GetSummary(uid_sel, gid_sel);
+
+    // Skip nodes where the selected user or group has neither quota nor usage
+    if (by_id && !summary.used_bytes && !summary.used_logical_bytes &&
+        !summary.used_files && !summary.max_bytes && !summary.max_logical_bytes &&
+        !summary.max_files) {
+      continue;
+    }
+
+    if (table_data.empty()) {
+      total.type = summary.type;
+    } else if (total.type != summary.type) {
+      same_type = false;
+    }
+
+    // Quota nodes are disjoint - every file is accounted only to the deepest
+    // quota node above it, therefore summing them up gives the total
+    add_row(table_data, squota->GetSpaceNameStr(), summary, "summary");
+    total.used_bytes += summary.used_bytes;
+    total.used_logical_bytes += summary.used_logical_bytes;
+    total.used_files += summary.used_files;
+    total.max_bytes += summary.max_bytes;
+    total.max_logical_bytes += summary.max_logical_bytes;
+    total.max_files += summary.max_files;
+    all_max_bytes = all_max_bytes && summary.max_bytes;
+    all_max_logical_bytes = all_max_logical_bytes && summary.max_logical_bytes;
+    all_max_files = all_max_files && summary.max_files;
+  }
+
+  if (table_data.empty()) {
+    if (by_id) {
+      output = "error: no quota or usage for ";
+      output += ((uid_sel >= 0) ? "user " : "group ");
+      output += id_name.c_str();
+      output += " in the selected quota nodes";
+    } else if (path.empty()) {
+      output = "error: no quota node defined";
+    } else {
+      output = (recursive ? "error: no quota node at or below path "
+                          : "error: no quota for path ");
+      output += path.c_str();
+    }
+
+    return false;
+  }
+
+  if (!same_type) {
+    total.type = "mixed";
+  }
+
+  if (!same_type || !all_max_bytes) {
+    total.max_bytes = 0;
+  }
+
+  if (!same_type || !all_max_logical_bytes) {
+    total.max_logical_bytes = 0;
+  }
+
+  if (!same_type || !all_max_files) {
+    total.max_files = 0;
+  }
+
+  if (monitoring) {
+    const std::string selection =
+        (path.empty()
+             ? "/"
+             : (recursive ? NormalizePath(path) : squotas.front()->GetSpaceNameStr()));
+    add_row(table_data, selection, total, "total");
+  } else {
+    table.AddRows(table_data);
+    table.AddSeparator();
+    table_data.clear();
+    add_row(table_data, "total", total, "total");
+  }
+
+  table.AddRows(table_data);
+  output += table.GenerateTable(HEADER).c_str();
   return true;
 }
 
