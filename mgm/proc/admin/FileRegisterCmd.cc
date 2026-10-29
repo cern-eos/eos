@@ -119,6 +119,20 @@ FileRegisterCmd::ProcessRequest() noexcept
         }
       }
 
+      eos::IQuotaNode* ns_quota = nullptr;
+
+      try {
+        ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+      } catch (const eos::MDException&) {
+        // no quota node
+      }
+
+      // An update can change owner, layout and size: take the file out of
+      // quota before the changes and account it again after them
+      if (reg.update() && ns_quota) {
+        ns_quota->removeFile(fmd.get());
+      }
+
       if (!reg.update()) {
         // create with given uid/gid
         fmd = gOFS->eosView->createFile(cPath.GetFullPath().c_str(), uid, gid);
@@ -211,7 +225,7 @@ FileRegisterCmd::ProcessRequest() noexcept
 
       if (reg.layoutid()) {
         fmd->setLayoutId(reg.layoutid());
-      } else {
+      } else if (!reg.update()) {
         // automatically get a layout id for this registration
         unsigned long layoutId;
         std::string space;
@@ -239,22 +253,13 @@ FileRegisterCmd::ProcessRequest() noexcept
         fmd->setLayoutId(layoutId);
       }
 
-      try {
-        eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+      // As for the other fields, an update with no size keeps the size
+      if (!reg.update() || reg.size()) {
+        fmd->setSize(reg.size());
+      }
 
-        if (ns_quota) {
-          if (!reg.update()) {
-            fmd->setSize(reg.size());
-            ns_quota->addFile(fmd.get());
-          } else {
-            ns_quota->removeFile(fmd.get());
-            fmd->setSize(reg.size());
-          }
-        } else {
-          fmd->setSize(reg.size());
-        }
-      } catch (const eos::MDException& eq) {
-        // no quota node
+      if (ns_quota) {
+        ns_quota->addFile(fmd.get());
       }
 
       gOFS->eosView->updateFileStore(fmd.get());
