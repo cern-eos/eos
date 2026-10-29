@@ -292,8 +292,9 @@ load hot     race_hot_convert     'eos convert file $hot replica:2'
 load hot     race_hot_dir_attr    'eos attr set user.hot=$i $base/hot'
 load hot     race_hot_stat        'xrdfs $url stat $hot'
 
-# One directory grows by 64 entries and shrinks again while it is listed
-load bigdir  bigdir_touch         'for k in $(seq 1 64); do eos file touch -n $base/big/$w.$i.$k || exit; done'
+# One directory grows by 16 entries and shrinks again while it is listed. Each
+# touch starts a console, so more entries do not end within the 60 s timeout
+load bigdir  bigdir_touch         'for k in $(seq 1 16); do eos file touch -n $base/big/$w.$i.$k || exit; done'
 load bigdir  bigdir_ls            'eos ls $base/big'
 load bigdir  bigdir_fuse_ls       'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuse&mgm.statentries=1&mgm.path=$base/big" /dev/null'
 load bigdir  bigdir_rm            'eos rm -F "$base/big/$w.$i.*"'
