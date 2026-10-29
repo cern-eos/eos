@@ -80,7 +80,7 @@ void NamespaceMap(std::string& path, const char* ininfo,
   if (vid.token) {
     if (vid.token->Valid()) {
       // replace path from a token
-      if (path.substr(0, 9) == "/zteos64:") {
+      if (eos::common::EosTok::IsEosTokenPath(path.c_str())) {
         store_path = vid.token->Path().c_str();
       }
     }

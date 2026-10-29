@@ -177,6 +177,7 @@ add_library(EosCommon-Objects OBJECT
   table_formatter/TableFormatterBase.cc
   config/ConfigParsing.cc
   token/EosTok.cc
+  token/JwtTok.cc
   Config.cc
   utils/XrdUtils.cc
   exception/Exception.cc

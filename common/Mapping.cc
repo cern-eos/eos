@@ -31,6 +31,7 @@
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
 #include "common/token/EosTok.hh"
+#include "common/token/JwtTok.hh"
 #include "jwt-cpp/jwt.h"
 #include <XrdAcc/XrdAccAuthorize.hh>
 #include <XrdNet/XrdNetAddr.hh>
@@ -694,8 +695,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   if ((vid.prot == "grpc") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
 
-    if (keyname.substr(0, 8) == "zteos64:") {
-      // this is an eos token
+    if (EosTok::IsEosCredential(keyname)) {
+      // legacy zteos64 token or EOS JWT
       authz = vid.key;
       vid = VirtualIdentity::Nobody();
     }  else {
@@ -762,8 +763,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
 
     // token provided as key
-    if (keyname.substr(0, 8) == "zteos64:") {
-      // this is an eos token
+    if (EosTok::IsEosCredential(keyname)) {
+      // legacy zteos64 token or EOS JWT
       authz = vid.key;
     } else {
       // try oauth2
@@ -898,8 +899,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
     }
 
-    if (authz.substr(0, 8) == "zteos64:") {
-      // This is an eos token
+    const bool legacy = (authz.compare(0, 8, "zteos64:") == 0);
+    const bool eos_jwt = !legacy && JwtTok::IsEosJwt(authz);
+
+    if (legacy || eos_jwt) {
+      // EOS token: zteos64 or custom JWT (typ=eos+jwt)
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
       std::string key = symkey ? symkey->GetKey64() : "0123457890defaultkey";
       bool skip_key = false;
@@ -926,7 +930,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
 
       int rc = 0;
-      vid.token = std::make_shared<EosTok>();
+      vid.token = eos_jwt ? std::shared_ptr<Token>(std::make_shared<JwtTok>())
+                  : std::shared_ptr<Token>(std::make_shared<EosTok>());
 
       if ((rc = vid.token->Read(authz, key, eos::common::EosTok::sTokenGeneration,
                                 false))) {

@@ -31,6 +31,7 @@
 #include "common/Path.hh"
 #include "common/Definitions.hh"
 #include "common/token/EosTok.hh"
+#include "common/token/JwtTok.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 
@@ -260,7 +261,13 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     }
   }
 
-  eos::common::EosTok eostoken;
+  eos::common::EosTok legacy;
+  eos::common::JwtTok jwt;
+  const bool use_jwt = token.vtoken().empty()
+                       ? token.jwt()
+                       : eos::common::JwtTok::IsEosJwt(token.vtoken());
+  ::Token* cred = use_jwt ? static_cast<::Token*>(&jwt)
+                  : static_cast<::Token*>(&legacy);
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   std::string key = symkey ? symkey->GetKey64() : "0123456789defaultkey";
 
@@ -294,61 +301,68 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     }
 
     // create a token
-    eostoken.SetPath(token.path(), token.allowtree());
-    eostoken.SetPermission(token.permission());
-    eostoken.SetExpires(token.expires());
-    eostoken.SetOwner(token.owner());
-    eostoken.SetGroup(token.group());
-    eostoken.SetGeneration(eos::common::EosTok::sTokenGeneration);
-    eostoken.SetRequester(mVid.getTrace());
+    cred->SetPath(token.path(), token.allowtree());
+    cred->SetPermission(token.permission());
+    cred->SetExpires(token.expires());
+    cred->SetOwner(token.owner());
+    cred->SetGroup(token.group());
+    cred->SetGeneration(eos::common::EosTok::sTokenGeneration);
+    cred->SetRequester(mVid.getTrace());
 
     for (int i = 0; i < token.origins_size(); ++i) {
       const eos::console::TokenAuth& auth = token.origins(i);
-      eostoken.AddOrigin(auth.host(), auth.name(), auth.prot());
+      cred->AddOrigin(auth.host(), auth.name(), auth.prot());
     }
 
     // The token is normally issued for a different origin than the one of the
     // issuer, therefore we only validate the regexps and never try to match
     // them against the identity of the requester.
-    if (eostoken.ValidateOrigins() == -EBADE) {
+    if (cred->ValidateOrigins() == -EBADE) {
       errStream << "error: one or several origin regexp's are invalid" << std::endl;
       ret_c = -EBADE;
     } else {
-      std::string token = eostoken.Write(key) ;
-      outStream << token;
-      std::string dump;
-      eostoken.Dump(dump, true, true);
-      std::string voucherid = eostoken.Voucher();
-      {
-        eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+      const std::string wire = cred->Write(key);
 
-        if (Access::gAllowedTokens.size()) {
-          outStream << std::endl;
-          outStream <<
-                    "warning: the token will not be usuable without approval of an administrator!"
-                    << std::endl;
-          outStream << "         ask for token approval of voucher:id=" << voucherid <<
-                    std::endl;
-        }
-      }
-      std::string token_path;
-
-      if ((ret_c = StoreToken(dump, voucherid, token_path, mVid.uid, mVid.gid))) {
-        errStream << "error: could not store the token: " << ret_c << std::endl;
+      if (wire.empty()) {
+        errStream << "error: could not sign token" << std::endl;
+        ret_c = -EIO;
       } else {
-        // Routine successful issuance: log the audit-relevant claims as
-        // structured fields. Do not include the dump JSON (its content is
-        // already covered by the explicit fields below) and do not include
-        // the encoded wire token from `Write(key)`.
-        eos_info("msg=\"created token\" voucher=%s path=%s owner=%s group=%s "
-                 "perm=%s expires=%lu store=%s",
-                 eostoken.Voucher().c_str(),
-                 eostoken.Path().c_str(),
-                 eostoken.Owner().c_str(),
-                 eostoken.Group().c_str(),
-                 eostoken.Permission().c_str(),
-                 eostoken.Expires(),
-                 token_path.c_str());
+        outStream << wire;
+        std::string dump;
+        cred->Dump(dump, true, true);
+        std::string voucherid = cred->Voucher();
+        {
+          eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+
+          if (Access::gAllowedTokens.size()) {
+            outStream << std::endl;
+            outStream <<
+                      "warning: the token will not be usuable without approval of an administrator!"
+                      << std::endl;
+            outStream << "         ask for token approval of voucher:id=" << voucherid <<
+                      std::endl;
+          }
+        }
+        std::string token_path;
+
+        if ((ret_c = StoreToken(dump, voucherid, token_path, mVid.uid, mVid.gid))) {
+          errStream << "error: could not store the token: " << ret_c << std::endl;
+        } else {
+          // Routine successful issuance: log the audit-relevant claims as
+          // structured fields. Do not include the dump JSON (its content is
+          // already covered by the explicit fields below) and do not include
+          // the encoded wire token from `Write(key)`.
+          eos_info("msg=\"created token\" format=%s voucher=%s path=%s owner=%s "
+                   "group=%s perm=%s expires=%lu store=%s",
+                   use_jwt ? "jwt" : "eos",
+                   cred->Voucher().c_str(),
+                   cred->Path().c_str(),
+                   cred->Owner().c_str(),
+                   cred->Group().c_str(),
+                   cred->Permission().c_str(),
+                   static_cast<unsigned long>(cred->Expires()),
+                   token_path.c_str());
+        }
       }
     }
   } else {
@@ -364,14 +378,14 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     //      inspect tokens and, by definition, they can not match an origin
     //      that restricts the token to some remote client.
     // -------------------------------------------------------------------
-    if (!(ret_c = eostoken.Read(token.vtoken(), key,
-                                eos::common::EosTok::sTokenGeneration.load(),
-                                false))) {
+    if (!(ret_c = cred->Read(token.vtoken(), key,
+                              eos::common::EosTok::sTokenGeneration.load(),
+                              false))) {
       const bool privileged = (mVid.sudoer || mVid.HasUid(0) || (mVid.uid == 0));
       int origin_rc =
           (privileged ? 0
-                      : eostoken.VerifyOrigin(mVid.host, mVid.uid_string,
-                                              std::string(mVid.prot.c_str())));
+                      : cred->VerifyOrigin(mVid.host, mVid.uid_string,
+                                           std::string(mVid.prot.c_str())));
 
       if (origin_rc == -EBADE) {
         errStream << "error: one or several origin regexp's are invalid"
@@ -382,7 +396,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
         ret_c = origin_rc;
       } else {
         std::string dump;
-        eostoken.Dump(dump);
+        cred->Dump(dump, false, false);
         outStream << dump;
       }
     } else {

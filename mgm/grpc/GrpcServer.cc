@@ -26,6 +26,7 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
+#include "common/token/EosTok.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/proc/admin/IoCmd.hh"
 #include <XrdSec/XrdSecEntity.hh>
@@ -283,9 +284,9 @@ GrpcServer::Vid(grpc::ServerContext* context,
   // SECURITY: build the tident prefix.
   //
   // Previously the code used the raw authkey string as the tident prefix
-  // whenever no DN was present and the authkey was not a "zteos64:" EOS
-  // token (i.e. SSS / shared-secret style credentials). The resulting
-  // tident is stored on vid.tident by Mapping::IdMap and propagates into
+  // whenever no DN was present and the authkey was not an EOS token
+  // (zteos64 or typ=eos+jwt). The resulting tident is stored on vid.tident
+  // by Mapping::IdMap and propagates into
   // many log lines that run at >= INFO severity, including the
   // unauthorized-access path in mgm/macros/Macros.hh which uses eos_err.
   // That turned every audit/error log into a verbatim credential dump.
@@ -295,7 +296,7 @@ GrpcServer::Vid(grpc::ServerContext* context,
   // at DEBUG severity so operators can still correlate calls without the
   // credential bytes ever touching INFO+ logs.
   // ----------------------------------------------------------------------
-  const bool isEosToken = (authkey.compare(0, 8, "zteos64:") == 0);
+  const bool isEosToken = eos::common::EosTok::IsEosCredential(authkey);
   std::string tident;
 
   if (dn.length()) {

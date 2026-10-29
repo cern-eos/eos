@@ -104,6 +104,18 @@ public:
   sTokenGeneration; ///< generation value for token issuing/verification
 
   static bool IsEosToken(XrdOucEnv* env);
+
+  //----------------------------------------------------------------------------
+  //! True for a legacy zteos64 token or an EOS JWT (typ=eos+jwt), including
+  //! optional Bearer prefixes. Signature is not checked.
+  //----------------------------------------------------------------------------
+  static bool IsEosCredential(const std::string& authz);
+
+  //----------------------------------------------------------------------------
+  //! True when path is a token presented as the request path
+  //! (/zteos64:... or /<eos-jwt>).
+  //----------------------------------------------------------------------------
+  static bool IsEosTokenPath(const char* path);
 private:
 
   int Match(const std::string& input, const std::string& match);
