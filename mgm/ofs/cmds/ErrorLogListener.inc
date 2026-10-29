@@ -86,6 +86,9 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
   auto& logging = eos::common::Logging::GetInstance();
   const bool use_zstd = logging.IsZstdEnabled();
   FILE* file = nullptr;
+  // The logger thread started by Bind uses the logger object and is never
+  // stopped, not even by the destructor, so the logger must outlive it
+  std::unique_ptr<XrdSysLogger> logger;
 
   if (!use_zstd) {
     std::string err_msg;
@@ -105,10 +108,10 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
       return;
     }
 
-    XrdSysLogger logger(fileno(file), 1);
-    int retc = logger.Bind(log_path.c_str(), 1);
+    logger = std::make_unique<XrdSysLogger>(fileno(file), 1);
+    int retc = logger->Bind(log_path.c_str(), 1);
     // Disable XRootD log rotation
-    logger.setRotate(0);
+    logger->setRotate(0);
     eos_static_info("msg=\"starting error report listener\" mode=plain "
                     "path=\"%s\" bind_retc=%d", log_path.c_str(), retc);
   } else {
@@ -133,4 +136,7 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
     (void) fflush(file);
     (void) fclose(file);
   }
+
+  // Deliberately leaked, see above
+  (void) logger.release();
 }
