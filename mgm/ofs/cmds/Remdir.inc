@@ -93,7 +93,9 @@ XrdMgmOfs::_remdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-  eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
+  // The namespace lock in read mode excludes the writers that still take it in
+  // write mode, the MD locks below the ones using per-object locks
+  eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
   std::string aclpath;
   uid_t container_owner_uid = 0;
   bool container_vtx = false;
@@ -236,6 +238,31 @@ XrdMgmOfs::_remdir(const char* path,
       eos::ContainerIdentifier dhpar_id;
       eos::ContainerIdentifier dhpar_pid;
       std::string dh_name;
+      eos::MDLocking::BulkMDWriteLock md_locker;
+
+      if (dhpar) {
+        md_locker.add(dhpar.get());
+      }
+
+      md_locker.add(dh.get());
+      auto md_locks =
+          std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(md_locker.lockAll());
+
+      // A parallel rename or rmdir can change the directory after the lookup:
+      // check the locked object and remove it, not what the path names now
+      if (dhpar) {
+        if (dh->isDeleted() || (dh->getParentId() != dhpar->getId())) {
+          eos::MDException e(ENOENT);
+          e.getMessage() << path << ": No such file or directory";
+          throw e;
+        }
+
+        if (dh->getNumContainers() || dh->getNumFiles()) {
+          eos::MDException e(ENOTEMPTY);
+          e.getMessage() << path << ": Container is not empty";
+          throw e;
+        }
+      }
 
       // update the in-memory modification time of the parent directory
       if (dhpar) {
@@ -247,7 +274,15 @@ XrdMgmOfs::_remdir(const char* path,
         dh_name = dh->getName();
       }
 
-      eosView->removeContainer(path);
+      if (dhpar) {
+        // The same two steps as removeContainer(path), on the locked objects
+        gOFS->eosDirectoryService->removeContainer(dh.get());
+        dhpar->removeContainer(dh->getName());
+      } else {
+        eosView->removeContainer(path);
+      }
+
+      md_locks.reset();
       viewLock.Release();
 
       if (dhpar) {

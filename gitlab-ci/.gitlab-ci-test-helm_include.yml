@@ -321,6 +321,7 @@ helm_stress:
     - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
+    - kubectl exec eos-mgm-0 -- eos-contention-test /eos/dockertest 60
   artifacts:
     when: on_failure
     expire_in: 3 days

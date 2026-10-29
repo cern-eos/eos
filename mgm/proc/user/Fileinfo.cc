@@ -224,7 +224,6 @@ ProcCommand::FileInfo(const char* path)
   bool detached = false;
   uint64_t clock = 0;
   {
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
 
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -232,7 +231,6 @@ ProcCommand::FileInfo(const char* path)
                                  spath).getUnderlyingUInt64();
       // Reference by fid+fxid
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
       std::string nspath;
 
       try {
@@ -263,7 +261,6 @@ ProcCommand::FileInfo(const char* path)
     } else {
       // Reference by path
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
 
       try {
         fmd = gOFS->eosView->getFile(spath.c_str(), false);
@@ -302,7 +299,6 @@ ProcCommand::FileInfo(const char* path)
 
     if (!fmd) {
       retc = errno;
-      viewReadLock.Release();
       //-------------------------------------------
     } else {
       using eos::common::Timing;
@@ -313,7 +309,6 @@ ProcCommand::FileInfo(const char* path)
       std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
       fmd.reset();
       // TODO (esindril): All this copying should be reviewed
-      viewReadLock.Release();
       //-------------------------------------------
       uint32_t lid = fmd_copy->getLayoutId();
       XrdOucString sizestring;
@@ -675,7 +670,6 @@ ProcCommand::DirInfo(const char* path)
   bool detached = false;
   uint64_t clock = 0;
   {
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IContainerMD> dmd;
 
     if ((spath.beginswith("pid:") || (spath.beginswith("pxid:")))) {
@@ -694,7 +688,6 @@ ProcCommand::DirInfo(const char* path)
       // reference by pid+pxid
       //-------------------------------------------
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, fid);
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
       std::string nspath;
 
       try {
@@ -715,8 +708,6 @@ ProcCommand::DirInfo(const char* path)
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
       // reference by path
       //-------------------------------------------
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
-
       try {
         dmd = gOFS->eosView->getContainer(spath.c_str());
       } catch (eos::MDException& e) {
@@ -730,21 +721,21 @@ ProcCommand::DirInfo(const char* path)
 
     if (!dmd) {
       retc = errno;
-      viewReadLock.Release();
       //-------------------------------------------
     } else {
       using eos::common::Timing;
       using eos::common::FileId;
       using eos::common::LayoutId;
       using eos::common::StringConversion;
+      auto dmdLock = eos::MDLocking::readLock(dmd.get());
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
       size_t tree_size = dmd->getTreeSize();
       uint64_t tree_containers = dmd->getTreeContainers();
       uint64_t tree_files = dmd->getTreeFiles();
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
+      dmdLock.reset();
       dmd.reset();
-      viewReadLock.Release();
       //-------------------------------------------
       XrdOucString sizestring;
       bool Monitoring = false;
@@ -880,7 +871,7 @@ ProcCommand::DirInfo(const char* path)
 // File info in JSON format
 //------------------------------------------------------------------------------
 int
-ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
+ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 {
   using eos::common::LayoutId;
   eos::IFileMD::ctime_t ctime;
@@ -894,14 +885,9 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
   try {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
     std::string path;
     bool detached;
-
-    if (dolock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
-    }
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
@@ -912,20 +898,12 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                        e.getMessage().str().c_str());
 
       if (!fmd) {
-        if (dolock) {
-          viewReadLock.Release();
-        }
-
         std::rethrow_exception(std::current_exception());
       }
     }
 
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
-
-    if (dolock) {
-      viewReadLock.Release();
-    }
 
     // TODO (esindril): All this copying should be reviewed
     //--------------------------------------------------------------------------
@@ -1078,7 +1056,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 // Get directory info in JSON format
 //------------------------------------------------------------------------------
 int
-ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock, bool with_children)
+ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool with_children)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
@@ -1089,15 +1067,10 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock, bool with
   json["id"] = (Json::Value::UInt64) fid;
 
   try {
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IContainerMD> cmd;
     std::string path;
     bool detached;
     eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
-
-    if (dolock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
-    }
 
     try {
       cmd = gOFS->eosDirectoryService->getContainerMD(fid);
@@ -1108,11 +1081,11 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock, bool with
                        e.getMessage().str().c_str());
 
       if (!cmd) {
-        viewReadLock.Release();
         std::rethrow_exception(std::current_exception());
       }
     }
 
+    auto cmdLock = eos::MDLocking::readLock(cmd.get());
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
@@ -1160,21 +1133,21 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock, bool with
       cmd_copy->InheritChildren(*(cmd.get()));
     }
 
+    cmdLock.reset();
     cmd.reset();
-    viewReadLock.Release();
 
     if (with_children) {
       if (!ret_json) {
         for (auto it = FileMapIterator(cmd_copy); it.valid(); it.next()) {
           Json::Value fjson;
-          FileJSON(it.value(), &fjson, true);
+          FileJSON(it.value(), &fjson);
           chld.append(fjson);
         }
 
         // Loop through all subcontainers
         for (auto dit = ContainerMapIterator(cmd_copy); dit.valid(); dit.next()) {
           Json::Value djson;
-          DirJSON(dit.value(), &djson, true);
+          DirJSON(dit.value(), &djson);
           chld.append(djson);
         }
       }

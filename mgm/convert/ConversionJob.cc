@@ -29,6 +29,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -166,9 +167,9 @@ void ConversionJob::DoIt() noexcept
 
   // Retrieve file metadata
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     mSourcePath = gOFS->eosView->getUri(fmd.get());
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
     source_size = fmd->getSize();
     src_locations = fmd->getLocations();
     src_unlink_loc = fmd->getUnlinkedLocations();
@@ -281,7 +282,6 @@ void ConversionJob::DoIt() noexcept
   //  - Merge the conversion entry
   // Verify new file has all fragments according to layout
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(mConversionPath);
     size_t expected = LayoutId::GetStripeNumber(mConversionInfo.mLid) + 1;
     size_t actual = fmd->getNumLocation();
@@ -301,7 +301,6 @@ void ConversionJob::DoIt() noexcept
   // Verify initial file hasn't changed
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mConversionInfo.mFid);
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs_postconversion);
   } catch (eos::MDException& e) {
@@ -339,7 +338,6 @@ void ConversionJob::DoIt() noexcept
   if (gOFS->mTapeEnabled) {
     try {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       const auto fmd = gOFS->eosView->getFile(mSourcePath);
 
       if (nullptr != fmd && fmd->hasAttribute("sys.archive.file_id")) {
@@ -431,7 +429,6 @@ ConversionJob::Merge()
   std::list<eos::IFileMD::location_t> conv_locations;
   eos::IFileMD::id_t orig_fid {0ull}, conv_fid {0ull};
   std::shared_ptr<eos::IFileMD> orig_fmd, conv_fmd;
-  bool has_quota = Quota::RemoveFile(mFid);
   {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
@@ -441,20 +438,22 @@ ConversionJob::Merge()
     } catch (const eos::MDException& e) {
       eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
                      e.what());
-
-      if (has_quota) {
-        ns_rd_lock.Release();
-        Quota::AddFile(mFid);
-      }
-
       return false;
     }
 
     orig_fid = orig_fmd->getId();
     conv_fid = conv_fmd->getId();
+    const auto new_locations = conv_fmd->getLocations();
+    eos::MDLocking::FileWriteLock fmdLock(orig_fmd.get());
+
+    // Removed while it was converted: new locations would never be deleted
+    if (orig_fmd->getContainerId() == 0) {
+      eos_static_err("msg=\"file removed during conversion\" fxid=%08llx", orig_fid);
+      return false;
+    }
 
     // Add the new locations
-    for (const auto& loc : conv_fmd->getLocations()) {
+    for (const auto& loc : new_locations) {
       orig_fmd->addLocation(loc);
       conv_locations.push_back(loc);
     }
@@ -542,6 +541,8 @@ ConversionJob::Merge()
       return false;
     }
 
+    auto fmdLock = eos::MDLocking::writeLock(orig_fmd.get());
+
     // Unlink all the newly added locations
     for (const auto& loc : orig_fmd->getLocations()) {
       if (std::find(conv_locations.begin(), conv_locations.end(), loc) !=
@@ -551,12 +552,6 @@ ConversionJob::Merge()
     }
 
     gOFS->eosView->updateFileStore(orig_fmd.get());
-
-    if (has_quota) {
-      ns_rd_lock.Release();
-      Quota::AddFile(mFid);
-    }
-
     return false;
   }
 
@@ -571,6 +566,36 @@ ConversionJob::Merge()
       eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
                      e.what());
       return false;
+    }
+
+    // The quota counts the physical size, which depends on the layout: move
+    // the file to the new layout in the quota under the same lock as the
+    // layout change. The quota node lookup walks up the parents, so it runs
+    // before the file lock; a rename can move the file meanwhile.
+    eos::MDLocking::FileWriteLockPtr fmdLock;
+    eos::IQuotaNode* ns_quota = nullptr;
+    eos::IContainerMD::id_t qcid;
+
+    do {
+      fmdLock.reset();
+      ns_quota = nullptr;
+      qcid = orig_fmd->getContainerId();
+
+      try {
+        ns_quota = gOFS->eosView->getQuotaNode(
+            gOFS->eosDirectoryService->getContainerMD(qcid).get());
+      } catch (const eos::MDException& e) {
+      }
+
+      fmdLock = eos::MDLocking::writeLock(orig_fmd.get());
+    } while (orig_fmd->getContainerId() != qcid);
+
+    if (orig_fmd->isDeleted()) {
+      ns_quota = nullptr;
+    }
+
+    if (ns_quota) {
+      ns_quota->removeFile(orig_fmd.get());
     }
 
     // Unlink the old locations from the original file object
@@ -588,17 +613,16 @@ ConversionJob::Merge()
     // Update the new layout id
     orig_fmd->setLayoutId(mConversionInfo.mLid);
 
+    if (ns_quota) {
+      ns_quota->addFile(orig_fmd.get());
+    }
+
     // If requested then also update the ctime of the original file
     if (mConversionInfo.mUpdateCtime) {
       orig_fmd->setCTimeNow();
     }
 
     gOFS->eosView->updateFileStore(orig_fmd.get());
-  }
-
-  // Update quota node given the new possible layout
-  if (has_quota) {
-    Quota::AddFile(mFid);
   }
 
   // Trigger a resync of the local information for the new locations

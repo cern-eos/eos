@@ -22,14 +22,15 @@
  ************************************************************************/
 
 #include "mgm/quota/Quota.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "mgm/config/IConfigEngine.hh"
 #include <errno.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -2901,7 +2902,8 @@ Quota::RemoveFile(eos::IFileMD::id_t fid)
   std::shared_ptr<eos::IFileMD> fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> cmd {nullptr};
   eos::IQuotaNode* ns_quota {nullptr};
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  // The quota nodes are added and removed under the namespace write lock
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
     fmd = gOFS->eosFileService->getFileMD(fid);
@@ -2912,6 +2914,13 @@ Quota::RemoveFile(eos::IFileMD::id_t fid)
   }
 
   if (ns_quota && fmd) {
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
+
+    // Removed or moved after the lookup: the quota node is not the right one
+    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+      return false;
+    }
+
     ns_quota->removeFile(fmd.get());
     return true;
   }
@@ -2928,7 +2937,8 @@ Quota::AddFile(eos::IFileMD::id_t fid)
   std::shared_ptr<eos::IFileMD> fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> cmd {nullptr};
   eos::IQuotaNode* ns_quota {nullptr};
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  // The quota nodes are added and removed under the namespace write lock
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
     fmd = gOFS->eosFileService->getFileMD(fid);
@@ -2939,6 +2949,13 @@ Quota::AddFile(eos::IFileMD::id_t fid)
   }
 
   if (ns_quota && fmd) {
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
+
+    // Removed or moved after the lookup: the quota node is not the right one
+    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+      return false;
+    }
+
     ns_quota->addFile(fmd.get());
     return true;
   }

@@ -129,7 +129,6 @@ FsckEntry::CollectMgmInfo()
     // we need to clean it up and mark the parentId with 0 otherwise the fsck
     // mechanism gets confused.
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
     } catch (const eos::MDException& e) {
       // Same reasoning as above, only a missing container marks the file as
@@ -574,6 +573,7 @@ FsckEntry::RepairMgmXsSzDiff()
         // Grab the file metadata object and update it
         eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
+        eos::MDLocking::FileWriteLock fmdLock(fmd.get());
         fmd->setChecksum(xs_buff);
         fmd->setSize(sz_val);
         gOFS->eosView->updateFileStore(fmd.get());
@@ -776,6 +776,7 @@ FsckEntry::RepairRainInconsistencies()
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           auto fmd = gOFS->eosFileService->getFileMD(mFid);
+          eos::MDLocking::FileWriteLock fmdLock(fmd.get());
           fmd->addLocation(*mFsidErr.begin());
           gOFS->eosView->updateFileStore(fmd.get());
         } catch (const eos::MDException& e) {
@@ -1011,6 +1012,7 @@ FsckEntry::RepairReplicaInconsistencies()
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
         eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
+        eos::MDLocking::FileWriteLock fmdLock(fmd.get());
         fmd->unlinkLocation(drop_fsid);
         fmd->removeLocation(drop_fsid);
         gOFS->eosView->updateFileStore(fmd.get());
@@ -1081,6 +1083,7 @@ FsckEntry::RepairReplicaInconsistencies()
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
             eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
             auto fmd = gOFS->eosFileService->getFileMD(mFid);
+            eos::MDLocking::FileWriteLock fmdLock(fmd.get());
             fmd->addLocation(new_fsid);
             gOFS->eosView->updateFileStore(fmd.get());
             eos_info("msg=\"attached unregistered replica\" fxid=%08llx "

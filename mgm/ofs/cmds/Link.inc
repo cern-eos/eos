@@ -225,11 +225,22 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, the parent lock the ones using MD locks
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
             oPath.GetParentPath());
+      auto dirLock = eos::MDLocking::writeLock(dir.get());
+
+      // A parallel rmdir removed the parent while this thread waited for its lock
+      if (dir->isDeleted()) {
+        eos::MDException e(ENOENT);
+        e.getMessage() << "symlink: parent directory was removed";
+        throw e;
+      }
+
       eosView->createLink(oPath.GetPath(), target_name,
                           vid.uid, vid.gid);
       dir->setMTimeNow();
@@ -237,6 +248,7 @@ XrdMgmOfs::_symlink(const char* source_name,
       eosView->updateContainerStore(dir.get());
       eos::ContainerIdentifier dir_id = dir->getIdentifier();
       eos::ContainerIdentifier dir_pid = dir->getParentIdentifier();
+      dirLock.reset();
       lock.Release();
       gOFS->FuseXCastRefresh(dir_id, dir_pid);
     } catch (eos::MDException& e) {
@@ -315,7 +327,6 @@ XrdMgmOfs::_readlink(const char* name,
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, sname, false);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
     std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);

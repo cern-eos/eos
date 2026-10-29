@@ -21,20 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/Logging.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/misc/AuditHelpers.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "namespace/MDLocking.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/ofs/fsctl/CommitHelper.hh"
-#include "namespace/Prefetcher.hh"
-#include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
-#include "mgm/misc/AuditHelpers.hh"
+#include "proto/Audit.pb.h"
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
@@ -175,8 +176,10 @@ XrdMgmOfs::Commit(const char* path,
     std::string fmdname;
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      // Keep the lock order View => Namespace => Quota
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      // Keep the lock order View => Namespace => Quota. The namespace lock in
+      // read mode excludes the writers that still take it in write mode, the
+      // MD locks below exclude the ones that use per-object locks.
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       errno = 0;
 
       try {
@@ -199,6 +202,49 @@ XrdMgmOfs::Commit(const char* path,
 
         emsg.insert(0, "commit filesize change [EIO]");
         return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
+      }
+
+      // Lock the parent container and the file together, as rename does. The
+      // quota node lookup walks up the parents, so it runs before the MD
+      // locks. A rename can move the file in between: then try again.
+      std::shared_ptr<eos::IContainerMD> dir;
+      eos::IQuotaNode* ns_quota = nullptr;
+      std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
+
+      while ((cid = fmd->getContainerId())) {
+        try {
+          dir = gOFS->eosDirectoryService->getContainerMD(cid);
+        } catch (eos::MDException& e) {
+          eos_thread_err("parent_id=%llu not found", cid);
+          gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
+          return Emsg(epname, error, EIDRM,
+                      "commit file, parent container removed [EIDRM]", "");
+        }
+
+        try {
+          ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+        } catch (const eos::MDException& e) {
+          ns_quota = nullptr;
+        }
+
+        eos::MDLocking::BulkMDWriteLock md_locker;
+        md_locker.add(dir.get());
+        md_locker.add(fmd.get());
+        md_locks =
+            std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(md_locker.lockAll());
+
+        if (fmd->getContainerId() == cid) {
+          break;
+        }
+
+        md_locks.reset();
+      }
+
+      // A drop of the last replica can remove the record meanwhile: its
+      // container id stays, so check the removal itself
+      if (fmd->isDeleted()) {
+        return Emsg(epname, error, EIDRM,
+                    "commit filesize change - file is already removed [EIDRM]", "");
       }
 
       unsigned long lid = fmd->getLayoutId();
@@ -278,11 +324,7 @@ XrdMgmOfs::Commit(const char* path,
       bool update = false;
 
       for (const auto id : fsids) {
-        if (!CommitHelper::handle_location(vid, cid, fmd, id, size, cgi, option)) {
-          return Emsg(epname, error, EIDRM,
-                      "commit file, parent container removed [EIDRM]", "");
-        }
-
+        CommitHelper::handle_location(vid, ns_quota, fmd, id, size, cgi, option);
         update = update || option["update"];
       }
 
@@ -391,7 +433,8 @@ XrdMgmOfs::Commit(const char* path,
       eos::FileIdentifier f_ident = fmd->getIdentifier();
       eos::ContainerIdentifier c_ident = eos::ContainerIdentifier(
                                            fmd->getContainerId());
-      ns_wr_lock.Release();
+      md_locks.reset();
+      ns_rd_lock.Release();
 
       if (option["update"]) {
         // broadcast file md
@@ -493,7 +536,7 @@ XrdMgmOfs::Commit(const char* path,
 
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd;
       std::string emsg;
 
@@ -517,6 +560,28 @@ XrdMgmOfs::Commit(const char* path,
 
         emsg.insert(0, "commit filesize change [EIO]");
         return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
+      }
+
+      // commit_fmd changes the parent too: lock the parent and the file
+      // together, as the size commit above does
+      const eos::IContainerMD::id_t alt_cid = fmd->getContainerId();
+      std::shared_ptr<eos::IContainerMD> alt_dir;
+
+      try {
+        alt_dir = gOFS->eosDirectoryService->getContainerMD(alt_cid);
+      } catch (eos::MDException& e) {
+        return Emsg(epname, error, EIDRM, "commit - file is already removed [EIDRM]", "");
+      }
+
+      eos::MDLocking::BulkMDWriteLock md_locker;
+      md_locker.add(alt_dir.get());
+      md_locker.add(fmd.get());
+      auto md_locks = md_locker.lockAll();
+
+      // A rename or a drop changed the file after the lookup
+      if (fmd->isDeleted() || (fmd->getContainerId() != alt_cid)) {
+        return Emsg(epname, error, EIDRM, "commit - file was moved or removed [EIDRM]",
+                    "");
       }
 
       if (cgi["altxs"].length()) {

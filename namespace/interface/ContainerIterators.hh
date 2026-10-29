@@ -39,6 +39,9 @@ class FileMapIterator
 public:
   FileMapIterator(IContainerMDPtr cont)
     : container(cont), iResized(false), iValid(false) {
+    // Writers change the map under the container lock: read it under the
+    // lock, as next() does
+    eos::MDLocking::ContainerReadLock readLocker(container.get());
     iter = cont->filesBegin();
     iGeneration = generation();
     if (!iterEnd()) {
@@ -151,6 +154,9 @@ class ContainerMapIterator
 public:
   ContainerMapIterator(IContainerMDPtr cont)
     : container(cont), iResized(false), iValid(false) {
+    // Writers change the map under the container lock: read it under the
+    // lock, as next() does
+    eos::MDLocking::ContainerReadLock readLocker(container.get());
     iter = cont->subcontainersBegin();
     iGeneration = generation();
     if (!iterEnd()) {

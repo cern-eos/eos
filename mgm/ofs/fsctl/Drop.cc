@@ -29,6 +29,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "mgm/stat/Stat.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -113,13 +114,15 @@ XrdMgmOfs::Drop(const char* path,
     // starving the namespace of resources.
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     {
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      // The namespace lock in read mode excludes the writers that still take
+      // it in write mode, the MD locks below the ones using MD locks
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
       try {
         fmd = eosFileService->getFileMD(fid);
       } catch (...) {
         eos_thread_warning("msg=\"no meta record exists anymore\" fxid=%s", afid);
-        ns_wr_lock.Release();
+        ns_rd_lock.Release();
         fmd = nullptr;
 
         if (is_pio_drop) {
@@ -131,6 +134,32 @@ XrdMgmOfs::Drop(const char* path,
       }
 
       if (fmd) {
+        // Lock the parent container (if any) and the file together, as
+        // commit does. The quota node lookup walks up the parents, so it runs
+        // before the MD locks. A rename can move the file in between: then
+        // try again.
+        std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
+        eos::IContainerMD::id_t cid;
+
+        do {
+          md_locks.reset();
+          container.reset();
+          ns_quota = nullptr;
+          cid = fmd->getContainerId();
+
+          try {
+            container = gOFS->eosDirectoryService->getContainerMD(cid);
+            ns_quota = gOFS->eosView->getQuotaNode(container.get());
+          } catch (eos::MDException& e) {
+          }
+
+          eos::MDLocking::BulkMDWriteLock md_locker;
+          md_locker.add(container.get());
+          md_locker.add(fmd.get());
+          md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+              md_locker.lockAll());
+        } while (fmd->getContainerId() != cid);
+
         std::string locations;
 
         try {
@@ -138,19 +167,13 @@ XrdMgmOfs::Drop(const char* path,
         } catch (...) {}
 
         try {
-          container =
-            gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-        } catch (eos::MDException& e) {}
-
-        if (container) {
-          try {
-            ns_quota = gOFS->eosView->getQuotaNode(container.get());
-          } catch (eos::MDException& e) {
-            ns_quota = nullptr;
+          // Removed by a parallel drop of the last replica meanwhile: only the
+          // file system view entry is left
+          if (fmd->isDeleted()) {
+            gOFS->eosFsView->eraseEntry(fsid, fid);
+            throw eos::MDException(ENOENT);
           }
-        }
 
-        try {
           std::vector<unsigned int> drop_fsid;
           bool updatestore = false;
           // If mgm.dropall flag is set then it means we got a deleteOnClose
@@ -228,7 +251,8 @@ XrdMgmOfs::Drop(const char* path,
               container->notifyMTimeChange(gOFS->eosDirectoryService);
               eos::ContainerIdentifier container_id = container->getIdentifier();
               eos::ContainerIdentifier container_pid = container->getParentIdentifier();
-              ns_wr_lock.Release();
+              md_locks.reset();
+              ns_rd_lock.Release();
               gOFS->FuseXCastRefresh(container_id, container_pid);
             }
           }

@@ -22,13 +22,14 @@
  ************************************************************************/
 
 #include "ProcDirectoryBulkRequestDAO.hh"
-#include "mgm/stat/Stat.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/stat/Stat.hh"
+#include "namespace/MDLocking.hh"
+#include "namespace/interface/IView.hh"
 #include <common/StringConversion.hh>
 #include <namespace/Prefetcher.hh>
-#include "namespace/interface/IView.hh"
-#include "mgm/proc/ProcCommand.hh"
-#include "mgm/bulk-request/BulkRequestFactory.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -134,7 +135,6 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(
     std::string fid;
 
     try {
-      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex);
       file = mFileSystem->eosView->getFile(currentFilePath);
       fid = std::to_string(file->getId());
     } catch (const eos::MDException& ex) {
@@ -169,10 +169,9 @@ void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(
 {
   std::shared_ptr<eos::IContainerMD> bulkReqDirMd;
   {
-    eos::common::RWMutexWriteLock nsLock(mFileSystem->eosViewRWMutex);
-
     try {
       bulkReqDirMd = mFileSystem->eosView->getContainer(directoryBulkReqPath);
+      eos::MDLocking::ContainerWriteLock cmdLock(bulkReqDirMd.get());
 
       for (auto& xattr : xattrs) {
         bulkReqDirMd->setAttribute(xattr.first, xattr.second);
@@ -499,8 +498,6 @@ void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(
   std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>>& filesWithFuture,
   BulkRequest* bulkRequest)
 {
-  eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex);
-
   for (auto& fileWithFuture : filesWithFuture) {
     try {
       fileWithFuture.second.wait();

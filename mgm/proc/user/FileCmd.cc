@@ -360,8 +360,6 @@ FileCmd::DropCacheLocation(const std::string& spath, unsigned long long fid,
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IContainerMD::id_t cid = 0ull;
     {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
       if (fid) {
         fmd = gOFS->eosFileService->getFileMD(fid);
       } else {
@@ -378,7 +376,6 @@ FileCmd::DropCacheLocation(const std::string& spath, unsigned long long fid,
 
     // Same permission model as stripe drop: parent needs W_OK|X_OK
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
       errno = 0;
 
@@ -447,14 +444,14 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
     // only root can do that
     if (mVid.uid == 0) {
       std::shared_ptr<eos::IFileMD> fmd;
-      eos::common::RWMutexWriteLock viewWriteLock;
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      eos::MDLocking::FileWriteLockPtr fmdLock;
       XrdOucString xspath = spath.c_str();
 
       if (xspath.beginswith("fid:") || xspath.beginswith("fxid:")) {
         WAIT_BOOT;
         unsigned long long lfid =
             Resolver::retrieveFileIdentifier(xspath).getUnderlyingUInt64();
-        viewWriteLock.Grab(gOFS->eosViewRWMutex);
 
         try {
           fmd = gOFS->eosFileService->getFileMD(lfid);
@@ -465,8 +462,6 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
                     e.getMessage().str().c_str());
         }
       } else {
-        viewWriteLock.Grab(gOFS->eosViewRWMutex);
-
         try {
           fmd = gOFS->eosView->getFile(spath.c_str());
         } catch (eos::MDException& e) {
@@ -478,6 +473,7 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
       }
 
       if (fmd) {
+        fmdLock = eos::MDLocking::writeLock(fmd.get());
         bool only_replica = false;
         bool only_tape = false;
         bool any_layout = false;
@@ -535,7 +531,8 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
         std_err << "error: no such file";
       }
 
-      viewWriteLock.Release();
+      fmdLock.reset();
+      ns_rd_lock.Release();
     } else {
       reply.set_retc(EPERM);
       std_err << "error: you have to take role 'root' to execute this command";
@@ -589,7 +586,6 @@ FileCmd::VerifySubcmd(const eos::console::FileVerifyProto& verify,
 
   // only root can do that
   if (mVid.uid == 0) {
-    eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
     XrdOucString xspath = spath.c_str();
 
@@ -651,7 +647,6 @@ FileCmd::VerifySubcmd(const eos::console::FileVerifyProto& verify,
         }
       }
 
-      viewReadLock.Release();
       retc = 0;
       bool acceptfound = false;
 
@@ -992,7 +987,6 @@ FileCmd::WorkflowSubcmd(const eos::console::FileWorkflowProto& workflow,
   if (spath.beginswith("fid:") || spath.beginswith("fxid:")) {
     unsigned long long lfid =
         Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
@@ -1007,7 +1001,6 @@ FileCmd::WorkflowSubcmd(const eos::console::FileWorkflowProto& workflow,
       return;
     }
   } else {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
@@ -1101,6 +1094,9 @@ FileCmd::TagSubcmd(const eos::console::FileTagProto& tag, const std::string& spa
       fmd = gOFS->eosView->getFile(spath.c_str());
     }
 
+    // A location change: the namespace lock in read mode excludes the
+    // writers that still take it in write mode
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::MDLocking::FileWriteLock fwLock(fmd.get());
 
     if (do_add && fmd->hasLocation(fsid)) {
@@ -1411,10 +1407,9 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
           eos::common::LayoutId::layoutid_t layoutid = 0;
           eos::common::FileId::fileid_t fileid = 0;
           {
-            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
             try {
               fmd = gOFS->eosView->getFile(spath.c_str());
+              eos::MDLocking::FileReadLock fmdLock(fmd.get());
               layoutid = fmd->getLayoutId();
               fileid = fmd->getId();
 
@@ -1700,8 +1695,6 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
   }
 
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
     if (spath.beginswith("fid:") || spath.beginswith("fxid:")) {
       WAIT_BOOT;
       unsigned long long lfid =
@@ -1725,6 +1718,7 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
     }
 
     if (fmd) {
+      eos::MDLocking::FileReadLock fmdLock(fmd.get());
       fid = fmd->getId();
       lid = fmd->getLayoutId();
       loc_vect = fmd->getLocations();
@@ -1985,10 +1979,11 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
                   << std::endl;
         }
 
-        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           auto fmd2 = gOFS->eosFileService->getFileMD(fid);
+          eos::MDLocking::FileWriteLock fmdLock(fmd2.get());
 
           for (unsigned int i = 0; i < fsid2delete.size(); i++) {
             if (fmd2->hasLocation(fsid2delete[i])) {
@@ -2276,7 +2271,6 @@ FileCmd::VersionsSubcmd(const eos::console::FileVersionsProto& versions,
   {
     // Copy the xattrs of the current file to the newly restored one
     std::set<std::string> exclude_xattrs{"sys.utrace", "sys.vtrace"};
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto versioned_fmd = gOFS->eosView->getFile(versionedpath.c_str());
     auto restored_fmd = gOFS->eosView->getFile(spath.c_str());
 
@@ -2287,6 +2281,7 @@ FileCmd::VersionsSubcmd(const eos::console::FileVersionsProto& versions,
     }
 
     eos::IFileMD::XAttrMap map_xattrs = versioned_fmd->getAttributes();
+    eos::MDLocking::FileWriteLock fmdLock(restored_fmd.get());
 
     for (const auto& xattr : map_xattrs) {
       if (exclude_xattrs.find(xattr.first) == exclude_xattrs.end()) {

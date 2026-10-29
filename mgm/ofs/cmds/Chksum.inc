@@ -115,7 +115,6 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   bool enonet = false;
 
   try {
@@ -138,7 +137,6 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   if (enonet) {
     // File has no committed replicas, we might bounce to an alive remote master
     if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
-      lock.Release();
       // redirect ENONET to an alive remote master
       int port {0};
       std::string hostname;
@@ -168,6 +166,7 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   }
 
   // Set the checksum type
+  eos::MDLocking::FileReadLock fmdLock(fmd.get());
   std::string cksum_type = eos::common::LayoutId::GetChecksumStringReal(
                              fmd->getLayoutId());
   sprintf(buff, "!%s ", cksum_type.c_str());

@@ -612,34 +612,15 @@ CommitHelper::log_verifychecksum(eos::common::VirtualIdentity& vid,
 // handle replica location updates
 //------------------------------------------------------------------------------
 
-bool
+void
 CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
-                              unsigned long cid,
-                              std::shared_ptr<eos::IFileMD> fmd,
-                              unsigned long fsid,
-                              unsigned long long size,
-                              CommitHelper::cgi_t& cgi,
+                              eos::IQuotaNode* ns_quota,
+                              std::shared_ptr<eos::IFileMD> fmd, unsigned long fsid,
+                              unsigned long long size, CommitHelper::cgi_t& cgi,
                               CommitHelper::option_t& option)
 {
   // For changing the modification time we have to figure out if we
   // just attach a new replica or if we have a change of the contents
-  std::shared_ptr<eos::IContainerMD> dir;
-
-  try {
-    dir = gOFS->eosDirectoryService->getContainerMD(cid);
-  } catch (eos::MDException& e) {
-    eos_thread_err("parent_id=%llu not found", cid);
-    gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
-    return false;
-  }
-
-  eos::IQuotaNode* ns_quota = nullptr;
-
-  try {
-    ns_quota = gOFS->eosView->getQuotaNode(dir.get());
-  } catch (const eos::MDException& e) {
-    // empty
-  }
 
   // Free previous quota
   if (ns_quota) {
@@ -706,8 +687,6 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
   if (ns_quota) {
     ns_quota->addFile(fmd.get());
   }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -832,7 +811,6 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
 {
   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
   std::shared_ptr<eos::IFileMD> versionfmd;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     auto fmd = gOFS->eosFileService->getFileMD(fid);

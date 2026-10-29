@@ -22,13 +22,14 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
-#include "common/LayoutId.hh"
 #include "mgm/workflow/Workflow.hh"
+#include "common/Constants.hh"
+#include "common/LayoutId.hh"
+#include "common/Logging.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/wfe/WFE.hh"
-#include "mgm/fsview/FsView.hh"
-#include "common/Constants.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -128,9 +129,9 @@ Workflow::getCGICloseW(const std::string& workflow,
 
     try {
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       fullPath = gOFS->eosView->getUri(fmd.get());
+      eos::MDLocking::FileReadLock fmdLock(fmd.get());
       cuid = fmd->getCUid();
       cgid = fmd->getCGid();
     } catch (eos::MDException& e) {

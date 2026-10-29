@@ -179,7 +179,6 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       cPath.GetPath());
   //----------------------------------------------------------------------------
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   std::string cacheentry;
 
   try {
@@ -189,7 +188,6 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     dh->getMTime(mtime);
     cacheentry = getCacheName(dh->getId(), mtime.tv_sec, mtime.tv_nsec,
                               env.Get("ls.skip.files"), env.Get("ls.skip.directories"));
-    lock.Release();
     permok = (!vid.token) ? dh->access(vid.uid, vid.gid, R_OK | X_OK) : false;
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     // ACL and permission check

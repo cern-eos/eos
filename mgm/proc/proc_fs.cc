@@ -210,16 +210,22 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
         gOFS->eosView, gOFS->eosFsView, fsid);
     }
 
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    // Copy the ids first: the iterator holds the mutex of the list, and a
+    // writer holding MD locks of a file waits for it to update the list
+    std::vector<eos::IFileMD::id_t> fids;
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
+      fids.push_back(it_fid->getElement());
+    }
+
+    for (const auto fid : fids) {
       std::shared_ptr<eos::IFileMD> fmd;
       std::string containerpath;
       std::string fullpath;
 
       try {
-        fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+        fmd = gOFS->eosFileService->getFileMD(fid);
 
         if (fmd) {
           entries++;
@@ -234,10 +240,16 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
               eos::common::StringConversion::SealXrdPath(safepath);
               containerpath = safepath.c_str();
             } catch (eos::MDException& e) {
+              if (!gOFS->eosFsView->hasFileId(fid, fsid)) {
+                // Removed from this file system after the ids were copied
+                entries--;
+                continue;
+              }
+
               errno = e.getErrno();
               eos_static_err("Couldn't retrieve path for fxid=%08llx "
-                             "errc=%d emsg=\"%s\"", it_fid->getElement(),
-                             e.getErrno(), e.getMessage().str().c_str());
+                             "errc=%d emsg=\"%s\"",
+                             fid, e.getErrno(), e.getMessage().str().c_str());
             }
           }
 
@@ -286,13 +298,19 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_static_err("Couldn't retrieve meta data for fxid=%llx errc=%d "
-                       "emsg=\"%s\"", (unsigned long long) it_fid->getElement(),
-                       e.getErrno(), e.getMessage().str().c_str());
+                       "emsg=\"%s\"",
+                       (unsigned long long)fid, e.getErrno(),
+                       e.getMessage().str().c_str());
+      }
+
+      if (!fmd && !gOFS->eosFsView->hasFileId(fid, fsid)) {
+        // Removed from this file system after the ids were copied
+        continue;
       }
 
       if (!fmd) {
-        warn << "# warning: ghost entry fxid=" << std::setw(8) << std::hex
-             << it_fid->getElement() << std::dec << std::endl;
+        warn << "# warning: ghost entry fxid=" << std::setw(8) << std::hex << fid
+             << std::dec << std::endl;
         retc = EIDRM;
       } else if (processPath && containerpath.empty()) {
         warn << "# warning: missing container for fxid=" << std::setw(8)
@@ -303,12 +321,18 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
 
     if (monitor) {
       // Also add files which have yet to be unlinked
+      fids.clear();
+
       for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fsid);
            (it_fid && it_fid->valid()); it_fid->next()) {
+        fids.push_back(it_fid->getElement());
+      }
+
+      for (const auto fid : fids) {
         std::shared_ptr<eos::IFileMD> fmd;
 
         try {
-          fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+          fmd = gOFS->eosFileService->getFileMD(fid);
 
           if (fmd) {
             entries++;
@@ -321,8 +345,8 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_static_err("Couldn't retrieve meta data for fxid=%08llx errc=%d "
-                         "emsg=\"%s\"", it_fid->getElement(), e.getErrno(),
-                         e.getMessage().str().c_str());
+                         "emsg=\"%s\"",
+                         fid, e.getErrno(), e.getMessage().str().c_str());
         }
       }
     }
@@ -1518,8 +1542,6 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
     return EPERM;
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
   if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
     out = SSTR("success: dropped deletions on fsid=" << fsid).c_str();
   } else {
@@ -1550,37 +1572,28 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
 
   std::set<eos::IFileMD::id_t> to_delete;
 
-  if (set_fids.empty()) {
-    // We check all the files on that filesystem
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  std::vector<eos::IFileMD::id_t> fids(set_fids.begin(), set_fids.end());
 
+  if (set_fids.empty()) {
+    // We check all the files on that filesystem. Copy the ids first: the
+    // iterator holds the mutex of the list, which the writers of locations
+    // need, and the lookups below can go to the backend.
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
-      try {
-        auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
-      } catch (eos::MDException& e) {
-        if (e.getErrno() == ENOENT) {
-          out += SSTR("# removing id: " << it_fid->getElement() << "\n").c_str();
-          to_delete.insert(it_fid->getElement());
-        }
-      }
-    }
-  } else {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
-    for (const auto& fid : set_fids) {
-      try {
-        auto fmd = gOFS->eosFileService->getFileMD(fid);
-      } catch (eos::MDException& e) {
-        if (e.getErrno() == ENOENT) {
-          out += SSTR("# removing id: " << fid << "\n").c_str();
-          to_delete.insert(fid);
-        }
-      }
+      fids.push_back(it_fid->getElement());
     }
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  for (const auto& fid : fids) {
+    try {
+      auto fmd = gOFS->eosFileService->getFileMD(fid);
+    } catch (eos::MDException& e) {
+      if (e.getErrno() == ENOENT) {
+        out += SSTR("# removing id: " << fid << "\n").c_str();
+        to_delete.insert(fid);
+      }
+    }
+  }
 
   for (const auto& fid : to_delete) {
     gOFS->eosFsView->eraseEntry(fsid, fid);

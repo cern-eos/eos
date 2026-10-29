@@ -198,7 +198,6 @@ XrdMgmOfs::_stat(const char* path,
 
   // Prefetch path
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     if (strncmp(cPath.GetPath(), "/.fxid:", 7) == 0) {
@@ -235,6 +234,7 @@ XrdMgmOfs::_stat(const char* path,
   }
 
   if (fmd) {
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
@@ -320,6 +320,7 @@ XrdMgmOfs::_stat(const char* path,
       *uri = gOFS->eosView->getUri(cmd.get());
     }
 
+    eos::MDLocking::ContainerReadLock cmdLock(cmd.get());
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
@@ -398,7 +399,6 @@ XrdMgmOfs::_getchecksum(const char* Name,
   std::shared_ptr<eos::IFileMD> fmd;
   eos::common::Path cPath(Name);
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
@@ -410,6 +410,7 @@ XrdMgmOfs::_getchecksum(const char* Name,
   }
 
   if (fmd) {
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
     size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
 
     if (cxlen) {

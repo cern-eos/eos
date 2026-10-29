@@ -591,16 +591,38 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       unsigned long long nfids_todelete = 0;
       eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
         gOFS->eosView, gOFS->eosFsView, fsid);
-      eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
       try {
         nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
         nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
+        // Copy the ids first: the iterator holds the mutex of the list, and a
+        // writer holding MD locks of a file waits for it to update the list
+        std::vector<eos::IFileMD::id_t> fids;
+
         for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
              (it_fid && it_fid->valid()); it_fid->next()) {
-          std::shared_ptr<eos::IFileMD> fmd =
-            gOFS->eosFileService->getFileMD(it_fid->getElement());
+          fids.push_back(it_fid->getElement());
+        }
+
+        // A file removed after the ids were copied has no path any more
+        auto path_of = [](const std::shared_ptr<eos::IFileMD>& fmd) {
+          try {
+            return gOFS->eosView->getUri(fmd.get());
+          } catch (eos::MDException& e) {
+            return std::string("(removed)");
+          }
+        };
+
+        for (const auto fid : fids) {
+          std::shared_ptr<eos::IFileMD> fmd;
+
+          try {
+            fmd = gOFS->eosFileService->getFileMD(fid);
+          } catch (eos::MDException& e) {
+            // Removed after the ids were copied
+            continue;
+          }
 
           if (fmd) {
             size_t nloc_ok = 0;
@@ -634,7 +656,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
                   if (listfile) {
                     filelisting += "status=offline path=";
-                    filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                    filelisting += path_of(fmd).c_str();
                     filelisting += "\n";
                   }
                 } else {
@@ -643,7 +665,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
                     if (listfile) {
                       filelisting += "status=atrisk  path=";
-                      filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                      filelisting += path_of(fmd).c_str();
                       filelisting += "\n";
                     }
                   }
@@ -658,7 +680,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
                 if (listfile) {
                   filelisting += "status=offline path=";
-                  filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                  filelisting += path_of(fmd).c_str();
                   filelisting += "\n";
                 }
               }
@@ -721,8 +743,6 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
   // Create a snapshot to avoid deadlock with dropstripe
   std::vector<eos::common::FileId::fileid_t> fileids;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-
     for (auto it_fid = gOFS->eosFsView->getFileList(dropfilesProto.fsid());
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
@@ -763,21 +783,33 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
   std::unordered_set<std::string, Murmur3::MurmurHasher<std::string>>
       sourceHash, targetHash;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    // Copy the ids first: the iterator holds the mutex of the list, and a
+    // writer holding MD locks of a file waits for it to update the list
+    std::vector<eos::IFileMD::id_t> fids;
 
     for (auto it_fid = gOFS->eosFsView->getFileList(compareProto.sourceid());
          (it_fid && it_fid->valid()); it_fid->next()) {
+      fids.push_back(it_fid->getElement());
+    }
+
+    for (const auto fid : fids) {
       try {
-        auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+        auto fmd = gOFS->eosFileService->getFileMD(fid);
         filePath = gOFS->eosView->getUri(fmd.get());
         sourceHash.insert(filePath);
       } catch (eos::MDException& e) {}
     }
 
+    fids.clear();
+
     for (auto it_fid = gOFS->eosFsView->getFileList(compareProto.targetid());
          (it_fid && it_fid->valid()); it_fid->next()) {
+      fids.push_back(it_fid->getElement());
+    }
+
+    for (const auto fid : fids) {
       try {
-        auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+        auto fmd = gOFS->eosFileService->getFileMD(fid);
         filePath = gOFS->eosView->getUri(fmd.get());
         targetHash.insert(filePath);
       } catch (eos::MDException& e) {}
@@ -812,12 +844,19 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
   std::string filePath;
   XrdOucErrInfo errInfo;
   auto success = 0u;
-  eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+
+  // Copy the ids first: the iterator holds the mutex of the list, and a
+  // writer holding MD locks of a file waits for it to update the list
+  std::vector<eos::IFileMD::id_t> fids;
 
   for (auto it_fid = gOFS->eosFsView->getFileList(cloneProto.sourceid());
        (it_fid && it_fid->valid()); it_fid->next()) {
+    fids.push_back(it_fid->getElement());
+  }
+
+  for (const auto fid : fids) {
     try {
-      auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+      auto fmd = gOFS->eosFileService->getFileMD(fid);
       filePath = gOFS->eosView->getUri(fmd.get());
       errInfo.clear();
 
@@ -827,7 +866,7 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
       }
     } catch (eos::MDException& e) {
       eos_err("Could not get metadata, could not clone file replica %ul on filesystem",
-              it_fid->getElement());
+              fid);
     }
   }
 

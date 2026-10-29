@@ -29,6 +29,7 @@
 #include "common/Path.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IQuota.hh"
 #include <map>
 #include <string>
 #include <vector>
@@ -124,12 +125,10 @@ public:
                                  CommitHelper::cgi_t& cgi,
                                  CommitHelper::option_t& option);
 
-  static bool handle_location(eos::common::VirtualIdentity& vid,
-                              unsigned long cid,
-                              std::shared_ptr<eos::IFileMD> fmd,
-                              unsigned long fsid,
-                              unsigned long long size,
-                              CommitHelper::cgi_t& cgi,
+  static void handle_location(eos::common::VirtualIdentity& vid,
+                              eos::IQuotaNode* ns_quota,
+                              std::shared_ptr<eos::IFileMD> fmd, unsigned long fsid,
+                              unsigned long long size, CommitHelper::cgi_t& cgi,
                               CommitHelper::option_t& option);
 
   static void handle_occhunk(eos::common::VirtualIdentity& vid,

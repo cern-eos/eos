@@ -99,7 +99,6 @@ ProcCommand::FuseX()
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
     errno = 0;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::string emsg = "none";
 
     try {
@@ -111,10 +110,8 @@ ProcCommand::FuseX()
     }
 
     if (!fmd) {
-      lock.Release();
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
       errno = 0 ;
-      lock.Grab(gOFS->eosViewRWMutex);
 
       try {
         cmd = gOFS->eosView->getContainer(spath.c_str(), true);
@@ -145,7 +142,6 @@ ProcCommand::FuseX()
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, inode);
     errno = 0;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::string emsg = "none";
 
     // lookup by parent dir + name

@@ -101,7 +101,6 @@ XrdMgmOfs::_chmod(const char* path,
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IFileMD> fmd;
@@ -167,7 +166,12 @@ XrdMgmOfs::_chmod(const char* path,
             Mode ^= S_ISUID;
           }
 
-          eosView->updateContainerStore(pcmd.get());
+          {
+            // Under the lock, so the store cannot follow a parallel removal
+            eos::MDLocking::ContainerWriteLock pcmdLock(pcmd.get());
+            eosView->updateContainerStore(pcmd.get());
+          }
+
           eos::ContainerIdentifier pcmd_id = pcmd->getIdentifier();
           eos::ContainerIdentifier pcmd_pid = pcmd->getParentIdentifier();
           eos::ContainerIdentifier cmd_id;
@@ -181,10 +185,13 @@ XrdMgmOfs::_chmod(const char* path,
       eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
     }
             Mode &= mask;
-            cmd->setMode(Mode | S_IFDIR);
-            cmd->setCTimeNow();
-            // store the in-memory modification time for this directory
-            eosView->updateContainerStore(cmd.get());
+            {
+              eos::MDLocking::ContainerWriteLock cmdLock(cmd.get());
+              cmd->setMode(Mode | S_IFDIR);
+              cmd->setCTimeNow();
+              // store the in-memory modification time for this directory
+              eosView->updateContainerStore(cmd.get());
+            }
             cmd_id = cmd->getIdentifier();
             cmd_pid = cmd->getParentIdentifier();
     eos::audit::Stat afterStat;
@@ -199,15 +206,17 @@ XrdMgmOfs::_chmod(const char* path,
     }
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
-            fmd->setFlags(Mode);
-            eosView->updateFileStore(fmd.get());
+            {
+              eos::MDLocking::FileWriteLock fmdLock(fmd.get());
+              fmd->setFlags(Mode);
+              eosView->updateFileStore(fmd.get());
+            }
             f_id = fmd->getIdentifier();
     eos::audit::Stat afterStat;
     eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
     if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
-          lock.Release();
           gOFS->FuseXCastRefresh(pcmd_id, pcmd_pid);
 
           if (cmd) {

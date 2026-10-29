@@ -232,6 +232,13 @@ QuarkContainerMDSvc::updateStore(IContainerMD* obj)
     return;
   }
 
+  // A container removed by another thread after this one looked it up must
+  // not be written back, otherwise its record survives the removal
+  if (obj->isDeleted()) {
+    eos_static_warning("msg=\"skip update of removed container\" id=%llu", obj->getId());
+    return;
+  }
+
   pFlusher->execute(RequestBuilder::writeContainerProto(obj));
 }
 
