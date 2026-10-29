@@ -1863,6 +1863,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             {
+              eos::common::Path cPath(creation_path.c_str());
+              std::string fileName = cPath.GetName();
+
+              // The lookup above ran under the read lock: a parallel open can
+              // have created this name since. Let the client retry, it then
+              // finds that entry.
+              if (dmd->findFile(fileName) || dmd->findContainer(fileName)) {
+                return gOFS->Stall(error, vid, 1, "file was created meanwhile");
+              }
+
               // a faster replacement for createFile view
               auto file = gOFS->eosFileService->createFile(0);
 
@@ -1871,8 +1881,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 throw_mdexception(EIO, "File creation failed");
               }
 
-              eos::common::Path cPath(creation_path.c_str());
-              std::string fileName = cPath.GetName();
               file->setName(fileName);
               file->setCUid(vid.uid);
               file->setCGid(vid.gid);

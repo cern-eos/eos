@@ -61,7 +61,6 @@
     - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - date
-    - exec_cmd eos-mgm1 'eos-contention-test /eos/dockertest 60'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils
@@ -73,6 +72,19 @@
       "dock"* )
         ./eos-fst-close-test --type docker ;;
       esac
+    - date
+
+
+.dock8s_contention_test_template:
+  extends: .dock8s_base
+  variables:
+    # eos-contention-test runs REST workers next to the other ones
+    EOS_MGM_ENABLE_REST_API: "1"
+  script:
+    - date
+    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    - exec_cmd eos-mgm1 'eos-contention-test /eos/dockertest 60'
+    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
 
 

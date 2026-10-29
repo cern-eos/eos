@@ -321,7 +321,6 @@ helm_stress:
     - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
-    - kubectl exec eos-mgm-0 -- eos-contention-test /eos/dockertest 60
   artifacts:
     when: on_failure
     expire_in: 3 days
@@ -330,6 +329,26 @@ helm_stress:
 
 helm_system:
   extends: .helm_system_test_template
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  rules: !reference [.rules-manual, rules]
+
+.helm_contention_test_template:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
+  <<: [*helm_before_script_template, *helm_after_script_template]
+  script:
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- eos-contention-test /eos/dockertest 60
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
+helm_contention:
+  extends: .helm_contention_test_template
   needs:
     - job: el9_docker_image
       artifacts: false
