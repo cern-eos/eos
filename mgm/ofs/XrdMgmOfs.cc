@@ -820,16 +820,6 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("%s", "msg=\"stopping tty broadcast\"");
   StopTtyBroadcast();
 
-  if (mErrLogEnabled) {
-    eos_warning("%s", "msg=\"error log kill\"");
-    std::string errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
-    int rrc = system(errorlogkillline.c_str());
-
-    if (WEXITSTATUS(rrc)) {
-      eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
-    }
-  }
-
   if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     eos_warning("%s", "msg=\"finalizing namespace views\"");
 
