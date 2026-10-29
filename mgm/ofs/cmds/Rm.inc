@@ -262,32 +262,31 @@ XrdMgmOfs::_rem(const char* path,
                       "remove existing file - you don't have write permissions");
         }
       }
+    }
 
-      // -----------------------------------------------------------------------
-      // check if there is a recycling bin specified and avoid recycling of the
-      // already recycled files/dirs
-      // -----------------------------------------------------------------------
-      XrdOucString sPath = path;
+    // -----------------------------------------------------------------------
+    // check if there is a recycling bin specified and avoid recycling of the
+    // already recycled files/dirs
+    // -----------------------------------------------------------------------
+    XrdOucString sPath = path;
 
-      if (gOFS->mRecycler->IsEnabled() && (no_recycling == false) &&
-          (gOFS->mRecycler->IsEnforced() ||
-           attrmap.count(Recycle::gRecyclingAttribute)) &&
-          (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
-        // ---------------------------------------------------------------------
-        // this is two-step deletion via a recyle bin
-        // ---------------------------------------------------------------------
-        if (gOFS->mRecycler->IsEnforced()) {
-          // add the recycle attribute to enable recycling funcionality
-          attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
-        }
-
-        doRecycle = true;
-      } else {
-        // ---------------------------------------------------------------------
-        // this is one-step deletion just removing files 'forever' and now
-        // ---------------------------------------------------------------------
-        doQuota = true;
+    if (gOFS->mRecycler->IsEnabled() && (no_recycling == false) &&
+        (gOFS->mRecycler->IsEnforced() || attrmap.count(Recycle::gRecyclingAttribute)) &&
+        (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
+      // ---------------------------------------------------------------------
+      // this is two-step deletion via a recyle bin
+      // ---------------------------------------------------------------------
+      if (gOFS->mRecycler->IsEnforced()) {
+        // add the recycle attribute to enable recycling funcionality
+        attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
       }
+
+      doRecycle = true;
+    } else {
+      // ---------------------------------------------------------------------
+      // this is one-step deletion just removing files 'forever' and now
+      // ---------------------------------------------------------------------
+      doQuota = true;
     }
   } else {      /* file does not exist */
     errno = ENOENT;
