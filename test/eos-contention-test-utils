@@ -389,12 +389,16 @@ setup() {
   # The recycle bin, gRPC, the REST gateway and eosxd can be missing: skip
   # the load kinds that need them
   skip=""
+  # rm refuses to recycle when no quota node covers the recycle bin
   recycle_ok=0
   eos recycle config --dump 2>/dev/null | grep -qx enabled=on &&
     eos mkdir $base/r >/dev/null && eos chmod 777 $base/r >/dev/null &&
-    eos recycle config --add-bin $base/r >/dev/null && recycle_ok=1
+    eos recycle config --add-bin $base/r >/dev/null &&
+    eos quota ls -m -p "$(eos attr get sys.recycle $base/r | cut -d '"' -f2)" \
+      >/dev/null 2>&1 && recycle_ok=1
   [ $recycle_ok = 1 ] ||
-    { info "skip the recycle bin parts: the recycle bin is off"; skip="$skip recycle"; }
+    { info "skip the recycle bin parts: the recycle bin is off or has no quota"
+      skip="$skip recycle"; }
   timeout 10 $grpc -p $base/g mkdir >/dev/null 2>&1 &&
     timeout 10 $grpc -p $base/g rmdir >/dev/null 2>&1 ||
     { info "skip grpc: no namespace gRPC service on $grpc_ep"; skip="$skip grpc"; }

@@ -83,6 +83,8 @@
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    # rm does not recycle without a quota on the recycle bin
+    - exec_cmd eos-mgm1 'eos -r 0 0 recycle config --size 100G'
     - exec_cmd eos-mgm1 'eos-contention-test /eos/dockertest 60'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date

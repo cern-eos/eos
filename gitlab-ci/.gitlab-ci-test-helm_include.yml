@@ -340,6 +340,8 @@ helm_system:
   <<: [*helm_before_script_template, *helm_after_script_template]
   script:
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    # rm does not recycle without a quota on the recycle bin
+    - kubectl exec eos-mgm-0 -- eos -r 0 0 recycle config --size 100G
     - kubectl exec eos-mgm-0 -- eos-contention-test /eos/dockertest 60
   artifacts:
     when: on_failure
