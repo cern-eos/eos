@@ -1271,6 +1271,11 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
       link->setSize(new_file_uri.length());
       dir->addFile(link.get());
       eosView->updateFileStore(link.get());
+
+      // The link counts in quota with the length of its target, as rm counts it
+      if (old_qnode) {
+        old_qnode->addFile(link.get());
+      }
     }
     dir->setMTimeNow();
     dir->notifyMTimeChange(gOFS->eosDirectoryService);

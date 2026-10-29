@@ -232,6 +232,15 @@ XrdMgmOfs::_symlink(const char* source_name,
     try {
       std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
             oPath.GetParentPath());
+      // The quota node lookup walks up the parents: do it before the lock
+      eos::IQuotaNode* ns_quota = nullptr;
+
+      try {
+        ns_quota = eosView->getQuotaNode(dir.get());
+      } catch (const eos::MDException&) {
+        // no quota node
+      }
+
       auto dirLock = eos::MDLocking::writeLock(dir.get());
 
       // A parallel rmdir removed the parent while this thread waited for its lock
@@ -243,6 +252,15 @@ XrdMgmOfs::_symlink(const char* source_name,
 
       eosView->createLink(oPath.GetPath(), target_name,
                           vid.uid, vid.gid);
+
+      // The link counts in quota with the length of its target, as rm and
+      // the quota recompute count it
+      if (ns_quota) {
+        if (auto link = dir->findFile(oPath.GetName())) {
+          ns_quota->addFile(link.get());
+        }
+      }
+
       dir->setMTimeNow();
       dir->notifyMTimeChange(gOFS->eosDirectoryService);
       eosView->updateContainerStore(dir.get());
