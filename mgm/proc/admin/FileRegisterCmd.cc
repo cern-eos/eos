@@ -77,7 +77,24 @@ FileRegisterCmd::ProcessRequest() noexcept
   {
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
         cPath.GetParentPath());
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    // The name lookups can be slow (NSS): do them before the namespace lock
+    uid_t uid = reg.owner().uid();
+    uid_t gid = reg.owner().gid();
+
+    if (reg.owner().username().length()) {
+      int errc = 0;
+      uid = eos::common::Mapping::UserNameToUid(reg.owner().username().c_str(), errc);
+    }
+
+    if (reg.owner().groupname().length()) {
+      int errc = 0;
+      gid = eos::common::Mapping::GroupNameToGid(reg.owner().groupname().c_str(), errc);
+    }
+
+    // This creates or changes an entry without MD locks. The writers of
+    // locations and entries take this lock in read mode plus MD locks, so
+    // only write mode excludes them.
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
     // Check for the parent directory
     try {
@@ -100,20 +117,6 @@ FileRegisterCmd::ProcessRequest() noexcept
           reply.set_std_err("no suche file");
           return reply;
         }
-      }
-
-      uid_t uid = reg.owner().uid();
-      uid_t gid = reg.owner().gid();
-
-      if (reg.owner().username().length()) {
-        int errc = 0;
-        uid = eos::common::Mapping::UserNameToUid(reg.owner().username().c_str(), errc);
-      }
-
-      if (reg.owner().groupname().length()) {
-        int errc = 0;
-        gid = eos::common::Mapping::GroupNameToGid(reg.owner().groupname().c_str(),
-              errc);
       }
 
       if (!reg.update()) {

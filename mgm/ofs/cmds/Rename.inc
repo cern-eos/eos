@@ -510,6 +510,15 @@ XrdMgmOfs::_rename(const char* old_name,
               auto locks = dirFileLocker.lockAll();
               COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock",
                            &tm);
+
+              // A parallel rename or rm changed the file after the lookup
+              if (file->isDeleted() || (file->getContainerId() != dir->getId()) ||
+                  (file->getName() != oPath.GetName())) {
+                errno = ENOENT;
+                return Emsg(epname, error, ENOENT,
+                            "rename - source file was moved or removed", oPath.GetPath());
+              }
+
               eosView->renameFile(file.get(), nPath.GetName());
               dir->setMTimeNow();
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -547,6 +556,23 @@ XrdMgmOfs::_rename(const char* old_name,
             auto locks = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
                          &tm);
+
+            // A parallel rmdir removed the target after the lookup: moving
+            // into it would detach the file from the namespace
+            if (newdir->isDeleted()) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT, "rename - target directory was removed",
+                          nPath.GetParentPath());
+            }
+
+            // A parallel rename or rm changed the file after the lookup
+            if (file->isDeleted() || (file->getContainerId() != dir->getId()) ||
+                (file->getName() != oPath.GetName())) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source file was moved or removed", oPath.GetPath());
+            }
+
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -616,14 +642,65 @@ XrdMgmOfs::_rename(const char* old_name,
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
           std::set<std::string>::const_iterator fileit;
 
+          // Quota nodes the tree is accounted in before and after the move
+          eos::IQuotaNode* tree_qnode = nullptr;
+          eos::IQuotaNode* new_qnode = nullptr;
+          // A sub-directory with its own quota node keeps its accounting,
+          // so its files are neither checked nor re-accounted
+          std::set<std::string> nested_qnode_dirs;
+          // Move the files of the tree from one quota node to the other
+          auto move_tree_quota = [&](eos::IQuotaNode* from, eos::IQuotaNode* to) {
+            for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+              if (nested_qnode_dirs.count(rfoundit->first)) {
+                continue;
+              }
+
+              // Loop through every files
+              // To compute the quota, we don't need to read-lock the entire tree as
+              // it will anyway not be an atomic operation without the big namespace lock
+              // taken.
+              for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                   fileit++) {
+                std::string fspath = rfoundit->first;
+                fspath += *fileit;
+                std::string fname = *fileit;
+
+                if (fname.find(" -> ") != std::string::npos) {
+                  // Skip symlinks
+                  continue;
+                }
+
+                std::shared_ptr<eos::IFileMD> fmd;
+
+                try {
+                  fmd = gOFS->eosView->getFile(fspath.c_str());
+                } catch (eos::MDException& e) {
+                  errno = e.getErrno();
+                  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                            e.getMessage().str().c_str());
+                }
+
+                if (fmd) {
+                  eos::MDLocking::FileReadLock locker(fmd.get());
+
+                  if (!fmd->isLink()) {
+                    if (from) {
+                      from->removeFile(fmd.get());
+                    }
+
+                    if (to) {
+                      to->addFile(fmd.get());
+                    }
+                  }
+                }
+              }
+            }
+          };
+
           // Loop over all the files and subtract them from their quota node
           if (findOk) {
-            // Quota nodes the tree is accounted in before and after the move
-            eos::IQuotaNode* tree_qnode = eosView->getQuotaNode(rdir.get());
-            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
-            // A sub-directory with its own quota node keeps its accounting,
-            // so its files are neither checked nor re-accounted
-            std::set<std::string> nested_qnode_dirs;
+            tree_qnode = eosView->getQuotaNode(rdir.get());
+            new_qnode = eosView->getQuotaNode(newdir.get());
 
             for (const auto& elem : found) {
               try {
@@ -736,68 +813,7 @@ XrdMgmOfs::_rename(const char* old_name,
               COMMONTIMING("rename::rename_dir_check_quotas", &tm);
             } // if (checkQuota)
 
-            for (rfoundit = found.rbegin(); rfoundit != found.rend();
-                 rfoundit++) {
-              if (nested_qnode_dirs.count(rfoundit->first)) {
-                continue;
-              }
-
-              // Loop through every files
-              // To compute the quota, we don't need to read-lock the entire tree as
-              // it will anyway not be an atomic operation without the big namespace lock taken.
-              for (fileit = rfoundit->second.begin();
-                   fileit != rfoundit->second.end(); fileit++) {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
-                std::string fname = *fileit;
-
-                if (fname.find(" -> ") != std::string::npos) {
-                  // Skip symlinks
-                  continue;
-                }
-
-                try {
-                  file = gOFS->eosView->getFile(fspath.c_str());
-                } catch (eos::MDException& e) {
-                  // Check if this is a symbolic link
-                  std::string fname = *fileit;
-                  size_t link_pos = fname.find(" -> ");
-
-                  if (link_pos != std::string::npos) {
-                    fname.erase(link_pos);
-                    fspath = rfoundit->first;
-                    fspath += fname;
-
-                    try {
-                      file = gOFS->eosView->getFile(fspath.c_str(), false);
-                    } catch (eos::MDException& e) {
-                      errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                e.getErrno(), e.getMessage().str().c_str());
-                    }
-                  } else {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                              e.getErrno(), e.getMessage().str().c_str());
-                  }
-                }
-
-                if (file) {
-                  eos::MDLocking::FileReadLock locker(file.get());
-
-                  if (!file->isLink()) {
-                    if (tree_qnode) {
-                      tree_qnode->removeFile(file.get());
-                    }
-
-                    if (new_qnode) {
-                      new_qnode->addFile(file.get());
-                    }
-                  }
-                }
-              }
-            }
-
+            move_tree_quota(tree_qnode, new_qnode);
             COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
           }
 
@@ -807,8 +823,26 @@ XrdMgmOfs::_rename(const char* old_name,
             eos::MDLocking::BulkMDWriteLock bulkContainerLocker;
             bulkContainerLocker.add(rdir.get());
             bulkContainerLocker.add(dir.get());
-            auto containerLocks = bulkContainerLocker.lockAll();
+            auto containerLocks =
+                std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+                    bulkContainerLocker.lockAll());
             COMMONTIMING("rename::rename_dir_within_same_container_dirs_lock_write", &tm);
+
+            // A parallel rename or rmdir changed the directory after the lookup
+            if (rdir->isDeleted() || (rdir->getParentId() != dir->getId()) ||
+                (rdir->getName() != oPath.GetName())) {
+              containerLocks.reset();
+
+              if (findOk) {
+                move_tree_quota(new_qnode, tree_qnode);
+              }
+
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source directory was moved or removed",
+                          oPath.GetPath());
+            }
+
             eosView->renameContainer(rdir.get(), nPath.GetName());
 
             if (updateCTime) {
@@ -859,8 +893,29 @@ XrdMgmOfs::_rename(const char* old_name,
             bulkContainerLocker.add(dir.get());
             bulkContainerLocker.add(rdir.get());
             bulkContainerLocker.add(newdir.get());
-            auto containerLocks = bulkContainerLocker.lockAll();
+            auto containerLocks =
+                std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+                    bulkContainerLocker.lockAll());
             COMMONTIMING("rename::move_dir_all_dirs_write_lock", &tm);
+
+            // A parallel rmdir removed the target, or a parallel rename or
+            // rmdir changed the source, after the lookup: moving would detach
+            // the tree from the namespace
+            if (newdir->isDeleted() || rdir->isDeleted() ||
+                (rdir->getParentId() != dir->getId()) ||
+                (rdir->getName() != oPath.GetName())) {
+              containerLocks.reset();
+
+              if (findOk) {
+                move_tree_quota(new_qnode, tree_qnode);
+              }
+
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source or target directory was moved or removed",
+                          oPath.GetPath());
+            }
+
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
             int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
             int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
@@ -1177,11 +1232,46 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     helper.add(newdir.get());
     helper.add(file.get());
     auto locks = helper.lockAll();
+
+    // A parallel rmdir removed the target, or a parallel rename or rm changed
+    // the file, after the lookup
+    if (newdir->isDeleted() || file->isDeleted() ||
+        (file->getContainerId() != dir->getId()) ||
+        (file->getName() != oPath.GetName())) {
+      errno = ENOENT;
+      return Emsg(epname, error, ENOENT,
+                  "rename with symlink - source file or target directory was "
+                  "moved or removed",
+                  oPath.GetPath());
+    }
+
     dir->removeFile(oPath.GetName());
     // Create the symlink
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
              old_file_uri.c_str(), new_file_uri.c_str());
-    eosView->createLink(old_file_uri, new_file_uri, vid.uid, vid.gid);
+    {
+      // As createLink(old_file_uri, ...), but on the locked directory: its
+      // path walk would take read locks on the directories locked here
+      std::shared_ptr<eos::IFileMD> link = gOFS->eosFileService->createFile(0);
+
+      if (!link) {
+        errno = EIO;
+        return Emsg(epname, error, EIO, "rename with symlink - symlink creation failed",
+                    oPath.GetPath());
+      }
+
+      link->setName(oPath.GetName());
+      link->setCUid(vid.uid);
+      link->setCGid(vid.gid);
+      link->setCTimeNow();
+      link->setATimeNow(0);
+      link->setMTimeNow();
+      link->clearChecksum(0);
+      link->setLink(new_file_uri);
+      link->setSize(new_file_uri.length());
+      dir->addFile(link.get());
+      eosView->updateFileStore(link.get());
+    }
     dir->setMTimeNow();
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
     newdir->setMTimeNow();

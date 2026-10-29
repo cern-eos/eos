@@ -60,6 +60,8 @@
     - exec_cmd eos-mgm1 'eos-instance-test-ci'
     - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
+    - date
+    - exec_cmd eos-mgm1 'eos-contention-test /eos/dockertest 60'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils

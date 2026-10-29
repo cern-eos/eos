@@ -228,6 +228,13 @@ QuarkFileMDSvc::updateStore(IFileMD* obj)
     return;
   }
 
+  // A file removed by another thread after this one looked it up must not
+  // be written back, otherwise its record survives the removal
+  if (obj->isDeleted()) {
+    eos_static_warning("msg=\"skip update of removed file\" id=%llu", obj->getId());
+    return;
+  }
+
   pFlusher->execute(RequestBuilder::writeFileProto(obj));
 
   // If file is detached then add it to the list of orphans

@@ -12,6 +12,7 @@
 #include "mgm/misc/Constants.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/MDException.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"
 #include <vector>
 
@@ -204,7 +205,7 @@ ReadThroughCache::TruncateOnMutation(const std::shared_ptr<eos::IFileMD>& fmd)
                        cache_fsid);
 
     try {
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      eos::MDLocking::FileWriteLock fmdLock(fmd.get());
       fmd->setCacheLocation(0);
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& e) {
@@ -226,7 +227,7 @@ ReadThroughCache::DropCacheLocation(const std::shared_ptr<eos::IFileMD>& fmd)
 
   eos::common::FileSystem::fsid_t cache_fsid = 0;
   {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    eos::MDLocking::FileWriteLock fmdLock(fmd.get());
     cache_fsid = fmd->getCacheLocation();
 
     if (!cache_fsid) {

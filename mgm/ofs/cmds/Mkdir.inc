@@ -119,7 +119,6 @@ XrdMgmOfs::_mkdir(const char* path,
   {
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
         cPath.GetParentPath());
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     // Check for the parent directory
     if (spath != "/") {
@@ -224,7 +223,6 @@ XrdMgmOfs::_mkdir(const char* path,
     if (dir) {
       std::shared_ptr<eos::IContainerMD> fulldir;
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       // Only if the parent exists, can the full path exist!
       try {
@@ -258,7 +256,6 @@ XrdMgmOfs::_mkdir(const char* path,
         eos_debug("msg=\"check path existence\" path=\"%s\"", cPath.GetSubPath(i));
         errno = 0;
         eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetSubPath(i));
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         attrmap.clear();
 
         try {
@@ -352,14 +349,27 @@ XrdMgmOfs::_mkdir(const char* path,
       eos::common::Path tmp_path("");
 
       for (j = i + 1; j < (int) cPath.GetSubPathSize(); ++j) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        // The namespace lock in read mode excludes the writers that still
+        // take it in write mode, the parent lock the ones using MD locks
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
         try {
           errno = 0;
           eos_debug("creating path %s", cPath.GetSubPath(j));
           tmp_path.Init(cPath.GetSubPath(j));
           dir = eosView->getContainer(tmp_path.GetParentPath());
-          newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
+          auto dirLock = eos::MDLocking::writeLock(dir.get());
+
+          // A parallel rmdir removed the parent while this thread waited for its lock
+          if (dir->isDeleted()) {
+            eos::MDException e(ENOENT);
+            e.getMessage() << "mkdir: parent directory was removed";
+            throw e;
+          }
+
+          // The parents exist: they were found or created by the previous
+          // iterations, so create no missing one without its attributes
+          newdir = eosView->createContainer(cPath.GetSubPath(j), false);
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode() & ~(1UL << 9));
@@ -388,6 +398,7 @@ XrdMgmOfs::_mkdir(const char* path,
           eos::ContainerIdentifier nd_id = newdir->getIdentifier();
           eos::ContainerIdentifier d_id = dir->getIdentifier();
           eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
+          dirLock.reset();
           lock.Release();
           gOFS->FuseXCastMD(nd_id, d_id, ctime, true);
           gOFS->FuseXCastRefresh(d_id, d_pid);
@@ -395,7 +406,19 @@ XrdMgmOfs::_mkdir(const char* path,
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                     e.getErrno(), e.getMessage().str().c_str());
-          return Emsg(epname, error, errno, "mkdir", path);
+          newdir.reset();
+
+          // A parallel mkdir -p created it after the existence check
+          if (errno == EEXIST) {
+            try {
+              newdir = eosView->getContainer(cPath.GetSubPath(j));
+            } catch (const eos::MDException&) {
+            }
+          }
+
+          if (!newdir) {
+            return Emsg(epname, error, errno, "mkdir", path);
+          }
         }
 
         if (!newdir && (errno != EEXIST)) {
@@ -415,11 +438,22 @@ XrdMgmOfs::_mkdir(const char* path,
     return Emsg(epname, error, errno, "mkdir", path);
   }
 
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // The namespace lock in read mode excludes the writers that still take it in
+  // write mode, the parent lock the ones using MD locks
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     errno = 0;
     dir = eosView->getContainer(cPath.GetParentPath());
+    auto dirLock = eos::MDLocking::writeLock(dir.get());
+
+    // A parallel rmdir removed the parent while this thread waited for its lock
+    if (dir->isDeleted()) {
+      eos::MDException e(ENOENT);
+      e.getMessage() << "mkdir: parent directory was removed";
+      throw e;
+    }
+
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
@@ -459,6 +493,7 @@ XrdMgmOfs::_mkdir(const char* path,
     eos::ContainerIdentifier nd_id = newdir->getIdentifier();
     eos::ContainerIdentifier d_id = dir->getIdentifier();
     eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
+    dirLock.reset();
     lock.Release();
     gOFS->FuseXCastMD(nd_id, d_id, ctime, true);
     gOFS->FuseXCastRefresh(d_id, d_pid);
@@ -466,6 +501,16 @@ XrdMgmOfs::_mkdir(const char* path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
               e.getErrno(), e.getMessage().str().c_str());
+
+    // A parallel mkdir -p created it after the existence check
+    if (recurse && (errno == EEXIST)) {
+      try {
+        eosView->getContainer(path);
+        EXEC_TIMING_END("Exists");
+        return SFS_OK;
+      } catch (const eos::MDException&) {
+      }
+    }
   }
 
   if (!newdir && errno) {

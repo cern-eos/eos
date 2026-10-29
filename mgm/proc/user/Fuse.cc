@@ -124,8 +124,6 @@ ProcCommand::Fuse()
       inode = 0;
       //-------------------------------------------
       {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
         try {
           fmd = gOFS->eosView->getFile(cPath.GetPath(), false);
           inode = eos::common::FileId::FidToInode(fmd->getId());
@@ -139,8 +137,6 @@ ProcCommand::Fuse()
 
       // check if that is a directory in case
       if (!fmd) {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
         try {
           dir = gOFS->eosView->getContainer(cPath.GetPath(), false);
           inode = dir->getId();

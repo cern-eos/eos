@@ -56,8 +56,8 @@ public:
   //! If the notification fails the cache replica reference is dropped
   //! (cache_location cleared and persisted).
   //!
-  //! @note Performs a synchronous FST query and may take the namespace write
-  //!       lock - must NOT be called with eosViewRWMutex held
+  //! @note Performs a synchronous FST query and may take the file write
+  //!       lock - must NOT be called with a lock on fmd held
   //----------------------------------------------------------------------------
   static void TruncateOnMutation(const std::shared_ptr<eos::IFileMD>& fmd);
 
@@ -68,8 +68,8 @@ public:
   //! @return previous cache_location fsid (0 if none was set)
   //! @throws eos::MDException if clearing the namespace pointer fails
   //!
-  //! @note May take the namespace write lock and perform a synchronous FST
-  //!       query - must NOT be called with eosViewRWMutex held
+  //! @note Takes the file write lock and may perform a synchronous FST
+  //!       query - must NOT be called with a lock on fmd held
   //----------------------------------------------------------------------------
   static eos::common::FileSystem::fsid_t
   DropCacheLocation(const std::shared_ptr<eos::IFileMD>& fmd);

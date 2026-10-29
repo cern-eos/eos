@@ -464,15 +464,11 @@ grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms,
-                       bool lock,
                        bool access_self)
 {
-  eos::common::RWMutexReadLock viewReadLock;
-
   if ((request->type() == eos::rpc::FILE) ||
       (request->type() == eos::rpc::STAT)) {
     // stream file meta data
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> pmd;
     eos::IFileMD::XAttrMap attrmapF;
@@ -493,10 +489,6 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     } else {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->id().path());
-    }
-
-    if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (fid) {
@@ -555,6 +547,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
                             "access to parent container denied");
       }
+
+      auto fmdLock = eos::MDLocking::readLock(fmd.get());
 
       if (Filter(fmd, request->selection())) {
         // short-cut for filtered MD
@@ -619,6 +613,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 
       gRPCResponse.mutable_fmd()->set_etag(etag);
       gRPCResponse.mutable_fmd()->set_path(path);
+      fmdLock.reset();
       writer->Write(gRPCResponse);
       return grpc::Status::OK;
     }
@@ -647,10 +642,6 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     } else {
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
           cid);
-    }
-
-    if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (cid) {
@@ -706,6 +697,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       }
     }
 
+    auto cmdLock = eos::MDLocking::readLock(cmd.get());
+
     if (Filter(cmd, request->selection())) {
       // short-cut for filtered MD
       return grpc::Status::OK;
@@ -747,6 +740,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     gRPCResponse.mutable_cmd()->set_path(path);
+    cmdLock.reset();
     writer->Write(gRPCResponse);
     return grpc::Status::OK;
   }
@@ -806,7 +800,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   }
 
   // stream container meta data
-  eos::common::RWMutexReadLock viewReadLock;
   std::shared_ptr<eos::IContainerMD> cmd;
   unsigned long cid = 0;
   uint64_t clock = 0;
@@ -827,8 +820,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
         cid);
   }
-
-  viewReadLock.Grab(gOFS->eosViewRWMutex);
 
   if (cid) {
     try {
@@ -869,7 +860,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     c_dir.mutable_selection()->CopyFrom(request->selection());
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
-    status = GetMD(vid, writer, &c_dir, true, false, true);
+    status = GetMD(vid, writer, &c_dir, true, true);
 
     if (!status.ok()) {
       return status;
@@ -879,7 +870,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   bool first = true;
   auto itf = eos::FileMapIterator(cmd);
   auto itc = eos::ContainerMapIterator(cmd);
-  viewReadLock.Release();
 
   // stream for listing and file type
   if (request->type() != eos::rpc::CONTAINER) {
@@ -966,7 +956,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
     if (request->type() != eos::rpc::FILE) {
       c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
-      status = GetMD(vid, writer, &c_dir, true, false, true);
+      status = GetMD(vid, writer, &c_dir, true, true);
     }
 
     return status;
@@ -1572,7 +1562,6 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1659,7 +1648,6 @@ grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1848,7 +1836,6 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -1858,7 +1845,6 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -1976,7 +1962,6 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
     } catch (eos::MDException& e) {
@@ -2416,7 +2401,6 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2426,7 +2410,6 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2509,7 +2492,6 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2519,7 +2501,6 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2590,8 +2571,6 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-
       if (fid) {
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());

@@ -73,7 +73,6 @@ XrdMgmOfs::_chown(const char* path,
   bool done = false;
   errno = 0;
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   // try as a directory
   try {
@@ -105,6 +104,7 @@ XrdMgmOfs::_chown(const char* path,
       {
         eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
       }
+      auto cmdLock = eos::MDLocking::writeLock(cmd.get());
       if ((unsigned int) uid != 0xffffffff) {
         // Change the owner
         cmd->setCUid(uid);
@@ -120,7 +120,7 @@ XrdMgmOfs::_chown(const char* path,
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
       done = true;
-      lock.Release();
+      cmdLock.reset();
       gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
       if (mAudit) {
@@ -137,7 +137,9 @@ XrdMgmOfs::_chown(const char* path,
     errno = 0;
 
     try {
-      // Try as a file
+      // Try as a file. The quota nodes are added and removed under the
+      // namespace write lock.
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
@@ -147,7 +149,6 @@ XrdMgmOfs::_chown(const char* path,
         cmd = eosView->getContainer(uri_cmd);
       }
 
-      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
       // ACL and permission check
       eos::IContainerMD::XAttrMap attrmap;
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
@@ -174,6 +175,21 @@ XrdMgmOfs::_chown(const char* path,
           eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
         }
 
+        // The quota node of the directory that holds the file: through a
+        // symlink this is not cmd. The lookup walks up the parents, so it
+        // runs before the file lock.
+        const auto fcid = fmd->getContainerId();
+        eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(
+            gOFS->eosDirectoryService->getContainerMD(fcid).get());
+        auto fmdLock = eos::MDLocking::writeLock(fmd.get());
+
+        // Removed, or moved to another directory, after the lookup
+        if (fmd->isDeleted() || (fmd->getContainerId() != fcid)) {
+          eos::MDException e(ENOENT);
+          e.getMessage() << "File does not exist";
+          throw e;
+        }
+
         // Subtract the file
         if (ns_quota) {
           ns_quota->removeFile(fmd.get());
@@ -197,7 +213,8 @@ XrdMgmOfs::_chown(const char* path,
         fmd->setCTimeNow();
         eosView->updateFileStore(fmd.get());
         done = true;
-        lock.Release();
+        fmdLock.reset();
+        ns_rd_lock.Release();
         gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
         errno = 0;
         if (mAudit) {

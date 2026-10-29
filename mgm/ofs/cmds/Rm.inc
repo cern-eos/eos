@@ -149,6 +149,7 @@ XrdMgmOfs::_rem(const char* path,
   gid_t owner_gid = 0;
   eos::common::FileId::fileid_t fid = 0;
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
+  bool doQuota = false;   // the one-step deletion takes the file out of quota
   std::string aclpath;
 
   try {
@@ -285,16 +286,7 @@ XrdMgmOfs::_rem(const char* path,
         // ---------------------------------------------------------------------
         // this is one-step deletion just removing files 'forever' and now
         // ---------------------------------------------------------------------
-        if (!simulate) {
-          try {
-            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
-            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
-
-            if (ns_quota) {
-              ns_quota->removeFile(fmd.get());
-            }
-          } catch (eos::MDException& e) { }
-        }
+        doQuota = true;
       }
     }
   } else {      /* file does not exist */
@@ -330,15 +322,59 @@ XrdMgmOfs::_rem(const char* path,
           lock.Grab(gOFS->eosViewRWMutex);
         }
 
+        // Take the file out of quota only once the delete workflow passed,
+        // under the same lock as the unlink below, so a rename can not move
+        // the file in between. The quota node lookup walks up the parents, so
+        // it runs before the MD locks.
+        eos::IQuotaNode* ns_quota = nullptr;
+
+        if (doQuota) {
+          try {
+            ns_quota = gOFS->eosView->getQuotaNode(container.get());
+            eos_info("got quota node=%lld", (unsigned long long)ns_quota);
+          } catch (eos::MDException& e) {
+          }
+
+          if (ns_quota) {
+            eos::MDLocking::FileReadLock fmd_lock(fmd.get());
+
+            // Moved by a rename or removed by a drop while the namespace lock
+            // was released
+            if (fmd->isDeleted() || (fmd->getContainerId() != container->getId())) {
+              eos::MDException e(ENOENT);
+              e.getMessage() << "File does not exist";
+              throw e;
+            }
+          }
+        }
+
         /* create a Copy-on-Write clone if needed */
         XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
-          gOFS->eosView->unlinkFile(path);
-          // Reload file object that was modifed in the unlinkFile method
-          // TODO: this can be dropped if you use the unlinkFile which takes
-          // as argument the IFileMD object
-          fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+          // Lock the parent and the file around the removal, as rename does:
+          // writers that use MD locks only must not store the file after it
+          // is removed. Unlink by object, because the path walk takes
+          // container locks. The namespace lock was released for the
+          // workflow, so the file can be gone from its parent by now.
+          eos::MDLocking::BulkMDWriteLock md_locker;
+          md_locker.add(container.get());
+          md_locker.add(fmd.get());
+          auto md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+              md_locker.lockAll());
+
+          if (!container || fmd->isDeleted() ||
+              (fmd->getContainerId() != container->getId())) {
+            eos::MDException e(ENOENT);
+            e.getMessage() << "File does not exist";
+            throw e;
+          }
+
+          if (ns_quota) {
+            ns_quota->removeFile(fmd.get());
+          }
+
+          gOFS->eosView->unlinkFile(fmd.get());
 
           // Drop the TAPE_FS_ID which otherwise would prevent the
           // file metadata cleanup
@@ -359,9 +395,18 @@ XrdMgmOfs::_rem(const char* path,
             std::string deletion_name = fmd->getName();
             eos::ContainerIdentifier c_ident = container->getIdentifier();
             eos::ContainerIdentifier p_ident = container->getParentIdentifier();
+            md_locks.reset();
             lock.Release();
             gOFS->FuseXCastDeletion(c_ident, deletion_name);
             gOFS->FuseXCastRefresh(c_ident, p_ident);
+          }
+        } else if (ns_quota) {
+          // The hard link code kept the file in its directory: it leaves the
+          // quota as well, unless a rename moved it meanwhile
+          eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+          if (!fmd->isDeleted() && (fmd->getContainerId() == container->getId())) {
+            ns_quota->removeFile(fmd.get());
           }
         }
       }

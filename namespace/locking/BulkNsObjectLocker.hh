@@ -183,6 +183,7 @@ public:
       mFileLocks = std::move(locks.mFileLocks);
       locks.mContLocks = nullptr;
       locks.mFileLocks = nullptr;
+      return *this;
     }
     virtual ~Locks() {
       // Release files first

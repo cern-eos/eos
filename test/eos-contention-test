@@ -1,0 +1,340 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# Contention test
+#
+# Many clients change the same files and directories at the same time, through
+# xrootd, the console, gRPC, REST and an eosxd mount. The test fails if an
+# operation hangs, or if the namespace, the quota and the file systems do not
+# agree at the end.
+#
+# Usage: eos-contention-test <prefix> [<seconds>]
+#
+# Run it on the MGM host of a test instance with no other activity: some
+# checks compare the whole namespace before and after the test. It works in
+# <prefix>/contention, with the shared directories d0 .. d3. The load runs for
+# <seconds> (default 120), while one file system is drained.
+#
+# How to add a test:
+#
+#   A race       race <want> <n> <what> <setup> <command>
+#                  n copies of the command at the same time, <want> of them
+#                  must succeed: a number, or "some" for 1 or more
+#                pairs <what> <setup> <command a> <command b>
+#                  8 pairs at the same time, in no pair may both succeed
+#                check <what> <condition>
+#                  for the state after the race
+#   A load       load <kind> <name> <command>
+#   operation      2 workers of each kind repeat all lines of their kind, in
+#                  order, until the end of the load. A new kind needs only
+#                  its lines.
+#
+# Commands and conditions are shell code in single quotes. They see the
+# settings below ($url, $base, $src ...). In races, $k is the number of the
+# copy or the pair, and $ok the number of successes of the last race. In the
+# load, the commands also see:
+#   $w $i         the worker number and the step number
+#   $d $next      the shared directory of the step and the next one
+#   $own          a new name for each step: $d/<kind><w>_<i>
+#   $old          the $own of 8 steps ago (the line waits for step 8)
+#   $mown         $own through the eosxd mount
+#   $wfile        a file of the write and big workers in $d (the line is
+#                 skipped if there is none)
+#   $fsid $fsid2  two file system ids
+#
+# An operation of a worker on its own entries must succeed. Operations named
+# other_* use entries of other workers, and race_* entries that several
+# workers share: these can fail, but they must not hang. At the first hang
+# the test saves the MGM thread stacks in the log directory.
+# ------------------------------------------------------------------------------
+
+[ -n "$1" ] || { echo "usage: $0 <prefix> [<seconds>]"; exit 2; }
+# The commands of the load run in their own shell: export the settings
+set -a
+# A deadlocked MGM never answers. Every xrootd client, the console too, gives
+# up a request after 60 s, so that the test ends.
+XRD_REQUESTTIMEOUT=60
+base=$1/contention
+duration=${2-120}
+host=localhost
+url=root://$host
+grpc_ep=$host:50051
+grpc="eos-grpc-ns --endpoint $grpc_ep"
+rest=http://127.0.0.1:40054/v1/eos/rest/gateway
+logs=${TMPDIR:-/tmp}/eos-contention-test
+mnt=$logs/mnt
+src=$logs/file.1k
+srcb=$logs/file.1k.b
+srcbig=$logs/file.8m
+empty=$logs/file.0
+hot=$base/hot/h
+r=$base/race
+mgmlog=/var/log/eos/mgm/xrdlog.mgm
+set +a
+# The test framework, the set up and the end checks
+source "$(dirname "$(readlink -f "$0")")/eos-contention-test-utils" || exit 2
+
+setup
+
+# ----------------------------------------------------------------------------
+phase "Races"
+category=Race
+
+# Two clients append to one file at the same time
+check "2 overlapping appends succeed" \
+  'xrdcp -s $logs/race.1k $url/$r/append &&
+   xrdcpappendoverlap root://123@$host/$r/append root://124@$host/$r/append'
+check "the checksum covers both appends" \
+  'sleep 1; eos fileinfo $r/append --checksum | grep -q fc46d811'
+
+race 1 8 "mkdir of one directory" '' 'xrdfs $url mkdir $r/dir'
+race 8 8 "mkdir -p of one new path" '' 'eos mkdir -p $r/deep/a/b/c/d'
+race 1 8 "creates of one new file" '' 'xrdcp -s $src $url/$r/new'
+
+# Not eos rm: it reports a missing file as success
+race 1 8 "rm of one file" 'xrdcp -s $src $url/$r/rm' 'xrdfs $url rm $r/rm'
+check "the removed file is gone" '! eos stat $r/rm'
+
+race some 8 "overwrites of one file" '' 'xrdcp -f -s $src $url/$r/over'
+check "the overwritten file has 1024 bytes and 2 replicas" \
+  '[ "$(md_field $r/over size) $(md_field $r/over nrep)" = "1024 2" ]'
+
+race 1 8 "renames of one file" 'xrdcp -s $src $url/$r/mv' \
+  'xrdfs $url mv $r/mv $r/mv.$BASHPID'
+check "1 copy of the renamed file is left" '[ $(eos ls $r | grep -c "^mv") = 1 ]'
+
+# Each successful rename removes one source, so the sources left plus the
+# target are 9 minus the successes
+race some 8 "renames of 8 files onto one name" \
+  'for k in $(seq 1 8); do xrdcp -s $src $url/$r/s$k; done' \
+  'xrdfs $url mv $r/s$k $r/target'
+check "the renames onto one name keep the files" \
+  'n=$(eos ls $r | grep -cE "^(s[1-8]|target)$"); echo "$n left after $ok moves"
+   [ $n = $((9 - ok)) ]'
+
+# If both renames succeed, a and b are cut off from the namespace
+pairs "renames of a into b and of b into a" \
+  'eos mkdir -p $r/c$k/a && eos mkdir $r/c$k/b' \
+  'xrdfs $url mv $r/c$k/a $r/c$k/b/a' 'xrdfs $url mv $r/c$k/b $r/c$k/a/b'
+check "the renamed directories stay reachable" \
+  'for k in $(seq 1 8); do [ $(eos find -d $r/c$k | wc -l) = 3 ] || exit 1; done'
+
+# If both succeed, x has no parent
+pairs "rmdir of e and mkdir of e/x" 'eos mkdir $r/e$k' \
+  'xrdfs $url rmdir $r/e$k' 'xrdfs $url mkdir $r/e$k/x'
+
+# If both succeed, the file is in a removed directory
+pairs "move of a file into t and rmdir of t" \
+  'eos mkdir $r/t$k && xrdcp -s $src $url/$r/f$k' \
+  'xrdfs $url mv $r/f$k $r/t$k/f$k' 'xrdfs $url rmdir $r/t$k'
+check "each moved file exists once" '[ $(eos find -f $r | grep -cE "/f[1-8]$") = 8 ]'
+
+if [ $recycle_ok = 1 ]; then
+  race 1 4 "restores of one recycle bin entry" \
+    'xrdcp -s $src $url/$base/r/rr && eos rm $base/r/rr' \
+    'recycle "restore -f" $base/r/rr'
+  check "the restored file is back" 'eos stat $base/r/rr'
+fi
+
+# ----------------------------------------------------------------------------
+phase "Load: 2 workers of each kind for $duration s"
+
+# Files that the other workers use as $wfile, read back and removed 8 steps
+# later. A conversion can move the replicas under the read.
+#    kind    operation            command
+load write   write                'xrdcp -f -s $src $url/$own'
+load write   other_read           'xrdcp -f -s $url/$old /dev/null'
+load write   rm                   'eos rm -F $old'
+load big     write                'xrdcp -f -s $srcbig $url/$own'
+load big     other_read           'xrdcp -f -s $url/$old /dev/null'
+load big     rm                   'eos rm -F $old'
+
+# Uploads that stop without a close (xrdcpabort always fails)
+load abort   other_abort          'xrdcpabort $url/$own'
+load abort   other_abort_atomic   'xrdcpabort "$url/$own.a?eos.atomic=1"'
+load abort   other_rm             'eos rm -F $own'
+
+# A file, and a directory with a file in it, move from one shared directory
+# to the next
+load rename  write                '[ $i != 0 ] || xrdcp -s $src $url/$d/n$w'
+load rename  mkdir                '[ $i != 0 ] || eos mkdir $d/nd$w'
+load rename  write                '[ $i != 0 ] || xrdcp -s $src $url/$d/nd$w/f'
+load rename  rename               'xrdfs $url mv $d/n$w $next/n$w'
+load rename  rename_dir           'xrdfs $url mv $d/nd$w $next/nd$w'
+
+load dir     mkdir                'xrdfs $url mkdir $own'
+load dir     rmdir                'xrdfs $url rmdir $own'
+load dir     symlink              'eos ln $own.l $d'
+load dir     rm_link              'eos rm -F $own.l'
+
+load meta    attr_dir             'eos attr set user.contention=$i $d'
+load meta    chmod_dir            'eos chmod 777 $d'
+load meta    chown_dir            'eos chown adm:adm $d'
+load meta    other_attr           'eos attr set user.contention=$i $wfile'
+load meta    other_chmod          'xrdfs $url chmod $wfile rw-r--r--'
+load meta    other_chown          'eos chown adm:adm $wfile'
+
+# Lookups through xrootd, the console, the proc calls of the FUSE clients
+# and the REST gateway
+load read    stat                 'xrdfs $url stat $d'
+load read    ls                   'eos ls -l $d'
+load read    fileinfo_dir         'eos -j fileinfo $d'
+load read    other_fileinfo       'eos -j fileinfo $wfile'
+load read    fuse_ls              'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuse&mgm.statentries=1&mgm.path=$d" /dev/null'
+load read    fusex_get            'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuseX&mgm.op=GET&mgm.path=$d" /dev/null'
+load read    other_fusex_get      'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuseX&mgm.op=GET&mgm.path=$wfile" /dev/null'
+load rest    rest_ls              'rest_call ls_cmd $d'
+load rest    other_rest_fileinfo  'rest_call fileinfo_cmd $wfile'
+
+# Walks over the file system lists and the test tree. Not fs dropdeletion:
+# it leaves the records of the dropped files, and an end check counts them.
+load walk    fs_status            'eos fs status $fsid'
+load walk    fs_dumpmd            'eos fs dumpmd $fsid --path'
+load walk    fs_compare           'eos fs compare $fsid $fsid2'
+load walk    fs_dropghosts        'eos fs dropghosts $fsid'
+load walk    fsck_report          'eos fsck report'
+load walk    find                 'eos find --count $base'
+load walk    find_fs              'eos find -f --fid --fs --checksum $base'
+load walk    oldfind              'eos oldfind -f $base'
+load walk    quota_ls             'eos quota ls -m -p $base'
+
+# Write, rm, rename, mkdir and rmdir of the same 3 names
+load clash   race_write           'xrdcp -f -s $src $url/$base/d0/c$((RANDOM % 3))'
+load clash   race_rm              'eos rm -F $base/d0/c$((RANDOM % 3))'
+load clash   race_rename          'xrdfs $url mv $base/d0/c$((RANDOM % 3)) $base/d1/c$((RANDOM % 3))'
+load clash   race_mkdir           'xrdfs $url mkdir $base/d2/c$((RANDOM % 3))'
+load clash   race_rmdir           'xrdfs $url rmdir $base/d2/c$((RANDOM % 3))'
+load clash   race_attr            'eos attr set user.contention=$i $base/d1/c$((RANDOM % 3))'
+
+# The cache drops make the next lookup read QuarkDB again
+load replica other_drop           'drop_replica $wfile'
+load replica other_adjustreplica  'eos file adjustreplica $wfile'
+load replica other_verify         'eos file verify $wfile -checksum -commitchecksum -commitsize'
+load replica other_convert        'eos convert file $wfile replica:2'
+load replica other_evict          'eos evict $wfile'
+load replica other_fsck_repair    'eos fsck repair --fxid $(md_field $wfile fxid)'
+load replica race_cache_file      'eos ns cache drop-single-file $(md_field $wfile fid)'
+load replica race_cache_dir       'eos ns cache drop-single-container $(md_field $d fid)'
+
+load version version              'xrdcp -f -s $src $url/$base/v/f$w'
+load version other_versions       'eos file versions $base/v/f$w'
+load version other_purge          'eos file purge $base/v/f$w 1'
+
+load admin   write                'xrdcp -f -s $src $url/$own'
+load admin   touch                'eos file touch $own.t'
+load admin   register             'eos register $own.n size=0'
+load admin   symlink              'eos file symlink $own.l $own'
+load admin   utimes               'xrdfs $url query opaquefile "$own?mgm.pcmd=utimes&tv1_sec=$i&tv1_nsec=0&tv2_sec=$i&tv2_nsec=0"'
+load admin   checksum             'xrdfs $url query checksum $own'
+load admin   verify               'eos file verify $own -checksum -commitchecksum -commitsize'
+load admin   layout               'eos file layout $own -stripes 1'
+load admin   adjustreplica        'eos file adjustreplica $own'
+load admin   layout               'eos file layout $own -stripes 2'
+load admin   other_convert        'eos convert file $own replica:2'
+load admin   file_rename          'eos file rename $own $own.r'
+load admin   rm                   'eos rm -F $own.l'
+load admin   rm                   'eos rm -F $own.r'
+load admin   rm                   'eos rm -F $own.t'
+load admin   rm                   'eos rm -F $own.n'
+
+load tree    mkdir                'eos mkdir -p $own/a/b'
+load tree    write                'for x in f a/f a/b/f; do xrdcp -s $src $url/$own/$x || exit; done'
+load tree    chmod_r              'eos chmod -r 777 $own'
+load tree    chown_r              'eos chown -r adm:adm $own'
+load tree    attr_r               'eos attr -r set user.tree=$i $own'
+load tree    attr_link            'eos attr link $next $own'
+load tree    find_tree            'eos find $own'
+load tree    rm_r                 'eos rm -r -F $own'
+
+# A tree goes to the recycle bin, comes back, goes again and is purged
+load recycle mkdir                'eos mkdir -p $base/r/$w.$i/a'
+load recycle write                'xrdcp -s $src $url/$base/r/$w.$i/a/f'
+load recycle rm_recycle           'eos rm -r $base/r/$w.$i'
+load recycle recycle_restore      'recycle "restore -f" $base/r/$w.$i'
+load recycle rm_recycle           'eos rm -r $base/r/$w.$i'
+load recycle recycle_purge        'recycle "purge -k" $base/r/$w.$i'
+
+load grpc    grpc_mkdir           '$grpc -p $own mkdir'
+load grpc    grpc_touch           '$grpc -p $own/f touch'
+load grpc    grpc_xattr           '$grpc --xattr user.grpc=$i -p $own/f setxattr'
+load grpc    grpc_chmod           '$grpc --mode 644 -p $own/f chmod'
+# The MGM refuses this chown (EPERM), but looks up the file first
+load grpc    other_grpc_chown     '$grpc --owner-uid 3 --owner-gid 4 -p $own/f chown'
+load grpc    grpc_acl             '$grpc --acl u:3=rwx -p $own acl'
+load grpc    grpc_rename          '$grpc --target $own/f2 -p $own/f rename'
+load grpc    grpc_symlink         '$grpc --target $own/f2 -p $own/l symlink'
+load grpc    grpc_version         '$grpc --max-version 2 -p $own/f2 create-version'
+load grpc    grpc_version         '$grpc -p $own/f2 list-version'
+load grpc    grpc_version         '$grpc --max-version 1 -p $own/f2 purge-version'
+load grpc    grpc_md              'eos-grpc-md --endpoint $grpc_ep -l $own'
+load grpc    grpc_md_big          'eos-grpc-md --endpoint $grpc_ep -l $base/big'
+load grpc    grpc_find            'eos-grpc-find --endpoint $grpc_ep $d'
+load grpc    grpc_rm              '$grpc -p $own/l rm'
+# The gRPC rmdir has no recursive mode (-r is not sent): it fails on a
+# directory that is not empty
+load grpc    other_grpc_rmdir     '$grpc -p $own rmdir'
+load grpc    rm_r                 'eos rm -r -F $own'
+
+# All hot workers change one file and its directory at once. The file can
+# be renamed away or dropped meanwhile, so all operations are races. The
+# writes create the file again.
+load hot     race_hot_write       'xrdcp -f -s $src $url/$hot'
+load hot     race_hot_append      'xrdcpappend $url/$hot'
+load hot     race_hot_read        'xrdcp -f -s $url/$hot /dev/null'
+load hot     race_hot_pgread      'xrdcppgread $url/$hot 0 1024'
+load hot     race_hot_attr        'eos attr set user.hot=$i $hot'
+load hot     race_hot_chmod       'eos chmod 640 $hot'
+load hot     race_hot_utimes      'xrdfs $url query opaquefile "$hot?mgm.pcmd=utimes&tv1_sec=$i&tv1_nsec=0&tv2_sec=$i&tv2_nsec=0"'
+load hot     race_hot_verify      'eos file verify $hot -checksum -commitchecksum -commitsize'
+load hot     race_hot_drop        'drop_replica $hot'
+load hot     race_hot_adjustreplica 'eos file adjustreplica $hot'
+load hot     race_hot_rename      'xrdfs $url mv $hot $hot.$w && xrdfs $url mv $hot.$w $hot'
+load hot     race_hot_convert     'eos convert file $hot replica:2'
+load hot     race_hot_dir_attr    'eos attr set user.hot=$i $base/hot'
+load hot     race_hot_stat        'xrdfs $url stat $hot'
+
+# One directory grows by 64 entries and shrinks again while it is listed
+load bigdir  bigdir_touch         'for k in $(seq 1 64); do eos file touch -n $base/big/$w.$i.$k || exit; done'
+load bigdir  bigdir_ls            'eos ls $base/big'
+load bigdir  bigdir_fuse_ls       'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuse&mgm.statentries=1&mgm.path=$base/big" /dev/null'
+load bigdir  bigdir_rm            'eos rm -F "$base/big/$w.$i.*"'
+
+# Atomic uploads of two versions of one file. Each read must get one of
+# them whole.
+load atomic  race_atomic_write    'xrdcp -f -s $src "$url/$base/at/a?eos.atomic=1"'
+load atomic  race_atomic_read     'xrdcp -f -s $url/$base/at/a $logs/at.$w && { cmp -s $logs/at.$w $src || cmp -s $logs/at.$w $srcb || echo "step $i of worker $w" >> $logs/atomic.bad; }'
+load atomic  race_atomic_write    'xrdcp -f -s $srcb "$url/$base/at/a?eos.atomic=1"'
+load atomic  race_atomic_read     'xrdcp -f -s $url/$base/at/a $logs/at.$w && { cmp -s $logs/at.$w $src || cmp -s $logs/at.$w $srcb || echo "step $i of worker $w" >> $logs/atomic.bad; }'
+
+# Each append adds 4096 bytes: the sizes that the FSTs commit must add up
+load append  write                '[ $i != 0 ] || xrdcp -s $empty $url/$base/ap/a$w'
+load append  append               'xrdcpappend $url/$base/ap/a$w && echo $base/ap/a$w >> $logs/appends'
+
+# xrdstress: 8 threads write and read 64 files
+load storm   mkdir                'eos mkdir $own'
+load storm   race_storm           'xrdstress -d $url/$own/ -o rdwr -j 8 -f 8 -s 4KB -c'
+load storm   rm_r                 'eos rm -r -F $own'
+
+# POSIX calls through the eosxd mount. The FUSE server changes the
+# namespace under the global write lock only, the others use MD locks.
+load mount   mount_mkdir          'mkdir $mown'
+load mount   mount_write          'cp $src $mown/f'
+load mount   mount_append         'cat $src >> $mown/f'
+load mount   mount_read           'cat $mown/f'
+load mount   mount_truncate       'truncate -s 100 $mown/f'
+load mount   mount_rename         'mv $mown/f $mown/g'
+load mount   mount_hardlink       'ln $mown/g $mown/h'
+load mount   mount_symlink        'ln -s g $mown/s'
+load mount   mount_chmod          'chmod 600 $mown/g'
+load mount   mount_xattr          'setfattr -n user.mount -v $i $mown/g'
+load mount   mount_ls             'ls -la $mown'
+load mount   other_rm_hardlink    'eos rm -F $own/h'
+load mount   mount_unlink         'rm -f $mown/s $mown/g $mown/h'
+load mount   mount_rmdir          'rmdir $mown'
+
+run_load
+
+# ----------------------------------------------------------------------------
+phase "End checks"
+category=Check
+end_checks
+finish
