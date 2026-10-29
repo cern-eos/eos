@@ -221,34 +221,45 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
     }
   }
 
-  eos_notice("msg=\"quota ls\" space=%s", space.c_str());
+  eos_notice("msg=\"quota ls\" space=%s summary=%d recursive=%d", space.c_str(),
+             ls.summary(), ls.recursive());
   XrdOucString out1 {""};
   XrdOucString out2 {""};
   long long int uid = (ls.uid().empty() ? -1LL :
                        eos::common::Mapping::UserNameToUid(ls.uid(), errc));
   long long int gid = (ls.gid().empty() ? -1LL :
                        eos::common::Mapping::GroupNameToGid(ls.gid(), errc));
+  auto print = [&](XrdOucString& out, long long int uid_sel, long long int gid_sel) {
+    if (ls.summary()) {
+      return Quota::PrintSummary(space, out, uid_sel, gid_sel, monitoring, !ls.printid(),
+                                 ls.recursive());
+    }
+
+    return Quota::PrintOut(space, out, uid_sel, gid_sel, monitoring, !ls.printid(),
+                           ls.recursive());
+  };
+  const int err_c = (ls.summary() ? ENOENT : EINVAL);
 
   if ((uid != -1LL) && (gid != -1LL)) {
     // Print both uid and gid info
-    if (!Quota::PrintOut(space, out1, uid, -1LL, monitoring, !ls.printid())) {
+    if (!print(out1, uid, -1LL)) {
       std_err.str(out1.c_str());
-      ret_c = EINVAL;
+      ret_c = err_c;
     } else {
-      if (!Quota::PrintOut(space, out2, -1LL, gid, monitoring, !ls.printid())) {
+      if (!print(out2, -1LL, gid)) {
         std_err.str(out2.c_str());
-        ret_c = EINVAL;
+        ret_c = err_c;
       } else {
         std_out.str((out1 + out2).c_str());
       }
     }
   } else {
     // Either uid or gid is printed
-    if (Quota::PrintOut(space, out1, uid, gid, monitoring, !ls.printid())) {
+    if (print(out1, uid, gid)) {
       std_out.str(out1.c_str());
     } else {
       std_err.str(out1.c_str());
-      ret_c = EINVAL;
+      ret_c = err_c;
     }
   }
 
