@@ -57,7 +57,7 @@ TokenHelper::ParseCommand(const char* arg)
     if (element.substr(0, 2) == "--") {
       element.erase(0, 2);
 
-      if (element != "tree") {
+      if ((element != "tree") && (element != "jwt")) {
         option = tokenizer.GetTokenUnquoted();
 
         if (option) {
@@ -112,6 +112,10 @@ TokenHelper::ParseCommand(const char* arg)
 
     if (args.count("tree")) {
       token->set_allowtree(true);
+    }
+
+    if (args.count("jwt")) {
+      token->set_jwt(true);
     }
 
     if (args.count("origin")) {

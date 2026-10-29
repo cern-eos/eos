@@ -35,6 +35,7 @@
 
 #include "mgm/stat/Stat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/token/EosTok.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -264,7 +265,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       eos::common::StringConversion::UnsealXrdPath(store_path);                          \
     }                                                                                    \
     if (vid.token && vid.token->Valid()) {                                               \
-      if (!strncmp(path, "/zteos64:", 9)) {                                              \
+      if (eos::common::EosTok::IsEosTokenPath(path)) {                                   \
         store_path = vid.token->Path().c_str();                                          \
       }                                                                                  \
     }                                                                                    \

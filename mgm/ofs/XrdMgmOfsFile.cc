@@ -754,7 +754,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     EXEC_TIMING_BEGIN("IdMap");
     std::string validation_path = spath.c_str();
 
-    if (spath.beginswith("/zteos64:")) {
+    if (eos::common::EosTok::IsEosTokenPath(spath.c_str())) {
       sinfo += "&authz=";
       sinfo += spath.c_str() + 1;
       ininfo = sinfo.c_str();

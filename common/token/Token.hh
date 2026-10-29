@@ -31,6 +31,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ctime>
 #include <string>
 
 class Token {
@@ -57,6 +58,7 @@ public:
   virtual int SetRequester(const std::string& requesteor) = 0;
   virtual int AddOrigin(const std::string& host, const std::string& name, const std::string& prot) = 0;
   virtual int VerifyOrigin(const std::string& host, const std::string& name, const std::string& prot) = 0;
+  virtual int ValidateOrigins() const = 0;
   virtual int ValidatePath(const std::string& path) const  = 0;
   virtual bool Valid() const = 0;
   virtual bool TreeToken() const = 0;
@@ -66,5 +68,6 @@ public:
   virtual std::string Path() const = 0;
   virtual std::string Voucher() const = 0;
   virtual std::string Requester() const = 0;
+  virtual time_t Expires() const = 0;
   virtual int Generation() const = 0;
 };

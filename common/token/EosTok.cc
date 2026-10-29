@@ -35,6 +35,7 @@
 #endif
 
 #include "EosTok.hh"
+#include "JwtTok.hh"
 #include "proto/ConsoleRequest.pb.h"
 #include <google/protobuf/util/json_util.h>
 #include "common/SymKeys.hh"
@@ -524,31 +525,48 @@ EosTok::Requester() const
 }
 
 bool
-EosTok::IsEosToken(XrdOucEnv* env)
+EosTok::IsEosCredential(const std::string& authz)
 {
   static const std::string http_enc_tag = "Bearer%20zteos64";
   static const std::string http_tag = "Bearer zteos64";
   static const std::string tag = "zteos64";
 
-  if (env) {
-    const char* authz_opaque = env->Get("authz");
-
-    if (authz_opaque) {
-      if (strncmp(authz_opaque, http_enc_tag.c_str(),
-                  http_enc_tag.length()) == 0) {
-        return true;
-      }
-
-      if (strncmp(authz_opaque, http_tag.c_str(), http_tag.length()) == 0) {
-        return true;
-      }
-
-      if (strncmp(authz_opaque, tag.c_str(), tag.length()) == 0) {
-        return true;
-      }
-    }
+  if (authz.compare(0, http_enc_tag.length(), http_enc_tag) == 0 ||
+      authz.compare(0, http_tag.length(), http_tag) == 0 ||
+      authz.compare(0, tag.length(), tag) == 0) {
+    return true;
   }
 
-  return false;
+  return JwtTok::IsEosJwt(authz);
+}
+
+bool
+EosTok::IsEosTokenPath(const char* path)
+{
+  if (!path || path[0] != '/') {
+    return false;
+  }
+
+  if (strncmp(path, "/zteos64:", 9) == 0) {
+    return true;
+  }
+
+  return JwtTok::IsEosJwt(path);
+}
+
+bool
+EosTok::IsEosToken(XrdOucEnv* env)
+{
+  if (!env) {
+    return false;
+  }
+
+  const char* authz_opaque = env->Get("authz");
+
+  if (!authz_opaque) {
+    return false;
+  }
+
+  return IsEosCredential(authz_opaque);
 }
 EOSCOMMONNAMESPACE_END
