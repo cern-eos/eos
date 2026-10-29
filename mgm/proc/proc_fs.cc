@@ -1542,8 +1542,52 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
     return EPERM;
   }
 
-  if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
-    out = SSTR("success: dropped deletions on fsid=" << fsid).c_str();
+  // Copy the ids first: the iterator holds the mutex of the list, and the
+  // location changes below need it
+  std::vector<eos::IFileMD::id_t> fids;
+
+  for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fsid);
+       (it_fid && it_fid->valid()); it_fid->next()) {
+    fids.push_back(it_fid->getElement());
+  }
+
+  // Drop the unlinked replica of each file as a drop from the FST does: a
+  // removed file loses its record with its last replica
+  uint64_t removed = 0;
+
+  for (const auto& fid : fids) {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    try {
+      auto fmd = gOFS->eosFileService->getFileMD(fid);
+      auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
+
+      if (fmd->isDeleted() || !fmd->hasUnlinkedLocation(fsid)) {
+        continue;
+      }
+
+      fmd->removeLocation(fsid);
+
+      // A removed file has no container, so no container lock is needed
+      if ((fmd->getContainerId() == 0) && (fmd->getNumLocation() == 0) &&
+          (fmd->getNumUnlinkedLocation() == 0)) {
+        gOFS->eosView->removeFile(fmd.get());
+        ++removed;
+      } else {
+        gOFS->eosView->updateFileStore(fmd.get());
+      }
+    } catch (const eos::MDException& e) {
+      eos_static_debug("msg=\"skip file in dropdeletion\" fxid=%08llx fsid=%u "
+                       "errno=%d",
+                       (unsigned long long)fid, fsid, e.getErrno());
+    }
+  }
+
+  // Also drop the entries of files that do not exist any more
+  if (gOFS->eosFsView->clearUnlinkedFileList(fsid) || !fids.empty()) {
+    out = SSTR("success: dropped deletions on fsid=" << fsid << " files=" << fids.size()
+                                                     << " removed_records=" << removed)
+              .c_str();
   } else {
     out = SSTR("note: there is no deletion list for fsid=" << fsid).c_str();
   }
