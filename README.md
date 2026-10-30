@@ -114,8 +114,9 @@ libevent-devel jemalloc jemalloc-devel
 ```
 ## Build
 
-To build **EOS**, you need **gcc (>=7)** with **C++17 features** and **CMake**
-installed on your system. If you can install ninja, **EOS** supports ninja for builds.
+To build **EOS**, you need **gcc (>=11)** with **C++20 features** and **CMake**
+installed on your system. On EL8, use `gcc-toolset-14` since the system GCC 8 has
+only partial C++20 support. If you can install ninja, **EOS** supports ninja for builds.
 
 ```bash
 git submodule update --init --recursive
