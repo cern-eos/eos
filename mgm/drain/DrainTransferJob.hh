@@ -213,6 +213,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get destination file system id, 0 if none was selected
+  //----------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t
+  GetTargetFsId() const
+  {
+    return mFsIdTarget.load();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get drain job info based on the requested tags
   //!
   //! @param tags set of tags that the requestor would like to get inf about
