@@ -279,7 +279,8 @@ DrainFs::UpdateFinishedJob(const eos::IFileMD::id_t fid)
   if (it != mJobsRunning.end()) {
     auto job = it->second;
 
-    if (job->GetStatus() == DrainTransferJob::Status::Failed) {
+    // No-destination failures are only logged, a full group would record every file
+    if ((job->GetStatus() == DrainTransferJob::Status::Failed) && !job->NoDestination()) {
       mJobsFailed.insert(job);
     }
 

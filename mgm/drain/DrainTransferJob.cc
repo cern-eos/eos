@@ -812,6 +812,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                                    fdrain.mProto.size(), existing_repl, mExcludeDsts);
 
   if (target == 0) {
+    mNoDst = true;
     ReportError(SSTR("msg=\"no eligible drain destination could be found\" fxid="
                      << eos::common::FileId::Fid2Hex(mFileId) << " group=\""
                      << source_snapshot.mGroup << "\" errc=" << ENOSPC));
