@@ -250,15 +250,40 @@ XrdMgmOfs::_symlink(const char* source_name,
         throw e;
       }
 
-      eosView->createLink(oPath.GetPath(), target_name,
-                          vid.uid, vid.gid);
+      // As createLink(path, ...), but on the locked directory: its path walk
+      // would take read locks on the parents after this lock
+      eos::FileOrContainerMD conflict = dir->findItem(oPath.GetName()).get();
+
+      if (conflict.file || conflict.container) {
+        eos::MDException e(EEXIST);
+        e.getMessage() << "File exists";
+        throw e;
+      }
+
+      std::shared_ptr<eos::IFileMD> link = gOFS->eosFileService->createFile(0);
+
+      if (!link) {
+        eos::MDException e(EIO);
+        e.getMessage() << "symlink: file creation failed";
+        throw e;
+      }
+
+      link->setName(oPath.GetName());
+      link->setCUid(vid.uid);
+      link->setCGid(vid.gid);
+      link->setCTimeNow();
+      link->setATimeNow(0);
+      link->setMTimeNow();
+      link->clearChecksum(0);
+      link->setLink(target_name);
+      link->setSize(strlen(target_name));
+      dir->addFile(link.get());
+      eosView->updateFileStore(link.get());
 
       // The link counts in quota with the length of its target, as rm and
       // the quota recompute count it
       if (ns_quota) {
-        if (auto link = dir->findFile(oPath.GetName())) {
-          ns_quota->addFile(link.get());
-        }
+        ns_quota->addFile(link.get());
       }
 
       dir->setMTimeNow();

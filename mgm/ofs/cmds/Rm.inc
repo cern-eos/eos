@@ -335,11 +335,13 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           if (ns_quota) {
+            // Read before the file lock: getId locks the container
+            const auto cid = container->getId();
             eos::MDLocking::FileReadLock fmd_lock(fmd.get());
 
             // Moved by a rename or removed by a drop while the namespace lock
             // was released
-            if (fmd->isDeleted() || (fmd->getContainerId() != container->getId())) {
+            if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
               eos::MDException e(ENOENT);
               e.getMessage() << "File does not exist";
               throw e;
@@ -402,9 +404,10 @@ XrdMgmOfs::_rem(const char* path,
         } else if (ns_quota) {
           // The hard link code kept the file in its directory: it leaves the
           // quota as well, unless a rename moved it meanwhile
+          const auto cid = container->getId();
           eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
 
-          if (!fmd->isDeleted() && (fmd->getContainerId() == container->getId())) {
+          if (!fmd->isDeleted() && (fmd->getContainerId() == cid)) {
             ns_quota->removeFile(fmd.get());
           }
         }
