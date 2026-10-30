@@ -133,7 +133,7 @@ static int RunRegisteredCommand(const std::string& cmdName,
 // Exit handler
 //------------------------------------------------------------------------------
 void
-exit_handler(int a)
+exit_handler(int /*sig*/)
 {
   fprintf(stdout, "\n");
   fprintf(stderr, "<Control-C>\n");
@@ -145,7 +145,7 @@ exit_handler(int a)
 // Jump handler
 //------------------------------------------------------------------------------
 void
-jump_handler(int a)
+jump_handler(int /*sig*/)
 {
   siglongjmp(sigjump_buf, 1);
 }
