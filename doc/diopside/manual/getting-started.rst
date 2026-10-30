@@ -68,7 +68,7 @@ EOS up in few minutes
 ---------------------
 We will start setting up a complete EOS installation on a single physical machine using the EOS5 configuration method. Later we will demonstrate the steps to add high-availability to MGMs/QDBs and how to scale-out FST nodes. All commands have to be issued using the `root` account!
 
-Grab a machine preferably with Alma9 (or Alma8 or CentOS7). Only the repository setup differs for these platforms (shown is the Alma9 installation, just replace 9 with 7,8 in the URLs :
+Grab a machine preferably with Alma9 (or Alma8 or Alma10). Only the repository setup differs for these platforms (shown is the Alma9 installation, just replace 9 with 8 or 10 in the URLs):
 
 Installation
 ------------

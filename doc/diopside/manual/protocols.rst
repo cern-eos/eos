@@ -417,7 +417,7 @@ enable this feature:
     certificates from the clients. This can be found in the EPEL repository.
   - **eos-scitokens** and **eos-scitokens-debuginfo** packages to enable
     support for SciTokens in EOS. These packages can be found in the
-    `eos-depend repository <http://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-7/x86_64/>`_.
+    `eos-depend repository <http://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/>`_.
     Starting with EOS 5.0.16 there is no need to install the *eos-scitokens*
     package as EOS can use the default library provided by the XRootD framework,
     namely *libXrdAccSciTokens.so* coming from the *xrootd-server* package.
@@ -691,7 +691,7 @@ HTTP transfers with SciToken authentication
 HTTP transfers with SciTokens work in a similar way to Macaroon tokens. In order
 to get a SciToken, one needs to be registered with an IAM provider and install
 the **oidc-agent** package which provides the client tools to register and request
-tokens. An RPM package for CentOS7 is already available from the
+tokens. It is packaged in EPEL as **oidc-agent-cli**; other builds are available from the
 `GitHub releases page of the project <https://github.com/indigo-dc/oidc-agent/releases>`_.
 
 To configure the **oidc-agent**, you can follow these steps:
