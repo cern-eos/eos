@@ -371,7 +371,8 @@ XrdMgmOfs::_rem(const char* path,
             throw e;
           }
 
-          if (ns_quota) {
+          // A hard link entry was never added to the quota
+          if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
             ns_quota->removeFile(fmd.get());
           }
 

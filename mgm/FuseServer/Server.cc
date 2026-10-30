@@ -1594,6 +1594,8 @@ Server::OpSetDirectory(const std::string& id,
   mode_t sgid_mode = 0;
   std::string oldname;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // Taken for a directory move, as _rename takes it
+  std::unique_lock<std::mutex> dir_move_lock(gOFS->mDirMoveMutex, std::defer_lock);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1638,6 +1640,7 @@ Server::OpSetDirectory(const std::string& id,
           }
         }
         op = MOVE;
+        dir_move_lock.lock();
 
         // Guard against moves that would push the directory - or part of its
         // subtree - deeper than the maximum resolvable path depth. Otherwise
@@ -2378,8 +2381,8 @@ Server::OpSetFile(const std::string& id,
 
                       eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-                      // free previous quota
-                      if (quotanode) {
+                      // free previous quota, a hard link entry was never added to it
+                      if (quotanode && !ofmd->hasAttribute(k_mdino)) {
                         quotanode->removeFile(ofmd.get());
                       }
 
@@ -3506,10 +3509,10 @@ Server::OpDeleteFile(const std::string& id,
                        );
     } else {
       try {
-        // handle quota
+        // handle quota, a hard link entry was never added to it
         eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-        if (quotanode) {
+        if (quotanode && !fmd->hasAttribute(k_mdino)) {
           quotanode->removeFile(fmd.get());
         }
       } catch (eos::MDException& e) {

@@ -271,6 +271,10 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  // Held until the end of the rename
+  std::unique_lock<std::mutex> overwrite_lock(gOFS->mOverwriteRenameMutex,
+                                              std::defer_lock);
+
   if (!_exists(new_name, file_exists, error, vid, infoN)) {
     if (file_exists == XrdSfsFileExistIsFile) {
       if (new_path.back() == '/') {
@@ -279,6 +283,16 @@ XrdMgmOfs::_rename(const char* old_name,
       }
 
       if (overwrite && renameFile) {
+        overwrite_lock.lock();
+        XrdSfsFileExistence source_exists = XrdSfsFileExistNo;
+
+        // A rename that held the lock before can have moved the source
+        if (_exists(old_name, source_exists, error, vid, infoN) ||
+            (source_exists != XrdSfsFileExistIsFile)) {
+          errno = ENOENT;
+          return Emsg(epname, error, ENOENT, "rename - source does not exist");
+        }
+
         // Check if we are renaming a version to the primary copy
         bool keepversion = false;
         {
@@ -624,7 +638,7 @@ XrdMgmOfs::_rename(const char* old_name,
         if (rdir) {
           {
             // No MD locks: the check locks each parent on its own, and the
-            // second check below, under the namespace write lock, decides
+            // second check below, under the directory move mutex, decides
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
               errno = EINVAL;
               return Emsg(epname, error, EINVAL,
@@ -858,9 +872,8 @@ XrdMgmOfs::_rename(const char* old_name,
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
             // Two moves of directories into each other at the same time both
-            // pass the check below, then cut both off from the namespace. The
-            // namespace write lock serializes the moves to another parent
-            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+            // pass the check below, then cut both off from the namespace
+            std::lock_guard<std::mutex> dir_move_lock(gOFS->mDirMoveMutex);
             {
               // Do the check once again, because we're paranoid. No MD
               // locks: no directory moves to another parent meanwhile
