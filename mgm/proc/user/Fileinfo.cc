@@ -356,6 +356,18 @@ ProcCommand::FileInfo(const char* path)
 
           if ((option.find("-size")) != STR_NPOS) {
             out << "size:   " << fmd_copy->getSize() << std::endl;
+
+            if (fmd_copy->getCSize()) {
+              out << "csize:  " << fmd_copy->getCSize() << std::endl;
+              const std::string ratio = LayoutId::CompressionRatio(
+                                          fmd_copy->getSize(), fmd_copy->getCSize());
+
+              if (!ratio.empty()) {
+                out << "ratio:  " << ratio << std::endl;
+              }
+            }
+
+            out << "potential: " << fmd_copy->getCPotential() << "%" << std::endl;
           }
 
           if ((option.find("-checksum")) != STR_NPOS) {
@@ -407,8 +419,23 @@ ProcCommand::FileInfo(const char* path)
             }
 
             out << std::endl;
-            out << "  Size: " << fmd_copy->getSize() << std::endl
-                << " total-rbytes: " << fmd_copy->getTotalRBytes() << std::endl
+            out << "  Size: " << fmd_copy->getSize() << std::endl;
+
+            if (fmd_copy->getCSize()) {
+              const std::string ratio = LayoutId::CompressionRatio(
+                                          fmd_copy->getSize(), fmd_copy->getCSize());
+              out << " CSize: " << fmd_copy->getCSize();
+
+              if (!ratio.empty()) {
+                out << " Ratio: " << ratio;
+              }
+
+              out << std::endl;
+            }
+
+            out << " Potential: " << fmd_copy->getCPotential() << "%" << std::endl;
+
+            out << " total-rbytes: " << fmd_copy->getTotalRBytes() << std::endl
                 << " total-rbc: " << fmd_copy->getTotalRbc() << std::endl
                 << " total-ubytes: " << fmd_copy->getTotalUBytes() << std::endl
                 << " total-ubc: " << fmd_copy->getTotalUbc() << std::endl
@@ -488,8 +515,21 @@ ProcCommand::FileInfo(const char* path)
 
             out << "keylength.file=" << spath.length()
                 << " file=" << spath
-                << " size=" << fmd_copy->getSize()
-                << " total-rbytes=" << fmd_copy->getTotalRBytes()
+                << " size=" << fmd_copy->getSize();
+
+            if (fmd_copy->getCSize()) {
+              const std::string ratio = LayoutId::CompressionRatio(
+                                          fmd_copy->getSize(), fmd_copy->getCSize());
+              out << " csize=" << fmd_copy->getCSize();
+
+              if (!ratio.empty()) {
+                out << " ratio=" << ratio;
+              }
+            }
+
+            out << " cpotential=" << fmd_copy->getCPotential();
+
+            out << " total-rbytes=" << fmd_copy->getTotalRBytes()
                 << " total-rbc=" << fmd_copy->getTotalRbc()
                 << " total-ubytes=" << fmd_copy->getTotalUBytes()
                 << " total-ubc=" << fmd_copy->getTotalUbc()
@@ -956,6 +996,19 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["btime"] = (Json::Value::UInt64) btime.tv_sec;
     json["btime_ns"] = (Json::Value::UInt64) btime.tv_nsec;
     json["size"] = (Json::Value::UInt64) fmd_copy->getSize();
+
+    if (fmd_copy->getCSize()) {
+      json["csize"] = (Json::Value::UInt64) fmd_copy->getCSize();
+      const std::string ratio = LayoutId::CompressionRatio(fmd_copy->getSize(),
+                                fmd_copy->getCSize());
+
+      if (!ratio.empty()) {
+        json["ratio"] = ratio;
+      }
+    }
+
+    json["cpotential"] = fmd_copy->getCPotential();
+
     json["total-rbytes"] = (Json::Value::UInt64) fmd_copy->getTotalRBytes();
     json["total-rbc"] = (Json::Value::UInt64) fmd_copy->getTotalRbc();
     json["total-ubytes"] = (Json::Value::UInt64) fmd_copy->getTotalUBytes();

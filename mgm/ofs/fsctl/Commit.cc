@@ -38,6 +38,9 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
+#include <exception>
+#include <stdexcept>
+#include <string>
 
 
 //----------------------------------------------------------------------------
@@ -288,6 +291,30 @@ XrdMgmOfs::Commit(const char* path,
 
       option["update"] = update;
 
+      if (cgi["csize"].length()) {
+        try {
+          fmd->setCSize(std::stoull(cgi["csize"]));
+        } catch (const std::exception& e) {
+          eos_thread_err("msg=\"invalid compressed size\" csize=%s err=%s",
+                         cgi["csize"].c_str(), e.what());
+        }
+      }
+
+      if (cgi["cpotential"].length()) {
+        try {
+          const unsigned long potential = std::stoul(cgi["cpotential"]);
+
+          if (potential > 100) {
+            throw std::out_of_range("cpotential");
+          }
+
+          fmd->setCPotential(static_cast<uint32_t>(potential));
+        } catch (const std::exception& e) {
+          eos_thread_err("msg=\"invalid compression potential\" cpotential=%s "
+                         "err=%s", cgi["cpotential"].c_str(), e.what());
+        }
+      }
+
       if (cgi["altxs"].length()) {
         std::vector<std::string> tkns;
         std::vector<std::string> name2xs;
@@ -482,7 +509,9 @@ XrdMgmOfs::Commit(const char* path,
                     "atomic upload - discarding atomic upload [EREMCHG]", "");
       }
     }
-  } else if (CommitHelper::check_altchecksums_commit_params(cgi)) {
+  } else if (CommitHelper::check_altchecksums_commit_params(cgi) ||
+             CommitHelper::check_csize_commit_params(cgi) ||
+             CommitHelper::check_cpotential_commit_params(cgi)) {
     unsigned long long fid{};
 
     try {
@@ -517,6 +546,32 @@ XrdMgmOfs::Commit(const char* path,
 
         emsg.insert(0, "commit filesize change [EIO]");
         return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
+      }
+
+      if (cgi["csize"].length()) {
+        try {
+          fmd->setCSize(std::stoull(cgi["csize"]));
+        } catch (const std::exception& e) {
+          eos_thread_err("msg=\"invalid compressed size\" csize=%s err=%s",
+                         cgi["csize"].c_str(), e.what());
+          return Emsg(epname, error, EINVAL, "commit compressed size", "");
+        }
+      }
+
+      if (cgi["cpotential"].length()) {
+        try {
+          const unsigned long potential = std::stoul(cgi["cpotential"]);
+
+          if (potential > 100) {
+            throw std::out_of_range("cpotential");
+          }
+
+          fmd->setCPotential(static_cast<uint32_t>(potential));
+        } catch (const std::exception& e) {
+          eos_thread_err("msg=\"invalid compression potential\" cpotential=%s "
+                         "err=%s", cgi["cpotential"].c_str(), e.what());
+          return Emsg(epname, error, EINVAL, "commit compression potential", "");
+        }
       }
 
       if (cgi["altxs"].length()) {
@@ -558,7 +613,19 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
-      eos_info("msg=\"committed alternative checksums\" fid=%08llx", fid);
+      if (cgi["csize"].length()) {
+        eos_info("msg=\"committed compressed size\" fid=%08llx csize=%s",
+                 fid, cgi["csize"].c_str());
+      }
+
+      if (cgi["cpotential"].length()) {
+        eos_info("msg=\"committed compression potential\" fid=%08llx "
+                 "cpotential=%s", fid, cgi["cpotential"].c_str());
+      }
+
+      if (cgi["altxs"].length() || cgi["altxs_delete"].length()) {
+        eos_info("msg=\"committed alternative checksums\" fid=%08llx", fid);
+      }
     }
   } else {
     int envlen = 0;

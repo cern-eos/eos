@@ -3210,8 +3210,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                               LayoutId::GetStripeNumber(layoutId));
   }
 
+  // Bit 31 is the compression target. GetId() rebuilds the other fields and
+  // drops it. A signed append would also print that bit as a negative number.
+  LayoutId::SetCompression(new_lid, LayoutId::HasCompression(layoutId));
   capability += "&mgm.lid=";
-  capability += static_cast<int>(new_lid);
+  {
+    const std::string lid_text = std::to_string(new_lid);
+    capability += lid_text.c_str();
+  }
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
 
@@ -3650,7 +3656,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isPio) {
     redirectionhost = piolist;
     redirectionhost += "mgm.lid=";
-    redirectionhost += static_cast<int>(layoutId);
+    {
+      const std::string lid_text = std::to_string(layoutId);
+      redirectionhost += lid_text.c_str();
+    }
     redirectionhost += "&mgm.logid=";
     redirectionhost += this->logId;
     redirectionhost += capabilityenv->Env(caplen);

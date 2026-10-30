@@ -522,7 +522,19 @@ void Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept {
       break;
     }
 
-    if ((upd.key == eos::common::SCAN_IO_RATE_NAME) || (upd.key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+    if ((upd.key == eos::common::COMPRESS_WORKERS_NAME) ||
+        (upd.key == eos::common::COMPRESS_RATE_NAME)) {
+      try {
+        long long val = std::stoll(upd.value);
+
+        if (val >= 0) {
+          gOFS.ConfigureCompression(upd.fsid, upd.key, val);
+        }
+      } catch (...) {
+        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
+                       upd.key.c_str(), upd.value.c_str());
+      }
+    } else if ((upd.key == eos::common::SCAN_IO_RATE_NAME) || (upd.key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
         (upd.key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) || (upd.key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (upd.key == eos::common::SCAN_NS_INTERVAL_NAME) || (upd.key == eos::common::SCAN_NS_RATE_NAME) ||
         (upd.key == eos::common::SCAN_ALTXS_INTERVAL_NAME) || (upd.key == eos::common::ALTXS_SYNC) ||
