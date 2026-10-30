@@ -46,7 +46,7 @@ public:
 void simulateWork(size_t iterations) {
   volatile size_t dummy = 0;
   for (size_t i = 0; i < iterations; ++i) {
-    dummy += i;
+    dummy = dummy + i;
   }
 }
 
@@ -98,4 +98,3 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, BulkNSObjectLocker)(benchmark::State
 BENCHMARK_REGISTER_F(BulkNSObjectLockFixture, ContainerMDLock)->ThreadRange(1,5000)->UseRealTime();
 BENCHMARK_REGISTER_F(BulkNSObjectLockFixture, BulkNSObjectLocker)->ThreadRange(1,5000)->UseRealTime();
 BENCHMARK_MAIN();
-
