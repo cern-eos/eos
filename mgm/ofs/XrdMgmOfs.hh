@@ -1961,6 +1961,12 @@ public:
   };
 
   std::mutex mAuthStatsMutex; ///< Mutex protecting authentication stats
+  //! Serializes the moves of directories to another parent: two moves into
+  //! each other at the same time would both pass the isSafeToRename check
+  std::mutex mDirMoveMutex;
+  //! Serializes the renames that overwrite a file, from the removal of the
+  //! target to the move: two renames that swap two files would remove both
+  std::mutex mOverwriteRenameMutex;
   //! Map of operation types to duration
   std::map<eos::auth::RequestProto_OperationType,
       std::list<std::int64_t> > mAuthSamples;
