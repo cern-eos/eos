@@ -540,7 +540,7 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 
       // Save the reply string from the server
       if (reply) {
-        reply->assign(oss.str().c_str());
+        reply->assign(oss.str());
       }
     }
   }
@@ -557,7 +557,7 @@ read_pwdfile()
   std::string lpwd;
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
 
-  if (lpwd.length()) {
+  if (!lpwd.empty()) {
     RunRegisteredCommand("cd", {lpwd});
   }
 }
@@ -1013,11 +1013,15 @@ Run(int argc, char* argv[])
     }
   }
   // Bind our completer
-  rl_readline_name = (char*) "EOS Console";
+  static char readline_name[] = "EOS Console";
+  static char completer_quote_characters[] = "\"'";
+  static char word_break_characters[] = " \t\n\r\v\f\"'";
+  static char filename_quote_characters[] = " \t\n\r\v\f\\\"'";
+  rl_readline_name = readline_name;
   rl_attempted_completion_function = eos_console_completion;
-  rl_completer_quote_characters = "\"'";
-  rl_completer_word_break_characters = " \t\n\r\v\f\"'";
-  rl_filename_quote_characters = " \t\n\r\v\f\\\"'";
+  rl_completer_quote_characters = completer_quote_characters;
+  rl_completer_word_break_characters = word_break_characters;
+  rl_filename_quote_characters = filename_quote_characters;
   rl_filename_quoting_function = eos_completion_quote;
   rl_completion_append_character = '\0';
 
