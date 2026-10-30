@@ -54,6 +54,8 @@ ConfigureFile(Schema& schema)
   schema.argument(convert, "placement-policy", {"scattered", "hybrid:", "gathered:"});
   schema.argument(convert, "checksum", kChecksums);
   schema.flag(convert, "--rewrite");
+  schema.flag(convert, "--compress");
+  schema.flag(convert, "--uncompress");
 
   auto& copy = source("copy");
   Flags(schema, copy, {"-f", "-s", "-c"});
@@ -141,6 +143,8 @@ FsConfiguration()
                           "scaninterval=",
                           "scan_rain_interval=",
                           "scanrate=",
+                          "compressworkers=",
+                          "compressrate=",
                           "scan_disk_interval=",
                           "scan_ns_interval=",
                           "scan_ns_rate=",
@@ -320,6 +324,8 @@ SpaceConfiguration()
                           "space.scaninterval=",
                           "space.scan_rain_interval=",
                           "space.scanrate=",
+                          "space.compressworkers=",
+                          "space.compressrate=",
                           "space.scan_disk_interval=",
                           "space.scan_ns_interval=",
                           "space.scan_ns_rate=",

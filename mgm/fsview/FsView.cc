@@ -4666,6 +4666,22 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
       }
     }
 
+    if (force || fs->GetString(eos::common::COMPRESS_WORKERS_NAME).empty()) {
+      if (GetConfigMember(eos::common::COMPRESS_WORKERS_NAME).length()) {
+        fs->SetString(eos::common::COMPRESS_WORKERS_NAME,
+                      GetConfigMember(eos::common::COMPRESS_WORKERS_NAME).c_str());
+        modified = true;
+      }
+    }
+
+    if (force || fs->GetString(eos::common::COMPRESS_RATE_NAME).empty()) {
+      if (GetConfigMember(eos::common::COMPRESS_RATE_NAME).length()) {
+        fs->SetString(eos::common::COMPRESS_RATE_NAME,
+                      GetConfigMember(eos::common::COMPRESS_RATE_NAME).c_str());
+        modified = true;
+      }
+    }
+
     if (force || (!snapshot.mHeadRoom)) {
       // try to apply the default
       if (GetConfigMember("headroom").length()) {

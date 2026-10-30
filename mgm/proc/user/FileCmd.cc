@@ -1340,6 +1340,86 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
   if ((gOFS->_access(spath.c_str(), W_OK, mError, mVid, "") != SFS_OK)) {
     std_err << "error: you have no write permission on '" << spath << "'";
     retc = EPERM;
+  } else if (convert.compress() || convert.uncompress()) {
+    if (convert.compress() && convert.uncompress()) {
+      std_err << "error: --compress and --uncompress are mutually exclusive";
+      retc = EINVAL;
+    } else if (convert.rewrite() || !convert.layout().empty() ||
+               !convert.target_space().empty() ||
+               !convert.placement_policy().empty() ||
+               !convert.checksum().empty()) {
+      std_err << "error: --compress and --uncompress only change the "
+                 "compression bit of the current layout";
+      retc = EINVAL;
+    } else {
+      std::shared_ptr<eos::IFileMD> fmd;
+      const bool enable = convert.compress();
+      bool kick = false;
+      eos::common::FileId::fileid_t kick_fid = 0;
+      unsigned long kick_layout = 0;
+      eos::IFileMD::LocationVector kick_fsids;
+
+      {
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+        try {
+          fmd = gOFS->eosView->getFile(spath.c_str());
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          std_err << "error: unable to get file meta data of file " << spath;
+          retc = errno ? errno : ENOENT;
+        }
+
+        if (fmd && !retc) {
+          unsigned long layout = fmd->getLayoutId();
+
+          if (eos::common::LayoutId::HasCompression(layout) == enable) {
+            std_out << "info: already marked "
+                    << (enable ? "for compression" : "as uncompressed")
+                    << ", layout="
+                    << eos::common::LayoutId::PrintLayoutString(layout)
+                    << " path=" << spath;
+          } else {
+            eos::common::LayoutId::SetCompression(layout, enable);
+            fmd->setLayoutId(static_cast<eos::IFileMD::layoutId_t>(layout));
+            gOFS->eosView->updateFileStore(fmd.get());
+            kick = true;
+            kick_fid = fmd->getId();
+            kick_layout = layout;
+            kick_fsids = fmd->getLocations();
+            std_out << "success: marked for "
+                    << (enable ? "compression" : "decompression")
+                    << ", layout="
+                    << eos::common::LayoutId::PrintLayoutString(layout)
+                    << " path=" << spath;
+          }
+        }
+      }
+
+      // The namespace lock is released before talking to the FSTs. Each
+      // replica is queued immediately; the scanner retries a missed kick.
+      if (kick && !retc) {
+        if (kick_fsids.empty()) {
+          std_err << "error: file has no replicas to convert, path=" << spath;
+          retc = ENOENT;
+        } else {
+          unsigned failed = 0;
+
+          for (const auto fsid : kick_fsids) {
+            if (gOFS->QueryCompress(kick_fid, fsid, enable, kick_layout)) {
+              ++failed;
+            }
+          }
+
+          if (failed) {
+            std_err << "error: failed to queue conversion on " << failed
+                    << " of " << kick_fsids.size() << " replica(s), path="
+                    << spath;
+            retc = EIO;
+          }
+        }
+      }
+    }
   } else {
     while (1) {
       using eos::common::LayoutId;

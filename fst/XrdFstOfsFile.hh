@@ -618,6 +618,11 @@ public:
   int _close_wr();
 
   //----------------------------------------------------------------------------
+  //! Queue compression or decompression for this replica.
+  //----------------------------------------------------------------------------
+  void QueueCompression();
+
+  //----------------------------------------------------------------------------
   //! Low-level open calling the default XrdOfs plugin and being called from
   //! one of the layout implementations.
   //----------------------------------------------------------------------------

@@ -182,7 +182,8 @@ public:
   //----------------------------------------------------------------------------
   bool ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
                          unsigned long long& scan_size, std::string& scan_xs_hex,
-                         bool& filexs_err, bool& blockxs_err);
+                         bool& filexs_err, bool& blockxs_err,
+                         bool& measured_potential, unsigned& potential);
 
   //----------------------------------------------------------------------------
   //! Check the given replica file for errors.
@@ -326,6 +327,12 @@ public:
   //! Account for missing replicas
   //----------------------------------------------------------------------------
   void AccountMissing();
+
+  //----------------------------------------------------------------------------
+  //! Queue compression or decompression. The worker pool does the rewrite.
+  //----------------------------------------------------------------------------
+  void MaybeConvertCompressed(const std::string& fpath,
+                              eos::common::FmdHelper* fmd);
 
   //----------------------------------------------------------------------------
   //! Cleanup unlinked replicas which are older than 1 hour

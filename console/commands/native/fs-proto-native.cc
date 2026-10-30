@@ -123,6 +123,13 @@ std::string MakeFsHelp()
       << std::endl
       << "    ## scanrate=<MB/s>" << std::endl
       << "      maximum IO scan rate per filesystem" << std::endl
+      << "    ## compressworkers=<n>" << std::endl
+      << "      compression workers on this FST, one per mount. Default 8,"
+      << std::endl
+      << "      0 disables compression" << std::endl
+      << "    ## compressrate=<MB/s>" << std::endl
+      << "      maximum output of one compression worker. 0 is unlimited"
+      << std::endl
       << "    ## scan_disk_interval=<seconds>\n"
       << "      disk consistency thread scan interval (default 4h)" << std::endl
       << "    ## scan_ns_interval=<seconds>\n"

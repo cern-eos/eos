@@ -959,6 +959,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
           (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) || (key == "token.generation") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
+          (key == eos::common::COMPRESS_WORKERS_NAME) ||
+          (key == eos::common::COMPRESS_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -1266,6 +1268,18 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             } else {
               std_out.str("success: setting " + key + "=" + value);
 
+              if ((key == eos::common::COMPRESS_WORKERS_NAME) ||
+                  (key == eos::common::COMPRESS_RATE_NAME)) {
+                for (auto fsit = space->begin(); fsit != space->end(); ++fsit) {
+                  FileSystem* cfs = FsView::gFsView.mIdView.lookupByID(*fsit);
+
+                  if (cfs) {
+                    cfs->SetLongLong(key.c_str(), static_cast<long long>(size));
+                    FsView::gFsView.StoreFsConfig(cfs, false);
+                  }
+                }
+              }
+
               if ((key == "token.generation")) {
                 eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
               }
@@ -1309,6 +1323,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
         (key == "max.ropen") || (key == "max.wopen") ||
         (key == eos::common::SCAN_IO_RATE_NAME) ||
+        (key == eos::common::COMPRESS_WORKERS_NAME) ||
+        (key == eos::common::COMPRESS_RATE_NAME) ||
         (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -1371,6 +1387,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
                (key == "max.ropen") || (key == "max.wopen") ||
                (key == eos::common::SCAN_IO_RATE_NAME) ||
+               (key == eos::common::COMPRESS_WORKERS_NAME) ||
+               (key == eos::common::COMPRESS_RATE_NAME) ||
                (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
                (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||

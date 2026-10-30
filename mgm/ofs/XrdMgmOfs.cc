@@ -1877,6 +1877,57 @@ XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
 }
 
 //------------------------------------------------------------------------------
+// Queue compression or decompression of one replica on its FST
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::QueryCompress(eos::common::FileId::fileid_t fid,
+                         eos::common::FileSystem::fsid_t fsid,
+                         bool want_compression, unsigned long layout)
+{
+  int fst_port = 0;
+  std::string fst_host;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+    if (!fs) {
+      eos_err("msg=\"no compression kick sent, no such file system\" fsid=%u",
+              fsid);
+      return -1;
+    }
+
+    fst_host = fs->GetHost();
+    fst_port = fs->getCoreParams().getLocator().getPort();
+  }
+
+  if (fst_host.empty() || (fst_port <= 0)) {
+    eos_err("msg=\"no compression kick sent, filesystem has no endpoint\" "
+            "fsid=%u", fsid);
+    return -1;
+  }
+
+  const std::string request =
+    SSTR("/?fst.pcmd=compress"
+         << "&fst.compress.fsid=" << fsid
+         << "&fst.compress.fxid=" << eos::common::FileId::Fid2Hex(fid)
+         << "&fst.compress.want=" << (want_compression ? 1 : 0)
+         << "&fst.compress.lid=" << layout);
+  std::string response;
+  const int query_retc = gOFS->SendQuery(fst_host, fst_port, request, response,
+                                         15);
+
+  if (query_retc) {
+    eos_err("msg=\"compression kick failed\" fxid=%08llx fsid=%u retc=%d "
+            "response=\"%s\"", fid, fsid, query_retc, response.c_str());
+    return query_retc;
+  }
+
+  eos_info("msg=\"queued replica conversion\" fxid=%08llx fsid=%u compress=%d",
+           fid, fsid, want_compression ? 1 : 0);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Remove file/container metadata object that was already deleted before
 // but now it's still in the namespace detached from any parent
 //------------------------------------------------------------------------------

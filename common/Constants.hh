@@ -68,6 +68,10 @@ static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
 static constexpr auto FST_CBOX_FORBID_RW_SYNC = "cbox_forbid_rw_sync";
 //! Max rate in MB/s at which the scanner should run
 static constexpr auto SCAN_IO_RATE_NAME = "scanrate";
+//! Compression workers an FST may run at once. One worker is used per mount.
+static constexpr auto COMPRESS_WORKERS_NAME = "compressworkers";
+//! Maximum output of one compression worker, in MB/s. 0 leaves it unlimited.
+static constexpr auto COMPRESS_RATE_NAME = "compressrate";
 //! Time interval after which a scanned filed is rescanned
 static constexpr auto SCAN_ENTRY_INTERVAL_NAME = "scaninterval";
 //! Time interval after which a scanned rain filed is rescanned

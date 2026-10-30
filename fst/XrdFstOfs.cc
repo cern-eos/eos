@@ -23,6 +23,7 @@
 
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
+#include "fst/compress/BlockCompress.hh"
 #include "fst/cache/CacheLru.hh"
 #include "fst/Config.hh"
 #include "fst/filemd/FmdAttr.hh"
@@ -42,6 +43,7 @@
 #include "common/Constants.hh"
 #include "common/CrashHandler.hh"
 #include "common/FileId.hh"
+#include <string>
 #include "common/FileSystem.hh"
 #include "common/PasswordHandler.hh"
 #include "common/Path.hh"
@@ -346,6 +348,7 @@ XrdFstOfs::XrdFstOfs() :
   mHostName(NULL), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mAsyncOpThreadPool(8, 64, 5, 6, 5, "async_op"),
+  mCompressPool(8),
   mMgmXrdPool(nullptr),
   mSimOpenDelay(false), mSimOpenDelaySec(120),
   mSimFmdOpenErr(false), mSimIoReadErr(false),
@@ -439,10 +442,32 @@ XrdFstOfs::XrdFstOfs() :
 }
 
 //------------------------------------------------------------------------------
+// Apply a compression space setting for one filesystem
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::ConfigureCompression(unsigned long fsid, const std::string& key,
+                                long long value)
+{
+  mCompressPool.SetFsConfig(fsid, key, value);
+}
+
+//------------------------------------------------------------------------------
+// Queue compression or decompression for one replica
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::EnqueueCompression(eos::fst::compress::CompressPool::Job job,
+                              bool want_compression)
+{
+  return mCompressPool.EnqueueConversion(std::move(job), want_compression);
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
+  mCompressPool.Stop();
+
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
@@ -1576,6 +1601,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleCleanOrphans(env, error);
     }
 
+    if (execmd == "compress") {
+      return HandleCompress(env, error, client);
+    }
+
     if (execmd == "getfmd") {
       char* afid = env.Get("fst.getfmd.fid");
       char* afsid = env.Get("fst.getfmd.fsid");
@@ -2267,6 +2296,119 @@ XrdFstOfs::HandleDropFile(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 }
 
 //------------------------------------------------------------------------------
+// Queue compression or decompression of one local replica
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleCompress(XrdOucEnv& env, XrdOucErrInfo& err_obj,
+                          const XrdSecEntity* client)
+{
+  using eos::common::FileId;
+  using eos::common::LayoutId;
+
+  if (!client || !client->prot || (strncmp(client->prot, "sss", 3) != 0)) {
+    eos_static_err("%s", "msg=\"compression kick requires sss authentication\"");
+    return Emsg("compress", err_obj, EPERM, "queue conversion",
+                "- needs sss authentication");
+  }
+
+  const char* sfsid = env.Get("fst.compress.fsid");
+  const char* sfxid = env.Get("fst.compress.fxid");
+  const char* swant = env.Get("fst.compress.want");
+  const char* slid = env.Get("fst.compress.lid");
+
+  if (!sfsid || !sfxid || !swant) {
+    err_obj.setErrInfo(EINVAL, "missing compress arguments");
+    return SFS_ERROR;
+  }
+
+  unsigned long fsid = 0;
+  unsigned long long fid = 0;
+  unsigned long lid = 0;
+
+  try {
+    fsid = std::stoul(sfsid);
+    fid = std::stoull(sfxid, nullptr, 16);
+
+    if (slid && slid[0]) {
+      lid = std::stoul(slid);
+    }
+  } catch (const std::exception& e) {
+    eos_static_err("msg=\"invalid compression kick\" fsid=\"%s\" fxid=\"%s\" "
+                   "lid=\"%s\" err=\"%s\"",
+                   sfsid, sfxid, slid ? slid : "", e.what());
+    err_obj.setErrInfo(EINVAL, "compress arguments are not numeric");
+    return SFS_ERROR;
+  }
+
+  const bool want = (strcmp(swant, "1") == 0);
+  const std::string prefix = Storage->GetStoragePath(fsid);
+
+  if (prefix.empty() || !fid) {
+    err_obj.setErrInfo(ENOENT, "unknown filesystem");
+    return SFS_ERROR;
+  }
+
+  const std::string path = FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
+                                                       prefix.c_str());
+  struct stat stbuf {};
+
+  if (::stat(path.c_str(), &stbuf) != 0) {
+    eos_static_err("msg=\"compression kick missed the replica\" path=\"%s\" "
+                   "fxid=%08llx fsid=%lu errno=%d",
+                   path.c_str(), fid, fsid, errno);
+    err_obj.setErrInfo(ENOENT, "replica path not found");
+    return SFS_ERROR;
+  }
+
+  // The scanner decides from the layout stored on this FST. Record the target
+  // before the worker runs, so a scan cannot reverse the kick.
+  if (auto fmd = mFmdHandler->LocalGetFmd(fid, fsid, true)) {
+    unsigned long local_lid = fmd->mProtoFmd.lid();
+
+    if (LayoutId::HasCompression(local_lid) != want) {
+      LayoutId::SetCompression(local_lid, want);
+      fmd->mProtoFmd.set_lid(local_lid);
+
+      if (!mFmdHandler->Commit(fmd.get())) {
+        eos_static_err("msg=\"failed to store compression target\" "
+                       "fxid=%08llx fsid=%lu", fid, fsid);
+      }
+    }
+  }
+
+  const bool publish = (lid == 0) || !LayoutId::IsRain(lid);
+  eos::fst::compress::CompressPool::Job job;
+  job.path = path;
+  job.block_size = LayoutId::GetBlocksize(lid);
+  job.fid = fid;
+  job.fsid = fsid;
+  job.publish = publish;
+
+  if (!EnqueueCompression(std::move(job), want)) {
+    const eos::fst::compress::ConversionState state =
+      eos::fst::compress::ReadConversionState(path);
+    const bool settled = want
+                         ? (state.converted && (!publish || state.csize_reported))
+                         : (!state.converted && !state.csize_clear_pending);
+
+    if (!settled) {
+      eos_static_err("msg=\"compression queue rejected replica\" path=\"%s\" "
+                     "fxid=%08llx fsid=%lu",
+                     path.c_str(), fid, fsid);
+      err_obj.setErrInfo(EBUSY, "compression queue rejected the replica");
+      return SFS_ERROR;
+    }
+  }
+
+  eos_static_info("msg=\"queued replica conversion\" path=\"%s\" fxid=%08llx "
+                  "fsid=%lu compress=%d",
+                  path.c_str(), fid, fsid, want ? 1 : 0);
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
 // Handle clean orphans query
 //------------------------------------------------------------------------------
 int
@@ -2479,6 +2621,51 @@ XrdFstOfs::GetKernelRelease()
   }
 
   return kernel_release;
+}
+
+//------------------------------------------------------------------------------
+// Tell the namespace the compressed size of a converted replica.
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::CommitCompressedSize(unsigned long long fid,
+                                unsigned long long csize)
+{
+  XrdOucString request = "/?mgm.pcmd=commit&mgm.commit.csize=1&mgm.fid=";
+  request += eos::common::FileId::Fid2Hex(fid).c_str();
+  request += "&mgm.csize=";
+  request += std::to_string(csize).c_str();
+  XrdOucErrInfo error;
+  const int rc = CallManager(&error, nullptr, nullptr, request);
+
+  if (rc) {
+    eos_static_err("msg=\"failed to commit compressed size\" fxid=%08llx "
+                   "csize=%llu", fid, csize);
+  }
+
+  return rc;
+}
+
+//------------------------------------------------------------------------------
+// Tell the namespace the compression potential measured by the scanner.
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::CommitCompressionPotential(unsigned long long fid,
+                                      unsigned potential)
+{
+  XrdOucString request =
+    "/?mgm.pcmd=commit&mgm.commit.cpotential=1&mgm.fid=";
+  request += eos::common::FileId::Fid2Hex(fid).c_str();
+  request += "&mgm.cpotential=";
+  request += std::to_string(potential).c_str();
+  XrdOucErrInfo error;
+  const int rc = CallManager(&error, nullptr, nullptr, request);
+
+  if (rc) {
+    eos_static_err("msg=\"failed to commit compression potential\" "
+                   "fxid=%08llx cpotential=%u", fid, potential);
+  }
+
+  return rc;
 }
 
 EOSFSTNAMESPACE_END
