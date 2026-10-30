@@ -623,13 +623,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
         if (rdir) {
           {
-            eos::MDLocking::BulkMDReadLock containerBulkLocker;
-            containerBulkLocker.add(rdir.get());
-            containerBulkLocker.add(newdir.get());
-            auto containerLocks = containerBulkLocker.lockAll();
-            COMMONTIMING("rename::rename_dir_first_is_safe_to_rename_all_dirs_read_lock",
-                         &tm);
-
+            // No MD locks: the check locks each parent on its own, and the
+            // second check below, under the namespace write lock, decides
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
               errno = EINVAL;
               return Emsg(epname, error, EINVAL,
@@ -867,14 +862,8 @@ XrdMgmOfs::_rename(const char* old_name,
             // namespace write lock serializes the moves to another parent
             eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
             {
-              eos::MDLocking::BulkMDReadLock bulkDirLocker;
-              bulkDirLocker.add(rdir.get());
-              bulkDirLocker.add(newdir.get());
-              auto dirLocks = bulkDirLocker.lockAll();
-              COMMONTIMING("rename::rename_dir_second_is_safe_to_rename_all_dirs_read_lock",
-                           &tm);
-
-              // Do the check once again, because we're paranoid
+              // Do the check once again, because we're paranoid. No MD
+              // locks: no directory moves to another parent meanwhile
               if (!eos::isSafeToRename(gOFS->eosView, rdir.get(),
                                        newdir.get())) {
                 eos_static_crit(

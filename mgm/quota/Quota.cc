@@ -2914,10 +2914,12 @@ Quota::RemoveFile(eos::IFileMD::id_t fid)
   }
 
   if (ns_quota && fmd) {
+    // Read before the file lock: getId locks the container
+    const auto cid = cmd->getId();
     eos::MDLocking::FileReadLock fmdLock(fmd.get());
 
     // Removed or moved after the lookup: the quota node is not the right one
-    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+    if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
       return false;
     }
 
@@ -2949,10 +2951,12 @@ Quota::AddFile(eos::IFileMD::id_t fid)
   }
 
   if (ns_quota && fmd) {
+    // Read before the file lock: getId locks the container
+    const auto cid = cmd->getId();
     eos::MDLocking::FileReadLock fmdLock(fmd.get());
 
     // Removed or moved after the lookup: the quota node is not the right one
-    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+    if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
       return false;
     }
 

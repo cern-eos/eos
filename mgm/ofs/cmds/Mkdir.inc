@@ -28,6 +28,28 @@
 #include "proto/Audit.pb.h"
 
 //------------------------------------------------------------------------------
+// As eosView->createContainer(path), but in the locked parent dir: the path
+// walk would take read locks on the parents after the lock of dir
+//------------------------------------------------------------------------------
+static std::shared_ptr<eos::IContainerMD>
+CreateContainerIn(eos::IContainerMD* dir, const std::string& name)
+{
+  eos::FileOrContainerMD conflict = dir->findItem(name).get();
+
+  if (conflict.file || conflict.container) {
+    eos::MDException e(conflict.container ? EEXIST : ENOTDIR);
+    e.getMessage() << name << ": File exists";
+    throw e;
+  }
+
+  auto newdir = gOFS->eosDirectoryService->createContainer(0);
+  newdir->setName(name);
+  newdir->setCTimeNow();
+  dir->addContainer(newdir.get());
+  return newdir;
+}
+
+//------------------------------------------------------------------------------
 /*
  * @brief create a directory with the given mode
  *
@@ -369,7 +391,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
           // The parents exist: they were found or created by the previous
           // iterations, so create no missing one without its attributes
-          newdir = eosView->createContainer(cPath.GetSubPath(j), false);
+          newdir = CreateContainerIn(dir.get(), tmp_path.GetName());
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode() & ~(1UL << 9));
@@ -454,7 +476,7 @@ XrdMgmOfs::_mkdir(const char* path,
       throw e;
     }
 
-    newdir = eosView->createContainer(path);
+    newdir = CreateContainerIn(dir.get(), cPath.GetName());
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
     // @note: we always inherit the mode of the parent directory. So far nobody
