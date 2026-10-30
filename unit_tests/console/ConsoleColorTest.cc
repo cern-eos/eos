@@ -364,7 +364,7 @@ TEST_F(ConsoleColorTest, LegacyHelpLoadsCommandVocabularyOnlyWhenStylingIsEnable
     EXPECT_EQ(legacyHelp(text), text);
     EXPECT_EQ(calls, 0u);
   }
-  for (const auto [batch, json] :
+  for (const auto& [batch, json] :
        {std::pair{true, false}, std::pair{false, true}, std::pair{true, true}}) {
     ConfigureColor(ColorMode::Always, batch, json);
     EXPECT_EQ(legacyHelp(text), text);
@@ -717,7 +717,7 @@ TEST_F(ConsoleColorTest, LegacyHelpRespectsTheSamePlainAndMachinePolicies)
     ConfigureColor(policy, false, false);
     EXPECT_EQ(legacyHelp(text), text);
   }
-  for (const auto [batch, json] :
+  for (const auto& [batch, json] :
        {std::pair{true, false}, std::pair{false, true}, std::pair{true, true}}) {
     ConfigureColor(ColorMode::Always, batch, json);
     EXPECT_EQ(legacyHelp(text), text);
