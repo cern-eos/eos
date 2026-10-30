@@ -45,13 +45,13 @@
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <algorithm>
 #include <arpa/inet.h>
+#include <csetjmp>
 #include <iomanip>
 #include <list>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <setjmp.h>
 #include <string_view>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -91,7 +91,7 @@ int done;
 
 // Pointer to the result of client_command. It gets invalid when the
 // output_result function is called.
-XrdOucEnv* CommandEnv = 0;
+XrdOucEnv* CommandEnv = nullptr;
 static sigjmp_buf sigjump_buf;
 
 // Convenience runner using the registered native commands
@@ -133,7 +133,7 @@ static int RunRegisteredCommand(const std::string& cmdName,
 // Exit handler
 //------------------------------------------------------------------------------
 void
-exit_handler(int a)
+exit_handler(int /*sig*/)
 {
   fprintf(stdout, "\n");
   fprintf(stderr, "<Control-C>\n");
@@ -145,7 +145,7 @@ exit_handler(int a)
 // Jump handler
 //------------------------------------------------------------------------------
 void
-jump_handler(int a)
+jump_handler(int /*sig*/)
 {
   siglongjmp(sigjump_buf, 1);
 }
@@ -293,7 +293,7 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
   }
 
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-  const char* nextline = 0;
+  const char* nextline = nullptr;
   int i = 0;
 
   while ((nextline = subtokenizer.GetLine())) {
@@ -386,7 +386,7 @@ output_result(XrdOucEnv* result, bool highlighting)
 
   fflush(stdout);
   fflush(stderr);
-  CommandEnv = 0;
+  CommandEnv = nullptr;
   delete result;
   return retc;
 }
@@ -540,7 +540,7 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 
       // Save the reply string from the server
       if (reply) {
-        reply->assign(oss.str().c_str());
+        reply->assign(oss.str());
       }
     }
   }
@@ -557,7 +557,7 @@ read_pwdfile()
   std::string lpwd;
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
 
-  if (lpwd.length()) {
+  if (!lpwd.empty()) {
     RunRegisteredCommand("cd", {lpwd});
   }
 }
@@ -814,7 +814,7 @@ Run(int argc, char* argv[])
   // atexit([]{XrdCl::DefaultEnv::GetPostMaster()->Stop();});
 
   char* line, *s;
-  serveruri = (char*) "root://localhost";
+  serveruri = "root://localhost";
   // Enable fork handlers for XrdCl
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
@@ -992,8 +992,8 @@ Run(int argc, char* argv[])
     fprintf(stderr, "# under certain conditions; type `license' for details.\n");
     fprintf(stderr,
             "# ---------------------------------------------------------------------------\n");
-    execute_line((char*) "motd");
-    execute_line((char*) "version");
+    execute_line("motd");
+    execute_line("version");
   }
 
 // bump up the filedescriptor limits
@@ -1013,11 +1013,15 @@ Run(int argc, char* argv[])
     }
   }
   // Bind our completer
-  rl_readline_name = (char*) "EOS Console";
+  static char readline_name[] = "EOS Console";
+  static char completer_quote_characters[] = "\"'";
+  static char word_break_characters[] = " \t\n\r\v\f\"'";
+  static char filename_quote_characters[] = " \t\n\r\v\f\\\"'";
+  rl_readline_name = readline_name;
   rl_attempted_completion_function = eos_console_completion;
-  rl_completer_quote_characters = "\"'";
-  rl_completer_word_break_characters = " \t\n\r\v\f\"'";
-  rl_filename_quote_characters = " \t\n\r\v\f\\\"'";
+  rl_completer_quote_characters = completer_quote_characters;
+  rl_completer_word_break_characters = word_break_characters;
+  rl_filename_quote_characters = filename_quote_characters;
   rl_filename_quoting_function = eos_completion_quote;
   rl_completion_append_character = '\0';
 
@@ -1110,7 +1114,7 @@ Run(int argc, char* argv[])
 // Command line execution function
 //------------------------------------------------------------------------------
 int
-execute_line(char* line)
+execute_line(const char* line)
 {
   std::vector<std::string> arguments;
   std::string comment, error;
@@ -1312,7 +1316,7 @@ int filesystems::Load(bool verbose)
   bool use_cache = false;
 
   if (!::stat(cachefile.c_str(), &buf)) {
-    if ((buf.st_mtime + 3600) > time(NULL)) {
+    if ((buf.st_mtime + 3600) > time(nullptr)) {
       use_cache = true;
     }
   }
@@ -1443,10 +1447,12 @@ int files::Lookup(filesystems& fsmap, bool verbose)
     count++;
 
     if (!(count % 100)) {
+      // clang-format off
       fprintf(stdout,
               "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
-              100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+              100.0 * count / filemap.size(), count, filemap.size(), time(nullptr),
               callbacks.size(), n_timeouts, n_missing, n_other);
+      // clang-format on
       fflush(stdout);
     }
 
@@ -1594,10 +1600,12 @@ int files::Lookup(filesystems& fsmap, bool verbose)
     }
   }
 
+  // clang-format off
   fprintf(stdout,
           "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
-          100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+          100.0 * count / filemap.size(), count, filemap.size(), time(nullptr),
           callbacks.size(), n_timeouts, n_missing, n_other);
+  // clang-format on
   fflush(stdout);
   return 0;
 }
