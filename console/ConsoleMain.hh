@@ -104,7 +104,7 @@ extern bool IsLocalhostUri(const XrdOucString& uri);
 extern int done;
 
 char* stripwhite(char* string);
-int execute_line(char* line);
+int execute_line(const char* line);
 
 int Run(int argc, char* argv[]);
 

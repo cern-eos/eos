@@ -814,7 +814,7 @@ Run(int argc, char* argv[])
   // atexit([]{XrdCl::DefaultEnv::GetPostMaster()->Stop();});
 
   char* line, *s;
-  serveruri = (char*) "root://localhost";
+  serveruri = "root://localhost";
   // Enable fork handlers for XrdCl
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
@@ -992,8 +992,8 @@ Run(int argc, char* argv[])
     fprintf(stderr, "# under certain conditions; type `license' for details.\n");
     fprintf(stderr,
             "# ---------------------------------------------------------------------------\n");
-    execute_line((char*) "motd");
-    execute_line((char*) "version");
+    execute_line("motd");
+    execute_line("version");
   }
 
 // bump up the filedescriptor limits
@@ -1114,7 +1114,7 @@ Run(int argc, char* argv[])
 // Command line execution function
 //------------------------------------------------------------------------------
 int
-execute_line(char* line)
+execute_line(const char* line)
 {
   std::vector<std::string> arguments;
   std::string comment, error;
