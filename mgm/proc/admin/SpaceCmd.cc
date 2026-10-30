@@ -56,6 +56,10 @@ EOSMGMNAMESPACE_BEGIN
 static const std::string BALANCER_KEY_PREFIX = "balancer";
 static const std::string GROUPBALANCER_KEY_PREFIX = "groupbalancer";
 static const std::string GROUPDRAINER_KEY_PREFIX = "groupdrainer";
+static const std::string ENCRYPTION_KEY_REMOVED_WARNING =
+    "warning: files encrypted with this key are not readable anymore!\n"
+    "warning: new files and overwrites in this space are not encrypted anymore "
+    "unless the client provides a key!\n";
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -652,7 +656,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std::string msg = "success: removed space config '" + key + "'\n";
 
         if (key == eos::common::SPACE_ENCRYPTION_KEY_NAME) {
-          msg += "warning: files encrypted with this key are not readable anymore!\n";
+          msg += ENCRYPTION_KEY_REMOVED_WARNING;
         }
 
         std_out.str(msg);
@@ -892,8 +896,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           std_err.str("error: key has not been deleted");
         } else {
           std_out.str("success: removed encryption key from space='" + space_name +
-                      "'\nwarning: files encrypted with this key are not "
-                      "readable anymore!\n");
+                      "'\n" + ENCRYPTION_KEY_REMOVED_WARNING);
           ret_c = 0;
         }
       } else if (!eos::common::SymKey::IsValidEncryptionKey(

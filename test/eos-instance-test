@@ -4667,14 +4667,15 @@ runtest "### Convert   " unix SUCCESS "" eos file info "$SPACEENC_DIR/encrypted 
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.conv" "$SPACEENC_DIR/encrypted"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.conv"
 
-# removing the key of a space leaves the files encrypted with it unreadable
-runtest "### KeyRm     " unix SUCCESS "" eos space config default space.encryptionkey=remove --no-confirmation
+# removing the key of a space leaves the files encrypted with it unreadable and
+# the next ones not encrypted, the operator is told both
+runtest "### KeyRm     " unix SUCCESS "" eos space config default "space.encryptionkey=remove --no-confirmation | grep -c -e 'not readable anymore' -e 'not encrypted anymore' | grep -w 2"
 runtest "### KeyRm     " unix ERROR   "" eos space config default space.encryptionkey=remove --no-confirmation
 runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
 runtest "### Download  " unix ERROR   "" download "$EOS_TEST_TESTSYS/spaceenc.gone" "$SPACEENC_DIR/encrypted"
 # 'space config rm' removes it as well and warns the same way
 runtest "### KeyRm     " unix SUCCESS "" eos space config default "space.encryptionkey=$SPACEENC_KEY1" --no-confirmation
-runtest "### KeyRm     " unix SUCCESS "" eos space config rm default "space.encryptionkey --no-confirmation | grep -c 'warning:' | grep -w 1"
+runtest "### KeyRm     " unix SUCCESS "" eos space config rm default "space.encryptionkey --no-confirmation | grep -c -e 'not readable anymore' -e 'not encrypted anymore' | grep -w 2"
 runtest "### Grep      " unix SUCCESS "" eos space status "default | grep -c encryptionkey | grep -w 0"
 # and new files fall back to plain obfuscation
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/plain"
