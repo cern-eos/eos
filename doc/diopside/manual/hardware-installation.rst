@@ -123,9 +123,9 @@ EOS for Client+Server
 ~~~~~~~~~~~~~~~~~~~~~
 
 The following platforms are supported to run EOS client and server:
-* CentOS 7
 * Alma 8
 * Alma 9
+* Alma 10
 * Fedora Core 38
 
 RPM Repository Configuration
@@ -146,11 +146,11 @@ You have to configure a dependency repository and either the tag or commit repos
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Platform        | Setup                                                                                                              |
 +=================+====================================================================================================================+
-| CentOS7         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-7/x86_64/"``     |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-8/x86_64/"``     |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"``     |
++-----------------+--------------------------------------------------------------------------------------------------------------------+
+| Alma 10         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-10/x86_64/"``    |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/fc-38/                                               |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
@@ -160,12 +160,12 @@ You have to configure a dependency repository and either the tag or commit repos
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 | Platform        |  Setup                                                                                                                |
 +=================+=======================================================================================================================+
-| CentOS7         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-7/x86_64/"``   |
-+-----------------+-----------------------------------------------------------------------------------------------------------------------+
 | Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8/x86_64/"``   |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 | Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"``   |
 |                 |                                                                                                                       |
++-----------------+-----------------------------------------------------------------------------------------------------------------------+
+| Alma 10         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-10/x86_64/"``  |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 | Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                      |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
@@ -176,11 +176,11 @@ You have to configure a dependency repository and either the tag or commit repos
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Platform        |  Setup                                                                                                             |
 +=================+====================================================================================================================+
-| CentOS7         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-7/x86_64/"``     |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8/x86_64/"``     |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-9/x86_64/"``     |
++-----------------+--------------------------------------------------------------------------------------------------------------------+
+| Alma 10         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-10/x86_64/"``    |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                   |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
