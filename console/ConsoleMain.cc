@@ -45,13 +45,13 @@
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <algorithm>
 #include <arpa/inet.h>
+#include <csetjmp>
 #include <iomanip>
 #include <list>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <setjmp.h>
 #include <string_view>
 #include <sys/resource.h>
 #include <sys/socket.h>
