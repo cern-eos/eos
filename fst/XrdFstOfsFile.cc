@@ -114,6 +114,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID)
     , mTapeEnabled(false)
     , mSecString("")
     , mEtag("")
+    , mSyntheticIOValue("")
     , mFileId(0)
     , mFsId(0)
     , mLid(0)
@@ -615,6 +616,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // cannot be done in the OSS
       mSyncOnClose = true;
     }
+  }
+
+  if (!mSyntheticIOValue.empty()) {
+    oss_opaque += "&eos.syntheticio=";
+    oss_opaque += mSyntheticIOValue.c_str();
   }
 
   // Open layout implementation
@@ -1328,15 +1334,25 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // if required, obfuscate a buffer server side
+  const char* write_buf = buffer;
+  if (mSyntheticIOSpec) {
+    mSyntheticIOWriteBuf.resize(buffer_size);
+    eos::common::syntheticio_fill(*mSyntheticIOSpec,
+                             static_cast<std::uint64_t>(fileOffset),
+                             mSyntheticIOWriteBuf.data(), buffer_size);
+    write_buf = mSyntheticIOWriteBuf.data();
+  }
+
   if (mLayout->IsEntryServer() && mHmac.key.length()) {
-    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
-                                         const_cast<char*>(buffer), buffer_size, fileOffset, mHmac);
+    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(write_buf),
+                                         const_cast<char*>(write_buf),
+                                         buffer_size, fileOffset, mHmac);
   }
 
   int64_t rc = 0;
   gOFS.mIoDelayConfig.WaitForWrite(vid, static_cast<uint64_t>(buffer_size));
 
-  rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
+  rc = mLayout->Write(fileOffset, const_cast<char*>(write_buf), buffer_size);
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
@@ -1359,7 +1375,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // Evt. add checksum
   if (rc > 0) {
     if (mChecksumGroup->HasChecksums()) {
-      mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
+      mChecksumGroup->Add(write_buf, static_cast<size_t>(rc),
                           static_cast<off_t>(fileOffset));
     }
 
@@ -2794,6 +2810,16 @@ XrdFstOfsFile::ProcessOpenOpaque()
 
   if ((val = mOpenOpaque->Get("eos.injection"))) {
     mIsInjection = true;
+  }
+
+  if ((val = mOpenOpaque->Get("eos.syntheticio"))) {
+    mSyntheticIOValue = val;
+    if (!eos::common::syntheticio_disabled(mSyntheticIOValue)) {
+      auto spec = eos::common::parse_syntheticio(mSyntheticIOValue);
+      if (spec) {
+        mSyntheticIOSpec = *spec;
+      }
+    }
   }
 
   // enable round-robin scheduling per application/fsid on request
