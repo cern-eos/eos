@@ -205,7 +205,8 @@ bool
 MetadataProviderShard::dropCachedFileID(FileIdentifier id)
 {
   std::unique_lock<std::mutex> lock(mMutex);
-  return mFileCache.remove(id);
+  // A second copy of an object in use would not share its locks
+  return mFileCache.remove(id, true);
 }
 
 //------------------------------------------------------------------------------
@@ -215,7 +216,8 @@ bool
 MetadataProviderShard::dropCachedContainerID(ContainerIdentifier id)
 {
   std::unique_lock<std::mutex> lock(mMutex);
-  return mContainerCache.remove(id);
+  // A second copy of an object in use would not share its locks
+  return mContainerCache.remove(id, true);
 }
 
 //----------------------------------------------------------------------------
