@@ -466,6 +466,18 @@ version_names_file_deleted () {
     file_is_deleted "$(cat "$EOS_TEST_TESTSYS/versioning.taken")"
 }
 ################################################################################
+# write the contents of <src> followed by the buffer xrdcpappend appends to <dst>
+append_expected () {
+    local i byte
+    {
+      cat "$1"
+      for ((i = 0; i < 4096; ++i)); do
+        printf -v byte '\\%03o' $((i % 255))
+        printf "$byte"
+      done
+    } > "$2"
+}
+################################################################################
 # A hard link target whose directory can't be found. As in
 # eos-file-cont-detached-test the parent is changed behind the back of the MGM,
 # eos-ns-inspect also invalidates the file in its cache. The clone has to be tagged before the hard link exists and the target has to
@@ -3192,6 +3204,18 @@ runtest "### Diff      " unix SUCCESS "" eos_bash diff /etc/group /var/tmp/encry
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
 runtest "### Diff      " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" /var/tmp/encrypted.kept
+# eosxd applies the secret itself and the MGM never gets it: an update through
+# the mount works, while a remote update without the key is refused and leaves
+# the file as it is
+runtest "### Expected  " unix SUCCESS "" shell "cat /etc/group /etc/group > /var/tmp/encrypted.expected"
+runtest "### Update    " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash dd if=/etc/group "of=/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=append conv=notrunc
+dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
+runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.updated"
+runtest "### Diff      " unix SUCCESS "" eos_bash diff /var/tmp/encrypted.expected /var/tmp/encrypted.updated
+runtest "### Update    " unix ERROR   "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted\?eos.ruid=0"
+runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.updated"
+runtest "### Diff      " unix SUCCESS "" eos_bash diff /var/tmp/encrypted.expected /var/tmp/encrypted.updated
+runtest "### Cleanup   " unix IGNORE  "" shell rm "-f" /var/tmp/encrypted.expected /var/tmp/encrypted.updated
 runtest "### defaultcc " unix SUCCESS "" eos_defaultcc "/test-fusex/"
 runtest "### sycntime  " unix SUCCESS "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
 
@@ -4330,6 +4354,11 @@ runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_DIR/obf
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_DIR/obfuscated0 | grep -c 'Crypt: obfuscated' | grep -w 1"
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.obf0" "$SPACEENC_DIR/obfuscated0"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.obf0"
+# an update of an obfuscated file needs no key from the client
+runtest "### Expected  " unix SUCCESS "" append_expected /etc/passwd "$EOS_TEST_TESTSYS/spaceenc.obf0.expected"
+runtest "### Update    " unix SUCCESS "" append "$SPACEENC_DIR/obfuscated0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.obf0.updated" "$SPACEENC_DIR/obfuscated0"
+runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/spaceenc.obf0.expected" "$EOS_TEST_TESTSYS/spaceenc.obf0.updated"
 
 # keys which would break the opaque info of a capability are refused
 # note the embedded single quotes - runtest eval's its arguments, without them
@@ -4533,6 +4562,27 @@ runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/userke
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/userkey | grep -c 'space:' | grep -w 0"
 runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.user.key" "$SPACEENC_CGI_DIR/userkey" "-OSeos.key=$SPACEENC_USERKEY"
 runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.user.key"
+# an update without the key is refused like an overwrite: the new range would
+# not decode with the key. eos.obfuscate=0 doesn't help, the file keeps its keys.
+runtest "### Update    " unix ERROR   "" append "$SPACEENC_CGI_DIR/userkey"
+runtest "### Update    " unix ERROR   "" append "$SPACEENC_CGI_DIR/userkey\?eos.obfuscate=0"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.user.refused" "$SPACEENC_CGI_DIR/userkey" "-OSeos.key=$SPACEENC_USERKEY"
+runtest "### Diff      " unix SUCCESS "" shell diff /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.user.refused"
+# with the key the update works
+runtest "### Expected  " unix SUCCESS "" append_expected /etc/group "$EOS_TEST_TESTSYS/spaceenc.cgi.update.expected"
+runtest "### Update    " unix SUCCESS "" append "$SPACEENC_CGI_DIR/userkey\?eos.key=$SPACEENC_USERKEY"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.user.updated" "$SPACEENC_CGI_DIR/userkey" "-OSeos.key=$SPACEENC_USERKEY"
+runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/spaceenc.cgi.update.expected" "$EOS_TEST_TESTSYS/spaceenc.cgi.user.updated"
+# the key of a space is applied by the MGM, the client doesn't need it
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/spaceupdate" "-ODeos.obfuscate=1"
+runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/spaceupdate | grep -c 'Crypt: encrypted (space:default)' | grep -w 1"
+runtest "### Update    " unix SUCCESS "" append "$SPACEENC_CGI_DIR/spaceupdate"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/spaceenc.cgi.space.updated" "$SPACEENC_CGI_DIR/spaceupdate"
+runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/spaceenc.cgi.update.expected" "$EOS_TEST_TESTSYS/spaceenc.cgi.space.updated"
+# a recall from tape stores the bytes of a file it has no key for
+runtest "### Touch     " unix SUCCESS "" eos touch "$SPACEENC_CGI_DIR/recall"
+runtest "### Attr      " unix SUCCESS "" eos attr set user.encrypted=1 "$SPACEENC_CGI_DIR/recall"
+runtest "### Recall    " unix SUCCESS "" upload "/etc/group" "$SPACEENC_CGI_DIR/recall" "-ODeos.ruid=0\&eos.rgid=0\&eos.injection=1"
 # and eos.obfuscate=0 stores them plain on purpose
 runtest "### Overwrite " unix SUCCESS "" upload "/etc/passwd" "$SPACEENC_CGI_DIR/userkey" "-ODeos.obfuscate=0"
 runtest "### Grep      " unix SUCCESS "" eos file info "$SPACEENC_CGI_DIR/userkey | grep -c 'Crypt:' | grep -w 0"
