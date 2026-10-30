@@ -253,6 +253,7 @@ add_library(EosFstOss MODULE
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
+  compress/BlockCompress.cc compress/BlockCompress.hh
   utils/ScanRate.cc utils/ScanRate.hh
   $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
@@ -261,13 +262,15 @@ target_link_libraries(EosFstOss PRIVATE
   EosCommon
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
-  XXHASH::XXHASH)
+  XXHASH::XXHASH
+  ZSTD::ZSTD)
 
 add_library(EosFstOss-Static STATIC
   XrdFstOss.cc XrdFstOss.hh
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
+  compress/BlockCompress.cc compress/BlockCompress.hh
   utils/ScanRate.cc utils/ScanRate.hh
   $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
@@ -278,6 +281,8 @@ target_link_libraries(EosFstOss-Static PRIVATE
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
 
+target_link_libraries(EosFstOss-Static PUBLIC ZSTD::ZSTD)
+
 #-------------------------------------------------------------------------------
 # XrdEosFst library
 #-------------------------------------------------------------------------------
@@ -286,6 +291,7 @@ set(XRDEOSFST_SRCS
   Load.cc
   Health.cc
   ScanDir.cc
+  compress/CompressPool.cc compress/CompressPool.hh
   io/FileIoPlugin-Server.cc
   # OFS layer implementation
   XrdFstOfs.cc                   XrdFstOfs.hh

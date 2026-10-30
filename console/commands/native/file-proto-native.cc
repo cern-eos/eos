@@ -59,7 +59,7 @@ std::string MakeFileHelp()
       << "  %force       force to get the MD even if the node is down\n"
       << "  %output      print lines with inconsistency information\n\n";
   oss << "convert [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes>|<layout-id>|<sys.attribute.name>] "
-      << "[target-space] [placement-policy] [checksum] [--rewrite]\n"
+      << "[target-space] [placement-policy] [checksum] [--rewrite] [--compress] [--uncompress]\n"
       << "  Convert the layout of a file.\n"
       << "  <layout>:<stripes>   target layout and number of stripes\n"
       << "  <layout-id>          hexadecimal layout id\n"
@@ -67,7 +67,11 @@ std::string MakeFileHelp()
       << "  <target-space>       optional name of target space or group e.g. default or default.3\n"
       << "  <placement-policy>   scattered, hybrid:<geotag>, gathered:<geotag>\n"
       << "  <checksum>           optional target checksum name (md5, adler, etc.)\n"
-      << "  --rewrite            run conversion rewriting the file, creating new copies and dropping old\n\n";
+      << "  --rewrite            run conversion rewriting the file, creating new copies and dropping old\n"
+      << "  --compress           set the compression bit on the current layout. Replicas are\n"
+      << "                       compressed in the background by the FST, without a rewrite.\n"
+      << "  --uncompress         clear the compression bit. Replicas are rewritten as plain\n"
+      << "                       bytes in the background by the FST, without a rewrite.\n\n";
   oss << "copy [-f] [-s] [-c] <src> <dst>\n"
       << "  Synchronous third party copy from <src> to <dst>.\n"
       << "  <src>  source file or directory (<path>|fid:<fid-dec>|fxid:<fid-hex>)\n"

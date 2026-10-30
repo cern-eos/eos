@@ -1340,6 +1340,51 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
   if ((gOFS->_access(spath.c_str(), W_OK, mError, mVid, "") != SFS_OK)) {
     std_err << "error: you have no write permission on '" << spath << "'";
     retc = EPERM;
+  } else if (convert.compress() || convert.uncompress()) {
+    if (convert.compress() && convert.uncompress()) {
+      std_err << "error: --compress and --uncompress are mutually exclusive";
+      retc = EINVAL;
+    } else if (convert.rewrite() || !convert.layout().empty() ||
+               !convert.target_space().empty() ||
+               !convert.placement_policy().empty() ||
+               !convert.checksum().empty()) {
+      std_err << "error: --compress and --uncompress only change the "
+                 "compression bit of the current layout";
+      retc = EINVAL;
+    } else {
+      std::shared_ptr<eos::IFileMD> fmd;
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+      try {
+        fmd = gOFS->eosView->getFile(spath.c_str());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        std_err << "error: unable to get file meta data of file " << spath;
+        retc = errno ? errno : ENOENT;
+      }
+
+      if (fmd && !retc) {
+        unsigned long layout = fmd->getLayoutId();
+        const bool enable = convert.compress();
+
+        if (eos::common::LayoutId::HasCompression(layout) == enable) {
+          std_out << "info: already marked "
+                  << (enable ? "for compression" : "as uncompressed")
+                  << ", layout="
+                  << eos::common::LayoutId::PrintLayoutString(layout)
+                  << " path=" << spath;
+        } else {
+          eos::common::LayoutId::SetCompression(layout, enable);
+          fmd->setLayoutId(static_cast<eos::IFileMD::layoutId_t>(layout));
+          gOFS->eosView->updateFileStore(fmd.get());
+          std_out << "success: marked for "
+                  << (enable ? "compression" : "decompression")
+                  << ", layout="
+                  << eos::common::LayoutId::PrintLayoutString(layout)
+                  << " path=" << spath;
+        }
+      }
+    }
   } else {
     while (1) {
       using eos::common::LayoutId;

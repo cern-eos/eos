@@ -176,6 +176,32 @@ public:
   void setSize(uint64_t size) override;
 
   //----------------------------------------------------------------------------
+  //! Compressed size in bytes. Zero until conversion records it.
+  //----------------------------------------------------------------------------
+  inline uint64_t
+  getCSize() const override
+  {
+    return this->runReadOp([this]() {
+      return mFile.csize();
+    });
+  }
+
+  void setCSize(uint64_t size) override;
+
+  //----------------------------------------------------------------------------
+  //! Compression potential in percent, 0-100.
+  //----------------------------------------------------------------------------
+  inline uint32_t
+  getCPotential() const override
+  {
+    return this->runReadOp([this]() {
+      return mFile.cpotential();
+    });
+  }
+
+  void setCPotential(uint32_t potential) override;
+
+  //----------------------------------------------------------------------------
   //! Bytes read from this file so far
   //----------------------------------------------------------------------------
   uint64_t getTotalRBytes() const override;

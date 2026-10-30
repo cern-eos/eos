@@ -31,6 +31,7 @@
 #include <XrdCl/XrdClFileSystem.hh>
 #include "StringConversion.hh"
 #include <fcntl.h>
+#include <cstdio>
 #include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -209,6 +210,42 @@ public:
                         ((excessreplicas & 0xf) << 24));
     id |= ((redundancystripes & 0x7) << 28);
     return id;
+  }
+
+  //! Bit 31 is free. It is the target storage format, not the codec.
+  static constexpr unsigned long kCompressionBit = 1UL << 31;
+
+  static bool
+  HasCompression(unsigned long layout)
+  {
+    return (layout & kCompressionBit) != 0;
+  }
+
+  static void
+  SetCompression(unsigned long& layout, bool enabled)
+  {
+    if (enabled) {
+      layout |= kCompressionBit;
+    } else {
+      layout &= ~kCompressionBit;
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  //! "1:2.1" means one stored byte came from 2.1 logical bytes.
+  //! Empty when either size is zero.
+  //--------------------------------------------------------------------------
+  static std::string
+  CompressionRatio(unsigned long long logical, unsigned long long compressed)
+  {
+    if ((logical == 0) || (compressed == 0)) {
+      return "";
+    }
+
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "1:%.1f",
+                  static_cast<double>(logical) / static_cast<double>(compressed));
+    return buf;
   }
 
   //--------------------------------------------------------------------------
@@ -1475,7 +1512,7 @@ public:
   //----------------------------------------------------------------------------
   //! Print a layout human readable
   //----------------------------------------------------------------------------
-  static std::string PrintLayoutString(int layout)
+  static std::string PrintLayoutString(unsigned long layout)
   {
     std::string dump;
     dump = GetLayoutTypeString(layout);
@@ -1492,6 +1529,11 @@ public:
     dump += "[";
     dump += GetBlockSizeString(layout);
     dump += "]";
+
+    if (HasCompression(layout)) {
+      dump += ":zstd";
+    }
+
     return dump;
   }
 

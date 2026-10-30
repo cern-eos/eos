@@ -827,6 +827,30 @@ wait_for () {
         sleep 1
     done
 }
+
+################################################################################
+# At-rest compression. Opening the file queues the FST worker; csize shows up
+# in the namespace only after that rewrite commits.
+################################################################################
+make_compress_src() {
+    mkdir -p "$EOS_TEST_TESTSYS" || return 1
+    dd if=/dev/zero bs=1048576 count=1 2>/dev/null | tr $'\0' 'C' > "$EOS_TEST_TESTSYS/compress.src" || return 1
+    [ "$(wc -c < "$EOS_TEST_TESTSYS/compress.src")" -eq 1048576 ]
+}
+
+compress_csize() {
+    local path=$1
+    local mode=$2
+    download "$EOS_TEST_TESTSYS/compress.probe" "$path" || true
+    local info
+    info=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "$path" 2>>"$EOSCERTLOG") || return 1
+
+    if [ "$mode" = set ]; then
+        printf '%s\n' "$info" | jq -e '.csize > 0' >/dev/null
+    else
+        printf '%s\n' "$info" | jq -e 'has("csize") | not' >/dev/null
+    fi
+}
 ################################################################################
 # WFE helpers. Async workflow entries are stored as
 # /eos/<instance>/proc/workflow/<day>/<queue>/<workflow>/<when>:<fxid>:<event>
@@ -3711,6 +3735,39 @@ runtest "### Touch long name  " unix SUCCESS "" eos file touch "/eos/$EOS_TEST_I
 runtest "### Ls long name     " unix SUCCESS "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Remove long name " unix SUCCESS "" eos rm -F "/eos/$EOS_TEST_INSTANCE/test/${LONG_NAME}"
 unset LONG_NAME
+
+################################################################################
+# At-rest ZSTD compression. --compress / --uncompress only flip the layout
+# bit. The next open queues an FST worker, which rewrites the replica.
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="compress"
+# ------------------------------------------------------------------------------
+COMPRESS_DIR=/eos/$EOS_TEST_INSTANCE/test/instancetest/compress
+COMPRESS_PATH=$COMPRESS_DIR/plain
+runtest "### Payload   " unix SUCCESS "" make_compress_src
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "$COMPRESS_DIR"
+runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "$COMPRESS_DIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.layout=plain "$COMPRESS_DIR"
+runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.nstripes=1 "$COMPRESS_DIR"
+runtest "### Upload    " unix SUCCESS "" upload "$EOS_TEST_TESTSYS/compress.src" "$COMPRESS_PATH"
+runtest "### Reject    " unix ERROR   "" eos file convert --compress --uncompress "$COMPRESS_PATH"
+runtest "### Plain     " unix SUCCESS "" eos file convert --uncompress "$COMPRESS_PATH | grep -c 'already marked as uncompressed' | grep -w 1"
+runtest "### Compress  " unix SUCCESS "" eos file convert --compress "$COMPRESS_PATH | grep -c ':zstd' | grep -w 1"
+runtest "### Compress  " unix SUCCESS "" eos file convert --compress "$COMPRESS_PATH | grep -c 'already marked for compression' | grep -w 1"
+runtest "### Wait      " unix SUCCESS "" wait_for 90 compress_csize "$COMPRESS_PATH" set
+runtest "### Ratio     " unix SUCCESS "" eosj fileinfo "$COMPRESS_PATH | jq -e '.size == 1048576 and .csize > 0 and (.ratio | startswith(\"1:\"))'"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/compress.out" "$COMPRESS_PATH"
+runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/compress.src" "$EOS_TEST_TESTSYS/compress.out"
+runtest "### Decompress" unix SUCCESS "" eos file convert --uncompress "$COMPRESS_PATH | grep -c 'success: marked for decompression' | grep -w 1"
+runtest "### Reject    " unix ERROR   "" eos file convert --uncompress "$COMPRESS_PATH" replica:2
+runtest "### Wait      " unix SUCCESS "" wait_for 90 compress_csize "$COMPRESS_PATH" clear
+runtest "### Cleared   " unix SUCCESS "" eosj fileinfo "$COMPRESS_PATH | jq -e '.size == 1048576 and (has(\"csize\") | not)'"
+runtest "### Download  " unix SUCCESS "" download "$EOS_TEST_TESTSYS/compress.plain" "$COMPRESS_PATH"
+runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/compress.src" "$EOS_TEST_TESTSYS/compress.plain"
+runtest "### Plain     " unix SUCCESS "" eos file convert --uncompress "$COMPRESS_PATH | grep -c 'already marked as uncompressed' | grep -w 1"
+runtest "### Cleanup   " unix IGNORE  "" shell rm -f "$EOS_TEST_TESTSYS/compress.src" "$EOS_TEST_TESTSYS/compress.probe" "$EOS_TEST_TESTSYS/compress.out" "$EOS_TEST_TESTSYS/compress.plain"
+runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$COMPRESS_DIR"
 
 ################################################################################
 # HEALTH

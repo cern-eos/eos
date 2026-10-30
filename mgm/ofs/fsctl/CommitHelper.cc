@@ -168,6 +168,22 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
     cgi["size"] = env.Get("mgm.size");
   }
 
+  if (env.Get("mgm.csize")) {
+    cgi["csize"] = env.Get("mgm.csize");
+  }
+
+  if (env.Get("mgm.commit.csize")) {
+    cgi["commit_csize"] = env.Get("mgm.commit.csize");
+  }
+
+  if (env.Get("mgm.cpotential")) {
+    cgi["cpotential"] = env.Get("mgm.cpotential");
+  }
+
+  if (env.Get("mgm.commit.cpotential")) {
+    cgi["commit_cpotential"] = env.Get("mgm.commit.cpotential");
+  }
+
   if (env.Get("mgm.path")) {
     cgi["path"] = env.Get("mgm.path");
   }
@@ -471,6 +487,26 @@ bool CommitHelper::check_altchecksums_commit_params(CommitHelper::cgi_t& cgi)
 {
   return cgi["commit_altxs"].length() && (cgi["altxs"].length() ||
                                           cgi["altxs_delete"].length()) && cgi["fid"].length();
+}
+
+//------------------------------------------------------------------------------
+// A conversion report carries only the file id and the compressed size.
+//------------------------------------------------------------------------------
+bool
+CommitHelper::check_csize_commit_params(CommitHelper::cgi_t& cgi)
+{
+  return (cgi["commit_csize"] == "1") && cgi["csize"].length() &&
+         cgi["fid"].length();
+}
+
+//------------------------------------------------------------------------------
+// A scanner report carries only the file id and the compression potential.
+//------------------------------------------------------------------------------
+bool
+CommitHelper::check_cpotential_commit_params(CommitHelper::cgi_t& cgi)
+{
+  return (cgi["commit_cpotential"] == "1") && cgi["cpotential"].length() &&
+         cgi["fid"].length();
 }
 
 //------------------------------------------------------------------------------

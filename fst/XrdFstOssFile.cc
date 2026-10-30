@@ -24,11 +24,15 @@
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/compress/BlockCompress.hh"
 #include "common/BufferManager.hh"
+#include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <cstring>
+#include <vector>
 
 namespace
 {
@@ -107,6 +111,12 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
   }
 
   // add support for IO flags like synchronous or direct IO
+  if (eos::common::LayoutId::HasCompression(lid)) {
+    mBlockSize = eos::fst::compress::EffectiveCompressionBlockSize(
+                   eos::common::LayoutId::GetBlocksize(lid));
+    mCompress = true;
+  }
+
   if ((val = env.Get("mgm.ioflag"))) {
     if (!strcmp(val, "direct")) {
       directIO = true;
@@ -218,6 +228,26 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     }
   }
 
+  if (fd >= 0) {
+    if (flags & O_TRUNC) {
+      eos::fst::compress::DropCompressionAttrs(fd);
+      mConverted = false;
+      mLogicalSize = 0;
+    } else if (eos::fst::compress::ReadLogicalSize(fd, mLogicalSize)) {
+      std::uint64_t stored_block = 0;
+
+      if (eos::fst::compress::ReadBlockSize(fd, stored_block) &&
+          (stored_block > eos::fst::compress::kHeaderBytes)) {
+        mBlockSize = stored_block;
+      }
+
+      if (mBlockSize > eos::fst::compress::kHeaderBytes) {
+        mConverted = true;
+        directIO = false;
+      }
+    }
+  }
+
   eos_debug("fd=%d fdDirect=%d flags=%x", fd, fdDirect, flags);
   return (fd < 0 ? fd : XrdOssOK);
 }
@@ -228,6 +258,10 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 ssize_t
 XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 {
+  if (mConverted) {
+    return ReadCompressed(buffer, offset, length);
+  }
+
   ssize_t retval = 0;
   ssize_t nread;
   std::vector<XrdOucIOVec> pieces;
@@ -518,6 +552,10 @@ XrdFstOssFile::WriteV(XrdOucIOVec* writeV, int n)
 ssize_t
 XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
 {
+  if (mConverted) {
+    return WriteCompressed(buffer, offset, length);
+  }
+
   ssize_t retval;
 
   if (fd < 0) {
@@ -573,7 +611,15 @@ XrdFstOssFile::Fchmod(mode_t mode)
 int
 XrdFstOssFile::Fstat(struct stat* statinfo)
 {
-  return (fstat(fd, statinfo) ? -errno : XrdOssOK);
+  if (fstat(fd, statinfo)) {
+    return -errno;
+  }
+
+  if (mConverted) {
+    statinfo->st_size = static_cast<off_t>(mLogicalSize);
+  }
+
+  return XrdOssOK;
 }
 
 
@@ -597,6 +643,24 @@ XrdFstOssFile::Ftruncate(unsigned long long flen)
 
   if ((sizeof(newlen) < sizeof(flen)) && (flen >> 31)) {
     return -EOVERFLOW;
+  }
+
+  if (mConverted) {
+    const std::uint64_t blocks = (flen == 0) ? 0
+                                 : ((flen - 1) / mBlockSize) + 1;
+    const off_t physical = static_cast<off_t>(blocks * mBlockSize);
+
+    if (ftruncate(fd, physical)) {
+      return -errno;
+    }
+
+    mLogicalSize = flen;
+
+    if (!eos::fst::compress::WriteLogicalSize(fd, mLogicalSize)) {
+      return -errno;
+    }
+
+    return XrdOssOK;
   }
 
   return (ftruncate(fd, newlen) ? -errno : XrdOssOK);
@@ -655,7 +719,7 @@ XrdFstOssFile::Close(long long* retsz)
             eos_info("info=\"adjusting block XS map\"");
           }
 
-          if (!mBlockXs->AddBlockSumHoles(getFD())) {
+          if (!mConverted && !mBlockXs->AddBlockSumHoles(getFD())) {
             eos_warning("warning=unable to fill holes of block checksum map for file %s",
                         mPath.c_str());
           }
@@ -672,7 +736,7 @@ XrdFstOssFile::Close(long long* retsz)
           eos_info("info=\"adjusting block XS map\"");
         }
 
-        if (!mBlockXs->AddBlockSumHoles(getFD())) {
+        if (!mConverted && !mBlockXs->AddBlockSumHoles(getFD())) {
           eos_warning("warning=unable to fill holes of block checksum map for file %s",
                       mPath.c_str());
         }
@@ -724,6 +788,188 @@ XrdFstOssFile::Close(long long* retsz)
   fd = -1;
   fdDirect = -1;
   return XrdOssOK;
+}
+
+//------------------------------------------------------------------------------
+// Load one logical block. A slot without a ZSTD header is plain.
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::LoadPlainBlock(std::uint64_t block, char* plain, size_t expect)
+{
+  std::vector<char> slot(mBlockSize);
+  const off_t slot_off = static_cast<off_t>(block * mBlockSize);
+  ssize_t nread;
+
+  do {
+    nread = pread(fd, slot.data(), slot.size(), slot_off);
+  } while ((nread < 0) && (errno == EINTR));
+
+  if (nread < 0) {
+    return -errno;
+  }
+
+  eos::fst::compress::DecodeSlot(slot.data(), static_cast<size_t>(nread),
+                                 expect, plain);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Store one logical block and punch the unused tail of its slot.
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::StorePlainBlock(std::uint64_t block, const char* plain,
+                               size_t plain_len)
+{
+  std::vector<char> slot(mBlockSize);
+  const size_t used = eos::fst::compress::EncodeSlot(plain, plain_len,
+                                                     mBlockSize, slot.data());
+
+  if (used == 0) {
+    return -EIO;
+  }
+
+  const off_t slot_off = static_cast<off_t>(block * mBlockSize);
+  const off_t slot_end = slot_off + static_cast<off_t>(mBlockSize);
+  struct stat statinfo {};
+
+  if ((fstat(fd, &statinfo) == 0) && (statinfo.st_size < slot_end)) {
+    if (ftruncate(fd, slot_end)) {
+      return -errno;
+    }
+  }
+
+  ssize_t nwrite;
+
+  do {
+    nwrite = pwrite(fd, slot.data(), used, slot_off);
+  } while ((nwrite < 0) && (errno == EINTR));
+
+  if (nwrite != static_cast<ssize_t>(used)) {
+    return nwrite < 0 ? -errno : -EIO;
+  }
+
+  return eos::fst::compress::PunchTail(fd, slot_off, used, mBlockSize);
+}
+
+//------------------------------------------------------------------------------
+// Read logical bytes from compressed or still-plain slots.
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::ReadCompressed(void* buffer, off_t offset, size_t length)
+{
+  if (fd < 0) {
+    return static_cast<ssize_t>(-EBADF);
+  }
+
+  if ((offset < 0) ||
+      (static_cast<std::uint64_t>(offset) >= mLogicalSize) || (length == 0)) {
+    return 0;
+  }
+
+  const std::uint64_t available = mLogicalSize - static_cast<std::uint64_t>(offset);
+
+  if (length > available) {
+    length = static_cast<size_t>(available);
+  }
+
+  auto* out = static_cast<char*>(buffer);
+  size_t copied = 0;
+
+  while (copied < length) {
+    const std::uint64_t pos = static_cast<std::uint64_t>(offset) + copied;
+    const std::uint64_t block = pos / mBlockSize;
+    const std::uint64_t block_off = block * mBlockSize;
+    const size_t expect = static_cast<size_t>(
+                            std::min(mBlockSize, mLogicalSize - block_off));
+    std::vector<char> plain(expect);
+    const int rc = LoadPlainBlock(block, plain.data(), expect);
+
+    if (rc != 0) {
+      return rc;
+    }
+
+    const size_t intra = static_cast<size_t>(pos - block_off);
+    const size_t n = std::min(length - copied, expect - intra);
+    std::memcpy(out + copied, plain.data() + intra, n);
+    copied += n;
+  }
+
+  if (mBlockXs) {
+    XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+
+    if (!mBlockXs->CheckBlockSum(offset, out, copied)) {
+      return -EIO;
+    }
+  }
+
+  return static_cast<ssize_t>(copied);
+}
+
+//------------------------------------------------------------------------------
+// Rewrite every logical block touched by this write.
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::WriteCompressed(const void* buffer, off_t offset, size_t length)
+{
+  if (fd < 0) {
+    return static_cast<ssize_t>(-EBADF);
+  }
+
+  if ((offset < 0) || (length == 0)) {
+    return 0;
+  }
+
+  const std::uint64_t old_end = mLogicalSize;
+  const std::uint64_t write_end = static_cast<std::uint64_t>(offset) + length;
+  const std::uint64_t new_end = std::max(old_end, write_end);
+  const auto* in = static_cast<const char*>(buffer);
+  const std::uint64_t first = static_cast<std::uint64_t>(offset) / mBlockSize;
+  const std::uint64_t last = (write_end - 1) / mBlockSize;
+
+  for (std::uint64_t block = first; block <= last; ++block) {
+    const std::uint64_t block_off = block * mBlockSize;
+    const size_t old_have = (old_end > block_off)
+                            ? static_cast<size_t>(std::min(mBlockSize, old_end - block_off))
+                            : 0;
+    const size_t new_have = static_cast<size_t>(
+                              std::min(mBlockSize, new_end - block_off));
+    std::vector<char> plain(new_have, '\0');
+
+    if (old_have > 0) {
+      const int rc = LoadPlainBlock(block, plain.data(), old_have);
+
+      if (rc != 0) {
+        return rc;
+      }
+    }
+
+    const std::uint64_t overlap_begin = std::max(static_cast<std::uint64_t>(offset),
+                                         block_off);
+    const std::uint64_t overlap_end = std::min(write_end, block_off + mBlockSize);
+    const size_t dst = static_cast<size_t>(overlap_begin - block_off);
+    const size_t src = static_cast<size_t>(overlap_begin - static_cast<std::uint64_t>(offset));
+    const size_t n = static_cast<size_t>(overlap_end - overlap_begin);
+    std::memcpy(plain.data() + dst, in + src, n);
+
+    const int rc = StorePlainBlock(block, plain.data(), new_have);
+
+    if (rc != 0) {
+      return rc;
+    }
+  }
+
+  mLogicalSize = new_end;
+
+  if (!eos::fst::compress::WriteLogicalSize(fd, mLogicalSize)) {
+    return -errno;
+  }
+
+  if (mBlockXs) {
+    XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+    mBlockXs->AddBlockSum(offset, static_cast<const char*>(buffer), length);
+  }
+
+  return static_cast<ssize_t>(length);
 }
 
 EOSFSTNAMESPACE_END

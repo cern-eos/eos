@@ -29,6 +29,7 @@
 #include "common/ThreadPool.hh"
 #include "common/XrdConnPool.hh"
 #include "fst/Namespace.hh"
+#include "fst/compress/CompressPool.hh"
 #include "fst/storage/TrafficShaping.hh"
 #include "fst/utils/OpenFileTracker.hh"
 #include "fst/utils/TpcInfo.hh"
@@ -344,6 +345,16 @@ public:
                   bool retry = true);
 
   //----------------------------------------------------------------------------
+  //! Store the compressed size measured by conversion in the namespace file MD.
+  //----------------------------------------------------------------------------
+  int CommitCompressedSize(unsigned long long fid, unsigned long long csize);
+
+  //----------------------------------------------------------------------------
+  //! Store the scanner's compression potential, 0-100, in the namespace.
+  //----------------------------------------------------------------------------
+  int CommitCompressionPotential(unsigned long long fid, unsigned potential);
+
+  //----------------------------------------------------------------------------
   //! Function dealing with plugin calls
   //----------------------------------------------------------------------------
   int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
@@ -441,6 +452,18 @@ public:
   fst::traffic_shaping::IoStatsCollector mIoStatsCollector;
   fst::traffic_shaping::IoDelayConfig mIoDelayConfig;
 
+  //----------------------------------------------------------------------------
+  //! Apply compressworkers or compressrate reported for one filesystem.
+  //----------------------------------------------------------------------------
+  void ConfigureCompression(unsigned long fsid, const std::string& key,
+                            long long value);
+
+  //----------------------------------------------------------------------------
+  //! Queue compression or decompression for one replica.
+  //----------------------------------------------------------------------------
+  bool EnqueueCompression(eos::fst::compress::CompressPool::Job job,
+                          bool want_compression);
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -450,6 +473,8 @@ public:
   XrdOucBuffPool mXrdBuffPool;
   //! Thread pool for async file  operations
   eos::common::ThreadPool mAsyncOpThreadPool;
+  //! Low-priority workers that compress files queued by close and the scan
+  eos::fst::compress::CompressPool mCompressPool;
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
   std::atomic<bool> mSimOpenDelay; ///< simulate an open timeout for client

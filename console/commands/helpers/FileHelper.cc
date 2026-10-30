@@ -127,7 +127,8 @@ struct FileOptions {
   double lifetime = 28 * 86400;
   bool force = false, silent = false, clone = false, noLayout = false;
   bool truncate = false, absorb = false, lock = false, unlock = false;
-  bool rewrite = false, createFolder = false, noDrop = false;
+  bool rewrite = false, compress = false, uncompress = false;
+  bool createFolder = false, noDrop = false;
   bool verifyChecksum = false, commitChecksum = false, commitSize = false;
   bool commitFmd = false, resync = false;
   bool infoPath = false, infoFid = false, infoFxid = false, infoSize = false;
@@ -250,6 +251,14 @@ struct FileOptions {
         ->check(eos::console::NonEmptyArgument);
     convert->add_option("checksum", checksum)->check(eos::console::NonEmptyArgument);
     convert->add_flag("--rewrite", rewrite, "Rewrite all replicas");
+    auto* compressFlag = convert->add_flag(
+                           "--compress", compress,
+                           "Mark the file for at-rest ZSTD compression");
+    auto* uncompressFlag = convert->add_flag(
+                             "--uncompress", uncompress,
+                             "Rewrite the file back to plain bytes");
+    compressFlag->excludes(uncompressFlag);
+    uncompressFlag->excludes(compressFlag);
     auto* verify = Add("verify", "Verify a file against its disk replicas");
     verify->allow_non_standard_option_names();
     verify->add_option("fsid", fsid1)->transform(eos::console::DecimalNumber);
@@ -466,6 +475,8 @@ FileHelper::ParseArguments(const std::vector<std::string>& args)
     convert->set_placement_policy(options.placement);
     convert->set_checksum(options.checksum);
     convert->set_rewrite(options.rewrite);
+    convert->set_compress(options.compress);
+    convert->set_uncompress(options.uncompress);
   } else if (command == "verify") {
     auto* verify = file.mutable_verify();
     verify->set_fsid(options.fsid1);

@@ -42,6 +42,7 @@
 #include "common/Constants.hh"
 #include "common/CrashHandler.hh"
 #include "common/FileId.hh"
+#include <string>
 #include "common/FileSystem.hh"
 #include "common/PasswordHandler.hh"
 #include "common/Path.hh"
@@ -346,6 +347,7 @@ XrdFstOfs::XrdFstOfs() :
   mHostName(NULL), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mAsyncOpThreadPool(8, 64, 5, 6, 5, "async_op"),
+  mCompressPool(8),
   mMgmXrdPool(nullptr),
   mSimOpenDelay(false), mSimOpenDelaySec(120),
   mSimFmdOpenErr(false), mSimIoReadErr(false),
@@ -439,10 +441,32 @@ XrdFstOfs::XrdFstOfs() :
 }
 
 //------------------------------------------------------------------------------
+// Apply a compression space setting for one filesystem
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::ConfigureCompression(unsigned long fsid, const std::string& key,
+                                long long value)
+{
+  mCompressPool.SetFsConfig(fsid, key, value);
+}
+
+//------------------------------------------------------------------------------
+// Queue compression or decompression for one replica
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::EnqueueCompression(eos::fst::compress::CompressPool::Job job,
+                              bool want_compression)
+{
+  return mCompressPool.EnqueueConversion(std::move(job), want_compression);
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
+  mCompressPool.Stop();
+
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
@@ -2479,6 +2503,51 @@ XrdFstOfs::GetKernelRelease()
   }
 
   return kernel_release;
+}
+
+//------------------------------------------------------------------------------
+// Tell the namespace the compressed size of a converted replica.
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::CommitCompressedSize(unsigned long long fid,
+                                unsigned long long csize)
+{
+  XrdOucString request = "/?mgm.pcmd=commit&mgm.commit.csize=1&mgm.fid=";
+  request += eos::common::FileId::Fid2Hex(fid).c_str();
+  request += "&mgm.csize=";
+  request += std::to_string(csize).c_str();
+  XrdOucErrInfo error;
+  const int rc = CallManager(&error, nullptr, nullptr, request);
+
+  if (rc) {
+    eos_static_err("msg=\"failed to commit compressed size\" fxid=%08llx "
+                   "csize=%llu", fid, csize);
+  }
+
+  return rc;
+}
+
+//------------------------------------------------------------------------------
+// Tell the namespace the compression potential measured by the scanner.
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::CommitCompressionPotential(unsigned long long fid,
+                                      unsigned potential)
+{
+  XrdOucString request =
+    "/?mgm.pcmd=commit&mgm.commit.cpotential=1&mgm.fid=";
+  request += eos::common::FileId::Fid2Hex(fid).c_str();
+  request += "&mgm.cpotential=";
+  request += std::to_string(potential).c_str();
+  XrdOucErrInfo error;
+  const int rc = CallManager(&error, nullptr, nullptr, request);
+
+  if (rc) {
+    eos_static_err("msg=\"failed to commit compression potential\" "
+                   "fxid=%08llx cpotential=%u", fid, potential);
+  }
+
+  return rc;
 }
 
 EOSFSTNAMESPACE_END

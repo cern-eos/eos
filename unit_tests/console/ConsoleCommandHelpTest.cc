@@ -533,6 +533,8 @@ TEST_F(ConsoleCommandHelpTest, FilesystemConfigurationKeepsEachSettingOnItsOwnLi
                                           "scaninterval=",
                                           "scan_rain_interval=",
                                           "scanrate=",
+                                          "compressworkers=",
+                                          "compressrate=",
                                           "scan_disk_interval=",
                                           "scan_ns_interval=",
                                           "scan_ns_rate=",

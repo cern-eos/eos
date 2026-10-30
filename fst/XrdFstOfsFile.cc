@@ -36,6 +36,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/compress/BlockCompress.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
@@ -621,6 +622,31 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
            mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
            oss_opaque.c_str());
   COMMONTIMING("layout::open", &tm);
+
+  // Stay out of the replica while a conversion renames its temporary file
+  // into place. The guard is released on every return from this open.
+  struct RenameOpenGuard {
+    unsigned long fsid = 0;
+    std::uint64_t fid = 0;
+    bool armed = false;
+
+    RenameOpenGuard(unsigned long fs, std::uint64_t id)
+      : fsid(fs), fid(id)
+    {
+      if (fid != 0) {
+        gOFS.mCompressPool.NoteOpenBegin(fsid, fid);
+        armed = true;
+      }
+    }
+
+    ~RenameOpenGuard()
+    {
+      if (armed) {
+        gOFS.mCompressPool.NoteOpenEnd(fsid, fid);
+      }
+    }
+  } rename_open_guard(mFsId, mFileId);
+
   int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
   COMMONTIMING("layout::opened", &tm);
 
@@ -798,7 +824,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     COMMONTIMING("layout::fallocate", &tm);
-    rc = mLayout->Fallocate(mBookingSize);
+
+    if (eos::common::LayoutId::HasCompression(mLid)) {
+      // A preallocation would fill the sparse compression slots.
+      rc = 0;
+    } else {
+      rc = mLayout->Fallocate(mBookingSize);
+    }
+
     COMMONTIMING("layout::fallocated", &tm);
 
     if (rc) {
@@ -1825,6 +1858,8 @@ XrdFstOfsFile::_close_rd()
   }
 
   gOFS.openedForReading.down(mFsId, mFileId);
+  gOFS.mCompressPool.NoteClosed(mFsId, mFileId);
+  QueueCompression();
 
   if (checksum_err) {
     const bool is_cache_open = (mCapOpaque && mCapOpaque->Get("mgm.cache") &&
@@ -2138,6 +2173,12 @@ XrdFstOfsFile::_close_wr()
       gOFS.WNoDeleteOnCloseFid[mFsId].erase(mFileId);
       gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
     }
+  }
+
+  gOFS.mCompressPool.NoteClosed(mFsId, mFileId);
+
+  if (!mDelOnClose) {
+    QueueCompression();
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
@@ -4524,6 +4565,28 @@ XrdFstOfsFile::GetAsyncCloseMinSize()
   }
 
   return min_size_async_close;
+}
+
+//------------------------------------------------------------------------------
+// Queue at-rest compression for this replica
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::QueueCompression()
+{
+  using eos::common::LayoutId;
+
+  if (mFstPath.empty() || !mLayout) {
+    return;
+  }
+
+  eos::fst::compress::CompressPool::Job job;
+  job.path = mFstPath;
+  job.block_size = LayoutId::GetBlocksize(mLid);
+  job.fid = mFileId;
+  job.fsid = mFsId;
+  job.publish = mLayout->IsEntryServer() && !LayoutId::IsRain(mLid);
+  gOFS.mCompressPool.EnqueueConversion(std::move(job),
+                                       LayoutId::HasCompression(mLid));
 }
 
 //------------------------------------------------------------------------------
