@@ -118,7 +118,7 @@ private:
 
 TEST_F(LegacyCliValidationTest, ChmodPreservesOctalDigitsAndEscapesPath)
 {
-  for (const std::string& mode :
+  for (const std::string mode :
        {"0", "7", "644", "755", "1777", "2777", "4755", "7777"}) {
     SCOPED_TRACE(mode);
     run("chmod", {"-r", mode, "/eos/a b&mgm.cmd=other%20#x"});
@@ -153,7 +153,7 @@ TEST_F(LegacyCliValidationTest, ChmodRejectsInvalidModesAndArgumentsBeforeSendin
 
 TEST_F(LegacyCliValidationTest, ChownPreservesRemoteNamesAndEscapesOnlyPath)
 {
-  for (const std::string& owner :
+  for (const std::string owner :
        {"0", "123", ":456", "123:456", "remote.user@domain", "remote-user:remote_group",
         "computer$", "domain\\user"}) {
     SCOPED_TRACE(owner);
@@ -180,7 +180,7 @@ TEST_F(LegacyCliValidationTest, ChownAcceptsUint32BoundariesAndCanonicalizesLead
 
 TEST_F(LegacyCliValidationTest, ChownRejectsInvalidAndUnsafeOwnersBeforeSending)
 {
-  for (const std::string& owner :
+  for (const std::string owner :
        {"", ":", "user:", "user:group:other", "::group", "a&mgm.chown.owner=0", "a=b",
         "a?b", "a#b", "a%b", "a b", "a\tb", "a\nb", "a\rb", "-1", "+1", "4294967296",
         ":4294967296", "user:-1"}) {
@@ -323,8 +323,8 @@ TEST_F(LegacyCliValidationTest, LocalListingPreflightKeepsOriginalOperands)
 {
   auto* command = CommandRegistry::instance().find("ls");
   ASSERT_NE(command, nullptr);
-  for (const std::string& path : {"file:/tmp/my files", "file:/tmp/a'b\"c\\d",
-                                  "as3:bucket/a b", "root://localhost//a b"}) {
+  for (const std::string path : {"file:/tmp/my files", "file:/tmp/a'b\"c\\d",
+                                 "as3:bucket/a b", "root://localhost//a b"}) {
     SCOPED_TRACE(path);
     EXPECT_FALSE(command->requiresMgmArguments({path}));
     EXPECT_FALSE(command->requiresMgmArguments({"-l", "--", path}));

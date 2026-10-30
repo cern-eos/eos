@@ -393,7 +393,7 @@ TEST_F(ConsoleProcessTest, GlobalOptionsAndOriginalArgvReachProtobufUnchanged)
 
 TEST_F(ConsoleProcessTest, AttrOriginalArgvReachesCgiWithoutInventedEscapes)
 {
-  for (const std::string& value :
+  for (const std::string value :
        {"value\"quote", "\"leading", "\"", "value\\\"quote", "tail\\", "two words"}) {
     SCOPED_TRACE(value);
     ASSERT_EQ(

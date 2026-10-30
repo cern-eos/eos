@@ -167,7 +167,7 @@ TEST_F(DuCliTest, ExplicitUriPreflightPreservesArgumentBoundaries)
 {
   auto* command = CommandRegistry::instance().find("du");
   ASSERT_NE(command, nullptr);
-  for (const std::string& path :
+  for (const std::string path :
        {"file:/tmp/my files", "file:", "root://test.invalid//my files",
         "as3:bucket/my files"}) {
     SCOPED_TRACE(path);
@@ -280,8 +280,8 @@ TEST_F(DuS3CliTest, S3FiltersPreserveEgrepAndHeaderSemantics)
 TEST_F(DuS3CliTest, MalformedS3UrisAndFiltersAreRejectedBeforeSpawning)
 {
   stub("exit 73\n");
-  for (const std::string& uri : {"as3:", "as3://host-only", "as3:/missing-bucket",
-                                 "as3:*/path", "as3:bucket/[invalid"}) {
+  for (const std::string uri : {"as3:", "as3://host-only", "as3:/missing-bucket",
+                                "as3:*/path", "as3:bucket/[invalid"}) {
     SCOPED_TRACE(uri);
     expectRejected("du", {uri});
     EXPECT_TRUE(invocation().empty());
