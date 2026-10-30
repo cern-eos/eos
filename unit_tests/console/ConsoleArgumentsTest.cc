@@ -221,8 +221,8 @@ TEST_F(ConsoleArgumentsTest, ExecuteLineExtractsCommentAsTokenMetadata)
 
 TEST_F(ConsoleArgumentsTest, AttrOriginalArgvPreservesQuotesAndBackslashes)
 {
-  for (const std::string& value : {"value\"quote", "\"leading", "\"", "\"quoted\"",
-                                   "back\\slash", "tail\\", "two words", ""}) {
+  for (const std::string value : {"value\"quote", "\"leading", "\"", "\"quoted\"",
+                                  "back\\slash", "tail\\", "two words", ""}) {
     SCOPED_TRACE(value);
     run("attr", {"set", "user.attr.json4=" + value, "/eos/attribute"});
     EXPECT_EQ(global_retc, ENOENT);
