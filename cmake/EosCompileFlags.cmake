@@ -22,10 +22,10 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# Require C++17
+# Require C++20
 #-------------------------------------------------------------------------------
 
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard")
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ Standard")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS FALSE)
 

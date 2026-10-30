@@ -2,7 +2,6 @@
 # Helper macros and variables
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
-%define devtoolset devtoolset-9
 %define debug_package %{nil}
 %global __os_install_post %{nil}
 
@@ -83,18 +82,38 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
+# The EL8 system GCC 8 has only partial C++20 support
+%if 0%{?rhel} == 8
+%define gcc_toolset gcc-toolset-14
+BuildRequires: %{gcc_toolset}-gcc-c++
+%endif
+
 %if %{with asan}
+%if 0%{?rhel} == 8
+BuildRequires: %{gcc_toolset}-libasan-devel
+Requires: libasan8
+%else
 BuildRequires: libasan
 Requires: libasan
 %endif
+%endif
 
 %if %{with tsan}
+%if 0%{?rhel} == 8
+BuildRequires: %{gcc_toolset}-libtsan-devel
+Requires: libtsan2
+%else
 BuildRequires: libtsan
 Requires: libtsan
 %endif
+%endif
 
 %if %{with ubsan}
+%if 0%{?rhel} == 8
+BuildRequires: %{gcc_toolset}-libubsan-devel
+%else
 BuildRequires: libubsan
+%endif
 Requires: libubsan
 %endif
 
@@ -269,6 +288,9 @@ cd build
 %endif
 
 %if "%{?compiler}" == "gcc"
+%if 0%{?rhel} == 8
+  source /opt/rh/%{gcc_toolset}/enable
+%endif
   %{__cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{?xrootd_root_flag} %{build_flags}
 %else
   source /opt/rh/gcc-toolset-14/enable
@@ -278,6 +300,9 @@ cd build
 %{__make} %{_smp_mflags}
 
 %install
+%if "%{?compiler}" == "gcc" && 0%{?rhel} == 8
+source /opt/rh/%{gcc_toolset}/enable
+%endif
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
@@ -327,8 +352,8 @@ Requires: systemd
 
 BuildRequires: zeromq, zeromq-devel
 Requires: zeromq
-BuildRequires: eos-folly = 2019.11.11.00
-Requires: eos-folly = 2019.11.11.00
+BuildRequires: eos-folly >= 2019.11.11.00-2
+Requires: eos-folly >= 2019.11.11.00-2
 BuildRequires: perl-generators
 BuildRequires: xxhash-devel
 Requires: xxhash-libs
@@ -475,8 +500,8 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 Requires: eos-grpc = %{eos_grpc_version}
-BuildRequires: eos-folly = 2019.11.11.00
-Requires: eos-folly = 2019.11.11.00
+BuildRequires: eos-folly >= 2019.11.11.00-2
+Requires: eos-folly >= 2019.11.11.00-2
 
 %description -n eos-ns-inspect
 EOS namespace inspection tool for instance administrators
