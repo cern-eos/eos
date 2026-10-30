@@ -862,6 +862,10 @@ XrdMgmOfs::_rename(const char* old_name,
             });
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
+            // Two moves of directories into each other at the same time both
+            // pass the check below, then cut both off from the namespace. The
+            // namespace write lock serializes the moves to another parent
+            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
             {
               eos::MDLocking::BulkMDReadLock bulkDirLocker;
               bulkDirLocker.add(rdir.get());
