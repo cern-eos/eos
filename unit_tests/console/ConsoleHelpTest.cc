@@ -119,10 +119,10 @@ TEST_F(ConsoleHelpTest, MeasuresUnicodeDisplayCellsWithoutChangingLocale)
   const std::string processLocale = std::setlocale(LC_CTYPE, nullptr);
   const auto threadLocale = uselocale(nullptr);
   EXPECT_EQ(HelpDisplayWidth("ASCII"), 5u);
-  EXPECT_EQ(HelpDisplayWidth(u8"résumé"), 6u);
-  EXPECT_EQ(HelpDisplayWidth(u8"目录"), 4u);
+  EXPECT_EQ(HelpDisplayWidth("résumé"), 6u);
+  EXPECT_EQ(HelpDisplayWidth("目录"), 4u);
   EXPECT_EQ(HelpDisplayWidth("e\xcc\x81"), 1u);
-  EXPECT_EQ(HelpDisplayWidth(u8"Ω目录 e\u0301"), 7u);
+  EXPECT_EQ(HelpDisplayWidth("Ω目录 e\u0301"), 7u);
   EXPECT_EQ(HelpDisplayWidth(""), 0u);
   EXPECT_EQ(std::string(std::setlocale(LC_CTYPE, nullptr)), processLocale);
   EXPECT_EQ(uselocale(nullptr), threadLocale);
@@ -131,7 +131,7 @@ TEST_F(ConsoleHelpTest, MeasuresUnicodeDisplayCellsWithoutChangingLocale)
 TEST_F(ConsoleHelpTest, WrapsParagraphsAtActualDisplayWidth)
 {
   const std::string paragraph =
-      u8"Inspect 目录 entries and résumé metadata without splitting e\u0301 accents. "
+      "Inspect 目录 entries and résumé metadata without splitting e\u0301 accents. "
       "Descriptions wrap at words and use the same indentation on each line.";
   HelpPage page{{{HelpBlockKind::Paragraph, paragraph, {}}}};
   for (size_t width : {40, 60, 80, 120}) {
@@ -140,7 +140,7 @@ TEST_F(ConsoleHelpTest, WrapsParagraphsAtActualDisplayWidth)
     expectWidth(text, width);
     EXPECT_EQ(words(text), words(paragraph));
     EXPECT_EQ(text.substr(0, 2), "  ");
-    EXPECT_NE(text.find(u8"目录"), std::string::npos);
+    EXPECT_NE(text.find("目录"), std::string::npos);
     EXPECT_NE(text.find("e\xcc\x81"), std::string::npos);
   }
 }
@@ -357,9 +357,9 @@ TEST_F(ConsoleHelpTest, TypedCommandDefinitionsDoNotDependOnTheLegacyVocabulary)
 TEST_F(ConsoleHelpTest, TypedSpansSurviveUnicodeWrappingAndDefinitionContinuations)
 {
   HelpText description{"Inspect "};
-  description.append(u8"目录", TextStyle::Path);
+  description.append("目录", TextStyle::Path);
   description.append(" and ");
-  description.append(u8"résumé", TextStyle::Identifier);
+  description.append("résumé", TextStyle::Identifier);
   description.append(" metadata, preserving ");
   description.append("e\xcc\x81", TextStyle::Identifier);
   description.append(" accents and the selected identifier ");
@@ -383,8 +383,8 @@ TEST_F(ConsoleHelpTest, TypedSpansSurviveUnicodeWrappingAndDefinitionContinuatio
              {"inspect", TextStyle::Command},
              {"<directory>", TextStyle::Argument},
              {"--details", TextStyle::Option},
-             {u8"目录", TextStyle::Path},
-             {u8"résumé", TextStyle::Identifier},
+             {"目录", TextStyle::Path},
+             {"résumé", TextStyle::Identifier},
              {"e\xcc\x81", TextStyle::Identifier},
              {"disable_access_log", TextStyle::Identifier}}) {
       EXPECT_NE(colored.find(Colorize(token, style, terminal)), std::string::npos)
@@ -456,7 +456,7 @@ TEST_F(ConsoleHelpTest, MarkedReferencesKeepTheirRoleWhenAppendedToPlainProse)
 
 TEST_F(ConsoleHelpTest, MultiwordRolesResumeAfterEveryWrappedLine)
 {
-  const std::string marked = u8"alpha résumé 目录 metadata omega";
+  const std::string marked = "alpha résumé 目录 metadata omega";
   HelpPage page{
       {{HelpBlockKind::Paragraph, StyledHelpText(marked, TextStyle::Identifier), {}}}};
   ConfigureColor(ColorMode::Always, false, false);
@@ -470,7 +470,7 @@ TEST_F(ConsoleHelpTest, MultiwordRolesResumeAfterEveryWrappedLine)
     const auto colored = page.render(width, terminal);
     EXPECT_EQ(plain(colored), page.render(width));
     expectWidth(colored, width);
-    for (const auto* word : {"alpha", u8"résumé", u8"目录", "metadata", "omega"}) {
+    for (const auto* word : {"alpha", "résumé", "目录", "metadata", "omega"}) {
       SCOPED_TRACE(word);
       const auto position = colored.find(word);
       ASSERT_NE(position, std::string::npos);
