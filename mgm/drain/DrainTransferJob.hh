@@ -213,12 +213,12 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Check if the job failed because no destination file system was found
+  //! Get destination file system id, 0 if none was selected
   //----------------------------------------------------------------------------
-  bool
-  NoDestination() const
+  eos::common::FileSystem::fsid_t
+  GetTargetFsId() const
   {
-    return mNoDst.load();
+    return mFsIdTarget.load();
   }
 
   //----------------------------------------------------------------------------
@@ -365,7 +365,6 @@ private:
   std::atomic<eos::common::FileSystem::fsid_t> mTxFsIdSource;
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
-  std::atomic<bool> mNoDst{false}; ///< No eligible destination was found
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src
   std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest
   bool mRainAttempt; ///< Rain transfers are attempted only once
