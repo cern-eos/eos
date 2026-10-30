@@ -504,6 +504,29 @@ TEST(FileHelper, ConvertRewrite)
   ASSERT_EQ(file.convert().layout(), "replica:2");
 }
 
+TEST(FileHelper, ConvertCompress)
+{
+  auto file = ParseOk("convert --compress /eos/f.dat");
+  ASSERT_TRUE(file.convert().compress());
+  ASSERT_FALSE(file.convert().uncompress());
+  ASSERT_TRUE(file.convert().layout().empty());
+  ASSERT_FALSE(file.convert().rewrite());
+}
+
+TEST(FileHelper, ConvertUncompress)
+{
+  auto file = ParseOk("convert --uncompress /eos/f.dat");
+  ASSERT_TRUE(file.convert().uncompress());
+  ASSERT_FALSE(file.convert().compress());
+  ASSERT_TRUE(file.convert().layout().empty());
+  ASSERT_FALSE(file.convert().rewrite());
+}
+
+TEST(FileHelper, ConvertRejectsCompressAndUncompress)
+{
+  ExpectReject("convert --compress --uncompress /eos/f.dat");
+}
+
 TEST(FileHelper, ConvertRejectsSync)
 {
   ExpectReject("convert /eos/f.dat replica:2 --sync");

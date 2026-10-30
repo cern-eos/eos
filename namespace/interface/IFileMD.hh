@@ -185,6 +185,26 @@ public:
   virtual void setSize(uint64_t size) = 0;
 
   //----------------------------------------------------------------------------
+  //! Compressed size in bytes. Zero until the FST conversion records it.
+  //----------------------------------------------------------------------------
+  virtual uint64_t getCSize() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Record the compressed size measured by conversion.
+  //----------------------------------------------------------------------------
+  virtual void setCSize(uint64_t size) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Compression potential in percent, 0-100, measured by the FST scanner.
+  //----------------------------------------------------------------------------
+  virtual uint32_t getCPotential() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Record the compression potential measured from the file's byte entropy.
+  //----------------------------------------------------------------------------
+  virtual void setCPotential(uint32_t potential) = 0;
+
+  //----------------------------------------------------------------------------
   //! Bytes read from this file so far
   //----------------------------------------------------------------------------
   virtual uint64_t getTotalRBytes() const = 0;

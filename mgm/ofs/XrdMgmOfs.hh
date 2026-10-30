@@ -1415,6 +1415,21 @@ public:
                   eos::common::FileSystem::fsid_t fsid, bool force = false);
 
   //----------------------------------------------------------------------------
+  //! Tell one FST to compress or decompress a replica now. The scanner still
+  //! notices a layout bit that this message missed.
+  //!
+  //! @param fid file id
+  //! @param fsid filesystem that stores the replica
+  //! @param want_compression true to compress, false to decompress
+  //! @param layout namespace layout, including the compression bit
+  //!
+  //! @return 0 when the replica was queued or already in the requested state
+  //----------------------------------------------------------------------------
+  int QueryCompress(eos::common::FileId::fileid_t fid,
+                    eos::common::FileSystem::fsid_t fsid,
+                    bool want_compression, unsigned long layout);
+
+  //----------------------------------------------------------------------------
   //! Remove file/container metadata object that was already deleted before
   //! but it's still in the namespace detached from any parent
   //!

@@ -411,6 +411,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           ((key == "sched") && eos::common::ParseSchedSpec(value).has_value()) ||
           ((key == "drain") && ((value == "on") || (value == "off"))) ||
           (((key == eos::common::SCAN_IO_RATE_NAME) ||
+            (key == eos::common::COMPRESS_WORKERS_NAME) ||
+            (key == eos::common::COMPRESS_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -436,6 +438,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         }
 
         if ((key == eos::common::SCAN_IO_RATE_NAME) ||
+            (key == eos::common::COMPRESS_WORKERS_NAME) ||
+            (key == eos::common::COMPRESS_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -1032,6 +1036,8 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
     paramlist.insert("scaninterval");
     paramlist.insert("scan_rain_interval");
     paramlist.insert("scanrate");
+    paramlist.insert(eos::common::COMPRESS_WORKERS_NAME);
+    paramlist.insert(eos::common::COMPRESS_RATE_NAME);
     paramlist.insert("headroom");
     paramlist.insert("drainperiod");
     paramlist.insert("graceperiod");

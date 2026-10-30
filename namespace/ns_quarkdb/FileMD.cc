@@ -257,6 +257,8 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
         << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
         << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
         << "&size=" << mFile.size()
+        << "&csize=" << mFile.csize()
+        << "&cpotential=" << mFile.cpotential()
         << "&total-rbytes=" << mFile.total_rbytes()
         << "&total-rbc=" << mFile.total_rbc()
         << "&total-ubytes=" << mFile.total_ubytes()
@@ -375,6 +377,28 @@ QuarkFileMD::setSize(uint64_t size)
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
   {sizeChange, 0, 0});
   pFileMDSvc->notifyListeners(&e);
+}
+
+//------------------------------------------------------------------------------
+// Record the compressed size. This does not change quota.
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::setCSize(uint64_t size)
+{
+  runWriteOp([this, size]() {
+    mFile.set_csize(size);
+  });
+}
+
+//------------------------------------------------------------------------------
+// Record compression potential. This does not change quota.
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::setCPotential(uint32_t potential)
+{
+  runWriteOp([this, potential]() {
+    mFile.set_cpotential(potential);
+  });
 }
 
 //------------------------------------------------------------------------------

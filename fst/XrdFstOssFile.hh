@@ -28,6 +28,7 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include <XrdOss/XrdOss.hh>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -179,6 +180,19 @@ private:
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
   int fdDirect; ///< fd for direct IO
+  bool mCompress = false; ///< layout bit 31: this file should be compressed
+  bool mConverted = false; ///< on-disk image is already slot-compressed
+  std::uint64_t mBlockSize = 0; ///< logical compression block
+  std::uint64_t mLogicalSize = 0; ///< uncompressed size of a converted file
+
+  //--------------------------------------------------------------------------
+  //! Read and write a file that is already stored as compressed slots.
+  //! Until conversion, the compression bit leaves the bytes plain.
+  //--------------------------------------------------------------------------
+  ssize_t ReadCompressed(void* buffer, off_t offset, size_t length);
+  ssize_t WriteCompressed(const void* buffer, off_t offset, size_t length);
+  int LoadPlainBlock(std::uint64_t block, char* plain, size_t expect);
+  int StorePlainBlock(std::uint64_t block, const char* plain, size_t plain_len);
 
 #ifdef IN_TEST_HARNESS
 public:

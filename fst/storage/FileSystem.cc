@@ -124,7 +124,9 @@ std::set<std::string> FileSystem::sFsUpdateKeys{
     eos::common::SCAN_NS_RATE_NAME,
     eos::common::SCAN_ALTXS_INTERVAL_NAME,
     eos::common::ALTXS_SYNC,
-    eos::common::ALTXS_SYNC_INTERVAL};
+    eos::common::ALTXS_SYNC_INTERVAL,
+    eos::common::COMPRESS_WORKERS_NAME,
+    eos::common::COMPRESS_RATE_NAME};
 
 //------------------------------------------------------------------------------
 // Constructor

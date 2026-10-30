@@ -902,6 +902,28 @@ Storage::Boot(FileSystem* fs)
     }
   }
 
+  const std::list<std::string> compress_keys {
+    eos::common::COMPRESS_WORKERS_NAME, eos::common::COMPRESS_RATE_NAME};
+
+  for (const auto& key : compress_keys) {
+    const std::string sval = fs->GetString(key.c_str());
+
+    if (sval.empty()) {
+      continue;
+    }
+
+    try {
+      const long long val = std::stoll(sval);
+
+      if (val >= 0) {
+        gOFS.ConfigureCompression(fs->GetLocalId(), key, val);
+      }
+    } catch (...) {
+      eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
+                     key.c_str(), sval.c_str());
+    }
+  }
+
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
   return;
 }

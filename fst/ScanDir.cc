@@ -33,6 +33,8 @@
 #include "fst/Deletion.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumGroup.hh"
+#include "fst/compress/BlockCompress.hh"
+#include "fst/compress/Entropy.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/filemd/FmdMgm.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -852,8 +854,6 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
 {
   eos::common::FsckErrsPerFsMap errs_map;
   auto scan_func = [this, &errs_map](const std::string & fpath) {
-    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
-    // Collect fsck errors and save them to be sent later on to QDB
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
     if (!fid) {
@@ -863,21 +863,26 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
     }
 
     auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+    {
+      // Collect fsck errors and save them to be sent later on to QDB
+      std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
 
-    if (CheckFile(io.get(), fpath)) {
-
-      if (fmd) {
-        CollectInconsistencies(*fmd.get(), mFsId, errs_map);
+      if (CheckFile(io.get(), fpath)) {
+        if (fmd) {
+          CollectInconsistencies(*fmd.get(), mFsId, errs_map);
+        }
       }
 
+      if (fmd) {
+        UpdateLocalAltXsMetadata(*fmd.get());
+      }
     }
 
-
-    if (fmd) {
-      UpdateLocalAltXsMetadata(*fmd.get());
+    // The scan fd is closed and its xattrs are on the inode. Queue the file
+    // so a worker can compress or decompress it.
+    if (fmd && !gOFS.openedForWriting.isOpen(mFsId, fid)) {
+      MaybeConvertCompressed(fpath, fmd.get());
     }
-
-    return;
   };
   ScanFsTree(assistant, scan_func);
 
@@ -994,6 +999,29 @@ bool ScanDir::CheckRainFile(eos::fst::FileIo* io,
 }
 
 //------------------------------------------------------------------------------
+// Queue compression or decompression from the layout bit stored on this FST.
+//------------------------------------------------------------------------------
+void
+ScanDir::MaybeConvertCompressed(const std::string& fpath,
+                                eos::common::FmdHelper* fmd)
+{
+  using eos::common::LayoutId;
+
+  if (!fmd || fpath.empty()) {
+    return;
+  }
+
+  const unsigned long lid = fmd->mProtoFmd.lid();
+  eos::fst::compress::CompressPool::Job job;
+  job.path = fpath;
+  job.block_size = LayoutId::GetBlocksize(lid);
+  job.fid = fmd->mProtoFmd.fid();
+  job.fsid = mFsId;
+  job.publish = !LayoutId::IsRain(lid);
+  gOFS.EnqueueCompression(std::move(job), LayoutId::HasCompression(lid));
+}
+
+//------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
@@ -1044,11 +1072,15 @@ ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
     return false;
   }
 
+  bool ok = false;
+
   if (LayoutId::IsRain(fmd->mProtoFmd.lid())) {
-    return CheckRainFile(io, fmd.get());
+    ok = CheckRainFile(io, fmd.get());
+  } else {
+    ok = CheckReplicaFile(io, fid, fmd.get(), info.st_mtime);
   }
 
-  return CheckReplicaFile(io, fid, fmd.get(), info.st_mtime);
+  return ok;
 }
 
 //------------------------------------------------------------------------------
@@ -1135,6 +1167,32 @@ ScanDir::DoRescan(std::chrono::seconds last_scan, bool rain_ts) const
 }
 
 //------------------------------------------------------------------------------
+// One replica publishes the potential. The xattr skips a repeat of the same
+// value. Already-compressed files are not measured: their on-disk bytes are
+// the compressed image, not the logical contents.
+//------------------------------------------------------------------------------
+void
+PublishCompressionPotential(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
+                            unsigned potential,
+                            eos::common::FileSystem::fsid_t fsid)
+{
+  if (!fmd->GetLocations().empty() && !IsCandidateFS(*fmd, fsid)) {
+    return;
+  }
+
+  const std::string now = std::to_string(potential);
+  std::string previous;
+
+  if ((io->attrGet("user.eos.cpotential", previous) == 0) && (previous == now)) {
+    return;
+  }
+
+  if (gOFS.CommitCompressionPotential(fmd->mProtoFmd.fid(), potential) == 0) {
+    io->attrSet("user.eos.cpotential", now);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
@@ -1154,7 +1212,11 @@ ScanDir::ScanFile(eos::fst::FileIo* io, const std::string& fpath,
   unsigned long long scan_size{0ull};
   std::string scan_xs_hex;
 
-  if (!ScanFileLoadAware(io, fmd, scan_size, scan_xs_hex, filexs_err, blockxs_err)) {
+  bool measured_potential = false;
+  unsigned potential = 0;
+
+  if (!ScanFileLoadAware(io, fmd, scan_size, scan_xs_hex, filexs_err,
+                         blockxs_err, measured_potential, potential)) {
     return false;
   }
 
@@ -1216,6 +1278,11 @@ ScanDir::ScanFile(eos::fst::FileIo* io, const std::string& fpath,
                                          scan_xs_hex, gOFS.mQcl);
   }
 
+  if (measured_potential && fmd &&
+      !eos::common::LayoutId::IsRain(fmd->mProtoFmd.lid())) {
+    PublishCompressionPotential(io, fmd, potential, mFsId);
+  }
+
   return true;
 }
 //------------------------------------------------------------------------------
@@ -1224,8 +1291,11 @@ ScanDir::ScanFile(eos::fst::FileIo* io, const std::string& fpath,
 bool
 ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
                            unsigned long long& scan_size, std::string& scan_xs_hex,
-                           bool& filexs_err, bool& blockxs_err)
+                           bool& filexs_err, bool& blockxs_err,
+                           bool& measured_potential, unsigned& potential)
 {
+  measured_potential = false;
+  potential = 0;
   scan_size = 0ull;
   filexs_err = blockxs_err = false;
   eos::fst::utils::ScanRateLimiter rate_limiter(
@@ -1268,6 +1338,12 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
                        file_path.c_str());
   }
 
+  std::string logical_size;
+  const bool already_compressed =
+    (io->attrGet("user.eos.logicalsize", logical_size) == 0) &&
+    !logical_size.empty();
+  std::uint64_t counts[256] = {};
+  std::uint64_t total = 0;
   int64_t nread = 0;
   off_t offset = 0;
   const auto open_ts = std::chrono::system_clock::now();
@@ -1307,10 +1383,25 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
         comp_file_xs->Add(mBuffer, nread, offset);
       }
 
+      if (!already_compressed) {
+        const auto* bytes = reinterpret_cast<const unsigned char*>(mBuffer);
+
+        for (int64_t i = 0; i < nread; ++i) {
+          ++counts[bytes[i]];
+        }
+
+        total += static_cast<std::uint64_t>(nread);
+      }
+
       offset += nread;
       rate_limiter.Throttle(offset);
     }
   } while (nread != 0);
+
+  if (!already_compressed) {
+    potential = eos::fst::compress::CompressionPotential(counts, total);
+    measured_potential = true;
+  }
 
   scan_size = (unsigned long long) offset;
   const auto close_ts = std::chrono::system_clock().now();
