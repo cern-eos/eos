@@ -44,7 +44,7 @@ extern XrdOucString group_role;
 extern XrdOucString serveruri;
 extern XrdOucString global_comment;
 extern XrdOucString pwdfile;
-extern void exit_handler(int a);
+extern void exit_handler(int sig);
 extern int global_retc;
 extern bool global_debug;
 extern bool interactive;
@@ -125,8 +125,8 @@ std::string PathIdentifier(const char* in, bool escapeand = false);
 //! Parse a complete file or container identifier without modifying the input.
 //! Return false for paths, malformed identifiers, and values outside uint64.
 //------------------------------------------------------------------------------
-bool Path2FileDenominator(const XrdOucString& path, unsigned long long& id);
-bool Path2ContainerDenominator(const XrdOucString& path, unsigned long long& id);
+bool Path2FileDenominator(const XrdOucString& input, unsigned long long& id);
+bool Path2ContainerDenominator(const XrdOucString& input, unsigned long long& id);
 
 //------------------------------------------------------------------------------
 //! Check whether the given command performs an MGM call
@@ -207,7 +207,7 @@ public:
   {
     return filemap.size();
   }
-  int Report(size_t expect_replica);
+  int Report(size_t expect_nrep);
 
   class SyncResponseHandler: public ResponseHandler
   {
