@@ -91,7 +91,7 @@ int done;
 
 // Pointer to the result of client_command. It gets invalid when the
 // output_result function is called.
-XrdOucEnv* CommandEnv = 0;
+XrdOucEnv* CommandEnv = nullptr;
 static sigjmp_buf sigjump_buf;
 
 // Convenience runner using the registered native commands
@@ -293,7 +293,7 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
   }
 
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-  const char* nextline = 0;
+  const char* nextline = nullptr;
   int i = 0;
 
   while ((nextline = subtokenizer.GetLine())) {
@@ -386,7 +386,7 @@ output_result(XrdOucEnv* result, bool highlighting)
 
   fflush(stdout);
   fflush(stderr);
-  CommandEnv = 0;
+  CommandEnv = nullptr;
   delete result;
   return retc;
 }
@@ -1316,7 +1316,7 @@ int filesystems::Load(bool verbose)
   bool use_cache = false;
 
   if (!::stat(cachefile.c_str(), &buf)) {
-    if ((buf.st_mtime + 3600) > time(NULL)) {
+    if ((buf.st_mtime + 3600) > time(nullptr)) {
       use_cache = true;
     }
   }
@@ -1447,10 +1447,12 @@ int files::Lookup(filesystems& fsmap, bool verbose)
     count++;
 
     if (!(count % 100)) {
+      // clang-format off
       fprintf(stdout,
               "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
-              100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+              100.0 * count / filemap.size(), count, filemap.size(), time(nullptr),
               callbacks.size(), n_timeouts, n_missing, n_other);
+      // clang-format on
       fflush(stdout);
     }
 
@@ -1598,10 +1600,12 @@ int files::Lookup(filesystems& fsmap, bool verbose)
     }
   }
 
+  // clang-format off
   fprintf(stdout,
           "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
-          100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+          100.0 * count / filemap.size(), count, filemap.size(), time(nullptr),
           callbacks.size(), n_timeouts, n_missing, n_other);
+  // clang-format on
   fflush(stdout);
   return 0;
 }
