@@ -1636,6 +1636,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // An update keeps the file, and the MGM can't apply a key of the client to the
+  // new range: a reader passing that key would get garbage from it. Refuse before
+  // anything changes, eos.obfuscate=0 is no way out as a write always gets the
+  // keys the file is stored with. eosxd applies its secret itself, and a recall
+  // from tape writes the stored bytes without any key.
+  // ---------------------------------------------------------------------------
+  if (fmd && isRW && !drops_content && !isFuse && !isInjection &&
+      attrmapF.count(eos::kAttrEncrypted) && !attrmapF.count(eos::kAttrEncryptSpace) &&
+      mEosKey.empty()) {
+    return Emsg(epname, error, ENOKEY,
+                "update file - it is encrypted with a client key: "
+                "provide it with eos.key",
+                path);
+  }
+
   if (isRW) {
     if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
         !isInjection && !isTpc && !isRepair) {
