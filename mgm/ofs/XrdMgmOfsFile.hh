@@ -46,6 +46,9 @@
  * may use file systems configured to take no client traffic. Only honoured on
  * an sss-authenticated connection mapped to the daemon account, otherwise
  * silently ignored.
+ * "eos.mirage" - create a mirage object with synthetic read data
+ * Directory policy "sys.forced.mirage" applies to newly created files;
+ * disable/off/0/false forbid mirage and reject client CGI requests
  *
  */
 /*----------------------------------------------------------------------------*/

@@ -25,10 +25,12 @@
 #include "fst/XrdFstOssFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/BufferManager.hh"
+#include "common/Mirage.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <vector>
 
 namespace
 {
@@ -128,7 +130,18 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     mIsRW = true;
   }
 
-  if ((eos::common::LayoutId::GetBlockChecksum(lid) !=
+  if ((val = env.Get("eos.mirage")) && !eos::common::mirage_disabled(val)) {
+    auto spec = eos::common::parse_mirage(val);
+    if (spec) {
+      mMirageSpec = *spec;
+    } else {
+      eos_err("error=invalid eos.mirage value: %s", val);
+      return -EINVAL;
+    }
+  }
+
+  if (XrdFstSS &&
+      (eos::common::LayoutId::GetBlockChecksum(lid) !=
        eos::common::LayoutId::kNone) && (mPath[0] == '/')) {
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
     pair_value = XrdFstSS->GetXsObj(path, mIsRW);
@@ -180,8 +193,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     } while ((fdDirect < 0) && (errno == EINTR));
   }
 
-  if (fd >= 0) {
-    if (fd < XrdFstSS->mFdFence) {
+  if (fd >= 0 && XrdFstSS && fd < XrdFstSS->mFdFence) {
 #if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 
       // Relocate the file descriptor if need be and make sure file is closed
@@ -196,11 +208,9 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         close(fd);
         fd = newfd;
       }
-    }
   }
 
-  if (fdDirect >= 0) {
-    if (fdDirect < XrdFstSS->mFdFence) {
+  if (fdDirect >= 0 && XrdFstSS && fdDirect < XrdFstSS->mFdFence) {
 #if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 
       // Relocate the file descriptor if need be and make sure file is closed
@@ -215,7 +225,6 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         close(fdDirect);
         fdDirect = newfd;
       }
-    }
   }
 
   eos_debug("fd=%d fdDirect=%d flags=%x", fd, fdDirect, flags);
@@ -228,6 +237,37 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 ssize_t
 XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 {
+  if (mMirageSpec) {
+    if (fd < 0) {
+      return static_cast<ssize_t>(-EBADF);
+    }
+
+    if (eos::common::mirage_sequential_only(*mMirageSpec) &&
+        static_cast<std::uint64_t>(offset) != mMirageSeqOffset) {
+      eos_err("error=non-sequential mirage read offset=%ji expected=%llu",
+              offset, mMirageSeqOffset);
+      return static_cast<ssize_t>(-ESPIPE);
+    }
+
+    struct stat statinfo;
+    if (fstat(fd, &statinfo)) {
+      return static_cast<ssize_t>(-errno);
+    }
+
+    if (offset >= statinfo.st_size) {
+      return 0;
+    }
+
+    std::size_t to_read = static_cast<std::size_t>(
+        std::min<off_t>(static_cast<off_t>(length), statinfo.st_size - offset));
+    eos::common::mirage_fill(*mMirageSpec, static_cast<std::uint64_t>(offset),
+                             static_cast<char*>(buffer), to_read);
+    if (eos::common::mirage_sequential_only(*mMirageSpec)) {
+      mMirageSeqOffset = static_cast<std::uint64_t>(offset) + to_read;
+    }
+    return static_cast<ssize_t>(to_read);
+  }
+
   ssize_t retval = 0;
   ssize_t nread;
   std::vector<XrdOucIOVec> pieces;
@@ -412,7 +452,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
   int nPR = n;
 
   // Indicate we are in preread state and see if we have exceeded the limit
-  if ((fdDirect == -1) && XrdFstSS->mPrDepth
+  if ((fdDirect == -1) && XrdFstSS && XrdFstSS->mPrDepth
       && ((XrdFstSS->mPrActive++) < XrdFstSS->mPrQSize)
       && (n > 2)) {
     int faBytes = 0;
@@ -474,7 +514,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
 // All done, return bytes read.
 #if defined(__linux__)
 
-  if (XrdFstSS->mPrDepth) {
+  if (XrdFstSS && XrdFstSS->mPrDepth) {
     XrdFstSS->mPrActive--;
   }
 
@@ -518,6 +558,36 @@ XrdFstOssFile::WriteV(XrdOucIOVec* writeV, int n)
 ssize_t
 XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
 {
+  if (mMirageSpec && mIsRW) {
+    if (fd < 0) {
+      return static_cast<ssize_t>(-EBADF);
+    }
+
+    off_t end = offset + static_cast<off_t>(length);
+    struct stat statinfo;
+    off_t current_size = 0;
+    if (!fstat(fd, &statinfo)) {
+      current_size = statinfo.st_size;
+    }
+
+    if (end > current_size) {
+      if (Ftruncate(static_cast<unsigned long long>(end))) {
+        return static_cast<ssize_t>(-errno);
+      }
+    }
+
+    if (mBlockXs) {
+      XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+      std::vector<char> mirage_buf(length);
+      eos::common::mirage_fill(*mMirageSpec,
+                               static_cast<std::uint64_t>(offset),
+                               mirage_buf.data(), length);
+      mBlockXs->AddBlockSum(offset, mirage_buf.data(), length);
+    }
+
+    return static_cast<ssize_t>(length);
+  }
+
   ssize_t retval;
 
   if (fd < 0) {
@@ -629,7 +699,7 @@ XrdFstOssFile::Close(long long* retsz)
   //............................................................................
   // Code dealing with block checksums
   //............................................................................
-  if (mBlockXs) {
+  if (mBlockXs && XrdFstSS) {
     struct stat statinfo;
 
     if ((XrdFstSS->Stat(mPath.c_str(), &statinfo))) {
@@ -687,7 +757,7 @@ XrdFstOssFile::Close(long long* retsz)
   }
 
   //............................................................................
-  if (delete_mapping) {
+  if (delete_mapping && XrdFstSS) {
     eos_debug("Delete entry from oss map for file %s", mPath.c_str());
     XrdFstSS->DropXs(mPath.c_str());
   } else {

@@ -31,6 +31,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BehaviourConfig.hh"
+#include "common/Mirage.hh"
 #include "common/Utils.hh"
 #include "mgm/misc/Constants.hh"
 #include "mgm/access/Access.hh"
@@ -2329,7 +2330,42 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long ext_ctime_sec = 0;
   unsigned long long ext_ctime_nsec = 0;
   std::string ext_etag;
+  std::string mirage_value;
   std::map<std::string, std::string> ext_xattr_map;
+
+  if (isCreation) {
+    std::string forced_mirage;
+    if (!attr::getValue(attrmap, SYS_FORCED_MIRAGE, forced_mirage)) {
+      attr::getValue(attrmap, "user.forced.mirage", forced_mirage);
+    }
+
+    std::string cgi_mirage = XrdUtils::GetEnv(*openOpaque, "eos.mirage");
+    std::string mirage_source;
+
+    if (!forced_mirage.empty()) {
+      if (eos::common::mirage_disabled(forced_mirage)) {
+        if (!cgi_mirage.empty() &&
+            !eos::common::mirage_disabled(cgi_mirage)) {
+          return Emsg(epname, error, EINVAL, "open - mirage disabled by policy",
+                      path);
+        }
+      } else {
+        mirage_source = forced_mirage;
+      }
+    } else if (!cgi_mirage.empty() &&
+               !eos::common::mirage_disabled(cgi_mirage)) {
+      mirage_source = cgi_mirage;
+    }
+
+    if (!mirage_source.empty()) {
+      auto spec = eos::common::parse_mirage_with_seed(
+          eos::common::normalize_mirage_cgi(mirage_source), mFid);
+      if (!spec) {
+        return Emsg(epname, error, EINVAL, "open - invalid mirage value", path);
+      }
+      mirage_value = spec->value;
+    }
+  }
 
   if (openOpaque->Get("eos.ctime")) {
     std::string str_ctime = openOpaque->Get("eos.ctime");
@@ -2427,12 +2463,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         char btime[256];
         snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
         fmd->setAttribute("sys.eos.btime", btime);
+
+        if (!mirage_value.empty()) {
+          fmd->setAttribute(SYS_MIRAGE, mirage_value);
+          fmd->setAttribute("sys.tmp.etag",
+                            eos::common::mirage_etag(mirage_value).c_str());
+        }
       } else {
         fmd->setATimeNow(0);
       }
 
       // if specified set an external temporary ETAG
-      if (ext_etag.length()) {
+      if (ext_etag.length() && mirage_value.empty()) {
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
 
@@ -3691,6 +3733,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (openOpaque->Get("eos.mtime")) {
       redirectionhost += "&mgm.mtime=0";
+    }
+
+    std::string mirage_cap_value = mirage_value;
+    if (mirage_cap_value.empty()) {
+      attr::getValue(attrmapF, SYS_MIRAGE, mirage_cap_value);
+    }
+    if (!mirage_cap_value.empty()) {
+      redirectionhost += "&eos.mirage=";
+      redirectionhost += mirage_cap_value.c_str();
     }
 
     // For the moment we redirect only on storage nodes

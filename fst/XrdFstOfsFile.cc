@@ -113,6 +113,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID)
     , mTapeEnabled(false)
     , mSecString("")
     , mEtag("")
+    , mMirageValue("")
     , mFileId(0)
     , mFsId(0)
     , mLid(0)
@@ -614,6 +615,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // cannot be done in the OSS
       mSyncOnClose = true;
     }
+  }
+
+  if (!mMirageValue.empty()) {
+    oss_opaque += "&eos.mirage=";
+    oss_opaque += mMirageValue.c_str();
   }
 
   // Open layout implementation
@@ -1279,15 +1285,25 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // if required, obfuscate a buffer server side
+  const char* write_buf = buffer;
+  if (mMirageSpec) {
+    mMirageWriteBuf.resize(buffer_size);
+    eos::common::mirage_fill(*mMirageSpec,
+                             static_cast<std::uint64_t>(fileOffset),
+                             mMirageWriteBuf.data(), buffer_size);
+    write_buf = mMirageWriteBuf.data();
+  }
+
   if (mLayout->IsEntryServer() && mHmac.key.length()) {
-    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
-                                         const_cast<char*>(buffer), buffer_size, fileOffset, mHmac);
+    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(write_buf),
+                                         const_cast<char*>(write_buf),
+                                         buffer_size, fileOffset, mHmac);
   }
 
   int64_t rc = 0;
   gOFS.mIoDelayConfig.WaitForWrite(vid, static_cast<uint64_t>(buffer_size));
 
-  rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
+  rc = mLayout->Write(fileOffset, const_cast<char*>(write_buf), buffer_size);
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
@@ -1310,7 +1326,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // Evt. add checksum
   if (rc > 0) {
     if (mChecksumGroup->HasChecksums()) {
-      mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
+      mChecksumGroup->Add(write_buf, static_cast<size_t>(rc),
                           static_cast<off_t>(fileOffset));
     }
 
@@ -2737,6 +2753,16 @@ XrdFstOfsFile::ProcessOpenOpaque()
 
   if ((val = mOpenOpaque->Get("eos.injection"))) {
     mIsInjection = true;
+  }
+
+  if ((val = mOpenOpaque->Get("eos.mirage"))) {
+    mMirageValue = val;
+    if (!eos::common::mirage_disabled(mMirageValue)) {
+      auto spec = eos::common::parse_mirage(mMirageValue);
+      if (spec) {
+        mMirageSpec = *spec;
+      }
+    }
   }
 
   // enable round-robin scheduling per application/fsid on request

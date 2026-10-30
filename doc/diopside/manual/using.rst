@@ -2418,6 +2418,205 @@ confirmation code - append `--no-confirmation` to skip that in scripts.
           reading a space encrypted file returns `ENOKEY` unless its
           `EOS_FUSE_SECRET` is the key of the space.
 
+Mirage Objects
+--------------
+
+Mirage objects are synthetic files for load and network testing. On **PUT**
+the client still sends a real body so the network path is fully
+exercised, but the FST discards the payload and only extends a sparse
+on-disk file to the transferred size. On **GET** the server synthesizes
+bytes from a deterministic algorithm or repeating pattern instead of
+reading file contents from disk.
+
+.. index::
+   pair: Mirage; Synthetic data
+
+Configuration
+^^^^^^^^^^^^^
+
+Mirage behaviour can be controlled at the **directory** level with
+extended attributes or at the **space** level with space policies.
+Directory attributes take precedence over space policies and over client
+CGI parameters. If no explicit seed is given in the mirage value, the
+file inode is used as seed for algorithm-based mirages.
+
+Enabling mirage
+"""""""""""""""
+
+**Directory policy (extended attribute)**
+
+Set ``sys.forced.mirage`` on a directory to enforce mirage objects for
+all newly created files in that subtree:
+
+.. code-block:: bash
+
+   eos attr set sys.forced.mirage=algorithm:deterministic /eos/loadtest/
+   eos attr set sys.forced.mirage=pattern:1234567890 /eos/loadtest/
+   eos attr set sys.forced.mirage=true /eos/loadtest/
+
+The same settings are available as ``user.forced.mirage`` for
+non-administrator directory policies.
+
+**Space policy**
+
+Space policies inject ``sys.forced.mirage`` into directories that
+reference the configured space, unless the directory already defines the
+attribute locally:
+
+.. code-block:: bash
+
+   eos space config default space.policy.mirage=algorithm:deterministic
+   eos space config default space.policy.mirage=pattern:abcdef
+
+Disabling mirage
+""""""""""""""""
+
+Administrators can forbid mirage objects so that users **cannot** create
+them, even when passing the ``eos.mirage`` CGI on file creation. Set any
+of the disable sentinels ``disable``, ``off``, ``0``, or ``false`` as a
+forced policy. New files are created as normal (non-mirage) objects. If a
+client still supplies ``eos.mirage`` with an enabling value, the MGM
+rejects the open with ``EINVAL``.
+
+**Directory level**
+
+Apply the disable sentinel on the directory subtree that should not
+allow mirage:
+
+.. code-block:: bash
+
+   eos attr set sys.forced.mirage=off /eos/production/
+   eos attr set sys.forced.mirage=disable /eos/user/data/
+   eos attr set sys.forced.mirage=0 /eos/secure/
+   eos attr set sys.forced.mirage=false /eos/secure/
+
+The same disable values work with ``user.forced.mirage``. A directory
+attribute overrides a space policy, so a local ``sys.forced.mirage=off``
+on ``/eos/user/`` blocks mirage there even if the space policy would
+otherwise allow it.
+
+To lift a directory-level block, remove the attribute:
+
+.. code-block:: bash
+
+   eos attr rm sys.forced.mirage /eos/production/
+
+**Space level**
+
+Block mirage for all directories in a space that do not define their own
+``sys.forced.mirage`` locally:
+
+.. code-block:: bash
+
+   eos space config default space.policy.mirage=off
+   eos space config default space.policy.mirage=disable
+   eos space config default space.policy.mirage=0
+   eos space config default space.policy.mirage=false
+
+To remove the space policy and fall back to per-directory settings (or
+client CGI where no directory policy exists), use ``remove``:
+
+.. code-block:: bash
+
+   eos space config default space.policy.mirage=remove
+
+**What users cannot do when mirage is disabled**
+
+With a disable policy active on the directory or space, the following
+client request is rejected:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/production/file?eos.mirage=algorithm:deterministic' /dev/null
+
+Normal uploads without ``eos.mirage`` continue to work. Passing
+``eos.mirage=off`` (or another disable sentinel) as CGI is treated as a
+no-op and also creates a normal file.
+
+Supported mirage values
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Value
+     - Description
+   * - ``algorithm:deterministic``
+     - Offset-addressable pseudo-random stream. Supports random-access
+       reads. Shorthand aliases: ``true``, ``1``, ``on``.
+   * - ``algorithm:deterministic:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``algorithm:xoshiro256pp``
+     - Pseudo-random stream using xoshiro256++. **Only sequential
+       streaming reads are allowed.**
+   * - ``algorithm:xoshiro256pp:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``pattern:<text>``
+     - Repeats ``<text>`` from offset 0: byte at offset *i* is
+       ``text[i % len(text)]``.
+   * - ``disable``, ``off``, ``0``, ``false``
+     - **Disable only** (directory or space policy): forbid mirage
+       objects and reject client ``eos.mirage`` CGI on create. Files
+       are stored normally. Not valid as an enabling mirage algorithm.
+
+Client CGI and file attributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When **no** directory or space policy applies (and mirage is not
+explicitly disabled), a client can request mirage behaviour when
+creating a file:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.mirage=algorithm:xoshiro256pp:42' /dev/null
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.mirage=pattern:1234567890' /dev/null
+
+On creation the MGM stores the resolved mirage definition as a file
+extended attribute:
+
+.. code-block:: bash
+
+   sys.mirage=algorithm:deterministic:<inode>
+
+The mirage value is forwarded to the FST in the open capability as
+``eos.mirage``. A mirage-specific etag is stored temporarily as
+``sys.tmp.etag`` until the file is committed.
+
+Synthetic source with ``eoscp``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``eoscp`` can use a mirage definition as a **source** instead of reading
+from a file or URL. The source argument has the form
+``mirage:<value>`` where ``<value>`` uses the same syntax as server-side
+mirage (``algorithm:deterministic``, ``algorithm:xoshiro256pp[:<seed>]``,
+``pattern:<text>``, or the aliases ``true`` / ``1`` / ``on``). Specify
+how many bytes to generate with ``-T <size>`` or copy a sub-range with
+``-r <start>:<stop>``.
+
+.. code-block:: bash
+
+   eoscp -T 1073741824 mirage:algorithm:deterministic root://mgm//eos/loadtest/file
+   eoscp -r 0:104857600 mirage:pattern:1234567890 root://mgm//eos/loadtest/pattern.dat
+   eoscp -T 1073741824 -t 100 mirage:true /dev/null
+
+This is useful for load tests: ``eoscp`` synthesizes the payload locally
+and still exercises the full client-to-server write path on the
+destination.
+
+Behaviour summary
+^^^^^^^^^^^^^^^^^
+
+* **Write:** client data is transferred over the network but not
+  persisted; the sparse file size follows the highest written offset.
+  For replication, RAIN parity, stripe checksums, and file checksums the
+  FST substitutes the client payload with bytes from the mirage
+  algorithm before those paths run.
+* **Read:** payload is generated from ``sys.mirage`` using the
+  configured algorithm or pattern.
+* **Checksums:** content checksums of the sparse on-disk file are not
+  meaningful for mirage objects; the etag is derived from the mirage
+  definition.
 
 Running Authentication Front-ends
 ---------------------------------
