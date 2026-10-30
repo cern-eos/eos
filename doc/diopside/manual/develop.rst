@@ -56,27 +56,14 @@ Create a build directory ...
 Create your dev environment using utils scripts (Recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Two utility scripts have been created to ease the setup of the development environment necessary to build and install EOS on a bare Centos VM.
+Two utility scripts have been created to ease the setup of the development environment necessary to build and install EOS on a bare EL8 or EL9 VM.
 These scripts are located in the :code:`utils` directory. Feel free to modify them as they could be outdated. These scripts automate what is documented in
 the `Dependencies`_ part of this documentation.
-
-EL7
-"""
-
-Just run the :code:`./utils/centos7-dev-environment.sh` script.
-
-Go to your :code:`eos` directory and type:
-
-.. code-block:: bash
-
-    sudo ./utils/centos7-dev-environment.sh
-
-If everything went well, your VM should reboot.
 
 EL8
 """"
 
-Just **source** the :code:`./utils/centos7-dev-environment.sh` script.
+Just **source** the :code:`./utils/centos8-dev-environment.sh` script.
 
 Go to your :code:`eos` directory and type:
 
@@ -86,6 +73,11 @@ Go to your :code:`eos` directory and type:
 
 If you haven't used **source**, source your :code:`.bashrc` file. Indeed the :code:`centos8-dev-environment.sh` script script modifies your .bashrc to update your :code:`PATH` variable.
 If you don't source it, you will not be able to use the good cmake version that has been installed to create the configuration for building EOS.
+
+EOS is built as C++20 and the EL8 system GCC 8 has only partial C++20 support,
+so the build dependencies also install :code:`gcc-toolset-14`. Enable it in
+every shell you build from, e.g. by adding
+:code:`source /opt/rh/gcc-toolset-14/enable` to your :code:`.bashrc`.
 
 You are ready to compile.
 You can skip the next parts and go directly to the `Compilation`_ part of this documentation. Though you can also read them if you need to troubleshoot future problems.
@@ -267,92 +259,49 @@ Dependencies
 
 .. warning:: Before compilation of the master branch you have to make sure that you installed all required dependencies.
 
-EL7
-"""""
+EL8, EL9 and EL10
+"""""""""""""""""
 
-There is a convenience scripts to install all dependencies in the EOS source tree:
+The utility scripts above automate the following steps. One may also look for
+inspiration at the Dockerfiles in the :code:`eos/gitlab-ci/prebuild_OSbase`
+directory of your repository, which follow the same process.
 
-.. code-block:: bash
-
-   utils/el7-packages.sh
-
-This script might not be up to date. To be sure you are having all the dependencies installed consistently with the version of EOS code you just downloaded, one first needs to define the EOS yum repositories as stated in the `Quick Start Guide/Setup YUM Repository <http://eos-docs.web.cern.ch/eos-docs/quickstart/setup_repo.html#eos-base-setup-repos>`_. One may also look for inspiration at the Dockerfiles in the :code:`eos/gitlab-ci/prebuild_OSbase` of your repository, which follows a similar process we will layout below.
-
-
-Ask the developers which cmake version is currently supported (cmake3 as of Dec 2020), then, install the following packages (e.g. ccache for speeding up compiling):
+Define the EOS dependency repository and enable the extra repositories needed by
+the build dependencies (shown for EL9, replace :code:`9` with your EL major
+version; on EL8 enable :code:`powertools` instead of :code:`crb`):
 
 .. code-block:: bash
 
-   yum install --nogpg -y ccache centos-release-scl-rh cmake3 gcc-c++ gdb make rpm-build rpm-sign yum-plugin-priorities && yum clean all
+   dnf install -y dnf-plugins-core epel-release
+   dnf config-manager --set-enabled crb
+   dnf config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
 
-
-Run cmake3 with the DPACKAGEONLY=1 option and make source rpms:
-
-.. code-block:: bash
-
-   cmake3 ../ -DPACKAGEONLY=1 && make srpm
-
-
-Now build the EOS dependencies:
+Install the build tools (e.g. ccache for speeding up compiling):
 
 .. code-block:: bash
 
-   yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y SRPMS/*
+   dnf install -y ccache cmake gcc-c++ gdb make ninja-build rpm-build rpm-sign
 
-This will install among other also the devtoolset-8 required for eos development (as of Dec 2020). Add line ‘source /opt/rh/devtoolset-8/enable’ to your bash profile to load each time you log in. This should be confirmed by getting the right path for the compiler, e.g. :code:`which c++` will show :code:`/opt/rh/devtoolset-8/root/usr/bin/c++` as the output.
-
-You will also need to install *QuarkDB*. Define the yum repository with :code:`/etc/yum.repos.d/quarkdb.repo` file with the following content:
+Run cmake with the -DPACKAGEONLY=1 option and make source rpms:
 
 .. code-block:: bash
 
-    [quarkdb-stable]
-    name=QuarkDB repository [stable]
-    baseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/
-    enabled=1
-    gpgcheck=False
+   cmake ../ -DPACKAGEONLY=1 && make srpm
 
-
-Then, run:
+Now install the EOS build dependencies:
 
 .. code-block:: bash
 
-    yum install quarkdb quarkdb-debuginfo redis
+   dnf builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y SRPMS/*
 
+EOS is built as C++20. On EL8 the system GCC 8 has only partial C++20 support,
+so this also installs :code:`gcc-toolset-14`. Add the line
+:code:`source /opt/rh/gcc-toolset-14/enable` to your bash profile to load it
+each time you log in. :code:`which c++` should then show
+:code:`/opt/rh/gcc-toolset-14/root/usr/bin/c++`.
 
-Important troubleshooting steps
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you do not succeed enabling devtoolset-8 it might also be that you are using zsh which is incompatible with `scl-utils <https://stackoverflow.com/questions/62958800/enable-devtoolset-8-for-zsh-on-centos-7>`_.
-
-Make sure you have compatible xrootd version installed (:code:`rpm -qa | grep xroot`), currently the above will install you version 5.0.3 which is not yet compatible with EOS <= 4.8.35 (Dec/Jan 2020). Look at the latest version of xrootd in the [eos-citrine-dep] repository (currently 4.12.6) or ask the developers if in doubt.
-
-.. code-block:: bash
-
-    rpm -qa | grep xroot
-    > xrootd-client-libs-5.0.3-2.el7.x86_64
-    > xrootd-server-devel-5.0.3-2.el7.x86_64
-    > xrootd-selinux-5.0.3-2.el7.noarch
-    > xrootd-libs-5.0.3-2.el7.x86_64
-    > xrootd-devel-5.0.3-2.el7.x86_64
-    > xrootd-server-libs-5.0.3-2.el7.x86_64
-    > xrootd-server-5.0.3-2.el7.x86_64
-    > xrootd-private-devel-5.0.3-2.el7.x86_64
-    > xrootd-client-devel-5.0.3-2.el7.x86_64
-    > xrootd-5.0.3-2.el7.x86_64
-
-    # as mentioned above, the version needs to be the latest available in [eos-citrine-dep] repository (defined in steps above); to fix this, do the following:
-    yum remove xrootd-*
-    # it could also be that xrootd 4.12.6 was renamed to xrootd4 in case you have a mix of xrootd and xrootd4 `yum remove xrootd4-*` and make sure you have the right packages:
-    yum install xrootd xrootd-client xrootd-server-devel xrootd-private-devel --disablerepo="*" --enablerepo=eos-citrine-dep
-    # yum install xrootd-4.12.6-1.el7 xrootd-client-4.12.6-1.el7 xrootd-server-devel-4.12.6-1.el7 xrootd-private-devel-4.12.6-1.el7 --disablerepo="*" --enablerepo=eos-citrine-dep
-
-
-It may also currently install *eos-folly-2020.10.05.00-1.el7.cern.x86_64* which (for EOS <=4.8.35) needs to be *2019.11.11.00-1.el7.cern*, fix this by:
-
-.. code-block:: bash
-
-    yum remove eos-folly eos-folly-deps
-    yum install eos-folly-2019.11.11.00-1.el7.cern
+QuarkDB is built together with EOS and packaged as :code:`eos-quarkdb`, so it
+needs no separate repository.
 
 
 Optional Optimizations
@@ -384,7 +333,7 @@ Create a new build directory and try to run cmake (see troubleshooting below):
 
     mkdir /devwork/local/eos/build-with-ninja
     cd /devwork/local/eos/build-with-ninja
-    cmake3 ../ -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/ -Wno-dev -DCMAKE_C_COMPILER=/opt/rh/devtoolset-8/root/usr/bin/cc -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-8/root/usr/bin/c++
+    cmake ../ -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/ -Wno-dev
 
 
 Compile
@@ -598,7 +547,7 @@ This topology tests MGM failover; it does not test QDB quorum failure.
 Troubleshooting
 """""""""""""""
 
-The following dependencies might not be required (you should be able to ignore these in the cmake3 output):
+The following dependencies might not be required (you should be able to ignore these in the cmake output):
 
 .. code-block:: bash
 
@@ -623,11 +572,6 @@ Use Ninja to install EOS on your development machine:
     cd /devwork/local/eos/build-with-ninja
     ninja-build install
 
-    # depending on your OS, you can remove the el6 repository
-    # to avoid pulling packages and dependencies from there in the future
-    rm -rf /etc/yum.repos.d/eos-el6*
-    rm -rf /etc/yum.repos.d/eos-el7*
-
 
 After you finish your deployment configuration (see below) and you start modifying the source code, to deploy it, you can do:
 
@@ -635,10 +579,9 @@ After you finish your deployment configuration (see below) and you start modifyi
 
     sudo systemctl stop eos@*
     cd /devwork/local/eos/build-with-ninja
-    # if needed rm files from the build directory and run cmake3 again before the next step
+    # if needed rm files from the build directory and run cmake again before the next step
     ninja-build
     ninja-build install
-    rm -rf /etc/yum.repos.d/eos-el6*
     cp /etc/xrd.cf.mgm_bkp /etc/xrd.cf.mgm
     cp /etc/xrd.cf.mq_bkp /etc/xrd.cf.mq
     systemctl daemon-reload

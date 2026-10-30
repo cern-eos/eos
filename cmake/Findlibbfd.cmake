@@ -9,17 +9,17 @@
 
 find_path(LIBBFD_INCLUDE_DIR
   NAMES bfd.h
-  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  HINTS ${LIBBFD_ROOT}
   PATH_SUFFIXES include usr/include)
 
 find_library(LIBBFD_LIBRARY
   NAMES bfd
-  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  HINTS ${LIBBFD_ROOT}
   PATH_SUFFIXES lib lib64)
 
 find_library(LIBIBERTY_LIBRARY
   NAMES iberty
-  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  HINTS ${LIBBFD_ROOT}
   PATH_SUFFIXES lib lib64)
 
 include(FindPackageHandleStandardArgs)
