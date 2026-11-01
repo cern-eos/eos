@@ -36,14 +36,30 @@ if [[ $# -eq 0 || $# -gt 2 ]]; then
 fi
 
 EOS_MGM_HOSTNAME=$1
-eos fs ls
-# Check preconditions and make sure draining is enabled
-FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+# Pods are Ready before every FST has registered as online. Wait for the
+# filesystems this test places on, then show the listing once.
+FST_NEED=14
+FST_WAIT=120
+FST_ONLINE=0
+deadline=$((SECONDS + FST_WAIT))
 
-if [[ ${FST_ONLINE} -lt 14 ]]; then
-      echo "error: not enough FSTs configured"
-      exit 1
-fi
+while true; do
+  FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+
+  if [[ ${FST_ONLINE} -ge ${FST_NEED} ]]; then
+    break
+  fi
+
+  if [[ ${SECONDS} -ge ${deadline} ]]; then
+    echo "error: not enough FSTs configured (online=${FST_ONLINE}, need=${FST_NEED})"
+    eos fs ls
+    exit 1
+  fi
+
+  sleep 2
+done
+
+eos fs ls
 
 # Create dummy test files
 TEST_FN0=/tmp/zero.dat
