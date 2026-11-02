@@ -57,7 +57,8 @@ public:
     mIds = {src, tgt};
   }
 
-  ~OverwriteRenameGuard()
+  void
+  unlock()
   {
     if (mIds.empty()) {
       return;
@@ -71,8 +72,11 @@ public:
       }
     }
 
+    mIds.clear();
     gOFS->mOverwriteRenameCv.notify_all();
   }
+
+  ~OverwriteRenameGuard() { unlock(); }
 
 private:
   std::vector<eos::IFileMD::id_t> mIds;
@@ -334,20 +338,42 @@ XrdMgmOfs::_rename(const char* old_name,
       }
 
       if (overwrite && renameFile) {
+        bool tgt_exists = true;
+
         try {
           const auto src_id = eosView->getFile(old_name, false)->getId();
-          const auto tgt_id = eosView->getFile(new_name, false)->getId();
-          overwrite_guard.lock(src_id, tgt_id);
 
-          // A rename that held one of the ids before can have moved the file
-          if ((eosView->getFile(old_name, false)->getId() != src_id) ||
-              (eosView->getFile(new_name, false)->getId() != tgt_id)) {
-            throw eos::MDException(ENOENT);
+          // A rename that held one of the ids before can have moved the source,
+          // then this one fails. If it replaced or removed the target, this
+          // one replaces the new target or becomes a plain move.
+          while (true) {
+            eos::IFileMD::id_t tgt_id = 0;
+
+            try {
+              tgt_id = eosView->getFile(new_name, false)->getId();
+            } catch (const eos::MDException& e) {
+              tgt_exists = false;
+              break;
+            }
+
+            overwrite_guard.lock(src_id, tgt_id);
+
+            if (eosView->getFile(old_name, false)->getId() != src_id) {
+              throw eos::MDException(ENOENT);
+            }
+
+            try {
+              if (eosView->getFile(new_name, false)->getId() == tgt_id) {
+                break;
+              }
+            } catch (const eos::MDException& e) {
+            }
+
+            overwrite_guard.unlock();
           }
         } catch (const eos::MDException& e) {
           errno = ENOENT;
-          return Emsg(epname, error, ENOENT,
-                      "rename - source or target was moved or removed");
+          return Emsg(epname, error, ENOENT, "rename - source was moved or removed");
         }
 
         // Check if we are renaming a version to the primary copy
@@ -361,8 +387,10 @@ XrdMgmOfs::_rename(const char* old_name,
           }
         }
 
-        // Delete the existing target
-        if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion)) {
+        // Delete the existing target. Gone meanwhile, by a plain rename or an
+        // rm: a plain move then.
+        if (tgt_exists && gOFS->_rem(new_name, error, vid, infoN, false, keepversion) &&
+            (error.getErrInfo() != ENOENT)) {
           return SFS_ERROR;
         }
       } else {
