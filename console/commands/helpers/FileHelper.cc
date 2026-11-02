@@ -29,6 +29,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -607,17 +608,25 @@ FileHelper::ParseCommand(const char* arg)
 
     eos::console::FileShareProto* share = file->mutable_share();
     file->mutable_md()->set_path(AbsPath(rest[0].c_str()));
-    unsigned long long expires = (28ull * 86400ull);
+    unsigned long long lifetime = (28ull * 86400ull);
 
     if (rest.size() > 1) {
       try {
-        expires = std::stoull(rest[1]);
+        lifetime = std::stoull(rest[1]);
       } catch (...) {
         return false;
       }
     }
 
-    share->set_expires(expires);
+    // The MGM expects the absolute expiry time, not the lifetime
+    const unsigned long long now = time(nullptr);
+
+    if (lifetime > std::numeric_limits<uint32_t>::max() - now) {
+      std::cerr << "error: share expiration exceeds the uint32 epoch range" << std::endl;
+      return false;
+    }
+
+    share->set_expires(now + lifetime);
   } else if (token == "workflow") {
     if (rest.size() < 3) {
       return false;
@@ -742,9 +751,8 @@ FileHelper::LegacyRequest(std::string& req, std::string& err) const
     break;
 
   case Cmd::kShare:
-    // the 5.5 console sends the share lifetime, legacy MGMs expect the expiry
     req = "&mgm.subcmd=share" + target +
-          "&mgm.file.expires=" + std::to_string(time(nullptr) + file.share().expires());
+          "&mgm.file.expires=" + std::to_string(file.share().expires());
     break;
 
   case Cmd::kTouch: {

@@ -28,6 +28,7 @@
 //------------------------------------------------------------------------------
 
 #include "gtest/gtest.h"
+#include <cstdint>
 #include <ctime>
 #define IN_TEST_HARNESS
 #include "console/commands/helpers/FileHelper.hh"
@@ -607,17 +608,35 @@ TEST(FileHelper, AdjustreplicaRejectsDanglingExcludeFs)
 //------------------------------------------------------------------------------
 // share / workflow
 //------------------------------------------------------------------------------
+namespace {
+//------------------------------------------------------------------------------
+//! Assert that a share command line expires lifetime seconds from now
+//------------------------------------------------------------------------------
+void
+ExpectShareExpiry(const std::string& cmd, uint64_t lifetime)
+{
+  const uint64_t before = time(nullptr);
+  auto file = ParseOk(cmd);
+  const uint64_t after = time(nullptr);
+  ASSERT_TRUE(file.has_share());
+  ASSERT_GE(file.share().expires(), before + lifetime);
+  ASSERT_LE(file.share().expires(), after + lifetime);
+}
+} // namespace
+
 TEST(FileHelper, ShareDefaultLifetime)
 {
-  auto file = ParseOk("share /eos/f.dat");
-  ASSERT_TRUE(file.has_share());
-  ASSERT_EQ(file.share().expires(), 28u * 86400u);
+  ExpectShareExpiry("share /eos/f.dat", 28u * 86400u);
 }
 
 TEST(FileHelper, ShareExplicitLifetime)
 {
-  auto file = ParseOk("share /eos/f.dat 3600");
-  ASSERT_EQ(file.share().expires(), 3600u);
+  ExpectShareExpiry("share /eos/f.dat 3600", 3600u);
+}
+
+TEST(FileHelper, ShareRejectsExpiryBeyondUint32)
+{
+  ExpectReject("share /eos/f.dat 4294967295");
 }
 
 TEST(FileHelper, Workflow)
@@ -835,7 +854,6 @@ TEST(FileHelper, LegacyVersioningShareWorkflow)
   ASSERT_EQ(Legacy("workflow /eos/a default sync::prepare"),
             "mgm.cmd=file&mgm.subcmd=workflow" + kA +
                 "&mgm.workflow=default&mgm.event=sync::prepare");
-  // the proto carries the lifetime, the legacy request the absolute expiry
   const std::string prefix = "mgm.cmd=file&mgm.subcmd=share" + kA + "&mgm.file.expires=";
   const time_t before = time(nullptr);
   const std::string share = Legacy("share /eos/a 3600");
