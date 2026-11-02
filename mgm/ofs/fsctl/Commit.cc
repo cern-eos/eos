@@ -218,6 +218,11 @@ XrdMgmOfs::Commit(const char* path,
         try {
           dir = gOFS->eosDirectoryService->getContainerMD(cid);
         } catch (eos::MDException& e) {
+          // A rename moved the file before its old parent was removed
+          if (fmd->getContainerId() != cid) {
+            continue;
+          }
+
           eos_thread_err("parent_id=%llu not found", cid);
           gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
           return Emsg(epname, error, EIDRM,

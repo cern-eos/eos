@@ -101,7 +101,8 @@ XrdMgmOfs::_remdir(const char* path,
   bool container_vtx = false;
 
   try {
-    dh = gOFS->eosView->getContainer(path);
+    // Do not follow a final symlink: rmdir would remove its target
+    dh = gOFS->eosView->getContainer(path, false);
     eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     container_owner_uid = dh->getCUid();
@@ -251,7 +252,8 @@ XrdMgmOfs::_remdir(const char* path,
       // A parallel rename or rmdir can change the directory after the lookup:
       // check the locked object and remove it, not what the path names now
       if (dhpar) {
-        if (dh->isDeleted() || (dh->getParentId() != dhpar->getId())) {
+        if (dh->isDeleted() || (dh->getParentId() != dhpar->getId()) ||
+            (dh->getName() != cPath.GetName())) {
           eos::MDException e(ENOENT);
           e.getMessage() << path << ": No such file or directory";
           throw e;

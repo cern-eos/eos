@@ -353,7 +353,17 @@ XrdMgmOfs::_rem(const char* path,
         }
 
         /* create a Copy-on-Write clone if needed */
-        XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
+        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid,
+                                      error) == 0) {
+          // The clone moved the file out of its directory: it leaves the quota
+          // here, the check below then fails as before
+          if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+            ns_quota->removeFile(fmd.get());
+          }
+
+          ns_quota = nullptr;
+        }
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
           // Lock the parent and the file around the removal, as rename does:

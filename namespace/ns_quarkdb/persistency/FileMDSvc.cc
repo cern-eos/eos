@@ -231,18 +231,25 @@ QuarkFileMDSvc::updateStore(IFileMD* obj)
     return;
   }
 
+  // Read the object before the mutex: no MD lock is taken under it, the
+  // callers can hold MD locks while they wait for it
+  const IFileMD::id_t id = obj->getId();
+  auto request = RequestBuilder::writeFileProto(obj);
+  const bool detached = (obj->getContainerId() == 0);
   // A file removed by another thread after this one looked it up must not
   // be written back, otherwise its record survives the removal
+  std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
+
   if (obj->isDeleted()) {
-    eos_static_warning("msg=\"skip update of removed file\" id=%llu", obj->getId());
+    eos_static_warning("msg=\"skip update of removed file\" id=%llu", id);
     return;
   }
 
-  pFlusher->execute(RequestBuilder::writeFileProto(obj));
+  pFlusher->execute(request);
 
   // If file is detached then add it to the list of orphans
-  if (obj->getContainerId() == 0) {
-    pFlusher->sadd(constants::sOrphanFiles, stringify(obj->getId()));
+  if (detached) {
+    pFlusher->sadd(constants::sOrphanFiles, stringify(id));
   }
 }
 
@@ -252,13 +259,17 @@ QuarkFileMDSvc::updateStore(IFileMD* obj)
 void
 QuarkFileMDSvc::removeFile(IFileMD* obj)
 {
-  std::string sid = stringify(obj->getId());
-  pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(
-                      obj->getId())));
-  pFlusher->srem(constants::sOrphanFiles, sid);
+  const IFileMD::id_t id = obj->getId();
+  std::string sid = stringify(id);
+  {
+    // Marked before the delete is queued, under the mutex of updateStore
+    std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
+    obj->setDeleted();
+    pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(id)));
+    pFlusher->srem(constants::sOrphanFiles, sid);
+  }
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
-  obj->setDeleted();
 
   if (mNumFiles) {
     --mNumFiles;
