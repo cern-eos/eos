@@ -35,8 +35,9 @@
 static int
 MkdirConflict(eos::IContainerMD* dir, const std::string& path, const std::string& name)
 {
-  // The path names dir itself or its parent
-  if ((name == ".") || (name == "..")) {
+  // The path names dir itself or its parent. Path turns a trailing ".." into
+  // an empty name.
+  if (name.empty() || (name == ".") || (name == "..")) {
     return EEXIST;
   }
 

@@ -216,8 +216,6 @@ XrdMgmOfs::Drop(const char* path,
               fmd->setAttribute("sys.fs.tracking",
                                 eos::common::StringConversion::ReduceString(locations).c_str());
               gOFS->eosView->updateFileStore(fmd.get());
-              // After update we might have to get the new address
-              fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
             } else {
               // The FileSystem view has a reference for this file but the file
               // has no replicas registered on the current file system - we need

@@ -968,7 +968,7 @@ XrdMgmOfs::_rename(const char* old_name,
           } else {
             // Two moves of directories into each other at the same time both
             // pass the check below, then cut both off from the namespace
-            std::lock_guard<std::mutex> dir_move_lock(gOFS->mDirMoveMutex);
+            std::unique_lock<std::mutex> dir_move_lock(gOFS->mDirMoveMutex);
             {
               // Do the check once again, because we're paranoid. No MD
               // locks: no directory moves to another parent meanwhile
@@ -1076,8 +1076,10 @@ XrdMgmOfs::_rename(const char* old_name,
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
             }
 
-            // Move the quota once the tree is moved: a failure before leaves it
+            // Move the quota once the tree is moved: a failure before leaves it.
+            // Other directory moves need not wait for the quota loop.
             containerLocks.reset();
+            dir_move_lock.unlock();
 
             if (findOk) {
               move_tree_quota(tree_qnode, new_qnode);
