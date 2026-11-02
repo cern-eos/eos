@@ -188,7 +188,8 @@ QuarkFileMDSvc::dropCachedFileMD(FileIdentifier id)
 {
   // The next lookup reads QuarkDB: write the queued changes first
   pFlusher->synchronize();
-  return mMetadataProvider->dropCachedFileID(id);
+  // A second copy of an object in use would not share its locks
+  return mMetadataProvider->dropCachedFileID(id, true);
 }
 
 //------------------------------------------------------------------------------

@@ -192,7 +192,8 @@ QuarkContainerMDSvc::dropCachedContainerMD(ContainerIdentifier id)
 {
   // The next lookup reads QuarkDB: write the queued changes first
   pFlusher->synchronize();
-  return mMetadataProvider->dropCachedContainerID(id);
+  // A second copy of an object in use would not share its locks
+  return mMetadataProvider->dropCachedContainerID(id, true);
 }
 
 //------------------------------------------------------------------------------

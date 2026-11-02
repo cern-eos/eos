@@ -1466,10 +1466,18 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
     bool found = gOFS->eosFileService->dropCachedFileMD(FileIdentifier(
                    cache.single_to_drop()));
     reply.set_retc(!found);
+
+    if (!found) {
+      reply.set_std_err("error: file not in the cache, or in use");
+    }
   } else if (cache.op() == NsProto_CacheProto::DROP_SINGLE_CONTAINER) {
     bool found = gOFS->eosDirectoryService->dropCachedContainerMD(
                    ContainerIdentifier(cache.single_to_drop()));
     reply.set_retc(!found);
+
+    if (!found) {
+      reply.set_std_err("error: container not in the cache, or in use");
+    }
   }
 }
 
