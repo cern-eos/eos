@@ -678,51 +678,53 @@ XrdMgmOfs::_rename(const char* old_name,
           // A sub-directory with its own quota node keeps its accounting,
           // so its files are neither checked nor re-accounted
           std::set<std::string> nested_qnode_dirs;
-          // Move the files of the tree from one quota node to the other
-          auto move_tree_quota = [&](eos::IQuotaNode* from, eos::IQuotaNode* to) {
+          // The files of the tree in quota, read before the move: the paths
+          // in found are the ones of the source
+          std::vector<std::shared_ptr<eos::IFileMD>> quota_files;
+          auto collect_tree_files = [&]() {
             for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
               if (nested_qnode_dirs.count(rfoundit->first)) {
                 continue;
               }
 
-              // Loop through every files
-              // To compute the quota, we don't need to read-lock the entire tree as
-              // it will anyway not be an atomic operation without the big namespace lock
-              // taken.
               for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                    fileit++) {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
                 std::string fname = *fileit;
+                // A symlink is listed with its target, it counts in quota
+                const size_t link_pos = fname.find(" -> ");
 
-                if (fname.find(" -> ") != std::string::npos) {
-                  // Skip symlinks
-                  continue;
+                if (link_pos != std::string::npos) {
+                  fname.erase(link_pos);
                 }
 
-                std::shared_ptr<eos::IFileMD> fmd;
+                std::string fspath = rfoundit->first;
+                fspath += fname;
 
                 try {
-                  fmd = gOFS->eosView->getFile(fspath.c_str());
+                  auto fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+
+                  // A hard link entry is never in quota
+                  if (!fmd->hasAttribute(SYS_HARD_LINK)) {
+                    quota_files.push_back(fmd);
+                  }
                 } catch (eos::MDException& e) {
-                  errno = e.getErrno();
                   eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
                             e.getMessage().str().c_str());
                 }
+              }
+            }
+          };
+          // Move the files of the tree from one quota node to the other
+          auto move_tree_quota = [&](eos::IQuotaNode* from, eos::IQuotaNode* to) {
+            for (const auto& fmd : quota_files) {
+              eos::MDLocking::FileReadLock locker(fmd.get());
 
-                if (fmd) {
-                  eos::MDLocking::FileReadLock locker(fmd.get());
+              if (from) {
+                from->removeFile(fmd.get());
+              }
 
-                  if (!fmd->isLink()) {
-                    if (from) {
-                      from->removeFile(fmd.get());
-                    }
-
-                    if (to) {
-                      to->addFile(fmd.get());
-                    }
-                  }
-                }
+              if (to) {
+                to->addFile(fmd.get());
               }
             }
           };
@@ -843,8 +845,8 @@ XrdMgmOfs::_rename(const char* old_name,
               COMMONTIMING("rename::rename_dir_check_quotas", &tm);
             } // if (checkQuota)
 
-            move_tree_quota(tree_qnode, new_qnode);
-            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
+            collect_tree_files();
+            COMMONTIMING("rename::rename_dir_collect_quota_files", &tm);
           }
 
           if (nP == oP) {
@@ -861,12 +863,6 @@ XrdMgmOfs::_rename(const char* old_name,
             // A parallel rename or rmdir changed the directory after the lookup
             if (rdir->isDeleted() || (rdir->getParentId() != dir->getId()) ||
                 (rdir->getName() != oPath.GetName())) {
-              containerLocks.reset();
-
-              if (findOk) {
-                move_tree_quota(new_qnode, tree_qnode);
-              }
-
               errno = ENOENT;
               return Emsg(epname, error, ENOENT,
                           "rename - source directory was moved or removed",
@@ -931,12 +927,6 @@ XrdMgmOfs::_rename(const char* old_name,
             if (newdir->isDeleted() || rdir->isDeleted() ||
                 (rdir->getParentId() != dir->getId()) ||
                 (rdir->getName() != oPath.GetName())) {
-              containerLocks.reset();
-
-              if (findOk) {
-                move_tree_quota(new_qnode, tree_qnode);
-              }
-
               errno = ENOENT;
               return Emsg(epname, error, ENOENT,
                           "rename - source or target directory was moved or removed",
@@ -1006,6 +996,14 @@ XrdMgmOfs::_rename(const char* old_name,
                 gOFS->FuseXCastRefresh(rdid, ndid);
               });
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
+            }
+
+            // Move the quota once the tree is moved: a failure before leaves it
+            containerLocks.reset();
+
+            if (findOk) {
+              move_tree_quota(tree_qnode, new_qnode);
+              COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
             }
           }
         }
