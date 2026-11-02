@@ -27,6 +27,19 @@ operation rules from this file.
 - There may be unrelated untracked or modified files in the worktree. Ignore
   them unless the user explicitly asks you to handle them.
 
+## Scope Discipline
+
+Only change what the current task requires. If you find a pre-existing bug or
+smell unrelated to the task:
+
+- Do not fix it.
+- Append it to `FINDINGS.md` in the repository root with: file, symptom,
+  evidence, severity, and whether it blocks the task (yes/no).
+- If it blocks the task, stop and tell the user. The blocker gets fixed first,
+  in a separate merge request.
+
+Never mix refactoring and behavior changes in the same commit.
+
 ## Repository Map
 
 - `mgm/`: Metadata Manager service, namespace control, scheduling, policies,
