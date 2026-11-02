@@ -2902,7 +2902,8 @@ Quota::RemoveFile(eos::IFileMD::id_t fid)
   std::shared_ptr<eos::IFileMD> fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> cmd {nullptr};
   eos::IQuotaNode* ns_quota {nullptr};
-  // The quota nodes are added and removed under the namespace write lock
+  // Quota nodes are removed under the namespace write lock: the node stays
+  // valid under the read lock. The node map has a mutex of its own.
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
@@ -2939,7 +2940,8 @@ Quota::AddFile(eos::IFileMD::id_t fid)
   std::shared_ptr<eos::IFileMD> fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> cmd {nullptr};
   eos::IQuotaNode* ns_quota {nullptr};
-  // The quota nodes are added and removed under the namespace write lock
+  // Quota nodes are removed under the namespace write lock: the node stays
+  // valid under the read lock. The node map has a mutex of its own.
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
