@@ -333,7 +333,7 @@ remove_test_tree() {
   done
 
   eos quota rmnode -p $base >/dev/null 2>&1
-  eos rm -r -F $base >/dev/null 2>&1
+  eos rm -r -F --no-confirmation $base >/dev/null 2>&1
 }
 
 # ------------------------------------------------------------------------------

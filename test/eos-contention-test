@@ -135,6 +135,80 @@ if [ $recycle_ok = 1 ]; then
   check "the restored file is back" 'eos stat $base/r/rr'
 fi
 
+# An open of an existing file with an OwnCloud chunk id is refused, without
+# a stall that the client retries until its timeout
+check "an open of an existing file with oc-chunk-uuid fails at once" \
+  'xrdcp -s $src $url/$r/oc || exit
+   timeout 20 xrdcp -f -s $src "$url/$r/oc?oc-chunk-uuid=abc"; rc=$?
+   echo "rc=$rc"; [ $rc != 0 ] && [ $rc != 124 ]'
+
+# The delete workflow holds rm, and the removal of a rename target, for 3 s.
+# What a rename changes meanwhile must not get lost.
+wfe=$(eos space status default -m | tr ' ' '\n' | sed -n 's/^wfe=//p')
+eos space config default space.wfe=on >/dev/null
+eos mkdir $r/w && eos chmod 777 $r/w >/dev/null
+eos attr set 'sys.workflow.sync::delete.default=bash:shell:slow sleep 3' $r/w >/dev/null
+
+check "two overwrite renames onto one file both succeed" \
+  'for x in x y t; do xrdcp -s $src $url/$r/w/$x || exit; done
+   eos file rename $r/w/x $r/w/t & sleep 1; eos file rename $r/w/y $r/w/t || exit
+   wait $! && eos stat $r/w/t && ! eos stat $r/w/x && ! eos stat $r/w/y'
+check "an overwrite rename moves when its target is renamed away meanwhile" \
+  'xrdcp -s $src $url/$r/w/s && xrdcp -s $src $url/$r/w/t2 || exit
+   eos file rename $r/w/s $r/w/t2 & sleep 1; eos file rename $r/w/t2 $r/w/u
+   wait $! && eos stat $r/w/t2 && eos stat $r/w/u && ! eos stat $r/w/s'
+
+if [[ " $skip " != *" mount "* ]]; then
+  mr=$mnt/${r#/eos/}
+  check "rm of a hard link target keeps the file that a rename moved meanwhile" \
+    'cp $src $mr/w/a && ln $mr/w/a $mr/w/l && sync && sleep 2 || exit
+     xrdfs $url rm $r/w/a & sleep 1; eos file rename $r/w/a $r/w/b; wait
+     eos stat $r/w/b'
+fi
+
+eos attr rm sys.workflow.sync::delete.default $r/w >/dev/null
+eos space config default space.wfe=${wfe:-off} >/dev/null
+
+if [[ " $skip " != *" mount "* ]]; then
+  # A hard link entry is not in the quota: the quota end checks find an rm,
+  # or a symlink renamed over it, that takes it out
+  check "hard links through eosxd: rm of both names, a symlink moved over one" \
+    'cp $src $mr/q1 && ln $mr/q1 $mr/q2 && sync && sleep 2 &&
+     eos rm $r/q1 && eos rm $r/q2 &&
+     cp $src $mr/q3 && ln $mr/q3 $mr/q4 && ln -s q3 $mr/q5 && sync && sleep 2 &&
+     mv -f $mr/q5 $mr/q4'
+
+  check "rename_with_symlink and a FUSE move of one file leave one file" \
+    'for k in $(seq 1 16); do
+       for x in a b c; do
+         eos mkdir -p $r/rs$k/$x && eos chmod 777 $r/rs$k/$x >/dev/null || exit
+       done
+       xrdcp -s $src $url/$r/rs$k/a/f && ls $mr/rs$k/a >/dev/null || exit
+       together "mv $mr/rs$k/a/f $mr/rs$k/c/f" \
+         "eos file rename_with_symlink $r/rs$k/a/f $r/rs$k/b" >/dev/null
+     done; sleep 1
+     bad=$(for k in $(seq 1 16); do
+       n=0
+       for e in $(eos find -f $r/rs$k); do
+         l=$(md_field $e link)
+         if [ -z "$l" ]; then n=$((n + 1)); else eos stat $l >/dev/null 2>&1 || echo "$e -> $l dangles"; fi
+       done
+       [ $n = 1 ] || echo "rs$k has $n files"
+     done)
+     [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+  check "eos acl and a FUSE chmod of one directory keep both changes" \
+    'for k in $(seq 1 16); do
+       eos mkdir $r/ac$k && eos chmod 755 $r/ac$k >/dev/null && stat $mr/ac$k >/dev/null || exit
+       together "chmod 700 $mr/ac$k" "eos acl --sys u:99=rx $r/ac$k" >/dev/null
+     done; sleep 1
+     bad=$(for k in $(seq 1 16); do
+       m=$(md_field $r/ac$k mode); a=$(eos attr get sys.acl $r/ac$k 2>&1)
+       [ "$m" = 40700 ] && [[ $a == *u:99* ]] || echo "ac$k mode=$m $a"
+     done)
+     [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+fi
+
 # ----------------------------------------------------------------------------
 phase "Load: 2 workers of each kind for $duration s"
 
@@ -291,6 +365,7 @@ load hot     race_hot_rename      'xrdfs $url mv $hot $hot.$w && xrdfs $url mv $
 load hot     race_hot_convert     'eos convert file $hot replica:2'
 load hot     race_hot_dir_attr    'eos attr set user.hot=$i $base/hot'
 load hot     race_hot_stat        'xrdfs $url stat $hot'
+load hot     race_hot_lock        'eos file touch -l $hot 60 && eos file touch -u $hot'
 
 # One directory grows by 16 entries and shrinks again while it is listed. Each
 # touch starts a console, so more entries do not end within the 60 s timeout
