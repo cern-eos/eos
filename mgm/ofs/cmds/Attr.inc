@@ -307,6 +307,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   try {
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, as FUSE does. Released before the broadcasts of
+    // fuse_batch.
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
     // Capture previous value if any
     std::string prev_value;
@@ -516,6 +520,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   try {
+    // As in _attr_set, released with the object lock before the broadcast
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
 
     if (item.file) { // file
@@ -546,6 +552,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           eos::ContainerIdentifier d_id(fmd->getContainerId());
           // Release object lock before doing the fuse refresh
           fmd_lock.reset(nullptr);
+          ns_rd_lock.Release();
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
 
@@ -583,6 +590,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           eosView->updateContainerStore(cmd.get());
           // Release object lock before doing the fuse refresh
           cmd_lock.reset(nullptr);
+          ns_rd_lock.Release();
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
 

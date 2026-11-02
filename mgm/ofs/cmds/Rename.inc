@@ -551,6 +551,10 @@ XrdMgmOfs::_rename(const char* old_name,
 
   {
     eos::mgm::FusexCastBatch fuse_batch;
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, as FUSE does, the MD locks below the ones using MD locks.
+    // Released before the broadcasts of fuse_batch.
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       dir = eosView->getContainer(oPath.GetParentPath());
