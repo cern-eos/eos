@@ -616,14 +616,16 @@ XrdMgmOfs::_rename(const char* old_name,
             newdir->addFile(file.get());
             eosView->updateFileStore(file.get());
             COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
-            // Adjust the ns quota
 
-            if (old_qnode) {
-              old_qnode->removeFile(file.get());
-            }
+            // Adjust the ns quota. A hard link entry is never in quota.
+            if (!file->hasAttribute(SYS_HARD_LINK)) {
+              if (old_qnode) {
+                old_qnode->removeFile(file.get());
+              }
 
-            if (new_qnode) {
-              new_qnode->addFile(file.get());
+              if (new_qnode) {
+                new_qnode->addFile(file.get());
+              }
             }
 
             COMMONTIMING("rename::move_file_to_different_container_adjust_ns_quota", &tm);
@@ -1300,13 +1302,15 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     eosView->updateFileStore(file.get());
     COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
 
-    // Adjust the ns quota
-    if (old_qnode) {
-      old_qnode->removeFile(file.get());
-    }
+    // Adjust the ns quota. A hard link entry is never in quota.
+    if (!file->hasAttribute(SYS_HARD_LINK)) {
+      if (old_qnode) {
+        old_qnode->removeFile(file.get());
+      }
 
-    if (new_qnode) {
-      new_qnode->addFile(file.get());
+      if (new_qnode) {
+        new_qnode->addFile(file.get());
+      }
     }
 
     if (fusexcast) {
