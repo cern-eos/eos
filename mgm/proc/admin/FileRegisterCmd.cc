@@ -77,6 +77,9 @@ FileRegisterCmd::ProcessRequest() noexcept
   {
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
         cPath.GetParentPath());
+    // Also the entry, so findItem below does not wait for the backend under
+    // the namespace write lock
+    eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
     // The name lookups can be slow (NSS): do them before the namespace lock
     uid_t uid = reg.owner().uid();
     uid_t gid = reg.owner().gid();
