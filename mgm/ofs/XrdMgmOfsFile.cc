@@ -1204,6 +1204,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uid_t d_uid = vid.uid;
   gid_t d_gid = vid.gid;
   std::string creation_path = path;
+  // The name looked up under the read lock below
+  std::string lookup_name;
   {
     // This is probably one of the hottest code paths in the MGM, we definitely
     // want prefetching here.
@@ -1242,6 +1244,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             filePath = aPath.GetPath();
             fileName = aPath.GetName();
           }
+
+          lookup_name = fileName;
 
           if ((fmd = dmd->findFile(fileName))) {
             /* in case of a hard link, may need to switch to target */
@@ -1870,8 +1874,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
               // The lookup above ran under the read lock: a parallel open can
               // have created this file since. Let the client retry, it then
-              // finds that file. A retry can not clear the other conflicts.
-              if (conflict.file && !conflict.file->isLink()) {
+              // finds that file. A retry can not clear the other conflicts,
+              // nor one under a name that the lookup does not use.
+              if (conflict.file && !conflict.file->isLink() &&
+                  (fileName == lookup_name)) {
                 return gOFS->Stall(error, vid, 1, "file was created meanwhile");
               }
 
