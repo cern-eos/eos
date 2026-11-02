@@ -2351,8 +2351,18 @@ FileCmd::VersionsSubcmd(const eos::console::FileVersionsProto& versions,
   {
     // Copy the xattrs of the current file to the newly restored one
     std::set<std::string> exclude_xattrs{"sys.utrace", "sys.vtrace"};
-    auto versioned_fmd = gOFS->eosView->getFile(versionedpath.c_str());
-    auto restored_fmd = gOFS->eosView->getFile(spath.c_str());
+    std::shared_ptr<eos::IFileMD> versioned_fmd;
+    std::shared_ptr<eos::IFileMD> restored_fmd;
+
+    // A parallel rm or rename can remove the paths after the rename above
+    try {
+      versioned_fmd = gOFS->eosView->getFile(versionedpath.c_str());
+      restored_fmd = gOFS->eosView->getFile(spath.c_str());
+    } catch (eos::MDException& e) {
+      reply.set_std_err("error: failed to copy xattrs - " + e.getMessage().str());
+      reply.set_retc(e.getErrno());
+      return;
+    }
 
     if (!versioned_fmd || !restored_fmd) {
       reply.set_std_err("error: failed to copy xattrs");
