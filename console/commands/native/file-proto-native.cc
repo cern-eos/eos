@@ -623,7 +623,27 @@ public:
       return 0;
     }
 
-    global_retc = helper.Execute();
+    global_retc = helper.ExecuteWithoutPrint();
+
+    if (!helper.ServerLacksFileProto()) {
+      helper.PrintOutcome();
+      return 0;
+    }
+
+    // MGM older than 5.5.1 - resend in the legacy opaque format
+    std::string legacy, err;
+
+    if (!helper.LegacyRequest(legacy, err)) {
+      fprintf(stderr, "%s\n", err.c_str());
+      global_retc = ENOTSUP;
+      return 0;
+    }
+
+    XrdOucString in = legacy.c_str();
+    const bool saved_silent = silent;
+    silent = silent || helper.IsSilent();
+    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
+    silent = saved_silent;
     return 0;
   }
   void

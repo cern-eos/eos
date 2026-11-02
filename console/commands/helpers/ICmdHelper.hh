@@ -107,6 +107,13 @@ public:
   int ExecuteWithoutPrint(bool add_route = false);
 
   //----------------------------------------------------------------------------
+  //! Display the outcome of the last execution
+  //!
+  //! @param print_err flag to enable the display of any potential errors
+  //----------------------------------------------------------------------------
+  void PrintOutcome(bool print_err = true);
+
+  //----------------------------------------------------------------------------
   //! Get command output string
   //----------------------------------------------------------------------------
   std::string GetResult();

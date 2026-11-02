@@ -42,7 +42,16 @@ ICmdHelper::Execute(bool print_err, bool add_route)
   }
 
   int retc = ExecuteWithoutPrint(add_route);
+  PrintOutcome(print_err);
+  return retc;
+}
 
+//------------------------------------------------------------------------------
+// Display the outcome of the last execution
+//------------------------------------------------------------------------------
+void
+ICmdHelper::PrintOutcome(bool print_err)
+{
   if (!mIsSilent && !mOutcome.result.empty()) {
     std::cout << GetResult();
   }
@@ -53,8 +62,6 @@ ICmdHelper::Execute(bool print_err, bool add_route)
         mGlobalOpts.mJsonFormat ? eos::console::OutputKind::Machine
                                 : eos::console::OutputKind::Human);
   }
-
-  return retc;
 }
 
 //------------------------------------------------------------------------------
