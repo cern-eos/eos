@@ -323,10 +323,25 @@ XrdMgmOfs::_rem(const char* path,
           lock.Grab(gOFS->eosViewRWMutex);
         }
 
-        // Take the file out of quota only once the delete workflow passed,
-        // under the same lock as the unlink below, so a rename can not move
-        // the file in between. The quota node lookup walks up the parents, so
-        // it runs before the MD locks.
+        {
+          // Moved by a rename or removed by a drop while the namespace lock
+          // was released. The namespace write lock keeps it so from here on,
+          // also for the hard link and clone code below. Read before the file
+          // lock: getId locks the container.
+          const auto cid = container ? container->getId() : 0;
+          eos::MDLocking::FileReadLock fmd_lock(fmd.get());
+
+          if (!cid || fmd->isDeleted() || (fmd->getContainerId() != cid) ||
+              (fmd->getName() != rm_name)) {
+            eos::MDException e(ENOENT);
+            e.getMessage() << "File does not exist";
+            throw e;
+          }
+        }
+
+        // Take the file out of quota only once the delete workflow passed.
+        // The quota node lookup walks up the parents, so it runs before the
+        // MD locks.
         eos::IQuotaNode* ns_quota = nullptr;
 
         if (doQuota) {
@@ -334,21 +349,6 @@ XrdMgmOfs::_rem(const char* path,
             ns_quota = gOFS->eosView->getQuotaNode(container.get());
             eos_info("got quota node=%lld", (unsigned long long)ns_quota);
           } catch (eos::MDException& e) {
-          }
-
-          if (ns_quota) {
-            // Read before the file lock: getId locks the container
-            const auto cid = container->getId();
-            eos::MDLocking::FileReadLock fmd_lock(fmd.get());
-
-            // Moved by a rename or removed by a drop while the namespace lock
-            // was released
-            if (fmd->isDeleted() || (fmd->getContainerId() != cid) ||
-                (fmd->getName() != rm_name)) {
-              eos::MDException e(ENOENT);
-              e.getMessage() << "File does not exist";
-              throw e;
-            }
           }
         }
 
