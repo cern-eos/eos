@@ -51,6 +51,7 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/PathDepthCheck.hh"
+#include "namespace/utils/RenameSafetyCheck.hh"
 #include "proto/Audit.pb.h"
 #include <cstdlib>
 #include <google/protobuf/util/json_util.h>
@@ -1593,9 +1594,9 @@ Server::OpSetDirectory(const std::string& id,
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
   std::string oldname;
+  // The write lock also excludes the directory moves of _rename, which hold
+  // the read lock
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  // Taken for a directory move, as _rename takes it
-  std::unique_lock<std::mutex> dir_move_lock(gOFS->mDirMoveMutex, std::defer_lock);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1640,7 +1641,14 @@ Server::OpSetDirectory(const std::string& id,
           }
         }
         op = MOVE;
-        dir_move_lock.lock();
+
+        // Two moves of directories into each other, as two SETs each, must
+        // not make them each other's parents
+        if (!eos::isSafeToRename(gOFS->eosView, cmd.get(), pcmd.get())) {
+          eos_err("msg=\"move into its own subtree\" ino=%lx pino=%lx", (long)md.md_ino(),
+                  (long)md.md_pino());
+          return EINVAL;
+        }
 
         // Guard against moves that would push the directory - or part of its
         // subtree - deeper than the maximum resolvable path depth. Otherwise

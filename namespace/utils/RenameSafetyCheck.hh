@@ -38,7 +38,9 @@ EOSNSNAMESPACE_BEGIN
 // Assumes source and target are at-least read-locked when calling this function OR
 // assumes that the eosViewRWMutex is at-least read-locked when calling this function.
 //------------------------------------------------------------------------------
-bool isSafeToRename(IView *view, IContainerMD *source, IContainerMD *target) {
+inline bool
+isSafeToRename(IView* view, IContainerMD* source, IContainerMD* target)
+{
   if(source == target) return false;
 
   IContainerMDSvc *svc = view->getContainerMDSvc();
