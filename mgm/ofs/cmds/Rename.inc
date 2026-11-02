@@ -27,6 +27,17 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// Is the name taken in the locked dir? Does not wait for the backend under the
+// lock: an entry that is not cached counts as taken.
+//------------------------------------------------------------------------------
+static bool
+RenameTargetTaken(eos::IContainerMD* dir, const std::string& name)
+{
+  auto item = dir->findItem(name);
+  return !item.hasValue() || item.value().file || item.value().container;
+}
+
+//------------------------------------------------------------------------------
 // Rename file or directory - part of the XRootD API
 //------------------------------------------------------------------------------
 int
@@ -587,6 +598,14 @@ XrdMgmOfs::_rename(const char* old_name,
                           "rename - source file was moved or removed", oPath.GetPath());
             }
 
+            // A parallel rename or mkdir took the target name after the
+            // lookup: the file would end up in no directory
+            if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+              errno = EEXIST;
+              return Emsg(epname, error, EEXIST, "rename - target name exists",
+                          nPath.GetPath());
+            }
+
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -924,6 +943,14 @@ XrdMgmOfs::_rename(const char* old_name,
                           oPath.GetPath());
             }
 
+            // A parallel rename or mkdir took the target name after the
+            // lookup: the tree would end up in no directory
+            if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+              errno = EEXIST;
+              return Emsg(epname, error, EEXIST, "rename - target name exists",
+                          nPath.GetPath());
+            }
+
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
             int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
             int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
@@ -1251,6 +1278,14 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
                   "rename with symlink - source file or target directory was "
                   "moved or removed",
                   oPath.GetPath());
+    }
+
+    // A parallel rename or mkdir took the target name after the lookup
+    if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+      errno = EEXIST;
+      return Emsg(epname, error, EEXIST,
+                  "rename with symlink - name exists in target directory",
+                  nPath.GetPath());
     }
 
     dir->removeFile(oPath.GetName());
