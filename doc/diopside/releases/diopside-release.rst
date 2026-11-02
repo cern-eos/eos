@@ -16,6 +16,20 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.5 Diopside``
+===================
+
+2026-11-02
+
+Bug
+----
+
+* CONSOLE/CLIENT: Fall back to legacy ``file`` requests for MGMs older than 5.5.1,
+  so that ``eos file`` and its aliases work  again against 5.4 servers
+* CONSOLE/CLIENT: Send the absolute expiry time for ``eos file share``, previously
+  new share links were created already expired
+
+
 ``v5.5.4 Diopside``
 ===================
 
