@@ -1702,6 +1702,14 @@ Server::OpSetDirectory(const std::string& id,
         int64_t tree_cont = static_cast<int64_t>(cmd->getTreeContainers());
         int64_t tree_files = static_cast<int64_t>(cmd->getTreeFiles());
 
+        // A file of that name would make addContainer below throw, with the
+        // source already detached from its parent
+        if (!exist_target_cmd && pcmd->findFile(md.name())) {
+          eos_err("msg=\"failed move, destination is a file\" name=%s cxid=%08llx",
+                  md.name().c_str(), md.md_ino());
+          return ENOTDIR;
+        }
+
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
             // Fatal error we have to fail that rename
