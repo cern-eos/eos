@@ -1866,11 +1866,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               eos::common::Path cPath(creation_path.c_str());
               std::string fileName = cPath.GetName();
 
+              eos::FileOrContainerMD conflict = dmd->findItem(fileName).get();
+
               // The lookup above ran under the read lock: a parallel open can
-              // have created this name since. Let the client retry, it then
-              // finds that entry.
-              if (dmd->findFile(fileName) || dmd->findContainer(fileName)) {
+              // have created this file since. Let the client retry, it then
+              // finds that file. A retry can not clear the other conflicts.
+              if (conflict.file && !conflict.file->isLink()) {
                 return gOFS->Stall(error, vid, 1, "file was created meanwhile");
+              }
+
+              if (conflict.file || conflict.container) {
+                throw_mdexception(EEXIST, "File exists");
               }
 
               // a faster replacement for createFile view
