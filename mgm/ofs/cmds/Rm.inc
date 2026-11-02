@@ -294,6 +294,8 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   if (!doRecycle) {
+    const std::string rm_name = eos::common::Path(path).GetName();
+
     try {
       if (!simulate) {
         eos_info("unlinking from view %s", path);
@@ -341,7 +343,8 @@ XrdMgmOfs::_rem(const char* path,
 
             // Moved by a rename or removed by a drop while the namespace lock
             // was released
-            if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
+            if (fmd->isDeleted() || (fmd->getContainerId() != cid) ||
+                (fmd->getName() != rm_name)) {
               eos::MDException e(ENOENT);
               e.getMessage() << "File does not exist";
               throw e;
@@ -364,8 +367,10 @@ XrdMgmOfs::_rem(const char* path,
           auto md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
               md_locker.lockAll());
 
+          // A parallel rename can have given the file another name
           if (!container || fmd->isDeleted() ||
-              (fmd->getContainerId() != container->getId())) {
+              (fmd->getContainerId() != container->getId()) ||
+              (fmd->getName() != rm_name)) {
             eos::MDException e(ENOENT);
             e.getMessage() << "File does not exist";
             throw e;
@@ -408,7 +413,8 @@ XrdMgmOfs::_rem(const char* path,
           const auto cid = container->getId();
           eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
 
-          if (!fmd->isDeleted() && (fmd->getContainerId() == cid)) {
+          if (!fmd->isDeleted() && (fmd->getContainerId() == cid) &&
+              (fmd->getName() == rm_name)) {
             ns_quota->removeFile(fmd.get());
           }
         }
