@@ -417,16 +417,12 @@ XrdMgmOfs::_rem(const char* path,
             gOFS->FuseXCastDeletion(c_ident, deletion_name);
             gOFS->FuseXCastRefresh(c_ident, p_ident);
           }
-        } else if (ns_quota) {
-          // The hard link code kept the file in its directory: it leaves the
-          // quota as well, unless a rename moved it meanwhile
-          const auto cid = container->getId();
+        } else if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+          // A hard link target with other links, now ...eos.ino...<ino>,
+          // leaves the quota here: the unlink of its last link does not
+          // release it
           eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
-
-          if (!fmd->isDeleted() && (fmd->getContainerId() == cid) &&
-              (fmd->getName() == rm_name)) {
-            ns_quota->removeFile(fmd.get());
-          }
+          ns_quota->removeFile(fmd.get());
         }
       }
 

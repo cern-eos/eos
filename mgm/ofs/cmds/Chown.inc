@@ -190,6 +190,11 @@ XrdMgmOfs::_chown(const char* path,
           throw e;
         }
 
+        // A hard link entry is never in quota
+        if (fmd->hasAttribute(SYS_HARD_LINK)) {
+          ns_quota = nullptr;
+        }
+
         // Subtract the file
         if (ns_quota) {
           ns_quota->removeFile(fmd.get());
