@@ -463,6 +463,8 @@ XrdMgmOfs::_mkdir(const char* path,
   // The namespace lock in read mode excludes the writers that still take it in
   // write mode, the parent lock the ones using MD locks
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  // The last parent of mkdir -p must not count as the created directory
+  newdir.reset();
 
   try {
     errno = 0;
