@@ -107,13 +107,6 @@
 #include "common/Mapping.hh"
 #include "common/MutexLatencyWatcher.hh"
 #include "common/XrdConnPool.hh"
-#include "common/Audit.hh"
-#include "mgm/proc/ProcCommand.hh"
-#include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/drain/Drainer.hh"
-#include "mgm/misc/IdTrackerWithValidity.hh"
-#include "mgm/imaster/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/imaster/IMaster.hh"
@@ -130,11 +123,11 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "mgm/inflighttracker/InFlightTracker.hh"
-#include "mgm/namespacestats/NamespaceStats.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <chrono>
+#include <condition_variable>
 #include <mutex>
+#include <set>
 
 USE_EOSMGMNAMESPACE
 
@@ -1976,12 +1969,15 @@ public:
   };
 
   std::mutex mAuthStatsMutex; ///< Mutex protecting authentication stats
-  //! Serializes the moves of directories to another parent: two moves into
-  //! each other at the same time would both pass the isSafeToRename check
+  //! Serializes the moves of directories to another parent in _rename: two
+  //! moves into each other at the same time would both pass the
+  //! isSafeToRename check. FUSE moves are excluded by the namespace lock.
   std::mutex mDirMoveMutex;
-  //! Serializes the renames that overwrite a file, from the removal of the
+  //! File ids of the renames that overwrite a file, from the removal of the
   //! target to the move: two renames that swap two files would remove both
   std::mutex mOverwriteRenameMutex;
+  std::condition_variable mOverwriteRenameCv;
+  std::set<eos::IFileMD::id_t> mOverwriteRenameIds;
   //! Map of operation types to duration
   std::map<eos::auth::RequestProto_OperationType,
       std::list<std::int64_t> > mAuthSamples;
