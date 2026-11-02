@@ -1578,6 +1578,12 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
       }
 
       if (!fmd->hasUnlinkedLocation(fsid)) {
+        // An entry the record does not know, as Drop.cc handles it. eraseEntry
+        // would also drop the entry of a regular replica.
+        if (!fmd->hasLocation(fsid)) {
+          gOFS->eosFsView->eraseEntry(fsid, fid);
+        }
+
         continue;
       }
 
