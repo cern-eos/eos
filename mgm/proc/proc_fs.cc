@@ -1548,6 +1548,9 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
     return EPERM;
   }
 
+  // Load the records at once, not one by one in the loop below
+  eos::Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(
+      gOFS->eosView, gOFS->eosFsView, fsid);
   // Copy the ids first: the iterator holds the mutex of the list, and the
   // location changes below need it
   std::vector<eos::IFileMD::id_t> fids;
@@ -1560,6 +1563,7 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
   // Drop the unlinked replica of each file as a drop from the FST does: a
   // removed file loses its record with its last replica
   uint64_t removed = 0;
+  uint64_t failed = 0;
 
   for (const auto& fid : fids) {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
@@ -1568,7 +1572,12 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
       auto fmd = gOFS->eosFileService->getFileMD(fid);
       auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
 
-      if (fmd->isDeleted() || !fmd->hasUnlinkedLocation(fsid)) {
+      if (fmd->isDeleted()) {
+        gOFS->eosFsView->eraseEntry(fsid, fid);
+        continue;
+      }
+
+      if (!fmd->hasUnlinkedLocation(fsid)) {
         continue;
       }
 
@@ -1582,22 +1591,36 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
       } else {
         gOFS->eosView->updateFileStore(fmd.get());
       }
-    } catch (const eos::MDException& e) {
-      eos_static_debug("msg=\"skip file in dropdeletion\" fxid=%08llx fsid=%u "
-                       "errno=%d",
-                       (unsigned long long)fid, fsid, e.getErrno());
+    } catch (eos::MDException& e) {
+      if (e.getErrno() == ENOENT) {
+        // The record does not exist any more: drop only its entry
+        gOFS->eosFsView->eraseEntry(fsid, fid);
+      } else {
+        // Keep the entry, a later dropdeletion can drop it
+        ++failed;
+        eos_static_err("msg=\"failed to drop deletion\" fxid=%08llx fsid=%u "
+                       "errno=%d emsg=\"%s\"",
+                       (unsigned long long)fid, fsid, e.getErrno(),
+                       e.getMessage().str().c_str());
+      }
     }
   }
 
-  // Also drop the entries of files that do not exist any more
-  if (gOFS->eosFsView->clearUnlinkedFileList(fsid) || !fids.empty()) {
-    out = SSTR("success: dropped deletions on fsid=" << fsid << " files=" << fids.size()
-                                                     << " removed_records=" << removed)
-              .c_str();
-  } else {
+  if (fids.empty()) {
     out = SSTR("note: there is no deletion list for fsid=" << fsid).c_str();
+    return 0;
   }
 
+  if (failed) {
+    err = SSTR("error: failed to drop deletions on fsid=" << fsid << " failed=" << failed
+                                                          << " of files=" << fids.size())
+              .c_str();
+    return EIO;
+  }
+
+  out = SSTR("success: dropped deletions on fsid=" << fsid << " files=" << fids.size()
+                                                   << " removed_records=" << removed)
+            .c_str();
   return 0;
 }
 
