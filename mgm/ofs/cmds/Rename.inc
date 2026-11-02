@@ -1304,6 +1304,9 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
 
   try {
     eos::mgm::FusexCastBatch fuse_batch;
+    // As in _rename: excludes the FUSE writers, which take the namespace lock
+    // in write mode without MD locks, and keeps the quota nodes alive
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
           oPath.GetParentPath());
     std::shared_ptr<eos::IContainerMD> newdir = eosView->getContainer(

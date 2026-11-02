@@ -27,8 +27,9 @@
 #include <string>
 #include <iostream>
 
-#include "mgm/Namespace.hh"
 #include "common/Constants.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/acl/Acl.hh"
 #include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -129,15 +130,18 @@ public:
             eos::common::VirtualIdentity& vid, bool userwildcard, bool appwildcard)
   {
     errno = 0;
-    XrdOucErrInfo error;
     std::string value;
+    eos::mgm::FusexCastBatch fuse_batch;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-    eos::IFileMDPtr fmd = nullptr;
+    // The namespace lock and the path walk come before the file lock, as in
+    // all other paths. The path based _attr_* calls would take them under it.
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::FileOrContainerMD item;
     eos::MDLocking::FileWriteLockPtr fdLock;
 
     try {
-      fmd = gOFS->eosView->getFile(path);
-      fdLock = eos::MDLocking::writeLock(fmd.get());
+      item.file = gOFS->eosView->getFile(path);
+      fdLock = eos::MDLocking::writeLock(item.file.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -145,8 +149,7 @@ public:
       return false;
     }
 
-    if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                         value)) {
+    if (gOFS->_attr_get(*item.file, eos::common::EOS_APP_LOCK_ATTR, value)) {
       // parse the lock
       Parse(value.c_str());
 
@@ -179,8 +182,8 @@ public:
     isshared = shrd;
 
     // store the lock attribute
-    if (gOFS->_attr_set(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                        Value().c_str())) {
+    if (!gOFS->_attr_set(item, eos::common::EOS_APP_LOCK_ATTR, Value(), false, vid,
+                         fuse_batch)) {
       return false;
     }
 
@@ -190,24 +193,31 @@ public:
   bool Unlock(const char* path, eos::common::VirtualIdentity& vid)
   {
     errno = 0;
-    XrdOucErrInfo error;
     std::string value;
+    eos::FileIdentifier f_id;
+    eos::ContainerIdentifier d_id;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-    eos::IFileMDPtr fmd = nullptr;
-    eos::MDLocking::FileWriteLockPtr fdLock;
+    {
+      // As in Lock
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      eos::IFileMDPtr fmd = nullptr;
+      eos::MDLocking::FileWriteLockPtr fdLock;
 
-    try {
-      fmd = gOFS->eosView->getFile(path);
-      fdLock = eos::MDLocking::writeLock(fmd.get());
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                       e.getMessage().str().c_str());
-      return false;
-    }
+      try {
+        fmd = gOFS->eosView->getFile(path);
+        fdLock = eos::MDLocking::writeLock(fmd.get());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                         e.getMessage().str().c_str());
+        return false;
+      }
 
-    if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                         value)) {
+      if (!gOFS->_attr_get(*fmd, eos::common::EOS_APP_LOCK_ATTR, value)) {
+        errno = ENODATA;
+        return false;
+      }
+
       // parse the lock
       Parse(value.c_str());
 
@@ -216,13 +226,23 @@ public:
         // we cannot unlock this
         return false;
       }
-    }
 
-    // remove the lock attribute
-    if (gOFS->_attr_rem(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR)) {
-      return false;
-    }
+      // remove the lock attribute, with the permission check of _attr_rem
+      eos::IContainerMD::XAttrMap attr_map = fmd->getAttributes();
+      Acl acl(attr_map, vid);
 
+      if ((vid.uid != fmd->getCUid()) &&
+          !acl.AllowXAttrUpdate(eos::common::EOS_APP_LOCK_ATTR, vid)) {
+        errno = EPERM;
+        return false;
+      }
+
+      fmd->removeAttribute(eos::common::EOS_APP_LOCK_ATTR);
+      gOFS->eosView->updateFileStore(fmd.get());
+      f_id = fmd->getIdentifier();
+      d_id = eos::ContainerIdentifier(fmd->getContainerId());
+    }
+    gOFS->FuseXCastRefresh(f_id, d_id);
     return true;
   }
 
