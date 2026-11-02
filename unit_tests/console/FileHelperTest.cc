@@ -28,6 +28,7 @@
 //------------------------------------------------------------------------------
 
 #include "gtest/gtest.h"
+#include <ctime>
 #define IN_TEST_HARNESS
 #include "console/commands/helpers/FileHelper.hh"
 #undef IN_TEST_HARNESS
@@ -692,6 +693,184 @@ TEST(FileHelper, InfoRejectsUnknownFlagAndMissingPath)
   ExpectReject("info /eos/f.dat --bogus");
   ExpectReject("info -m");
   ExpectReject("info /eos/a /eos/b");
+}
+
+//------------------------------------------------------------------------------
+// Legacy request fallback for MGMs older than 5.5.1
+//------------------------------------------------------------------------------
+namespace {
+//------------------------------------------------------------------------------
+//! Parse a command line and return its legacy opaque translation
+//------------------------------------------------------------------------------
+std::string
+Legacy(const std::string& cmd)
+{
+  FileHelper helper(gOpts);
+  EXPECT_TRUE(helper.ParseCommand(cmd.c_str())) << "failed to parse: " << cmd;
+  std::string req, err;
+  EXPECT_TRUE(helper.LegacyRequest(req, err)) << cmd << ": " << err;
+  return req;
+}
+
+//------------------------------------------------------------------------------
+//! Assert that a parsed command has no legacy translation
+//------------------------------------------------------------------------------
+void
+ExpectNoLegacy(const std::string& cmd)
+{
+  FileHelper helper(gOpts);
+  ASSERT_TRUE(helper.ParseCommand(cmd.c_str())) << "failed to parse: " << cmd;
+  std::string req, err;
+  EXPECT_FALSE(helper.LegacyRequest(req, err)) << cmd;
+  EXPECT_NE(err.find("5.5.1"), std::string::npos) << err;
+}
+
+const std::string kA = "&mgm.path=/#curl#/eos/a&eos.encodepath=1";
+} // namespace
+
+TEST(FileHelper, LegacyFileinfoForPath)
+{
+  ASSERT_EQ(Legacy("info /eos/a&b.dat"),
+            "mgm.cmd=fileinfo&mgm.path=/#curl#/eos/a%26b.dat&eos.encodepath=1");
+}
+
+TEST(FileHelper, LegacyFileinfoForIdentifiers)
+{
+  ASSERT_EQ(Legacy("info fxid:63"), "mgm.cmd=fileinfo&mgm.path=fid:99");
+  ASSERT_EQ(Legacy("info pxid:2a"), "mgm.cmd=fileinfo&mgm.path=pid:42");
+  ASSERT_EQ(Legacy("info inode:12345"), "mgm.cmd=fileinfo&mgm.path=inode:12345");
+}
+
+TEST(FileHelper, LegacyFileinfoOptions)
+{
+  ASSERT_EQ(Legacy("info fid:1 --fullpath -m --checksum"),
+            "mgm.cmd=fileinfo&mgm.path=fid:1"
+            "&mgm.file.info.option=--checksum--fullpath-m");
+}
+
+TEST(FileHelper, LegacyFileIdTarget)
+{
+  ASSERT_EQ(Legacy("drop fxid:63 7"),
+            "mgm.cmd=file&mgm.subcmd=drop&mgm.file.id=99&mgm.file.fsid=7");
+  ASSERT_EQ(Legacy("rename fid:5 /eos/b"),
+            "mgm.cmd=file&mgm.subcmd=rename&mgm.file.id=5&mgm.file.source=fid:5"
+            "&mgm.file.target=/eos/b");
+}
+
+TEST(FileHelper, LegacyRenameAndSymlink)
+{
+  ASSERT_EQ(Legacy("rename /eos/a /eos/b"),
+            "mgm.cmd=file&mgm.subcmd=rename" + kA +
+                "&mgm.file.source=/eos/a&mgm.file.target=/eos/b");
+  ASSERT_EQ(Legacy("rename_with_symlink /eos/a /eos/d"),
+            "mgm.cmd=file&mgm.subcmd=rename_with_symlink" + kA +
+                "&mgm.file.source=/eos/a&mgm.file.target=/eos/d");
+  ASSERT_EQ(Legacy("symlink -f /eos/a ../t"),
+            "mgm.cmd=file&mgm.subcmd=symlink" + kA +
+                "&mgm.file.source=/eos/a&mgm.file.target=../t&mgm.file.force=1");
+}
+
+TEST(FileHelper, LegacyTouch)
+{
+  ASSERT_EQ(Legacy("touch -n -0 /eos/a 10 abcd"),
+            "mgm.cmd=file&mgm.subcmd=touch" + kA +
+                "&mgm.file.touch.nolayout=true&mgm.file.touch.truncate=true"
+                "&mgm.file.touch.size=10&mgm.file.touch.checksuminfo=abcd");
+  ASSERT_EQ(Legacy("touch -a /eos/a /eos/h"),
+            "mgm.cmd=file&mgm.subcmd=touch" + kA +
+                "&mgm.file.touch.absorb=true&mgm.file.touch.hardlinkpath=/eos/h");
+  ASSERT_EQ(Legacy("touch -l /eos/a 60 app"),
+            "mgm.cmd=file&mgm.subcmd=touch" + kA +
+                "&mgm.file.touch.lockop=lock&mgm.file.touch.lockop.lifetime=60"
+                "&mgm.file.touch.wildcard=user");
+  ASSERT_EQ(Legacy("touch -u /eos/a"),
+            "mgm.cmd=file&mgm.subcmd=touch" + kA + "&mgm.file.touch.lockop=unlock");
+}
+
+TEST(FileHelper, LegacyReplicaCommands)
+{
+  ASSERT_EQ(Legacy("drop /eos/a 3 -f"),
+            "mgm.cmd=file&mgm.subcmd=drop" + kA + "&mgm.file.fsid=3&mgm.file.force=1");
+  ASSERT_EQ(Legacy("move /eos/a 1 2"),
+            "mgm.cmd=file&mgm.subcmd=move" + kA +
+                "&mgm.file.sourcefsid=1&mgm.file.targetfsid=2");
+  ASSERT_EQ(Legacy("replicate /eos/a 1 2"),
+            "mgm.cmd=file&mgm.subcmd=replicate" + kA +
+                "&mgm.file.sourcefsid=1&mgm.file.targetfsid=2");
+  ASSERT_EQ(Legacy("tag /eos/a -4"),
+            "mgm.cmd=file&mgm.subcmd=tag" + kA + "&mgm.file.tag.fsid=-4");
+  ASSERT_EQ(Legacy("adjustreplica /eos/a default 2 --nodrop --exclude-fs 9"),
+            "mgm.cmd=file&mgm.subcmd=adjustreplica" + kA +
+                "&mgm.file.option=nodrop&mgm.file.desiredspace=default"
+                "&mgm.file.desiredsubgroup=2&mgm.file.excludefs=9");
+  ASSERT_EQ(Legacy("verify /eos/a 5 -checksum -commitsize -rate 20 -resync"),
+            "mgm.cmd=file&mgm.subcmd=verify" + kA +
+                "&mgm.file.verify.filterid=5&mgm.file.compute.checksum=1"
+                "&mgm.file.commit.size=1&mgm.file.verify.rate=20&mgm.file.resync=1");
+}
+
+TEST(FileHelper, LegacyCopyConvertLayout)
+{
+  ASSERT_EQ(Legacy("copy -f -c /eos/a /eos/b"),
+            "mgm.cmd=file&mgm.subcmd=copy" + kA +
+                "&mgm.file.option=fc&mgm.file.target=/eos/b");
+  ASSERT_EQ(Legacy("convert --rewrite /eos/a replica:2 default"),
+            "mgm.cmd=file&mgm.subcmd=convert" + kA +
+                "&mgm.convert.layout=replica:2&mgm.convert.space=default"
+                "&mgm.option=rewrite");
+  ASSERT_EQ(Legacy("layout /eos/a -stripes 3"),
+            "mgm.cmd=file&mgm.subcmd=layout" + kA + "&mgm.file.layout.stripes=3");
+  ASSERT_EQ(Legacy("layout /eos/a -type 0x100002"),
+            "mgm.cmd=file&mgm.subcmd=layout" + kA + "&mgm.file.layout.type=0x100002");
+}
+
+TEST(FileHelper, LegacyVersioningShareWorkflow)
+{
+  ASSERT_EQ(Legacy("purge /eos/a"),
+            "mgm.cmd=file&mgm.subcmd=purge" + kA + "&mgm.purge.version=-1");
+  ASSERT_EQ(Legacy("version /eos/a 4"),
+            "mgm.cmd=file&mgm.subcmd=version" + kA + "&mgm.purge.version=4");
+  ASSERT_EQ(Legacy("versions /eos/a"),
+            "mgm.cmd=file&mgm.subcmd=versions" + kA + "&mgm.grab.version=-1");
+  ASSERT_EQ(Legacy("workflow /eos/a default sync::prepare"),
+            "mgm.cmd=file&mgm.subcmd=workflow" + kA +
+                "&mgm.workflow=default&mgm.event=sync::prepare");
+  // the proto carries the lifetime, the legacy request the absolute expiry
+  const std::string prefix = "mgm.cmd=file&mgm.subcmd=share" + kA + "&mgm.file.expires=";
+  const time_t before = time(nullptr);
+  const std::string share = Legacy("share /eos/a 3600");
+  const time_t after = time(nullptr);
+  ASSERT_EQ(share.rfind(prefix, 0), 0u);
+  const time_t expires = std::stoll(share.substr(prefix.size()));
+  ASSERT_GE(expires, before + 3600);
+  ASSERT_LE(expires, after + 3600);
+}
+
+TEST(FileHelper, LegacyRejectsFeaturesNewerThanTheServer)
+{
+  ExpectNoLegacy("drop /eos/a cache");
+  ExpectNoLegacy("version /eos/a --create-folder");
+}
+
+TEST(FileHelper, DetectsServerWithoutFileProto)
+{
+  FileHelper helper(gOpts);
+  ASSERT_FALSE(helper.ServerLacksFileProto());
+  helper.mOutcome = ICmdHelper::ExecutionOutcome(
+      "",
+      "error: errc=3012 msg=\"[ERROR] Server responded with an error: [3012] "
+      "Unable to allocate proc command object for  /proc/user/; Cannot "
+      "allocate memory\"",
+      3012);
+  ASSERT_TRUE(helper.ServerLacksFileProto());
+  helper.mOutcome = ICmdHelper::ExecutionOutcome(
+      "", "error: errc=3008 msg=\"[ERROR] Error response: cannot allocate memory\"",
+      3008);
+  ASSERT_TRUE(helper.ServerLacksFileProto());
+  helper.mOutcome = ICmdHelper::ExecutionOutcome("", "error: no such file", ENOENT);
+  ASSERT_FALSE(helper.ServerLacksFileProto());
+  helper.mOutcome = ICmdHelper::ExecutionOutcome("", "error: out of memory", ENOMEM);
+  ASSERT_FALSE(helper.ServerLacksFileProto());
 }
 
 //------------------------------------------------------------------------------

@@ -23,10 +23,12 @@
 
 #include "console/commands/helpers/FileHelper.hh"
 #include "common/StringConversion.hh"
+#include <XProtocol/XProtocol.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <vector>
 
 namespace {
@@ -671,4 +673,347 @@ FileHelper::ParseCommand(const char* arg)
   }
 
   return true;
+}
+
+bool
+FileHelper::ServerLacksFileProto() const
+{
+  // MGMs before 5.5.1 have no dispatcher for RequestProto::kFile and fail the
+  // open with ENOMEM, which reaches the client as kXR_NoMemory.
+  return mOutcome.errc == kXR_NoMemory ||
+         (mOutcome.errc &&
+          mOutcome.error.find("allocate proc command object") != std::string::npos);
+}
+
+bool
+FileHelper::LegacyRequest(std::string& req, std::string& err) const
+{
+  req.clear();
+  err.clear();
+
+  if (!mReq.has_file()) {
+    err = "error: no file command to translate";
+    return false;
+  }
+
+  const auto& file = mReq.file();
+  using Cmd = eos::console::FileProto;
+
+  if (file.FileCommand_case() == Cmd::kFileinfo) {
+    req = LegacyFileinfo(file.fileinfo());
+    return true;
+  }
+
+  // The primary path goes through NAMESPACEMAP, which decodes eos.encodepath
+  // on every 5.4 MGM. Secondary paths are sent verbatim like the 5.4 console
+  // did, since only 5.4.12 decodes them.
+  const auto& md = file.md();
+  const std::string id = std::to_string(md.id());
+  const std::string target =
+      md.path().empty()
+          ? "&mgm.file.id=" + id
+          : "&mgm.path=" + eos::common::StringConversion::curl_escaped(md.path()) +
+                "&eos.encodepath=1";
+  const std::string source = md.path().empty() ? "fid:" + id : md.path();
+  auto unsupported = [&](const char* what) {
+    err = std::string("error: ") + what + " requires an MGM running EOS >= 5.5.1";
+    return false;
+  };
+
+  switch (file.FileCommand_case()) {
+  case Cmd::kRename:
+    req = "&mgm.subcmd=rename" + target + "&mgm.file.source=" + source +
+          "&mgm.file.target=" + file.rename().new_path();
+    break;
+
+  case Cmd::kRenameWithSymlink:
+    req = "&mgm.subcmd=rename_with_symlink" + target + "&mgm.file.source=" + source +
+          "&mgm.file.target=" + file.rename_with_symlink().destination_dir();
+    break;
+
+  case Cmd::kSymlink:
+    req = "&mgm.subcmd=symlink" + target + "&mgm.file.source=" + source +
+          "&mgm.file.target=" + file.symlink().target_path();
+
+    if (file.symlink().force()) {
+      req += "&mgm.file.force=1";
+    }
+
+    break;
+
+  case Cmd::kShare:
+    // the 5.5 console sends the share lifetime, legacy MGMs expect the expiry
+    req = "&mgm.subcmd=share" + target +
+          "&mgm.file.expires=" + std::to_string(time(nullptr) + file.share().expires());
+    break;
+
+  case Cmd::kTouch: {
+    const auto& touch = file.touch();
+    req = "&mgm.subcmd=touch" + target;
+
+    if (touch.nolayout()) {
+      req += "&mgm.file.touch.nolayout=true";
+    }
+
+    if (touch.truncate()) {
+      req += "&mgm.file.touch.truncate=true";
+    }
+
+    if (touch.absorb()) {
+      req += "&mgm.file.touch.absorb=true";
+    }
+
+    if (!touch.lockop().empty()) {
+      req += "&mgm.file.touch.lockop=" + touch.lockop();
+    }
+
+    if (!touch.lockop_lifetime().empty()) {
+      req += "&mgm.file.touch.lockop.lifetime=" + touch.lockop_lifetime();
+    }
+
+    if (!touch.wildcard().empty()) {
+      req += "&mgm.file.touch.wildcard=" + touch.wildcard();
+    }
+
+    if (!touch.hardlinkpath().empty()) {
+      req += "&mgm.file.touch.hardlinkpath=" + touch.hardlinkpath();
+    } else if (touch.size()) {
+      req += "&mgm.file.touch.size=" + std::to_string(touch.size());
+    }
+
+    if (!touch.checksuminfo().empty()) {
+      req += "&mgm.file.touch.checksuminfo=" + touch.checksuminfo();
+    }
+
+    break;
+  }
+
+  case Cmd::kDrop:
+    if (file.drop().dropcache()) {
+      return unsupported("dropping a cache location");
+    }
+
+    req = "&mgm.subcmd=drop" + target +
+          "&mgm.file.fsid=" + std::to_string(file.drop().fsid());
+
+    if (file.drop().force()) {
+      req += "&mgm.file.force=1";
+    }
+
+    break;
+
+  case Cmd::kMove:
+  case Cmd::kReplicate: {
+    const bool move = file.FileCommand_case() == Cmd::kMove;
+    const auto fsid1 = move ? file.move().fsid1() : file.replicate().fsid1();
+    const auto fsid2 = move ? file.move().fsid2() : file.replicate().fsid2();
+    req = std::string("&mgm.subcmd=") + (move ? "move" : "replicate") + target +
+          "&mgm.file.sourcefsid=" + std::to_string(fsid1) +
+          "&mgm.file.targetfsid=" + std::to_string(fsid2);
+    break;
+  }
+
+  case Cmd::kCopy: {
+    const auto& copy = file.copy();
+    std::string option;
+    option += copy.force() ? "f" : "";
+    option += copy.silent() ? "s" : "";
+    option += copy.clone() ? "c" : "";
+    req = "&mgm.subcmd=copy" + target;
+
+    if (!option.empty()) {
+      req += "&mgm.file.option=" + option;
+    }
+
+    req += "&mgm.file.target=" + copy.dst();
+    break;
+  }
+
+  case Cmd::kConvert: {
+    const auto& convert = file.convert();
+
+    if (convert.sync()) {
+      return unsupported("--sync");
+    }
+
+    req = "&mgm.subcmd=convert" + target;
+    const std::pair<const char*, const std::string*> fields[] = {
+        {"&mgm.convert.layout=", &convert.layout()},
+        {"&mgm.convert.space=", &convert.target_space()},
+        {"&mgm.convert.placementpolicy=", &convert.placement_policy()},
+        {"&mgm.convert.checksum=", &convert.checksum()}};
+
+    for (const auto& [key, value] : fields) {
+      if (!value->empty()) {
+        req += key + *value;
+      }
+    }
+
+    if (convert.rewrite()) {
+      req += "&mgm.option=rewrite";
+    }
+
+    break;
+  }
+
+  case Cmd::kPurge:
+    req = "&mgm.subcmd=purge" + target +
+          "&mgm.purge.version=" + std::to_string(file.purge().purge_version());
+    break;
+
+  case Cmd::kVersion:
+    if (file.version().create_folder()) {
+      return unsupported("--create-folder");
+    }
+
+    req = "&mgm.subcmd=version" + target +
+          "&mgm.purge.version=" + std::to_string(file.version().purge_version());
+    break;
+
+  case Cmd::kVersions:
+    req = "&mgm.subcmd=versions" + target +
+          "&mgm.grab.version=" + file.versions().grab_version();
+    break;
+
+  case Cmd::kAdjustreplica: {
+    const auto& adjust = file.adjustreplica();
+    req = "&mgm.subcmd=adjustreplica" + target;
+
+    if (adjust.nodrop()) {
+      req += "&mgm.file.option=nodrop";
+    }
+
+    if (!adjust.space().empty()) {
+      req += "&mgm.file.desiredspace=" + adjust.space();
+    }
+
+    if (!adjust.subgroup().empty()) {
+      req += "&mgm.file.desiredsubgroup=" + adjust.subgroup();
+    }
+
+    if (!adjust.exclude_fs().empty()) {
+      req += "&mgm.file.excludefs=" + adjust.exclude_fs();
+    }
+
+    break;
+  }
+
+  case Cmd::kLayout: {
+    const auto& layout = file.layout();
+    req = "&mgm.subcmd=layout" + target;
+
+    if (layout.stripes()) {
+      req += "&mgm.file.layout.stripes=" + std::to_string(layout.stripes());
+    } else if (!layout.checksum().empty()) {
+      req += "&mgm.file.layout.checksum=" + layout.checksum();
+    } else {
+      req += "&mgm.file.layout.type=" + layout.type();
+    }
+
+    break;
+  }
+
+  case Cmd::kWorkflow:
+    req = "&mgm.subcmd=workflow" + target +
+          "&mgm.workflow=" + file.workflow().workflow() +
+          "&mgm.event=" + file.workflow().event();
+    break;
+
+  case Cmd::kTag: {
+    const auto& tag = file.tag();
+
+    if (!tag.add() && !tag.remove() && !tag.unlink()) {
+      err = "error: tag needs one of add, remove or unlink";
+      return false;
+    }
+
+    const char* prefix = tag.add() ? "+" : tag.remove() ? "-" : "~";
+    req = "&mgm.subcmd=tag" + target + "&mgm.file.tag.fsid=" + prefix +
+          std::to_string(tag.fsid());
+    break;
+  }
+
+  case Cmd::kVerify: {
+    const auto& verify = file.verify();
+    req = "&mgm.subcmd=verify" + target;
+
+    if (verify.fsid()) {
+      req += "&mgm.file.verify.filterid=" + std::to_string(verify.fsid());
+    }
+
+    if (verify.checksum()) {
+      req += "&mgm.file.compute.checksum=1";
+    }
+
+    if (verify.commitchecksum()) {
+      req += "&mgm.file.commit.checksum=1";
+    }
+
+    if (verify.commitsize()) {
+      req += "&mgm.file.commit.size=1";
+    }
+
+    if (verify.commitfmd()) {
+      req += "&mgm.file.commit.fmd=1";
+    }
+
+    if (verify.rate()) {
+      req += "&mgm.file.verify.rate=" + std::to_string(verify.rate());
+    }
+
+    if (verify.resync()) {
+      req += "&mgm.file.resync=1";
+    }
+
+    break;
+  }
+
+  default:
+    err = "error: this 'file' subcommand requires an MGM running EOS >= 5.5.1";
+    return false;
+  }
+
+  req.insert(0, "mgm.cmd=file");
+  return true;
+}
+
+std::string
+FileHelper::LegacyFileinfo(const eos::console::FileinfoProto& info)
+
+{
+  const auto& md = info.md();
+  std::string req = "mgm.cmd=fileinfo&mgm.path=";
+
+  if (!md.path().empty()) {
+    req += eos::common::StringConversion::curl_escaped(md.path());
+    req += "&eos.encodepath=1";
+  } else if (md.ino()) {
+    req += "inode:" + std::to_string(md.ino());
+  } else {
+    req += (md.type() == eos::console::CONTAINER ? "pid:" : "fid:") +
+           std::to_string(md.id());
+  }
+
+  std::string option;
+  const std::pair<bool, const char*> flags[] = {{info.path(), "--path"},
+                                                {info.fid(), "--fid"},
+                                                {info.fxid(), "--fxid"},
+                                                {info.size(), "--size"},
+                                                {info.checksum(), "--checksum"},
+                                                {info.fullpath(), "--fullpath"},
+                                                {info.proxy(), "--proxy"},
+                                                {info.monitoring(), "-m"},
+                                                {info.env(), "--env"}};
+
+  for (const auto& [set, flag] : flags) {
+    if (set) {
+      option += flag;
+    }
+  }
+
+  if (!option.empty()) {
+    req += "&mgm.file.info.option=" + option;
+  }
+
+  return req;
 }

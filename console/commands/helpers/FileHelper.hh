@@ -68,6 +68,30 @@ public:
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
 
+  //----------------------------------------------------------------------------
+  //! Check if the last execution failed because the MGM predates the
+  //! protobuf 'file' command (EOS < 5.5.1) and could not dispatch it
+  //----------------------------------------------------------------------------
+  bool ServerLacksFileProto() const;
+
+  //----------------------------------------------------------------------------
+  //! Build the legacy opaque request ('mgm.cmd=file' or 'mgm.cmd=fileinfo')
+  //! equivalent to the parsed command, for MGMs older than 5.5.1
+  //!
+  //! @param req output opaque request
+  //! @param err output error message if the command can not be expressed
+  //!        in the legacy format
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool LegacyRequest(std::string& req, std::string& err) const;
+
+  bool
+  IsSilent() const
+  {
+    return mIsSilent;
+  }
+
 private:
   PathResolver mPathResolver; ///< Path resolver, identity if unset
 
@@ -75,6 +99,11 @@ private:
   //! Apply the path resolver, if any
   //----------------------------------------------------------------------------
   std::string AbsPath(const char* in) const;
+
+  //----------------------------------------------------------------------------
+  //! Build the legacy 'mgm.cmd=fileinfo' request
+  //----------------------------------------------------------------------------
+  static std::string LegacyFileinfo(const eos::console::FileinfoProto& info);
 
   //----------------------------------------------------------------------------
   //! Detect whether token is a path/fid/fxid-style specifier (as opposed to a

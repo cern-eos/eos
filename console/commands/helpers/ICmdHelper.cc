@@ -41,7 +41,16 @@ ICmdHelper::Execute(bool print_err, bool add_route)
   }
 
   int retc = ExecuteWithoutPrint(add_route);
+  PrintOutcome(print_err);
+  return retc;
+}
 
+//------------------------------------------------------------------------------
+// Display the outcome of the last execution
+//------------------------------------------------------------------------------
+void
+ICmdHelper::PrintOutcome(bool print_err)
+{
   if (!mIsSilent && !mOutcome.result.empty()) {
     std::cout << GetResult();
   }
@@ -49,8 +58,6 @@ ICmdHelper::Execute(bool print_err, bool add_route)
   if (print_err && !mOutcome.error.empty()) {
     std::cerr << GetError();
   }
-
-  return retc;
 }
 
 //------------------------------------------------------------------------------
