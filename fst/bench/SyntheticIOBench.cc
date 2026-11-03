@@ -24,9 +24,11 @@
 #include "fst/bench/SyntheticIOBench.hh"
 #include "common/Logging.hh"
 #include "common/SyntheticIO.hh"
+#include "common/ThreadPool.hh"
 #include <XrdCl/XrdClFile.hh>
-#include <sstream>
 #include <algorithm>
+#include <future>
+#include <sstream>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -166,20 +168,24 @@ SyntheticIOBench::Run(Config cfg)
                   static_cast<unsigned long long>(cfg.size),
                   cfg.path.c_str(), cfg.mgm.c_str());
 
+  // Fixed-size pool: one worker slot per stream for the whole write/read run.
+  eos::common::ThreadPool pool(cfg.parallel, cfg.parallel, 10, 12, 10,
+                               "syntheticio_bench");
   std::vector<std::vector<std::string>> written(cfg.parallel);
-  std::vector<std::thread> workers;
-  workers.reserve(cfg.parallel);
+  std::vector<std::future<void>> futures;
+  futures.reserve(cfg.parallel);
 
   for (uint32_t i = 0; i < cfg.parallel; ++i) {
-    workers.emplace_back(&SyntheticIOBench::WriteWorker, this, i, std::cref(cfg),
-                         std::ref(written[i]));
+    futures.emplace_back(pool.PushTask<void>([this, i, &cfg, &written]() {
+      WriteWorker(i, cfg, written[i]);
+    }));
   }
 
-  for (auto& t : workers) {
-    t.join();
+  for (auto& f : futures) {
+    f.get();
   }
 
-  workers.clear();
+  futures.clear();
 
   if (!mStop) {
     {
@@ -189,12 +195,13 @@ SyntheticIOBench::Run(Config cfg)
     }
 
     for (uint32_t i = 0; i < cfg.parallel; ++i) {
-      workers.emplace_back(&SyntheticIOBench::ReadWorker, this, i, std::cref(cfg),
-                           std::cref(written[i]));
+      futures.emplace_back(pool.PushTask<void>([this, i, &cfg, &written]() {
+        ReadWorker(i, cfg, written[i]);
+      }));
     }
 
-    for (auto& t : workers) {
-      t.join();
+    for (auto& f : futures) {
+      f.get();
     }
   }
 
