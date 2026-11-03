@@ -454,12 +454,14 @@ QuarkContainerMD::access(uid_t uid, gid_t gid, int flags)
     return true;
   }
 
-  // Filter out based on sys.mask
-  mode_t filteredMode = PermissionHandler::filterWithSysMask(mCont.xattrs(),
-                        mCont.mode());
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
-  return runReadOp([this, uid, gid, filteredMode, convFlags]() {
+  return runReadOp([this, uid, gid, convFlags]() {
+    // Filter out based on sys.mask, under the lock: a writer can change the
+    // xattrs and the mode meanwhile
+    mode_t filteredMode =
+        PermissionHandler::filterWithSysMask(mCont.xattrs(), mCont.mode());
+
     // Check the perms
     if (uid == mCont.uid()) {
       char user = PermissionHandler::convertModetUser(filteredMode);

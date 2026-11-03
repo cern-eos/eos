@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
+#include <mutex>
 
 namespace qclient
 {
@@ -187,6 +188,9 @@ private:
   //----------------------------------------------------------------------------
   static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
 
+  //! Protects pNodeMap: nodes are also created lazily under the namespace
+  //! read lock, and two creations of one node would free the first one
+  std::mutex mNodeMapMutex;
   std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>>
       pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
