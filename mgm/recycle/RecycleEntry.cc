@@ -145,19 +145,26 @@ RecycleEntry::ToGarbage(const char* epname, XrdOucErrInfo& error)
   std::string rpath;
   int rc = 0;
 
-  // retrieve the current valid index directory
-  if ((rc = GetRecyclePrefix(epname, error, rpath))) {
-    return rc;
-  }
+  // A purge removes the index directory once it is empty, which can happen
+  // between its lookup and the rename: then look it up (and create it) again
+  for (int attempt = 1;; ++attempt) {
+    // retrieve the current valid index directory
+    if ((rc = GetRecyclePrefix(epname, error, rpath))) {
+      return rc;
+    }
 
-  snprintf(recycle_path, sizeof(recycle_path) - 1, "%s/%s.%016llx%s",
-           rpath.c_str(), contractedpath.c_str(), mId, lPostFix.c_str());
+    snprintf(recycle_path, sizeof(recycle_path) - 1, "%s/%s.%016llx%s", rpath.c_str(),
+             contractedpath.c_str(), mId, lPostFix.c_str());
 
-  // Finally do the rename
-  if (gOFS->_rename(mPath.c_str(), recycle_path, error, mRootVid,
-                    "", "", true, true, false, true)) {
-    return gOFS->Emsg(epname, error, EIO, "rename file/directory",
-                      recycle_path);
+    // Finally do the rename
+    if (!gOFS->_rename(mPath.c_str(), recycle_path, error, mRootVid, "", "", true, true,
+                       false, true)) {
+      break;
+    }
+
+    if ((error.getErrInfo() != ENOENT) || (attempt == 3)) {
+      return gOFS->Emsg(epname, error, EIO, "rename file/directory", recycle_path);
+    }
   }
 
   // Store the recycle path in the error object
