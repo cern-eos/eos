@@ -271,6 +271,9 @@ XrdMgmOfs::_dropstripe(const char* path,
   // Retrieve write locked file and modify it
   try {
     std::string locations;
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, as FUSE does
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::IFileMDPtr fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
     eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(
           fmd.get());
@@ -310,6 +313,7 @@ XrdMgmOfs::_dropstripe(const char* path,
       eos_debug("msg=\"unlinking and removing location\" fxid=%08llx fsid=%lu",
                 fid, fsid);
       fmd_wlock.reset(nullptr);
+      ns_rd_lock.Release();
       // eraseEntry is only needed if the fsview is inconsistent with the
       // FileMD. It exists on the selected fsview, but not in the fmd locations.
       // Very rare case but needs to be done outside the namespace lock as it
@@ -372,6 +376,8 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
   // Retrieve write locked file and modify it
   try {
+    // As in _dropstripe
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::IFileMDPtr fmd = gOFS->eosView->getFile(path);
     auto fmdLock = eos::MDLocking::writeLock(fmd.get());
     eos::IFileMD::id_t fid = fmd->getId();

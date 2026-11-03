@@ -212,6 +212,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     eos::mgm::FusexCastBatch fuse_batch;
 
     try {
+      // As _attr_set: excludes the FUSE writers, which take the namespace
+      // lock in write mode without MD locks. Released before fuse_batch.
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       eos::FileOrContainerMD item;
       eos::FileOrContWriteLocked item_wlock;
 
