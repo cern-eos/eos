@@ -27,6 +27,62 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// Is the name taken in the locked dir? Does not wait for the backend under the
+// lock: an entry that is not cached counts as taken.
+//------------------------------------------------------------------------------
+static bool
+RenameTargetTaken(eos::IContainerMD* dir, const std::string& name)
+{
+  auto item = dir->findItem(name);
+  return !item.hasValue() || item.value().file || item.value().container;
+}
+
+//------------------------------------------------------------------------------
+// Holds the source and target file ids of a rename that overwrites a file,
+// from the removal of the target to the move: two renames that swap two files
+// would remove both. Other renames do not wait.
+//------------------------------------------------------------------------------
+class OverwriteRenameGuard {
+public:
+  void
+  lock(const std::vector<eos::IFileMD::id_t>& ids)
+  {
+    std::unique_lock<std::mutex> lock(gOFS->mOverwriteRenameMutex);
+    gOFS->mOverwriteRenameCv.wait(lock, [&]() {
+      return std::none_of(ids.begin(), ids.end(), [](const auto id) {
+        return gOFS->mOverwriteRenameIds.count(id) != 0;
+      });
+    });
+    gOFS->mOverwriteRenameIds.insert(ids.begin(), ids.end());
+    mIds = ids;
+  }
+
+  void
+  unlock()
+  {
+    if (mIds.empty()) {
+      return;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(gOFS->mOverwriteRenameMutex);
+
+      for (const auto id : mIds) {
+        gOFS->mOverwriteRenameIds.erase(id);
+      }
+    }
+
+    mIds.clear();
+    gOFS->mOverwriteRenameCv.notify_all();
+  }
+
+  ~OverwriteRenameGuard() { unlock(); }
+
+private:
+  std::vector<eos::IFileMD::id_t> mIds;
+};
+
+//------------------------------------------------------------------------------
 // Rename file or directory - part of the XRootD API
 //------------------------------------------------------------------------------
 int
@@ -145,24 +201,33 @@ XrdMgmOfs::rename(const char* old_name,
     return Emsg(epname, error, errno, "rename - destination access failure");
   }
 
-  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,
-                 false, overwrite);
+  // An overwrite rename that saw its target missing, while another rename
+  // replaced it, finds the name taken at the move with nothing changed yet.
+  // Once it removed a target, a retry would also remove the new one.
+  int rc = SFS_ERROR;
+
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    bool removed_target = false;
+    rc = _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true, false,
+                 overwrite, true, &removed_target);
+
+    if ((rc == SFS_OK) || !overwrite || removed_target ||
+        (error.getErrInfo() != EEXIST)) {
+      break;
+    }
+  }
+
+  return rc;
 }
 
 //------------------------------------------------------------------------------
 // Rename file or directory - EOS internal low-level API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_rename(const char* old_name,
-                   const char* new_name,
-                   XrdOucErrInfo& error,
-                   eos::common::VirtualIdentity& vid,
-                   const char* infoO,
-                   const char* infoN,
-                   bool updateCTime,
-                   bool checkQuota,
-                   bool overwrite,
-                   bool fusexcast)
+XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& error,
+                   eos::common::VirtualIdentity& vid, const char* infoO,
+                   const char* infoN, bool updateCTime, bool checkQuota, bool overwrite,
+                   bool fusexcast, bool* removedTarget)
 {
   static const char* epname = "_rename";
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
@@ -271,6 +336,9 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  // Held until the end of the rename
+  OverwriteRenameGuard overwrite_guard;
+
   if (!_exists(new_name, file_exists, error, vid, infoN)) {
     if (file_exists == XrdSfsFileExistIsFile) {
       if (new_path.back() == '/') {
@@ -279,6 +347,54 @@ XrdMgmOfs::_rename(const char* old_name,
       }
 
       if (overwrite && renameFile) {
+        bool tgt_exists = true;
+
+        try {
+          const auto src_id = eosView->getFile(old_name, false)->getId();
+
+          // A rename that held one of the ids before can have moved the source,
+          // then this one fails. If it replaced or removed the target, this
+          // one replaces the new target or becomes a plain move. A plain move
+          // still holds the source id, so no overwrite rename removes it.
+          while (true) {
+            eos::IFileMD::id_t tgt_id = 0;
+
+            try {
+              tgt_id = eosView->getFile(new_name, false)->getId();
+            } catch (const eos::MDException& e) {
+              tgt_exists = false;
+            }
+
+            if (tgt_exists) {
+              overwrite_guard.lock({src_id, tgt_id});
+            } else {
+              overwrite_guard.lock({src_id});
+            }
+
+            if (eosView->getFile(old_name, false)->getId() != src_id) {
+              throw eos::MDException(ENOENT);
+            }
+
+            if (!tgt_exists) {
+              break;
+            }
+
+            try {
+              if (eosView->getFile(new_name, false)->getId() == tgt_id) {
+                break;
+              }
+            } catch (const eos::MDException& e) {
+              tgt_exists = false;
+              break;
+            }
+
+            overwrite_guard.unlock();
+          }
+        } catch (const eos::MDException& e) {
+          errno = ENOENT;
+          return Emsg(epname, error, ENOENT, "rename - source was moved or removed");
+        }
+
         // Check if we are renaming a version to the primary copy
         bool keepversion = false;
         {
@@ -290,9 +406,16 @@ XrdMgmOfs::_rename(const char* old_name,
           }
         }
 
-        // Delete the existing target
-        if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion)) {
-          return SFS_ERROR;
+        // Delete the existing target. Gone meanwhile, by a plain rename or an
+        // rm: a plain move then.
+        if (tgt_exists) {
+          if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion) == SFS_OK) {
+            if (removedTarget) {
+              *removedTarget = true;
+            }
+          } else if (error.getErrInfo() != ENOENT) {
+            return SFS_ERROR;
+          }
         }
       } else {
         errno = EEXIST;
@@ -510,6 +633,13 @@ XrdMgmOfs::_rename(const char* old_name,
               auto locks = dirFileLocker.lockAll();
               COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock",
                            &tm);
+
+              if (RenameTargetTaken(dir.get(), nPath.GetName())) {
+                errno = EEXIST;
+                return Emsg(epname, error, EEXIST, "rename - target name exists",
+                            nPath.GetPath());
+              }
+
               eosView->renameFile(file.get(), nPath.GetName());
               dir->setMTimeNow();
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -547,6 +677,15 @@ XrdMgmOfs::_rename(const char* old_name,
             auto locks = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
                          &tm);
+
+            // A parallel rename or mkdir took the target name after the
+            // lookup: the file would end up in no directory
+            if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+              errno = EEXIST;
+              return Emsg(epname, error, EEXIST, "rename - target name exists",
+                          nPath.GetPath());
+            }
+
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -861,6 +1000,15 @@ XrdMgmOfs::_rename(const char* old_name,
             bulkContainerLocker.add(newdir.get());
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::move_dir_all_dirs_write_lock", &tm);
+
+            // A parallel rename or mkdir took the target name after the
+            // lookup: the tree would end up in no directory
+            if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+              errno = EEXIST;
+              return Emsg(epname, error, EEXIST, "rename - target name exists",
+                          nPath.GetPath());
+            }
+
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
             int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
             int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
@@ -1177,6 +1325,15 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     helper.add(newdir.get());
     helper.add(file.get());
     auto locks = helper.lockAll();
+
+    // A parallel rename or mkdir took the target name after the lookup
+    if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
+      errno = EEXIST;
+      return Emsg(epname, error, EEXIST,
+                  "rename with symlink - name exists in target directory",
+                  nPath.GetPath());
+    }
+
     dir->removeFile(oPath.GetName());
     // Create the symlink
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",

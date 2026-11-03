@@ -102,10 +102,16 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
-        // Do not lock the file when calling getUri()!
-        uri = gOFS->eosView->getUri(fh.get());
-        // No need to explicitely lock the file as there is only one operation related to it.
-        fattrmap = fh->getAttributes();
+        try {
+          // Do not lock the file when calling getUri()!
+          uri = gOFS->eosView->getUri(fh.get());
+          // No need to explicitely lock the file as there is only one operation related to it.
+          fattrmap = fh->getAttributes();
+        } catch (eos::MDException& e) {
+          // Removed meanwhile, e.g. replaced by a rename: as a not existing file
+          fh.reset();
+          uri = cPath.GetPath();
+        }
       } else {
         uri = cPath.GetPath();
       }
