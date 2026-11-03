@@ -634,6 +634,14 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
               COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock",
                            &tm);
 
+              // A parallel rename or rm changed the file after the lookup
+              if (file->isDeleted() || (file->getContainerId() != dir->getId()) ||
+                  (file->getName() != oPath.GetName())) {
+                errno = ENOENT;
+                return Emsg(epname, error, ENOENT,
+                            "rename - source file was moved or removed", oPath.GetPath());
+              }
+
               if (RenameTargetTaken(dir.get(), nPath.GetName())) {
                 errno = EEXIST;
                 return Emsg(epname, error, EEXIST, "rename - target name exists",
@@ -677,6 +685,14 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             auto locks = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
                          &tm);
+
+            // A parallel rename or rm changed the file after the lookup
+            if (file->isDeleted() || (file->getContainerId() != dir->getId()) ||
+                (file->getName() != oPath.GetName())) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source file was moved or removed", oPath.GetPath());
+            }
 
             // A parallel rename or mkdir took the target name after the
             // lookup: the file would end up in no directory
@@ -948,6 +964,16 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             bulkContainerLocker.add(dir.get());
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::rename_dir_within_same_container_dirs_lock_write", &tm);
+
+            // A parallel rename or rmdir changed the directory after the lookup
+            if (rdir->isDeleted() || (rdir->getParentId() != dir->getId()) ||
+                (rdir->getName() != oPath.GetName())) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source directory was moved or removed",
+                          oPath.GetPath());
+            }
+
             eosView->renameContainer(rdir.get(), nPath.GetName());
 
             if (updateCTime) {
@@ -1000,6 +1026,18 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             bulkContainerLocker.add(newdir.get());
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::move_dir_all_dirs_write_lock", &tm);
+
+            // A parallel rmdir removed the target, or a parallel rename or
+            // rmdir changed the source, after the lookup: moving would detach
+            // the tree from the namespace
+            if (newdir->isDeleted() || rdir->isDeleted() ||
+                (rdir->getParentId() != dir->getId()) ||
+                (rdir->getName() != oPath.GetName())) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT,
+                          "rename - source or target directory was moved or removed",
+                          oPath.GetPath());
+            }
 
             // A parallel rename or mkdir took the target name after the
             // lookup: the tree would end up in no directory
