@@ -201,8 +201,20 @@ XrdMgmOfs::rename(const char* old_name,
     return Emsg(epname, error, errno, "rename - destination access failure");
   }
 
-  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,
+  // An overwrite rename that saw its target missing, while another rename
+  // replaced it, finds the name taken at the move with nothing changed yet
+  int rc = SFS_ERROR;
+
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    rc = _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,
                  false, overwrite);
+
+    if ((rc == SFS_OK) || !overwrite || (error.getErrInfo() != EEXIST)) {
+      break;
+    }
+  }
+
+  return rc;
 }
 
 //------------------------------------------------------------------------------
@@ -609,6 +621,13 @@ XrdMgmOfs::_rename(const char* old_name,
               auto locks = dirFileLocker.lockAll();
               COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock",
                            &tm);
+
+              if (RenameTargetTaken(dir.get(), nPath.GetName())) {
+                errno = EEXIST;
+                return Emsg(epname, error, EEXIST, "rename - target name exists",
+                            nPath.GetPath());
+              }
+
               eosView->renameFile(file.get(), nPath.GetName());
               dir->setMTimeNow();
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
