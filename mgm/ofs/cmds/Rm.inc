@@ -149,6 +149,7 @@ XrdMgmOfs::_rem(const char* path,
   gid_t owner_gid = 0;
   eos::common::FileId::fileid_t fid = 0;
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
+  bool doQuota = false;   // the one-step deletion takes the file out of quota
   std::string aclpath;
 
   try {
@@ -285,16 +286,7 @@ XrdMgmOfs::_rem(const char* path,
         // ---------------------------------------------------------------------
         // this is one-step deletion just removing files 'forever' and now
         // ---------------------------------------------------------------------
-        if (!simulate) {
-          try {
-            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
-            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
-
-            if (ns_quota) {
-              ns_quota->removeFile(fmd.get());
-            }
-          } catch (eos::MDException& e) { }
-        }
+        doQuota = true;
       }
     }
   } else {      /* file does not exist */
@@ -303,6 +295,8 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   if (!doRecycle) {
+    const std::string rm_name = eos::common::Path(path).GetName();
+
     try {
       if (!simulate) {
         eos_info("unlinking from view %s", path);
@@ -328,17 +322,35 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           lock.Grab(gOFS->eosViewRWMutex);
+
+          // Renamed, moved or removed while the namespace lock was released
+          if (!container || fmd->isDeleted() ||
+              (fmd->getContainerId() != container->getId()) ||
+              (fmd->getName() != rm_name)) {
+            eos::MDException e(ENOENT);
+            e.getMessage() << "File does not exist";
+            throw e;
+          }
+        }
+
+        // Take the file out of quota only once the delete workflow passed
+        if (doQuota) {
+          try {
+            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
+            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
+
+            if (ns_quota) {
+              ns_quota->removeFile(fmd.get());
+            }
+          } catch (eos::MDException& e) { }
         }
 
         /* create a Copy-on-Write clone if needed */
         XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
-          gOFS->eosView->unlinkFile(path);
-          // Reload file object that was modifed in the unlinkFile method
-          // TODO: this can be dropped if you use the unlinkFile which takes
-          // as argument the IFileMD object
-          fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+          // By object: the path can name another file after the workflow
+          gOFS->eosView->unlinkFile(fmd.get());
 
           // Drop the TAPE_FS_ID which otherwise would prevent the
           // file metadata cleanup
