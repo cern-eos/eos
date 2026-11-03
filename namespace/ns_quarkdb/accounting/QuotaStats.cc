@@ -361,6 +361,7 @@ QuarkQuotaStats::configure(const std::map<std::string, std::string>& config)
 IQuotaNode*
 QuarkQuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 {
+  std::lock_guard<std::mutex> lock(mNodeMapMutex);
   auto it = pNodeMap.find(node_id);
 
   if (it != pNodeMap.end()) {
@@ -387,6 +388,7 @@ IQuotaNode*
 QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 {
   std::string snode_id = std::to_string(node_id);
+  std::lock_guard<std::mutex> lock(mNodeMapMutex);
 
   if (pNodeMap.count(node_id) ||
       (pQcl->exists(KeyQuotaUidMap(snode_id)) == 1) ||
@@ -407,10 +409,13 @@ QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 void
 QuarkQuotaStats::removeNode(IContainerMD::id_t node_id)
 {
-  auto it = pNodeMap.find(node_id);
+  {
+    std::lock_guard<std::mutex> lock(mNodeMapMutex);
+    auto it = pNodeMap.find(node_id);
 
-  if (it != pNodeMap.end()) {
-    pNodeMap.erase(it);
+    if (it != pNodeMap.end()) {
+      pNodeMap.erase(it);
+    }
   }
 
   std::string snode_id = std::to_string(node_id);
