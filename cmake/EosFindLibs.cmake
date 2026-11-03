@@ -51,6 +51,12 @@ if(NOT PACKAGEONLY)
   find_package(jsoncpp REQUIRED)
   find_package(Libevent REQUIRED)
   find_package(fmt REQUIRED)
+
+  # fmt < 9 consteval format string checks are rejected by clang in C++20
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND fmt_VERSION VERSION_LESS 9)
+    add_compile_definitions(FMT_CONSTEVAL=)
+  endif()
+
   find_package(bz2 REQUIRED)
   find_package(absl REQUIRED)
   find_package(RocksDB)
