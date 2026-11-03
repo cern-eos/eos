@@ -288,9 +288,12 @@ function corrupt_orphan() {
   exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_ORPHAN} ${FSID} -f"
   # Unlink the remaining replica(s) and then force remove the file metadata
   # object so that the replica left over on fsid=${FSID} has no namespace
-  # entry pointing to it anymore i.e. it becomes an orphan
+  # entry pointing to it anymore i.e. it becomes an orphan. If the FST confirms
+  # the deletion of the unlinked replica(s) before the second call, the MGM
+  # already removed the file metadata object and the second call fails with
+  # ENOENT - this is fine since the check below verifies the end result.
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
-  exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
+  exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN} || true"
   local IN_NS=$(exec_cmd eos-mgm1 "eos -r 0 0 fileinfo fxid:${FXID_ORPHAN} -m 2>/dev/null | grep -o 'fxid=[0-9a-f]*' || true")
 
   if [[ -n "${IN_NS}" ]]; then
