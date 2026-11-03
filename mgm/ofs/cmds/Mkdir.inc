@@ -369,17 +369,35 @@ XrdMgmOfs::_mkdir(const char* path,
                     e.getErrno(), e.getMessage().str().c_str());
           newdir.reset();
 
-          // A parallel mkdir -p created it after the existence check
+          // A parallel mkdir -p created it after the existence check. The
+          // permission checks ran only on found_path, so check this one too,
+          // under the same lock, and do not follow a symlink.
           if (errno == EEXIST) {
+            eos::IContainerMD::XAttrMap dir_attrs;
+
             try {
-              newdir = eosView->getContainer(cPath.GetSubPath(j));
+              newdir = eosView->getContainer(cPath.GetSubPath(j), false);
+              eos::listAttributes(gOFS->eosView, newdir.get(), dir_attrs);
             } catch (const eos::MDException&) {
+              newdir.reset();
+            }
+
+            if (newdir && !nopermissioncheck) {
+              Acl dir_acl(dir_attrs, vid);
+
+              if (const char* msg = MkdirPermError(newdir.get(), dir_acl, vid,
+                                                   true)) {
+                errno = EPERM;
+                return Emsg(epname, error, EPERM, msg, cPath.GetSubPath(j));
+              }
             }
           }
 
           if (!newdir) {
             return Emsg(epname, error, errno, "mkdir", path);
           }
+
+          errno = 0;
         }
 
         if (!newdir && (errno != EEXIST)) {
@@ -454,7 +472,14 @@ XrdMgmOfs::_mkdir(const char* path,
     // A parallel mkdir -p created it after the existence check
     if (recurse && (errno == EEXIST)) {
       try {
-        eosView->getContainer(path);
+        std::shared_ptr<eos::IContainerMD> existing =
+          eosView->getContainer(path);
+
+        if (outino) {
+          *outino = existing->getId();
+        }
+
+        errno = 0;
         EXEC_TIMING_END("Exists");
         return SFS_OK;
       } catch (const eos::MDException&) {
