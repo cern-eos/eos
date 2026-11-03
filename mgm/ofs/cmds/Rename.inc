@@ -45,16 +45,16 @@ RenameTargetTaken(eos::IContainerMD* dir, const std::string& name)
 class OverwriteRenameGuard {
 public:
   void
-  lock(eos::IFileMD::id_t src, eos::IFileMD::id_t tgt)
+  lock(const std::vector<eos::IFileMD::id_t>& ids)
   {
     std::unique_lock<std::mutex> lock(gOFS->mOverwriteRenameMutex);
     gOFS->mOverwriteRenameCv.wait(lock, [&]() {
-      return !gOFS->mOverwriteRenameIds.count(src) &&
-             !gOFS->mOverwriteRenameIds.count(tgt);
+      return std::none_of(ids.begin(), ids.end(), [](const auto id) {
+        return gOFS->mOverwriteRenameIds.count(id) != 0;
+      });
     });
-    gOFS->mOverwriteRenameIds.insert(src);
-    gOFS->mOverwriteRenameIds.insert(tgt);
-    mIds = {src, tgt};
+    gOFS->mOverwriteRenameIds.insert(ids.begin(), ids.end());
+    mIds = ids;
   }
 
   void
@@ -357,7 +357,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
           // A rename that held one of the ids before can have moved the source,
           // then this one fails. If it replaced or removed the target, this
-          // one replaces the new target or becomes a plain move.
+          // one replaces the new target or becomes a plain move. A plain move
+          // still holds the source id, so no overwrite rename removes it.
           while (true) {
             eos::IFileMD::id_t tgt_id = 0;
 
@@ -365,13 +366,20 @@ XrdMgmOfs::_rename(const char* old_name,
               tgt_id = eosView->getFile(new_name, false)->getId();
             } catch (const eos::MDException& e) {
               tgt_exists = false;
-              break;
             }
 
-            overwrite_guard.lock(src_id, tgt_id);
+            if (tgt_exists) {
+              overwrite_guard.lock({src_id, tgt_id});
+            } else {
+              overwrite_guard.lock({src_id});
+            }
 
             if (eosView->getFile(old_name, false)->getId() != src_id) {
               throw eos::MDException(ENOENT);
+            }
+
+            if (!tgt_exists) {
+              break;
             }
 
             try {
@@ -379,6 +387,8 @@ XrdMgmOfs::_rename(const char* old_name,
                 break;
               }
             } catch (const eos::MDException& e) {
+              tgt_exists = false;
+              break;
             }
 
             overwrite_guard.unlock();
