@@ -395,7 +395,19 @@ XrdMgmOfs::_mkdir(const char* path,
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                     e.getErrno(), e.getMessage().str().c_str());
-          return Emsg(epname, error, errno, "mkdir", path);
+          newdir.reset();
+
+          // A parallel mkdir -p created it after the existence check
+          if (errno == EEXIST) {
+            try {
+              newdir = eosView->getContainer(cPath.GetSubPath(j));
+            } catch (const eos::MDException&) {
+            }
+          }
+
+          if (!newdir) {
+            return Emsg(epname, error, errno, "mkdir", path);
+          }
         }
 
         if (!newdir && (errno != EEXIST)) {
@@ -466,6 +478,16 @@ XrdMgmOfs::_mkdir(const char* path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
               e.getErrno(), e.getMessage().str().c_str());
+
+    // A parallel mkdir -p created it after the existence check
+    if (recurse && (errno == EEXIST)) {
+      try {
+        eosView->getContainer(path);
+        EXEC_TIMING_END("Exists");
+        return SFS_OK;
+      } catch (const eos::MDException&) {
+      }
+    }
   }
 
   if (!newdir && errno) {
