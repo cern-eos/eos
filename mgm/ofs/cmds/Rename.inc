@@ -1380,6 +1380,14 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
              old_file_uri.c_str(), new_file_uri.c_str());
     eosView->createLink(old_file_uri, new_file_uri, vid.uid, vid.gid);
+
+    // The link counts in quota with the length of its target, as rm counts it
+    if (old_qnode) {
+      if (auto link = dir->findFile(oPath.GetName())) {
+        old_qnode->addFile(link.get());
+      }
+    }
+
     dir->setMTimeNow();
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
     newdir->setMTimeNow();
