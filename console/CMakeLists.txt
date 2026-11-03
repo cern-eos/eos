@@ -158,6 +158,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/role-native.cc
   commands/native/scitoken-native.cc
   commands/native/stat-native.cc
+  commands/native/bench-native.cc
   commands/native/test-native.cc
 
   # Legacy symbol aggregation

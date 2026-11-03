@@ -69,6 +69,8 @@ private:
 
   grpc::Status Backup();
 
+  grpc::Status Bench();
+
   grpc::Status Chmod();
 
   grpc::Status Chown();

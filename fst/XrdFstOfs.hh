@@ -622,6 +622,12 @@ public:
                      const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
+  //! Start/status/stop FST-local SyntheticIO bandwidth clients (eos bench).
+  //----------------------------------------------------------------------------
+  int HandleBench(XrdOucEnv& env, XrdOucErrInfo& err_obj,
+                  const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
   //! Queue file for MGM sync operation
   //!
   //! @param fmd FmdHelper object to queue

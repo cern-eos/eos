@@ -2604,6 +2604,24 @@ This is useful for load tests: ``eoscp`` synthesizes the payload locally
 and still exercises the full client-to-server write path on the
 destination.
 
+Instance bandwidth bench (``eos bench``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Administrators can measure instance network bandwidth with SyntheticIO
+clients that run **on every online FST**, not on the MGM or admin host:
+
+.. code-block:: bash
+
+   eos bench --syntheticio --layout replica:2 60 4
+
+The command prepares ``/network`` with ``sys.forced.syntheticio`` and the
+requested layout (``name:stripes``), then asks the MGM to start
+``fst.pcmd=bench`` on each online FST over SSS. Each FST runs
+``<parallelism>`` concurrent C++ clients for ``<duration>`` seconds of
+1 GiB SyntheticIO uploads, then the same for downloads. Live aggregate
+rates are printed in a dstat-style table. Root role is required; FST
+work is authenticated with SSS.
+
 Behaviour summary
 ^^^^^^^^^^^^^^^^^
 

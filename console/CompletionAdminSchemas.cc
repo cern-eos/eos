@@ -512,6 +512,11 @@ ConfigureAdminCompletion(CommandCompletionSchema& schema, const std::string& nam
     for (const auto* operation : {"mkdir", "rmdir", "ls", "lsla"}) {
       schema.argument(schema.sub(app, operation), "count");
     }
+  } else if (name == "bench") {
+    schema.flag(app, "--syntheticio");
+    schema.value(app, "--layout");
+    schema.argument(app, "duration");
+    schema.argument(app, "parallelism");
   } else {
     return false;
   }
