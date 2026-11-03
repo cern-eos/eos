@@ -181,6 +181,37 @@ TEST(LRU, BasicSanity)
   ASSERT_TRUE(!cache.get(100));
 }
 
+TEST(LRU, RemoveOnlyUnused)
+{
+  struct Entry {
+    explicit Entry(std::uint64_t id)
+        : id_(id)
+    {
+    }
+
+    std::uint64_t
+    getId() const
+    {
+      return id_;
+    }
+
+    std::uint64_t id_;
+  };
+  eos::LRU<std::uint64_t, Entry> cache{100};
+  ASSERT_TRUE(cache.put(1, std::make_shared<Entry>(1)));
+  ASSERT_TRUE(cache.put(2, std::make_shared<Entry>(2)));
+  // Entry 1 is in use: only a remove without only_unused drops it
+  std::shared_ptr<Entry> held = cache.get(1);
+  ASSERT_FALSE(cache.remove(1, true));
+  ASSERT_EQ(held, cache.get(1));
+  ASSERT_TRUE(cache.remove(1));
+  ASSERT_FALSE(cache.get(1));
+  // Entry 2 is not in use
+  ASSERT_TRUE(cache.remove(2, true));
+  ASSERT_FALSE(cache.get(2));
+  ASSERT_FALSE(cache.remove(3, true));
+}
+
 TEST(PathProcessor, AbsPathTest)
 {
   std::string path = "/a/b/c/d/";

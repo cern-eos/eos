@@ -186,7 +186,10 @@ QuarkFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 bool
 QuarkFileMDSvc::dropCachedFileMD(FileIdentifier id)
 {
-  return mMetadataProvider->dropCachedFileID(id);
+  // The next lookup reads QuarkDB: write the queued changes first
+  pFlusher->synchronize();
+  // A second copy of an object in use would not share its locks
+  return mMetadataProvider->dropCachedFileID(id, true);
 }
 
 //------------------------------------------------------------------------------

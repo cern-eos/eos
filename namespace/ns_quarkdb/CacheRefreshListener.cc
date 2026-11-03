@@ -59,7 +59,9 @@ void CacheRefreshListener::processIncomingFidInvalidation(qclient::Message &&msg
   uint64_t fid;
 
   if(common::ParseUInt64(msg.getPayload(), fid)) {
-    mMetadataProvider->dropCachedFileID(FileIdentifier(fid));
+    // The record changed in QuarkDB: drop the object also when in use, an old
+    // copy would write the old values back
+    mMetadataProvider->dropCachedFileID(FileIdentifier(fid), false);
   }
 }
 
@@ -72,7 +74,8 @@ void CacheRefreshListener::processIncomingCidInvalidation(qclient::Message &&msg
   uint64_t cid;
 
   if(common::ParseUInt64(msg.getPayload(), cid)) {
-    mMetadataProvider->dropCachedContainerID(ContainerIdentifier(cid));
+    // As for files: drop the object also when in use
+    mMetadataProvider->dropCachedContainerID(ContainerIdentifier(cid), false);
   }
 }
 
