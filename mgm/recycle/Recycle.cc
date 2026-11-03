@@ -972,6 +972,12 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
                  eos::common::VirtualIdentity& vid, std::string_view key,
                  bool force_orig_name, bool restore_versions, bool make_path)
 {
+  // The checks and renames below are separate steps. Two parallel restores of
+  // one entry would both pass the checks, and with force_orig_name the second
+  // one moves the file that the first one restored out of the way. Recursive,
+  // as a restore calls itself for the version directory.
+  static std::recursive_mutex s_restore_mutex;
+  std::lock_guard<std::recursive_mutex> restore_lock(s_restore_mutex);
   std::string recycle_path;
   int retc = GetPathFromRestoreKey(key, vid, std_err, recycle_path);
 
