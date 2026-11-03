@@ -51,6 +51,7 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/PathDepthCheck.hh"
+#include "namespace/utils/RenameSafetyCheck.hh"
 #include "proto/Audit.pb.h"
 #include <cstdlib>
 #include <google/protobuf/util/json_util.h>
@@ -1639,6 +1640,14 @@ Server::OpSetDirectory(const std::string& id,
         }
         op = MOVE;
 
+        // Two moves of directories into each other, as two SETs each, must
+        // not make them each other's parents
+        if (!eos::isSafeToRename(gOFS->eosView, cmd.get(), pcmd.get())) {
+          eos_err("msg=\"move into its own subtree\" ino=%lx pino=%lx", (long)md.md_ino(),
+                  (long)md.md_pino());
+          return EINVAL;
+        }
+
         // Guard against moves that would push the directory - or part of its
         // subtree - deeper than the maximum resolvable path depth. Otherwise
         // the moved hierarchy could no longer be looked up and would surface
@@ -1690,6 +1699,14 @@ Server::OpSetDirectory(const std::string& id,
         int64_t tree_size = static_cast<int64_t>(cmd->getTreeSize());
         int64_t tree_cont = static_cast<int64_t>(cmd->getTreeContainers());
         int64_t tree_files = static_cast<int64_t>(cmd->getTreeFiles());
+
+        // A file of that name would make addContainer below throw, with the
+        // source already detached from its parent
+        if (!exist_target_cmd && pcmd->findFile(md.name())) {
+          eos_err("msg=\"failed move, destination is a file\" name=%s cxid=%08llx",
+                  md.name().c_str(), md.md_ino());
+          return ENOTDIR;
+        }
 
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
