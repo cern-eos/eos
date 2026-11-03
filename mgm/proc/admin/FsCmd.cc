@@ -275,7 +275,8 @@ int
 FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto& drop_del)
 {
   std::string out, err;
-  eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+  // No FsView::ViewMutex: the loop over the list can be long, and it uses only
+  // the namespace
   mRetc = proc_fs_dropdeletion(drop_del.fsid(), mVid, out, err);
   mOut = out;
   mErr = err;
