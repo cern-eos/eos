@@ -282,13 +282,12 @@ XrdMgmOfs::_rem(const char* path,
         attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
       }
 
-        doRecycle = true;
-      } else {
-        // ---------------------------------------------------------------------
-        // this is one-step deletion just removing files 'forever' and now
-        // ---------------------------------------------------------------------
-        doQuota = true;
-      }
+      doRecycle = true;
+    } else {
+      // -----------------------------------------------------------------------
+      // this is one-step deletion just removing files 'forever' and now
+      // -----------------------------------------------------------------------
+      doQuota = true;
     }
   } else {      /* file does not exist */
     errno = ENOENT;
