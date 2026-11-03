@@ -72,6 +72,41 @@ XrdMgmOfs::mkdir(const char* inpath,
 }
 
 //------------------------------------------------------------------------------
+// May vid create a directory inside dir? Checks the immutable flag, an
+// explicit '!w' ACL denial, and the mode bits when the ACL does not grant
+// write. Returns the EPERM message, nullptr if allowed. mkpath picks the
+// wording for the missing parents created by mkdir -p.
+//------------------------------------------------------------------------------
+static const char*
+MkdirPermError(eos::IContainerMD* dir, const Acl& acl,
+               const eos::common::VirtualIdentity& vid, bool mkpath)
+{
+  if (vid.uid && !acl.IsMutable()) {
+    return "create directory - immutable";
+  }
+
+  bool stdpermcheck = true;
+
+  if (acl.HasAcl()) {
+    // An explicit '!w' ACL denial overrides POSIX mode bits and must
+    // not fall through to the standard permission check.
+    if (acl.CanNotWrite() && vid.uid && !vid.sudoer) {
+      return mkpath ? "create parent directory - forbidden by ACL" :
+             "create directory - forbidden by ACL";
+    }
+
+    stdpermcheck = !acl.CanWrite() && !acl.CanWriteOnce();
+  }
+
+  if (stdpermcheck &&
+      (vid.token || !dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
+    return mkpath ? "create parent directory" : "access(XW) parent directory";
+  }
+
+  return nullptr;
+}
+
+//------------------------------------------------------------------------------
 /*
  * @brief create a directory with the given mode
  *
@@ -163,42 +198,9 @@ XrdMgmOfs::_mkdir(const char* path,
                acl.HasEgroup(), acl.IsMutable());
 
       if (!nopermissioncheck) {
-        // Immutable directory
-        if (vid.uid && !acl.IsMutable()) {
+        if (const char* msg = MkdirPermError(dir.get(), acl, vid, false)) {
           errno = EPERM;
-          return Emsg(epname, error, EPERM, "create directory - immutable",
-                      cPath.GetParentPath());
-        }
-      }
-
-      bool stdpermcheck = false;
-
-      if (acl.HasAcl()) {
-        // An explicit '!w' ACL denial overrides POSIX mode bits and must
-        // not fall through to the standard permission check.
-        if (!nopermissioncheck && acl.CanNotWrite() && vid.uid &&
-            !vid.sudoer) {
-          errno = EPERM;
-          return Emsg(epname, error, EPERM,
-                      "create directory - forbidden by ACL",
-                      cPath.GetParentPath());
-        }
-
-        if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
-          // we have to check the standard permissions
-          stdpermcheck = true;
-        }
-      } else {
-        stdpermcheck = true;
-      }
-
-      // Admin can always create a directory
-      if (!nopermissioncheck) {
-        if (stdpermcheck &&
-            (vid.token || (!dir->access(vid.uid, vid.gid, X_OK | W_OK)))) {
-          errno = EPERM;
-          return Emsg(epname, error, EPERM, "access(XW) parent directory",
-                      cPath.GetParentPath());
+          return Emsg(epname, error, EPERM, msg, cPath.GetParentPath());
         }
       }
 
@@ -302,39 +304,9 @@ XrdMgmOfs::_mkdir(const char* path,
                acl.CanWriteOnce(), acl.HasEgroup(), acl.IsMutable());
 
       if (!nopermissioncheck) {
-        if (vid.uid && !acl.IsMutable()) {
+        if (const char* msg = MkdirPermError(dir.get(), acl, vid, true)) {
           errno = EPERM;
-          return Emsg(epname, error, EPERM, "create directory - immutable",
-                      cPath.GetParentPath());
-        }
-      }
-
-      bool stdpermcheck = false;
-
-      if (acl.HasAcl()) {
-        // An explicit '!w' ACL denial overrides POSIX mode bits and must
-        // not fall through to the standard permission check.
-        if (!nopermissioncheck && acl.CanNotWrite() && vid.uid &&
-            !vid.sudoer) {
-          errno = EPERM;
-          return Emsg(epname, error, EPERM,
-                      "create parent directory - forbidden by ACL",
-                      cPath.GetParentPath());
-        }
-
-        if (!acl.CanWrite() && !acl.CanWriteOnce()) {
-          // We have to check the standard permissions
-          stdpermcheck = true;
-        }
-      } else {
-        stdpermcheck = true;
-      }
-
-      if (!nopermissioncheck && stdpermcheck) {
-        if (vid.token || !dir->access(vid.uid, vid.gid, X_OK | W_OK)) {
-          errno = EPERM;
-          return Emsg(epname, error, EPERM, "create parent directory",
-                      cPath.GetParentPath());
+          return Emsg(epname, error, EPERM, msg, cPath.GetParentPath());
         }
       }
 
