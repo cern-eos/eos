@@ -771,12 +771,17 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
           std::set<std::string>::const_iterator fileit;
+          // Quota nodes the tree is accounted in before and after the move
+          eos::IQuotaNode* tree_qnode = nullptr;
+          eos::IQuotaNode* new_qnode = nullptr;
+          // The files of the tree in quota, read before the move: the paths
+          // in found are the ones of the source
+          std::vector<std::shared_ptr<eos::IFileMD>> quota_files;
 
           // Loop over all the files and subtract them from their quota node
           if (findOk) {
-            // Quota nodes the tree is accounted in before and after the move
-            eos::IQuotaNode* tree_qnode = eosView->getQuotaNode(rdir.get());
-            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+            tree_qnode = eosView->getQuotaNode(rdir.get());
+            new_qnode = eosView->getQuotaNode(newdir.get());
             // A sub-directory with its own quota node keeps its accounting,
             // so its files are neither checked nor re-accounted
             std::set<std::string> nested_qnode_dirs;
@@ -899,64 +904,29 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
                 continue;
               }
 
-              // Loop through every files
-              // To compute the quota, we don't need to read-lock the entire tree as
-              // it will anyway not be an atomic operation without the big namespace lock taken.
               for (fileit = rfoundit->second.begin();
                    fileit != rfoundit->second.end(); fileit++) {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
                 std::string fname = *fileit;
+                // A symlink is listed with its target, it counts in quota
+                const size_t link_pos = fname.find(" -> ");
 
-                if (fname.find(" -> ") != std::string::npos) {
-                  // Skip symlinks
-                  continue;
+                if (link_pos != std::string::npos) {
+                  fname.erase(link_pos);
                 }
+
+                std::string fspath = rfoundit->first;
+                fspath += fname;
 
                 try {
-                  file = gOFS->eosView->getFile(fspath.c_str());
+                  quota_files.push_back(gOFS->eosView->getFile(fspath.c_str(), false));
                 } catch (eos::MDException& e) {
-                  // Check if this is a symbolic link
-                  std::string fname = *fileit;
-                  size_t link_pos = fname.find(" -> ");
-
-                  if (link_pos != std::string::npos) {
-                    fname.erase(link_pos);
-                    fspath = rfoundit->first;
-                    fspath += fname;
-
-                    try {
-                      file = gOFS->eosView->getFile(fspath.c_str(), false);
-                    } catch (eos::MDException& e) {
-                      errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                e.getErrno(), e.getMessage().str().c_str());
-                    }
-                  } else {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                              e.getErrno(), e.getMessage().str().c_str());
-                  }
-                }
-
-                if (file) {
-                  eos::MDLocking::FileReadLock locker(file.get());
-
-                  // A hard link entry is never in quota
-                  if (!file->isLink() && !file->hasAttribute(SYS_HARD_LINK)) {
-                    if (tree_qnode) {
-                      tree_qnode->removeFile(file.get());
-                    }
-
-                    if (new_qnode) {
-                      new_qnode->addFile(file.get());
-                    }
-                  }
+                  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                            e.getMessage().str().c_str());
                 }
               }
             }
 
-            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
+            COMMONTIMING("rename::rename_dir_collect_quota_files", &tm);
           }
 
           if (nP == oP) {
@@ -1106,6 +1076,28 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
               });
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
             }
+          }
+
+          // Move the quota once the tree is moved: a failure before leaves it
+          if (findOk && (nP != oP)) {
+            for (const auto& fmd : quota_files) {
+              eos::MDLocking::FileReadLock locker(fmd.get());
+
+              // A hard link entry is never in quota
+              if (fmd->hasAttribute(SYS_HARD_LINK)) {
+                continue;
+              }
+
+              if (tree_qnode) {
+                tree_qnode->removeFile(fmd.get());
+              }
+
+              if (new_qnode) {
+                new_qnode->addFile(fmd.get());
+              }
+            }
+
+            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
           }
         }
 
