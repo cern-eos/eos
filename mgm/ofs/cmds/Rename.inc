@@ -38,6 +38,51 @@ RenameTargetTaken(eos::IContainerMD* dir, const std::string& name)
 }
 
 //------------------------------------------------------------------------------
+// Holds the source and target file ids of a rename that overwrites a file,
+// from the removal of the target to the move: two renames that swap two files
+// would remove both. Other renames do not wait.
+//------------------------------------------------------------------------------
+class OverwriteRenameGuard {
+public:
+  void
+  lock(eos::IFileMD::id_t src, eos::IFileMD::id_t tgt)
+  {
+    std::unique_lock<std::mutex> lock(gOFS->mOverwriteRenameMutex);
+    gOFS->mOverwriteRenameCv.wait(lock, [&]() {
+      return !gOFS->mOverwriteRenameIds.count(src) &&
+             !gOFS->mOverwriteRenameIds.count(tgt);
+    });
+    gOFS->mOverwriteRenameIds.insert(src);
+    gOFS->mOverwriteRenameIds.insert(tgt);
+    mIds = {src, tgt};
+  }
+
+  void
+  unlock()
+  {
+    if (mIds.empty()) {
+      return;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(gOFS->mOverwriteRenameMutex);
+
+      for (const auto id : mIds) {
+        gOFS->mOverwriteRenameIds.erase(id);
+      }
+    }
+
+    mIds.clear();
+    gOFS->mOverwriteRenameCv.notify_all();
+  }
+
+  ~OverwriteRenameGuard() { unlock(); }
+
+private:
+  std::vector<eos::IFileMD::id_t> mIds;
+};
+
+//------------------------------------------------------------------------------
 // Rename file or directory - part of the XRootD API
 //------------------------------------------------------------------------------
 int
@@ -282,6 +327,9 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  // Held until the end of the rename
+  OverwriteRenameGuard overwrite_guard;
+
   if (!_exists(new_name, file_exists, error, vid, infoN)) {
     if (file_exists == XrdSfsFileExistIsFile) {
       if (new_path.back() == '/') {
@@ -290,6 +338,44 @@ XrdMgmOfs::_rename(const char* old_name,
       }
 
       if (overwrite && renameFile) {
+        bool tgt_exists = true;
+
+        try {
+          const auto src_id = eosView->getFile(old_name, false)->getId();
+
+          // A rename that held one of the ids before can have moved the source,
+          // then this one fails. If it replaced or removed the target, this
+          // one replaces the new target or becomes a plain move.
+          while (true) {
+            eos::IFileMD::id_t tgt_id = 0;
+
+            try {
+              tgt_id = eosView->getFile(new_name, false)->getId();
+            } catch (const eos::MDException& e) {
+              tgt_exists = false;
+              break;
+            }
+
+            overwrite_guard.lock(src_id, tgt_id);
+
+            if (eosView->getFile(old_name, false)->getId() != src_id) {
+              throw eos::MDException(ENOENT);
+            }
+
+            try {
+              if (eosView->getFile(new_name, false)->getId() == tgt_id) {
+                break;
+              }
+            } catch (const eos::MDException& e) {
+            }
+
+            overwrite_guard.unlock();
+          }
+        } catch (const eos::MDException& e) {
+          errno = ENOENT;
+          return Emsg(epname, error, ENOENT, "rename - source was moved or removed");
+        }
+
         // Check if we are renaming a version to the primary copy
         bool keepversion = false;
         {
@@ -301,8 +387,10 @@ XrdMgmOfs::_rename(const char* old_name,
           }
         }
 
-        // Delete the existing target
-        if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion)) {
+        // Delete the existing target. Gone meanwhile, by a plain rename or an
+        // rm: a plain move then.
+        if (tgt_exists && gOFS->_rem(new_name, error, vid, infoN, false, keepversion) &&
+            (error.getErrInfo() != ENOENT)) {
           return SFS_ERROR;
         }
       } else {
