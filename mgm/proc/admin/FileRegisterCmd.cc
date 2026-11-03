@@ -84,11 +84,12 @@ FileRegisterCmd::ProcessRequest() noexcept
       dir = gOFS->eosView->getContainer(cPath.GetParentPath());
       attrmap = dir->getAttributes();
       std::string name = cPath.GetName();
-      auto exists = dir->findItem(name);
+      // Wait for the entry: value() of a pending future throws
+      eos::FileOrContainerMD exists = dir->findItem(name).get();
 
-      if (exists.value().file || exists.value().container) {
-        if (reg.update() && exists.value().file) {
-          fmd = dir->findFile(name.c_str());
+      if (exists.file || exists.container) {
+        if (reg.update() && exists.file) {
+          fmd = exists.file;
         } else {
           reply.set_retc(EEXIST);
           reply.set_std_err("file already exists");
