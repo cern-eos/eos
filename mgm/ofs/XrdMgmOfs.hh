@@ -648,7 +648,7 @@ public:
   //! not to be modified. Rename of directories between quota nodes need to
   //! recompute all the quota of the subtree which is moving and in case reject
   //! the operation if there is not enough quota left. Overall it is a quite
-  //!complex function.
+  //! complex function.
   //!
   //! @param old_name old name
   //! @param new_name new name
@@ -660,19 +660,16 @@ public:
   //! @param checkQuota indicates to check the quota during a rename operation
   //! @param overwrite indicates if the target name can be overwritten
   //! @param fusexcast if true do a FUSEX cast otherwise no
+  //! @param removedTarget if not null, set to true once the overwritten target
+  //!        file is removed, also when the rename fails afterwards
   //!
   //! @return SFS_OK on success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
-  int _rename(const char* old_name,
-              const char* new_name,
-              XrdOucErrInfo& error,
-              eos::common::VirtualIdentity& vid,
-              const char* infoO = 0,
-              const char* infoN = 0,
-              bool updateCTime = false,
-              bool checkQuota = false,
-              bool overwrite = false,
-              bool fusexcast = true);
+  int _rename(const char* old_name, const char* new_name, XrdOucErrInfo& error,
+              eos::common::VirtualIdentity& vid, const char* infoO = 0,
+              const char* infoN = 0, bool updateCTime = false, bool checkQuota = false,
+              bool overwrite = false, bool fusexcast = true,
+              bool* removedTarget = nullptr);
 
   //----------------------------------------------------------------------------
   //! Rename file by atomically creating a symlink with the same name pointing

@@ -202,14 +202,17 @@ XrdMgmOfs::rename(const char* old_name,
   }
 
   // An overwrite rename that saw its target missing, while another rename
-  // replaced it, finds the name taken at the move with nothing changed yet
+  // replaced it, finds the name taken at the move with nothing changed yet.
+  // Once it removed a target, a retry would also remove the new one.
   int rc = SFS_ERROR;
 
   for (int attempt = 0; attempt < 3; ++attempt) {
-    rc = _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,
-                 false, overwrite);
+    bool removed_target = false;
+    rc = _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true, false,
+                 overwrite, true, &removed_target);
 
-    if ((rc == SFS_OK) || !overwrite || (error.getErrInfo() != EEXIST)) {
+    if ((rc == SFS_OK) || !overwrite || removed_target ||
+        (error.getErrInfo() != EEXIST)) {
       break;
     }
   }
@@ -221,16 +224,10 @@ XrdMgmOfs::rename(const char* old_name,
 // Rename file or directory - EOS internal low-level API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_rename(const char* old_name,
-                   const char* new_name,
-                   XrdOucErrInfo& error,
-                   eos::common::VirtualIdentity& vid,
-                   const char* infoO,
-                   const char* infoN,
-                   bool updateCTime,
-                   bool checkQuota,
-                   bool overwrite,
-                   bool fusexcast)
+XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& error,
+                   eos::common::VirtualIdentity& vid, const char* infoO,
+                   const char* infoN, bool updateCTime, bool checkQuota, bool overwrite,
+                   bool fusexcast, bool* removedTarget)
 {
   static const char* epname = "_rename";
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
@@ -411,9 +408,14 @@ XrdMgmOfs::_rename(const char* old_name,
 
         // Delete the existing target. Gone meanwhile, by a plain rename or an
         // rm: a plain move then.
-        if (tgt_exists && gOFS->_rem(new_name, error, vid, infoN, false, keepversion) &&
-            (error.getErrInfo() != ENOENT)) {
-          return SFS_ERROR;
+        if (tgt_exists) {
+          if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion) == SFS_OK) {
+            if (removedTarget) {
+              *removedTarget = true;
+            }
+          } else if (error.getErrInfo() != ENOENT) {
+            return SFS_ERROR;
+          }
         }
       } else {
         errno = EEXIST;
