@@ -2619,10 +2619,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   attr::getValue(attrmap, "sys.forced.minsize", minimumsize);
   attr::getValue(attrmap, "sys.forced.maxsize", maximumsize);
 
+  // The target size is enforced by the FST on close, so it must only come from
+  // the client. A booking size (possibly forced by sys/user.forced.bookingsize)
+  // is just a space reservation hint and must not be used as target size.
   if (!XrdUtils::GetEnv(*openOpaque, "eos.targetsize", targetsize)) {
-    if (!XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize)) {
-      targetsize = bookingsize;
-    }
+    XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize);
   }
 
   // Traffic class of this request. An internal engine - the converter, the
