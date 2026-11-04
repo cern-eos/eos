@@ -68,14 +68,16 @@ public:
   folly::Future<IFileMDPtr> retrieveFileMD(FileIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Drop cached FileID - return true if found
+  //! Drop cached FileID - return true if found. With only_unused, keep an
+  //! object in use: a second copy of it would not share its locks.
   //----------------------------------------------------------------------------
-  bool dropCachedFileID(FileIdentifier id);
+  bool dropCachedFileID(FileIdentifier id, bool only_unused);
 
   //----------------------------------------------------------------------------
-  //! Drop cached ContainerID - return true if found
+  //! Drop cached ContainerID - return true if found. With only_unused, keep
+  //! an object in use: a second copy of it would not share its locks.
   //----------------------------------------------------------------------------
-  bool dropCachedContainerID(ContainerIdentifier id);
+  bool dropCachedContainerID(ContainerIdentifier id, bool only_unused);
 
   //----------------------------------------------------------------------------
   //! Check if a FileMD exists with the given id

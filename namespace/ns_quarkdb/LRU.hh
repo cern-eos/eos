@@ -109,10 +109,12 @@ public:
   //! Remove entry from cache
   //!
   //! @param id entry id
+  //! @param only_unused if true, keep the entry while it is referenced
+  //!        anywhere else in the program, as the eviction does
   //!
   //! @return true if successfully removed from the cache, false otherwise
   //----------------------------------------------------------------------------
-  bool remove(IdT id);
+  bool remove(IdT id, bool only_unused = false);
 
   //----------------------------------------------------------------------------
   //! Get cache size
@@ -310,12 +312,16 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
 //------------------------------------------------------------------------------
 template <typename IdT, typename EntryT>
 bool
-LRU<IdT, EntryT>::remove(IdT id)
+LRU<IdT, EntryT>::remove(IdT id, bool only_unused)
 {
   std::unique_lock<std::mutex> lock(mMutex);
   auto iter_map = mMap.find(id);
 
   if (iter_map == mMap.end()) {
+    return false;
+  }
+
+  if (only_unused && (iter_map->second->use_count() > 1)) {
     return false;
   }
 

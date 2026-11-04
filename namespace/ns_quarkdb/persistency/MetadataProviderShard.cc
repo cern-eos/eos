@@ -202,20 +202,20 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 // Drop cached FileID - return true if found
 //------------------------------------------------------------------------------
 bool
-MetadataProviderShard::dropCachedFileID(FileIdentifier id)
+MetadataProviderShard::dropCachedFileID(FileIdentifier id, bool only_unused)
 {
   std::unique_lock<std::mutex> lock(mMutex);
-  return mFileCache.remove(id);
+  return mFileCache.remove(id, only_unused);
 }
 
 //------------------------------------------------------------------------------
 // Drop cached ContainerID - return true if found
 //------------------------------------------------------------------------------
 bool
-MetadataProviderShard::dropCachedContainerID(ContainerIdentifier id)
+MetadataProviderShard::dropCachedContainerID(ContainerIdentifier id, bool only_unused)
 {
   std::unique_lock<std::mutex> lock(mMutex);
-  return mContainerCache.remove(id);
+  return mContainerCache.remove(id, only_unused);
 }
 
 //----------------------------------------------------------------------------
