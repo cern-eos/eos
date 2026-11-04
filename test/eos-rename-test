@@ -30,6 +30,8 @@ cleanup_quota_nodes() {
   eos quota rmnode -p $prefix/t_qacc/dst/
   eos quota rmnode -p $prefix/t_qacc/src/plain/nested/
   eos quota rmnode -p $prefix/t_qacc/dst/plain/nested/
+  eos quota rmnode -p $prefix/t_qarrow/src/
+  eos quota rmnode -p $prefix/t_qarrow/dst/
 }
 
 trap cleanup_quota_nodes EXIT
@@ -44,6 +46,12 @@ eos rm -r $prefix/t_qsib/
 eos rm -r $prefix/t_qnest/
 eos rm -r $prefix/t_qanc/
 eos rm -r $prefix/t_qacc/
+# rm -r leaves the names with " -> " of a failed run
+for d in src dst; do
+  eos rm "$prefix/t_qarrow/$d/plain/v -> y"
+  eos rm "$prefix/t_qarrow/$d/plain/s -> z"
+done
+eos rm -r $prefix/t_qarrow/
 eos mkdir -p $prefix/
 eos chown adm:adm $prefix/
 xrdfs $url mkdir $prefix/t_source/ || exit -2
@@ -196,6 +204,26 @@ sleep 6
 test "$(qnode_value $prefix/t_qacc/src/ usedfiles)" = "usedfiles=0" || exit -9
 test "$(qnode_value $prefix/t_qacc/dst/ usedfiles)" = "usedfiles=1" || exit -9
 test "$nested_before" = "$(qnode_value $prefix/t_qacc/dst/plain/nested/ usedfiles)" || exit -9
+
+# the move takes the quota of every file along, whatever its name: find lists
+# a symlink as "<name> -> <target>", and a name can contain " -> " itself
+xrdfs $url mkdir $prefix/t_qarrow || exit -10
+xrdfs $url mkdir $prefix/t_qarrow/src || exit -10
+xrdfs $url mkdir $prefix/t_qarrow/src/plain || exit -10
+xrdfs $url mkdir $prefix/t_qarrow/dst || exit -10
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qarrow/src/ || exit -10
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_qarrow/dst/ || exit -10
+xrdcp /etc/passwd $url/$prefix/t_qarrow/src/plain/f || exit -10
+eos touch "$prefix/t_qarrow/src/plain/v -> y" || exit -10
+eos ln "$prefix/t_qarrow/src/plain/s -> z" $prefix/t_qarrow/src/plain/f || exit -10
+sleep 6
+test "$(qnode_value $prefix/t_qarrow/src/ usedfiles)" = "usedfiles=3" || exit -10
+eos mv $prefix/t_qarrow/src/plain $prefix/t_qarrow/dst/plain || exit -10
+sleep 6
+test "$(qnode_value $prefix/t_qarrow/src/ usedfiles)" = "usedfiles=0" || exit -10
+test "$(qnode_value $prefix/t_qarrow/dst/ usedfiles)" = "usedfiles=3" || exit -10
+eos rm "$prefix/t_qarrow/dst/plain/v -> y" || exit -10
+eos rm "$prefix/t_qarrow/dst/plain/s -> z" || exit -10
 
 # a quota node cannot be removed, neither directly nor through a symlink
 eos rmdir $prefix/t_qlink/real/qn_new && exit -9

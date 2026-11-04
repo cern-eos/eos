@@ -770,13 +770,17 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
           }
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
-          std::set<std::string>::const_iterator fileit;
+          // Quota nodes the tree is accounted in before and after the move
+          eos::IQuotaNode* tree_qnode = nullptr;
+          eos::IQuotaNode* new_qnode = nullptr;
+          // The files of the tree in quota, read before the move: the paths
+          // in found are the ones of the source
+          std::vector<std::shared_ptr<eos::IFileMD>> quota_files;
 
           // Loop over all the files and subtract them from their quota node
           if (findOk) {
-            // Quota nodes the tree is accounted in before and after the move
-            eos::IQuotaNode* tree_qnode = eosView->getQuotaNode(rdir.get());
-            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+            tree_qnode = eosView->getQuotaNode(rdir.get());
+            new_qnode = eosView->getQuotaNode(newdir.get());
             // A sub-directory with its own quota node keeps its accounting,
             // so its files are neither checked nor re-accounted
             std::set<std::string> nested_qnode_dirs;
@@ -796,68 +800,44 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
 
             COMMONTIMING("rename::rename_dir_find_nested_quota_nodes", &tm);
 
+            // The files of the tree in quota, from the namespace: the names
+            // that _find lists can not be split, it lists a symlink as
+            // "<name> -> <target>" and a name can contain " -> " itself
+            for (rfoundit = found.rbegin(); rfoundit != found.rend();
+                 rfoundit++) {
+              if (nested_qnode_dirs.count(rfoundit->first)) {
+                continue;
+              }
+
+              try {
+                auto fdir = gOFS->eosView->getContainer(rfoundit->first);
+
+                for (auto fit = eos::FileMapIterator(fdir); fit.valid(); fit.next()) {
+                  if (auto fmd = fdir->findFile(fit.key())) {
+                    quota_files.push_back(fmd);
+                  }
+                }
+              } catch (eos::MDException& e) {
+                eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                          e.getMessage().str().c_str());
+              }
+            }
+
+            COMMONTIMING("rename::rename_dir_collect_quota_files", &tm);
+
             if (checkQuota) {
               {
                 std::map<uid_t, unsigned long long> user_del_size;
                 std::map<gid_t, unsigned long long> group_del_size;
 
                 // Compute the total quota we need to rename by uid/gid
-                for (rfoundit = found.rbegin(); rfoundit != found.rend();
-                     rfoundit++) {
-                  if (nested_qnode_dirs.count(rfoundit->first)) {
-                    continue;
-                  }
+                for (const auto& fmd : quota_files) {
+                  eos::MDLocking::FileReadLock locker(fmd.get());
 
-                  // To compute the quota, we don't need to read-lock the entire tree as
-                  // it will anyway not be an atomic operation without the big namespace lock taken.
-                  for (fileit = rfoundit->second.begin();
-                       fileit != rfoundit->second.end(); fileit++) {
-                    std::string fspath = rfoundit->first;
-                    fspath += *fileit;
-                    std::shared_ptr<eos::IFileMD> fmd =
-                      std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
-
-                    // Stat this file and add to the deletion maps
-                    try {
-                      fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                    } catch (eos::MDException& e) {
-                      // Check if this is a symbolic link
-                      std::string fname = *fileit;
-                      size_t link_pos = fname.find(" -> ");
-
-                      if (link_pos != std::string::npos) {
-                        fname.erase(link_pos);
-                        fspath = rfoundit->first;
-                        fspath += fname;
-
-                        try {
-                          fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                        } catch (eos::MDException& e) {
-                          errno = e.getErrno();
-                          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                    e.getErrno(), e.getMessage().str().c_str());
-                        }
-                      } else {
-                        errno = e.getErrno();
-                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                  e.getErrno(), e.getMessage().str().c_str());
-                      }
-                    }
-
-                    if (fmd) {
-                      eos::MDLocking::FileReadLock locker(fmd.get());
-
-                      // A hard link entry is never in quota
-                      if (!fmd->isLink() && !fmd->hasAttribute(SYS_HARD_LINK)) {
-                        // compute quotas to check
-                        user_del_size[fmd->getCUid()] += fmd->getSize();
-                        group_del_size[fmd->getCGid()] += fmd->getSize();
-                      }
-                    } else {
-                      return Emsg(epname, error, errno,
-                                  "rename - cannot stat file in subtree",
-                                  fspath.c_str());
-                    }
+                  // A hard link entry is never in quota
+                  if (!fmd->isLink() && !fmd->hasAttribute(SYS_HARD_LINK)) {
+                    user_del_size[fmd->getCUid()] += fmd->getSize();
+                    group_del_size[fmd->getCGid()] += fmd->getSize();
                   }
                 }
 
@@ -892,71 +872,6 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
               }
               COMMONTIMING("rename::rename_dir_check_quotas", &tm);
             } // if (checkQuota)
-
-            for (rfoundit = found.rbegin(); rfoundit != found.rend();
-                 rfoundit++) {
-              if (nested_qnode_dirs.count(rfoundit->first)) {
-                continue;
-              }
-
-              // Loop through every files
-              // To compute the quota, we don't need to read-lock the entire tree as
-              // it will anyway not be an atomic operation without the big namespace lock taken.
-              for (fileit = rfoundit->second.begin();
-                   fileit != rfoundit->second.end(); fileit++) {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
-                std::string fname = *fileit;
-
-                if (fname.find(" -> ") != std::string::npos) {
-                  // Skip symlinks
-                  continue;
-                }
-
-                try {
-                  file = gOFS->eosView->getFile(fspath.c_str());
-                } catch (eos::MDException& e) {
-                  // Check if this is a symbolic link
-                  std::string fname = *fileit;
-                  size_t link_pos = fname.find(" -> ");
-
-                  if (link_pos != std::string::npos) {
-                    fname.erase(link_pos);
-                    fspath = rfoundit->first;
-                    fspath += fname;
-
-                    try {
-                      file = gOFS->eosView->getFile(fspath.c_str(), false);
-                    } catch (eos::MDException& e) {
-                      errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                e.getErrno(), e.getMessage().str().c_str());
-                    }
-                  } else {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                              e.getErrno(), e.getMessage().str().c_str());
-                  }
-                }
-
-                if (file) {
-                  eos::MDLocking::FileReadLock locker(file.get());
-
-                  // A hard link entry is never in quota
-                  if (!file->isLink() && !file->hasAttribute(SYS_HARD_LINK)) {
-                    if (tree_qnode) {
-                      tree_qnode->removeFile(file.get());
-                    }
-
-                    if (new_qnode) {
-                      new_qnode->addFile(file.get());
-                    }
-                  }
-                }
-              }
-            }
-
-            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
           }
 
           if (nP == oP) {
@@ -1106,6 +1021,28 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
               });
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
             }
+          }
+
+          // Move the quota once the tree is moved: a failure before leaves it
+          if (findOk && (nP != oP)) {
+            for (const auto& fmd : quota_files) {
+              eos::MDLocking::FileReadLock locker(fmd.get());
+
+              // A hard link entry is never in quota
+              if (fmd->hasAttribute(SYS_HARD_LINK)) {
+                continue;
+              }
+
+              if (tree_qnode) {
+                tree_qnode->removeFile(fmd.get());
+              }
+
+              if (new_qnode) {
+                new_qnode->addFile(fmd.get());
+              }
+            }
+
+            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
           }
         }
 
@@ -1380,6 +1317,14 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
              old_file_uri.c_str(), new_file_uri.c_str());
     eosView->createLink(old_file_uri, new_file_uri, vid.uid, vid.gid);
+
+    // The link counts in quota with the length of its target, as rm counts it
+    if (old_qnode) {
+      if (auto link = dir->findFile(oPath.GetName())) {
+        old_qnode->addFile(link.get());
+      }
+    }
+
     dir->setMTimeNow();
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
     newdir->setMTimeNow();

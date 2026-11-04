@@ -232,6 +232,21 @@ XrdMgmOfs::_symlink(const char* source_name,
             oPath.GetParentPath());
       eosView->createLink(oPath.GetPath(), target_name,
                           vid.uid, vid.gid);
+
+      // The link counts in quota with the length of its target, as rm and
+      // the quota recompute count it
+      try {
+        eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir.get());
+
+        if (ns_quota) {
+          if (auto link = dir->findFile(oPath.GetName())) {
+            ns_quota->addFile(link.get());
+          }
+        }
+      } catch (const eos::MDException&) {
+        // no quota node
+      }
+
       dir->setMTimeNow();
       dir->notifyMTimeChange(gOFS->eosDirectoryService);
       eosView->updateContainerStore(dir.get());
