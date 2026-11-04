@@ -418,6 +418,8 @@ XrdMgmOfs::_mkdir(const char* path,
   }
 
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // The last parent of mkdir -p must not count as the created directory
+  newdir.reset();
 
   try {
     errno = 0;
