@@ -65,18 +65,18 @@ MetadataProvider::retrieveFileMD(FileIdentifier id)
 // Drop cached FileID - return true if found
 //------------------------------------------------------------------------------
 bool
-MetadataProvider::dropCachedFileID(FileIdentifier id)
+MetadataProvider::dropCachedFileID(FileIdentifier id, bool only_unused)
 {
-  return pickShard(id)->dropCachedFileID(id);
+  return pickShard(id)->dropCachedFileID(id, only_unused);
 }
 
 //------------------------------------------------------------------------------
 // Drop cached ContainerID - return true if found
 //------------------------------------------------------------------------------
 bool
-MetadataProvider::dropCachedContainerID(ContainerIdentifier id)
+MetadataProvider::dropCachedContainerID(ContainerIdentifier id, bool only_unused)
 {
-  return pickShard(id)->dropCachedContainerID(id);
+  return pickShard(id)->dropCachedContainerID(id, only_unused);
 }
 
 //----------------------------------------------------------------------------
