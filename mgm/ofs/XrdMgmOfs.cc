@@ -1184,7 +1184,11 @@ XrdMgmOfs::Redirect(XrdOucErrInfo& error,
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host << ":" << port);
 
-  if (collapse && strlen(path)) {
+  // The URL-form redirect with flags is only understood by clients that
+  // advertise redirect flag support e.g. the XrdHttp bridge does not and would
+  // build a broken Location header out of it.
+  if (collapse && strlen(path) &&
+      (error.getUCap() & XrdOucEI::uRedirFlgs)) {
     std::string url = "root://";
     url += host;
     url += ":";
