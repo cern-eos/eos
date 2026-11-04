@@ -2395,8 +2395,8 @@ Server::OpSetFile(const std::string& id,
 
                       eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-                      // free previous quota
-                      if (quotanode) {
+                      // free previous quota, a hard link entry was never added to it
+                      if (quotanode && !ofmd->hasAttribute(k_mdino)) {
                         quotanode->removeFile(ofmd.get());
                       }
 
@@ -2767,8 +2767,9 @@ Server::OpSetFile(const std::string& id,
 
         eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(qcmd.get());
 
-        // free previous quota
-        if (quotanode) {
+        // free previous quota. A hard link entry is never in quota, it can
+        // carry the size of its target.
+        if (quotanode && !fmd->hasAttribute(k_mdino)) {
           if (op != CREATE) {
             quotanode->removeFile(fmd.get());
           }
@@ -3560,10 +3561,10 @@ Server::OpDeleteFile(const std::string& id,
                        );
     } else {
       try {
-        // handle quota
+        // handle quota, a hard link entry was never added to it
         eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-        if (quotanode) {
+        if (quotanode && !fmd->hasAttribute(k_mdino)) {
           quotanode->removeFile(fmd.get());
         }
       } catch (eos::MDException& e) {

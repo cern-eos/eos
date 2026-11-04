@@ -731,14 +731,15 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             newdir->addFile(file.get());
             eosView->updateFileStore(file.get());
             COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
-            // Adjust the ns quota
+            // Adjust the ns quota. A hard link entry is never in quota.
+            if (!file->hasAttribute(SYS_HARD_LINK)) {
+              if (old_qnode) {
+                old_qnode->removeFile(file.get());
+              }
 
-            if (old_qnode) {
-              old_qnode->removeFile(file.get());
-            }
-
-            if (new_qnode) {
-              new_qnode->addFile(file.get());
+              if (new_qnode) {
+                new_qnode->addFile(file.get());
+              }
             }
 
             COMMONTIMING("rename::move_file_to_different_container_adjust_ns_quota", &tm);
@@ -846,7 +847,8 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
                     if (fmd) {
                       eos::MDLocking::FileReadLock locker(fmd.get());
 
-                      if (!fmd->isLink()) {
+                      // A hard link entry is never in quota
+                      if (!fmd->isLink() && !fmd->hasAttribute(SYS_HARD_LINK)) {
                         // compute quotas to check
                         user_del_size[fmd->getCUid()] += fmd->getSize();
                         group_del_size[fmd->getCGid()] += fmd->getSize();
@@ -940,7 +942,8 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
                 if (file) {
                   eos::MDLocking::FileReadLock locker(file.get());
 
-                  if (!file->isLink()) {
+                  // A hard link entry is never in quota
+                  if (!file->isLink() && !file->hasAttribute(SYS_HARD_LINK)) {
                     if (tree_qnode) {
                       tree_qnode->removeFile(file.get());
                     }
@@ -1394,13 +1397,15 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     eosView->updateFileStore(file.get());
     COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
 
-    // Adjust the ns quota
-    if (old_qnode) {
-      old_qnode->removeFile(file.get());
-    }
+    // Adjust the ns quota. A hard link entry is never in quota.
+    if (!file->hasAttribute(SYS_HARD_LINK)) {
+      if (old_qnode) {
+        old_qnode->removeFile(file.get());
+      }
 
-    if (new_qnode) {
-      new_qnode->addFile(file.get());
+      if (new_qnode) {
+        new_qnode->addFile(file.get());
+      }
     }
 
     if (fusexcast) {
