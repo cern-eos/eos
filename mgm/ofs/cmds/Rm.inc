@@ -339,7 +339,8 @@ XrdMgmOfs::_rem(const char* path,
             eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
             eos_info("got quota node=%lld", (unsigned long long) ns_quota);
 
-            if (ns_quota) {
+            // A hard link entry was never added to the quota
+            if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
               ns_quota->removeFile(fmd.get());
             }
           } catch (eos::MDException& e) { }

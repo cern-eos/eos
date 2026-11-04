@@ -45,9 +45,10 @@ class QuotaNodeFilter : public ExpansionDecider
 public:
   QuotaNodeFilter(uint64_t root) : rootContainer(root) {}
 
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs, 
-                                     const std::string& fullPath) override
+  virtual bool
+  shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
+                        const eos::IContainerMD::XAttrMap& attrs,
+                        const std::string& fullPath) override
   {
     if (proto.id() == rootContainer) {
       return true; // always expand root, no matter what
@@ -86,7 +87,8 @@ MDStatus QuotaRecomputer::recompute(const std::string& cont_uri,
   NamespaceItem item;
 
   while (explorer.fetch(item)) {
-    if (item.isFile) {
+    // A hard link entry is never in quota, as at its creation
+    if (item.isFile && !item.fileMd.xattrs().count("sys.eos.mdino")) {
       // Calculate physical size
       uint64_t logicalSize = item.fileMd.size();
       uint64_t physicalSize = item.fileMd.size() *

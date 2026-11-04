@@ -174,6 +174,11 @@ XrdMgmOfs::_chown(const char* path,
           eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
         }
 
+        // A hard link entry is never in quota
+        if (fmd->hasAttribute(SYS_HARD_LINK)) {
+          ns_quota = nullptr;
+        }
+
         // Subtract the file
         if (ns_quota) {
           ns_quota->removeFile(fmd.get());
