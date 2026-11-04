@@ -2981,6 +2981,67 @@ Server::OpSetFile(const std::string& id,
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Remove the file that a symlink rename overwrites. A hard link entry and a
+// file with hard links are handled as in the FUSE unlink: a detached entry
+// has no replica, so no FST drop would ever remove its record.
+//------------------------------------------------------------------------------
+static void
+RemoveOverwrittenFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
+                      const std::shared_ptr<eos::IFileMD>& ofmd)
+{
+  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+  if (ofmd->hasAttribute(k_mdino)) {
+    // one link less on the file holding the inode
+    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
+        eos::common::FileId::InodeToFid(std::stoull(ofmd->getAttribute(k_mdino))));
+    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
+
+    if (nlink > 0) {
+      gmd->setAttribute(k_nlink, std::to_string(nlink));
+    } else {
+      gmd->removeAttribute(k_nlink);
+
+      // its own name is already gone: the last link removes it
+      if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+        pcmd->removeFile(gmd->getName());
+        gmd->unlinkAllLocations();
+        gmd->setContainerId(0);
+
+        if (quotanode) {
+          quotanode->removeFile(gmd.get());
+        }
+      }
+    }
+
+    gOFS->eosFileService->updateStore(gmd.get());
+    pcmd->removeFile(ofmd->getName());
+    gOFS->eosFileService->removeFile(ofmd.get());
+    return;
+  }
+
+  if (ofmd->hasAttribute(k_nlink) && std::stol(ofmd->getAttribute(k_nlink)) > 0) {
+    // hard links exist, keep the inode under a hidden name
+    char nameBuf[256];
+    snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx",
+             (unsigned long)eos::common::FileId::FidToInode(ofmd->getId()));
+    pcmd->removeFile(nameBuf);
+    gOFS->eosView->renameFile(ofmd.get(), nameBuf);
+    return;
+  }
+
+  pcmd->removeFile(ofmd->getName());
+  // unlink the existing file
+  ofmd->setContainerId(0);
+  ofmd->unlinkAllLocations();
+
+  if (quotanode) {
+    quotanode->removeFile(ofmd.get());
+  }
+
+  gOFS->eosFileService->updateStore(ofmd.get());
+}
 
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
@@ -3050,19 +3111,7 @@ Server::OpSetLink(const std::string& id,
         if (ofmd) {
           // remove the target - no recycle bin for symlinks
           try {
-            XrdOucErrInfo error;
-            pcmd->removeFile(md.name());
-            // unlink the existing file
-            ofmd->setContainerId(0);
-            ofmd->unlinkAllLocations();
-            eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-
-            // free previous quota
-            if (quotanode) {
-              quotanode->removeFile(ofmd.get());
-            }
-
-            gOFS->eosFileService->updateStore(ofmd.get());
+            RemoveOverwrittenFile(pcmd, ofmd);
             gOFS->eosView->updateContainerStore(opcmd.get());
           } catch (eos::MDException& e) {
           }
@@ -3085,19 +3134,7 @@ Server::OpSetLink(const std::string& id,
           if (ofmd) {
             // remove the target - no recycle bin for symlink rename
             try {
-              XrdOucErrInfo error;
-              pcmd->removeFile(md.name());
-              // unlink the existing file
-              ofmd->setContainerId(0);
-              ofmd->unlinkAllLocations();
-              eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-
-              // free previous quota
-              if (quotanode) {
-                quotanode->removeFile(ofmd.get());
-              }
-
-              gOFS->eosFileService->updateStore(ofmd.get());
+              RemoveOverwrittenFile(pcmd, ofmd);
             } catch (eos::MDException& e) {
             }
           }
