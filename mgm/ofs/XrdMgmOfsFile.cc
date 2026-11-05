@@ -109,6 +109,21 @@ getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
 }
 
 //----------------------------------------------------------------------------
+//! Persist the file unless a parallel truncation or rm removed it after the
+//! namespace lock was released: the update would bring the record back as an
+//! orphan. _rem removes the file under its MD write lock.
+//----------------------------------------------------------------------------
+void
+updateFileStoreIfNotDeleted(eos::IFileMD* fmd)
+{
+  eos::MDLocking::FileWriteLock fmd_lock(fmd);
+
+  if (!fmd->isDeleted()) {
+    gOFS->eosView->updateFileStore(fmd);
+  }
+}
+
+//----------------------------------------------------------------------------
 //! Enforce the RainMinFsidEntry behaviour by returning the index in the
 //! given input vector corresponding to the smallest fsid.
 //!
@@ -2013,10 +2028,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
-            gOFS->eosView->updateFileStore(fmd.get());
+            updateFileStoreIfNotDeleted(fmd.get());
 
             if (ref_fmd) {
-              gOFS->eosView->updateFileStore(ref_fmd.get());
+              updateFileStoreIfNotDeleted(ref_fmd.get());
             }
 
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
@@ -2328,7 +2343,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // do a potential atime update, we don't need a name
       try {
         if (fmd->setATimeNow(atimeage)) {
-          gOFS->eosView->updateFileStore(fmd.get());
+          updateFileStoreIfNotDeleted(fmd.get());
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -2481,7 +2496,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // container refresh were already done while holding the namespace
           // write lock taken for the creation, only persist the file metadata.
           COMMONTIMING("filemd::update", &tm);
-          gOFS->eosView->updateFileStore(fmd.get());
+          updateFileStoreIfNotDeleted(fmd.get());
           gOFS->FuseXCastRefresh(fmd_id, dmd->getIdentifier());
           COMMONTIMING("fusex::bc", &tm);
         } else {
@@ -2502,7 +2517,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           ns_wr_lock.Release();
           COMMONTIMING("filemd::update", &tm);
-          gOFS->eosView->updateFileStore(fmd.get());
+          updateFileStoreIfNotDeleted(fmd.get());
           cmd->notifyMTimeChange(gOFS->eosDirectoryService);
           gOFS->eosView->updateContainerStore(cmd.get());
           gOFS->FuseXCastRefresh(fmd_id, cmd_id);
@@ -2979,6 +2994,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // -------------------------------------------------------------------
 
           try {
+            // The locations go to the file system lists too: do not add them
+            // to a file a parallel truncation or rm removed meanwhile
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+            if (fmd->isDeleted()) {
+              throw_mdexception(ENOENT, "file was removed meanwhile");
+            }
+
             std::string locations;
 
             if (fmd->hasAttribute("sys.fs.tracking")) {
@@ -3038,6 +3061,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           std::string locations;
 
           try {
+            // See the creation case above
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+            if (fmd->isDeleted()) {
+              throw_mdexception(ENOENT, "file was removed meanwhile");
+            }
+
             if (fmd->hasAttribute("sys.fs.tracking")) {
               locations = fmd->getAttribute("sys.fs.tracking");
             }
@@ -3635,7 +3665,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
             fmd->setCacheLocation(cache_fsid);
-            gOFS->eosView->updateFileStore(fmd.get());
+            updateFileStoreIfNotDeleted(fmd.get());
           } catch (eos::MDException& e) {
             eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
                         "errno=%d", mFid, e.getErrno());
