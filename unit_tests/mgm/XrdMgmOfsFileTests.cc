@@ -258,10 +258,21 @@ protected:
   void
   CheckWriteRedirect(const std::string& opaque)
   {
-    XrdMgmOfsFile file;
-    ASSERT_EQ(SFS_REDIRECT,
-              file.open(&mVid, "/proc/user/", SFS_O_RDONLY, 0, nullptr, opaque.c_str()));
-    EXPECT_STREQ("root://leader.example:2094//proc/user/", file.error.getErrText());
+    {
+      XrdMgmOfsFile file;
+      file.error.setUCap(XrdOucEI::uRedirFlgs);
+      ASSERT_EQ(SFS_REDIRECT,
+                file.open(&mVid, "/proc/user/", SFS_O_RDONLY, 0, nullptr, opaque.c_str()));
+      EXPECT_STREQ("root://leader.example:2094//proc/user/", file.error.getErrText());
+    }
+    {
+      // Clients without redirect flag support get a plain host:port redirect
+      XrdMgmOfsFile file;
+      ASSERT_EQ(SFS_REDIRECT,
+                file.open(&mVid, "/proc/user/", SFS_O_RDONLY, 0, nullptr, opaque.c_str()));
+      EXPECT_STREQ("leader.example", file.error.getErrText());
+      EXPECT_EQ(2094, file.error.getErrInfo());
+    }
   }
 
   XrdSysError mError{nullptr, "proc-routing-test"};
