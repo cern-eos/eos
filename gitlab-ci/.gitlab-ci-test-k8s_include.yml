@@ -29,6 +29,19 @@ k8s_system:
   allow_failure: true
 
 
+k8s_contention:
+  extends: .dock8s_contention_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
+  allow_failure: true
+
+
 k8s_mgm_ha:
   extends: .dock8s_base
   resource_group: $EOS_K8S_QUEUE_2
