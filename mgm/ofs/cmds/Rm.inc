@@ -360,6 +360,8 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
+            // A parallel open checks the deleted flag under this lock
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
             gOFS->eosView->removeFile(fmd.get());
           }
 
