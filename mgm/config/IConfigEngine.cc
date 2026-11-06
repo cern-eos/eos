@@ -157,7 +157,6 @@ IConfigEngine::ApplyEachConfig(const char* key, const char* val,
       eos::IContainerMD::id_t cont_id = 0;
 
       try {
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         cont_id = gOFS->eosView->getContainer(space.c_str())->getId();
       } catch (const eos::MDException& e) {
         eos_static_err("msg=\"quota dir missing, skip quota config line\" "
