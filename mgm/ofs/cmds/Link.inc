@@ -225,26 +225,65 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, the parent lock the ones using MD locks
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
             oPath.GetParentPath());
-      eosView->createLink(oPath.GetPath(), target_name,
-                          vid.uid, vid.gid);
+      // The quota node lookup walks up the parents: do it before the lock
+      eos::IQuotaNode* ns_quota = nullptr;
+
+      try {
+        ns_quota = eosView->getQuotaNode(dir.get());
+      } catch (const eos::MDException&) {
+        // no quota node
+      }
+
+      auto dirLock = eos::MDLocking::writeLock(dir.get());
+
+      // A parallel rmdir removed the parent while this thread waited for its lock
+      if (dir->isDeleted()) {
+        eos::MDException e(ENOENT);
+        e.getMessage() << "symlink: parent directory was removed";
+        throw e;
+      }
+
+      // As createLink(path, ...), but on the locked directory: its path walk
+      // would take read locks on the parents after this lock
+      eos::FileOrContainerMD conflict = dir->findItem(oPath.GetName()).get();
+
+      if (conflict.file || conflict.container) {
+        eos::MDException e(EEXIST);
+        e.getMessage() << "File exists";
+        throw e;
+      }
+
+      std::shared_ptr<eos::IFileMD> link = gOFS->eosFileService->createFile(0);
+
+      if (!link) {
+        eos::MDException e(EIO);
+        e.getMessage() << "symlink: file creation failed";
+        throw e;
+      }
+
+      link->setName(oPath.GetName());
+      link->setCUid(vid.uid);
+      link->setCGid(vid.gid);
+      link->setCTimeNow();
+      link->setATimeNow(0);
+      link->setMTimeNow();
+      link->clearChecksum(0);
+      link->setLink(target_name);
+      link->setSize(strlen(target_name));
+      dir->addFile(link.get());
+      eosView->updateFileStore(link.get());
 
       // The link counts in quota with the length of its target, as rm and
       // the quota recompute count it
-      try {
-        eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir.get());
-
-        if (ns_quota) {
-          if (auto link = dir->findFile(oPath.GetName())) {
-            ns_quota->addFile(link.get());
-          }
-        }
-      } catch (const eos::MDException&) {
-        // no quota node
+      if (ns_quota) {
+        ns_quota->addFile(link.get());
       }
 
       dir->setMTimeNow();
@@ -252,6 +291,7 @@ XrdMgmOfs::_symlink(const char* source_name,
       eosView->updateContainerStore(dir.get());
       eos::ContainerIdentifier dir_id = dir->getIdentifier();
       eos::ContainerIdentifier dir_pid = dir->getParentIdentifier();
+      dirLock.reset();
       lock.Release();
       gOFS->FuseXCastRefresh(dir_id, dir_pid);
     } catch (eos::MDException& e) {
@@ -330,7 +370,6 @@ XrdMgmOfs::_readlink(const char* name,
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, sname, false);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
     std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);
