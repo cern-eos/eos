@@ -121,7 +121,6 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
   if (path.empty()) {
     if (req.attr().md().type() == eos::console::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(
                  gOFS->eosFileService->getFileMD(req.attr().md().id()).get());
       } catch (eos::MDException& e) {
@@ -130,7 +129,6 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(
                  gOFS->eosDirectoryService->getContainerMD(req.attr().md().id()).get());
       } catch (eos::MDException& e) {
@@ -336,7 +334,6 @@ grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
   if (path.empty()) {
     if (req.chmod().md().type() == eos::console::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                        req.chmod().md().id()
                                      ).get());
@@ -346,7 +343,6 @@ grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                        req.chmod().md().id()
                                      ).get());
@@ -395,7 +391,6 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
   if (path.empty()) {
     if (req.chown().md().type() == eos::console::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                        req.chown().md().id()
                                      ).get());
@@ -405,7 +400,6 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                        req.chown().md().id()
                                      ).get());
@@ -688,7 +682,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
     } catch (eos::MDException& e) {
       path = "";
@@ -1502,7 +1495,6 @@ grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
   if (path.empty()) {
     if (req.ls().md().type() == eos::console::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                        req.ls().md().id()).get());
       } catch (eos::MDException& e) {
@@ -1510,7 +1502,6 @@ grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                        req.ls().md().id()).get());
       } catch (eos::MDException& e) {
@@ -1792,7 +1783,6 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
   if (path.empty()) {
     if (req.mv().md().type() == eos::console::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                        req.mv().md().id()).get());
       } catch (eos::MDException& e) {
@@ -1800,7 +1790,6 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                        req.mv().md().id()).get());
       } catch (eos::MDException& e) {
@@ -1922,7 +1911,6 @@ grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                      req.rmdir().md().id()).get());
     } catch (eos::MDException& e) {
