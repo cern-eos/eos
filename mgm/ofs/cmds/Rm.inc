@@ -322,10 +322,17 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           lock.Grab(gOFS->eosViewRWMutex);
+        }
 
-          // Renamed, moved or removed while the namespace lock was released
-          if (!container || fmd->isDeleted() ||
-              (fmd->getContainerId() != container->getId()) ||
+        {
+          // Moved by a rename or removed by a drop while the namespace lock
+          // was released. The namespace write lock keeps it so from here on,
+          // also for the hard link and clone code below. Read before the file
+          // lock: getId locks the container.
+          const auto cid = container ? container->getId() : 0;
+          eos::MDLocking::FileReadLock fmd_lock(fmd.get());
+
+          if (!cid || fmd->isDeleted() || (fmd->getContainerId() != cid) ||
               (fmd->getName() != rm_name)) {
             eos::MDException e(ENOENT);
             e.getMessage() << "File does not exist";
@@ -333,24 +340,58 @@ XrdMgmOfs::_rem(const char* path,
           }
         }
 
-        // Take the file out of quota only once the delete workflow passed
+        // Take the file out of quota only once the delete workflow passed.
+        // The quota node lookup walks up the parents, so it runs before the
+        // MD locks.
+        eos::IQuotaNode* ns_quota = nullptr;
+
         if (doQuota) {
           try {
-            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
-            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
-
-            // A hard link entry was never added to the quota
-            if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
-              ns_quota->removeFile(fmd.get());
-            }
-          } catch (eos::MDException& e) { }
+            ns_quota = gOFS->eosView->getQuotaNode(container.get());
+            eos_info("got quota node=%lld", (unsigned long long)ns_quota);
+          } catch (eos::MDException& e) {
+          }
         }
 
         /* create a Copy-on-Write clone if needed */
-        XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
+        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid,
+                                      error) == 0) {
+          // The clone moved the file out of its directory: it leaves the quota
+          // here, the check below then fails as before
+          if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+            ns_quota->removeFile(fmd.get());
+          }
+
+          ns_quota = nullptr;
+        }
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
-          // By object: the path can name another file after the workflow
+          // Lock the parent and the file around the removal, as rename does:
+          // writers that use MD locks only must not store the file after it
+          // is removed. Unlink by object, because the path walk takes
+          // container locks. The namespace lock was released for the
+          // workflow, so the file can be gone from its parent by now.
+          eos::MDLocking::BulkMDWriteLock md_locker;
+          md_locker.add(container.get());
+          md_locker.add(fmd.get());
+          auto md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+              md_locker.lockAll());
+
+          // A parallel rename can have given the file another name
+          if (!container || fmd->isDeleted() ||
+              (fmd->getContainerId() != container->getId()) ||
+              (fmd->getName() != rm_name)) {
+            eos::MDException e(ENOENT);
+            e.getMessage() << "File does not exist";
+            throw e;
+          }
+
+          // A hard link entry was never added to the quota
+          if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+            ns_quota->removeFile(fmd.get());
+          }
+
           gOFS->eosView->unlinkFile(fmd.get());
 
           // Drop the TAPE_FS_ID which otherwise would prevent the
@@ -360,8 +401,7 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
-            // A parallel open checks the deleted flag under this lock
-            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+            // A parallel open checks the deleted flag under the file lock
             gOFS->eosView->removeFile(fmd.get());
           }
 
@@ -374,10 +414,17 @@ XrdMgmOfs::_rem(const char* path,
             std::string deletion_name = fmd->getName();
             eos::ContainerIdentifier c_ident = container->getIdentifier();
             eos::ContainerIdentifier p_ident = container->getParentIdentifier();
+            md_locks.reset();
             lock.Release();
             gOFS->FuseXCastDeletion(c_ident, deletion_name);
             gOFS->FuseXCastRefresh(c_ident, p_ident);
           }
+        } else if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+          // A hard link target with other links, now ...eos.ino...<ino>,
+          // leaves the quota here: the unlink of its last link does not
+          // release it
+          eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+          ns_quota->removeFile(fmd.get());
         }
       }
 
