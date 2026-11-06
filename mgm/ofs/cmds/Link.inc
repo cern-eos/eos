@@ -225,8 +225,7 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   {
-    // The namespace lock in read mode excludes the writers that still take it
-    // in write mode, the parent lock the ones using MD locks
+    // NS read lock: quota nodes are removed under the write lock
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {

@@ -140,8 +140,7 @@ XrdMgmOfs::_rem(const char* path,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  // The namespace lock in read mode excludes the writers that still take it in
-  // write mode, the MD locks below the ones using per-object locks
+  // NS read lock: quota nodes are removed under the write lock
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
@@ -530,11 +529,9 @@ XrdMgmOfs::_rem(const char* path,
           return rc;
         } else {
           if (container) {
-            // The clone is a new entry: namespace lock in read mode and MD
-            // locks. prepare_cow walks paths, so it runs before the MD locks.
+            // prepare_cow walks paths, so it runs before the MD locks
             XrdMgmOfsFile::CowDirs cow;
             bool cloned = false;
-            ns_rd_lock.Grab(gOFS->eosViewRWMutex);
 
             if (XrdMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
               eos::MDLocking::BulkMDWriteLock md_locker;
@@ -544,8 +541,6 @@ XrdMgmOfs::_rem(const char* path,
               cloned = (XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowUnlink, container, fmd,
                                                  cow, vid) == 0);
             }
-
-            ns_rd_lock.Release();
 
             if (cloned) {
               XrdMgmOfsFile::notify_cow(cow);

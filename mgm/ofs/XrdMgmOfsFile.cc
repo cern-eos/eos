@@ -1945,9 +1945,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // is only written out once the lock is released
           bool emit_audit = false;
           eos::audit::Stat audit_after_stat;
-          // The namespace lock in read mode excludes the writers that still
-          // take it in write mode, the MD locks below the ones using
-          // per-object locks
+          // NS read lock: quota nodes are removed under the write lock
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
           eos::MDLocking::FileWriteLockPtr new_fmd_lock;
@@ -2316,9 +2314,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           CowDirs cow;
           bool cloned = false;
           {
-            // The clone is a new entry: namespace lock in read mode and MD
-            // locks. prepare_cow walks paths, so it runs before the MD locks.
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+            // prepare_cow walks paths, so it runs before the MD locks
 
             if (int rc = prepare_cow(dmd, fmd, cow, error)) {
               return rc;
@@ -2644,9 +2640,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           gOFS->FuseXCastRefresh(fmd_id, dmd->getIdentifier());
           COMMONTIMING("fusex::bc", &tm);
         } else {
-          // The namespace lock in read mode excludes the writers that still
-          // take it in write mode, the MD locks below the ones using
-          // per-object locks
+          // NS read lock: quota nodes are removed under the write lock
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           std::shared_ptr<eos::IContainerMD> cmd =
             gOFS->eosDirectoryService->getContainerMD(cid);
@@ -3822,7 +3816,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (need_persist) {
           try {
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
             eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
             fmd->setCacheLocation(cache_fsid);
             updateFileStoreIfNotDeleted(fmd.get());

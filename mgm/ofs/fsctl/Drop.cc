@@ -114,8 +114,7 @@ XrdMgmOfs::Drop(const char* path,
     // starving the namespace of resources.
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     {
-      // The namespace lock in read mode excludes the writers that still take
-      // it in write mode, the MD locks below the ones using MD locks
+      // NS read lock: quota nodes are removed under the write lock
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
       try {

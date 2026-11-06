@@ -1612,9 +1612,8 @@ Server::OpSetDirectory(const std::string& id,
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
   std::string oldname;
-  // NS read lock, then MD locks. Tree walks (getUri, getQuotaNode, path and
-  // ACL checks, prepare_cow) run before the MD locks in all handlers.
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  // Tree walks (getUri, getQuotaNode, path and ACL checks, prepare_cow)
+  // run before the MD locks in all handlers.
   // Serializes the directory moves to another parent with _rename: two moves
   // of directories into each other would both pass isSafeToRename
   std::unique_lock<std::mutex> dir_move_lock(gOFS->mDirMoveMutex, std::defer_lock);
@@ -2007,7 +2006,6 @@ Server::OpSetDirectory(const std::string& id,
       dir_move_lock.unlock();
     }
 
-    ns_rd_lock.Release();
     // Audit xattr changes on directories (UPDATE only)
     if (gOFS->mAudit && op == UPDATE) {
       std::string path = gOFS->eosView->getUri(cmd.get());

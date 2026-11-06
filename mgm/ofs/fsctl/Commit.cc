@@ -179,9 +179,8 @@ XrdMgmOfs::Commit(const char* path,
     std::string fmdname;
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      // Keep the lock order View => Namespace => Quota. The namespace lock in
-      // read mode excludes the writers that still take it in write mode, the
-      // MD locks below exclude the ones that use per-object locks.
+      // Keep the lock order View => Namespace => Quota. NS read lock: quota
+      // nodes are removed under the write lock.
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       errno = 0;
 
@@ -570,7 +569,6 @@ XrdMgmOfs::Commit(const char* path,
 
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd;
       std::string emsg;
 

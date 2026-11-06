@@ -444,7 +444,6 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
     // only root can do that
     if (mVid.uid == 0) {
       std::shared_ptr<eos::IFileMD> fmd;
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       eos::MDLocking::FileWriteLockPtr fmdLock;
       XrdOucString xspath = spath.c_str();
 
@@ -532,7 +531,6 @@ FileCmd::LayoutSubcmd(const eos::console::FileLayoutProto& layout,
       }
 
       fmdLock.reset();
-      ns_rd_lock.Release();
     } else {
       reply.set_retc(EPERM);
       std_err << "error: you have to take role 'root' to execute this command";
@@ -1094,9 +1092,6 @@ FileCmd::TagSubcmd(const eos::console::FileTagProto& tag, const std::string& spa
       fmd = gOFS->eosView->getFile(spath.c_str());
     }
 
-    // A location change: the namespace lock in read mode excludes the
-    // writers that still take it in write mode
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::MDLocking::FileWriteLock fwLock(fmd.get());
 
     if (do_add && fmd->hasLocation(fsid)) {
@@ -1356,10 +1351,6 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
       eos::IFileMD::LocationVector kick_fsids;
 
       {
-        // A layout change: the namespace lock in read mode excludes the
-        // writers that still take it in write mode, the file lock the ones
-        // using MD locks
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         eos::MDLocking::FileWriteLockPtr fmd_lock;
 
         try {
@@ -2072,8 +2063,6 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
                   << " space=" << creationspace << " subgroup=" << icreationsubgroup
                   << std::endl;
         }
-
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           auto fmd2 = gOFS->eosFileService->getFileMD(fid);

@@ -93,8 +93,8 @@ XrdMgmOfs::_remdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-  // The namespace lock in read mode excludes the writers that still take it in
-  // write mode, the MD locks below the ones using per-object locks
+  // NS read lock: quota nodes are added under the write lock, and a quota
+  // node directory must not be removed
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::string aclpath;
   uid_t container_owner_uid = 0;

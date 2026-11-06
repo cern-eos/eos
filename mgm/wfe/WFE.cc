@@ -420,9 +420,6 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     // The point of prefetching here is to get the chunks preceeding the final
     // one, so that createFile is guaranteed not to wait on network requests.
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, workflowpath);
-    // The namespace lock in read mode excludes the writers that still take it
-    // in write mode, the parent lock the ones using MD locks
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     eos::common::Path wPath(workflowpath.c_str());
     // The path walk runs before the MD lock of the parent
     auto cmd = gOFS->eosView->getContainer(wPath.GetParentPath());
@@ -2570,7 +2567,6 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
 
   try {
     // remove tape location
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     eos::MDLocking::FileWriteLock fmdLock(fmd.get());
     fmd->unlinkLocation(TAPE_FS_ID);
@@ -2730,7 +2726,6 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
   } else {
     eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
     {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       eos::MDLocking::FileWriteLock fmdLock(fmd.get());
 

@@ -1124,9 +1124,6 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IFileMD> newfile;
-  // The namespace lock in read mode excludes the writers that still take it in
-  // write mode, the parent MD lock below the ones using per-object locks
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
 
   for (auto it : request->files()) {
@@ -1309,9 +1306,6 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IContainerMD> newdir;
-  // The namespace lock in read mode excludes the writers that still take it in
-  // write mode, the parent MD lock below the ones using per-object locks
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
 
   for (auto it : request->container()) {

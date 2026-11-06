@@ -274,7 +274,7 @@ ReplicationTracker::ConversionSizePolicy(OperationMode mode, int fsid)
 
 //------------------------------------------------------------------------------
 // Unlink fmd from its parent under the MD write locks of both. The caller
-// holds the namespace lock in read mode and no MD lock.
+// holds no MD lock.
 //------------------------------------------------------------------------------
 static void
 UnlinkWithMDLocks(const std::shared_ptr<eos::IFileMD>& fmd)
@@ -414,9 +414,6 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
     std::string tag = prefix + eos::common::FileId::Fid2Hex(fmd->getId());
     std::string uri = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> entry_fmd;
-    // The namespace lock in read mode excludes the writers that still take it
-    // in write mode, the MD locks the ones using per-object locks
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       entry_fmd = gOFS->eosView->getFile(tag);
@@ -586,9 +583,6 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
         std::shared_ptr<eos::IContainerMD> dmd;
         eos::IContainerMD::ctime_t ctime;
         // delete this directory if it is older than atomic_age
-        // The namespace lock in read mode excludes the writers that still take
-        // it in write mode, the MD locks the ones using per-object locks
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           // The path walk runs before the MD locks
@@ -614,7 +608,6 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
                           rfoundit->first.c_str());
         }
 
-        ns_rd_lock.Release();
       } else {
         for (auto fileit = rfoundit->second.begin();
              fileit != rfoundit->second.end(); fileit++) {
@@ -711,11 +704,6 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           }
 
           if (cleanup && flag_deletion) {
-            // The namespace lock in read mode excludes the writers that still
-            // take it in write mode, the MD locks the ones using per-object
-            // locks
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
             // cleanup the tag entry
             try {
               entry_fmd = gOFS->eosView->getFile(entry_path);
@@ -736,7 +724,6 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
               }
             }
 
-            ns_rd_lock.Release();
           }
         }
       }

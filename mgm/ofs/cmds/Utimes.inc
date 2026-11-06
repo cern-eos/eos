@@ -107,9 +107,6 @@ XrdMgmOfs::_utimes(const char* path,
   }
 
   try {
-    // The namespace lock in read mode excludes the writers that still take it
-    // in write mode, as FUSE does
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     cmd = gOFS->eosView->getContainer(path, false);
     eos::MDLocking::ContainerWriteLock cmdLock(cmd.get());
     cmd->setMTime(tvp[1]);
@@ -125,7 +122,6 @@ XrdMgmOfs::_utimes(const char* path,
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       fmd = gOFS->eosView->getFile(path, false);
       eos::MDLocking::FileWriteLock fmdLock(fmd.get());
 

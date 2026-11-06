@@ -168,9 +168,6 @@ XrdMgmOfs::_chmod(const char* path,
 
           {
             // Under the lock, so the store cannot follow a parallel removal.
-            // The namespace lock in read mode excludes the writers that still
-            // take it in write mode, as FUSE does.
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
             eos::MDLocking::ContainerWriteLock pcmdLock(pcmd.get());
             eosView->updateContainerStore(pcmd.get());
           }
@@ -189,7 +186,6 @@ XrdMgmOfs::_chmod(const char* path,
     }
             Mode &= mask;
             {
-              eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
               eos::MDLocking::ContainerWriteLock cmdLock(cmd.get());
               cmd->setMode(Mode | S_IFDIR);
               cmd->setCTimeNow();
@@ -211,7 +207,6 @@ XrdMgmOfs::_chmod(const char* path,
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             {
-              eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
               eos::MDLocking::FileWriteLock fmdLock(fmd.get());
               fmd->setFlags(Mode);
               eosView->updateFileStore(fmd.get());

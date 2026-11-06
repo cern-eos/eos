@@ -1566,8 +1566,6 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
   uint64_t failed = 0;
 
   for (const auto& fid : fids) {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
     try {
       auto fmd = gOFS->eosFileService->getFileMD(fid);
       auto fmd_lock = eos::MDLocking::writeLock(fmd.get());

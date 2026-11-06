@@ -263,7 +263,6 @@ ProcCommand::File()
         // only root can do that
         if (pVid->uid == 0) {
           std::shared_ptr<eos::IFileMD> fmd;
-          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           eos::MDLocking::FileWriteLockPtr fmdLock;
 
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -362,7 +361,6 @@ ProcCommand::File()
           }
 
           fmdLock.reset();
-          ns_rd_lock.Release();
           //-------------------------------------------
         } else {
           retc = EPERM;
@@ -964,9 +962,6 @@ ProcCommand::File()
             fmd = gOFS->eosView->getFile(spath.c_str());
           }
 
-          // A location change: the namespace lock in read mode excludes the
-          // writers that still take it in write mode
-          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           eos::MDLocking::FileWriteLock fwLock(fmd.get());
 
           if (do_add && fmd->hasLocation(fsid)) {
@@ -1950,8 +1945,6 @@ ProcCommand::File()
                             << " subgroup=" << icreationsubgroup
                             << std::endl).c_str();
             }
-
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
             try { // Get again the original file meta data
               auto fmd = gOFS->eosFileService->getFileMD(fid);

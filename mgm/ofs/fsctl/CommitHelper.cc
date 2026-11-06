@@ -880,9 +880,6 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                )
 {
   eos::mgm::FusexCastBatch fuse_batch;
-  // The namespace lock in read mode excludes the writers that still take it in
-  // write mode, the MD locks below the ones using per-object locks
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   // Released before the fuse_batch broadcasts
   std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
 
@@ -1050,7 +1047,6 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
   }
 
   md_locks.reset();
-  ns_rd_lock.Release();
   // the fuse_batch guard will run broadcasts here
 }
 

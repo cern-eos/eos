@@ -298,9 +298,6 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     if (cFlag == '+' || cFlag == '-') {
       /* for '-': the clone directory may have been incorrectly removed, this should
        * not prevent a cleanup */
-      // The namespace lock in read mode excludes the writers that still take
-      // it in write mode, the parent MD lock the ones using per-object locks
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       eos::common::Path mdPath(buff);
 
       try {
@@ -341,7 +338,6 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
           d_id = pCloneMd->getIdentifier();
           d_pid = pCloneMd->getParentIdentifier();
         }
-        ns_rd_lock.Release();
         gOFS->FuseXCastRefresh(md_id, d_id);
         gOFS->FuseXCastRefresh(d_id, d_pid);
       } catch (eos::MDException& e) {

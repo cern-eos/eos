@@ -94,8 +94,7 @@ FileRegisterCmd::ProcessRequest() noexcept
       gid = eos::common::Mapping::GroupNameToGid(reg.owner().groupname().c_str(), errc);
     }
 
-    // The namespace lock in read mode excludes the writers that still take it
-    // in write mode, the MD locks below the ones using per-object locks
+    // NS read lock: quota nodes are removed under the write lock
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     // Check for the parent directory
