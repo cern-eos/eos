@@ -470,23 +470,6 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid,
   return file;
 }
 
-//------------------------------------------------------------------------
-//! Create a link for given uri
-//------------------------------------------------------------------------
-void
-QuarkHierarchicalView::createLink(const std::string& uri,
-                                  const std::string& linkuri,
-                                  uid_t uid, gid_t gid)
-{
-  std::shared_ptr<IFileMD> file = createFile(uri, uid, gid);
-
-  if (file) {
-    file->setLink(linkuri);
-    file->setSize(linkuri.length());
-    updateFileStore(file.get());
-  }
-}
-
 //------------------------------------------------------------------------------
 // Remove link
 //------------------------------------------------------------------------------

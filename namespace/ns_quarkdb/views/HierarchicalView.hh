@@ -156,12 +156,6 @@ public:
       uid_t uid = 0, gid_t gid = 0, IFileMD::id_t id = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Create a link for given uri
-  //----------------------------------------------------------------------------
-  virtual void createLink(const std::string& uri, const std::string& linkuri,
-                          uid_t uid = 0, gid_t gid = 0) override;
-
-  //----------------------------------------------------------------------------
   //! Update file store
   //----------------------------------------------------------------------------
   virtual void

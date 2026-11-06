@@ -95,7 +95,7 @@ XrdMgmOfs::_remdir(const char* path,
   eos::IContainerMD::XAttrMap attrmap;
   // The namespace lock in read mode excludes the writers that still take it in
   // write mode, the MD locks below the ones using per-object locks
-  eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::string aclpath;
   uid_t container_owner_uid = 0;
   bool container_vtx = false;
@@ -147,7 +147,7 @@ XrdMgmOfs::_remdir(const char* path,
 
       if (option == "r") {
         // Recursive delete - need to unlock before calling the proc function
-        viewLock.Release();
+        ns_rd_lock.Release();
         ProcCommand cmd;
         XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
         info += path;
@@ -285,7 +285,7 @@ XrdMgmOfs::_remdir(const char* path,
       }
 
       md_locks.reset();
-      viewLock.Release();
+      ns_rd_lock.Release();
 
       if (dhpar) {
         gOFS->FuseXCastDeletion(dhpar_id, dh_name);
@@ -298,7 +298,7 @@ XrdMgmOfs::_remdir(const char* path,
     }
   }
 
-  viewLock.Release();
+  ns_rd_lock.Release();
   EXEC_TIMING_END("RmDir");
 
   if (errno) {

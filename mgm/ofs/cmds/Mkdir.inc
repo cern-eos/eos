@@ -396,7 +396,7 @@ XrdMgmOfs::_mkdir(const char* path,
       for (j = i + 1; j < (int) cPath.GetSubPathSize(); ++j) {
         // The namespace lock in read mode excludes the writers that still
         // take it in write mode, the parent lock the ones using MD locks
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           errno = 0;
@@ -446,7 +446,7 @@ XrdMgmOfs::_mkdir(const char* path,
           eos::ContainerIdentifier d_id = dir->getIdentifier();
           eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
           dirLock.reset();
-          lock.Release();
+          ns_rd_lock.Release();
           gOFS->FuseXCastMD(nd_id, d_id, ctime, true);
           gOFS->FuseXCastRefresh(d_id, d_pid);
         } catch (eos::MDException& e) {
@@ -505,7 +505,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
   // The namespace lock in read mode excludes the writers that still take it in
   // write mode, the parent lock the ones using MD locks
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   // The last parent of mkdir -p must not count as the created directory
   newdir.reset();
 
@@ -562,7 +562,7 @@ XrdMgmOfs::_mkdir(const char* path,
     eos::ContainerIdentifier d_id = dir->getIdentifier();
     eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
     dirLock.reset();
-    lock.Release();
+    ns_rd_lock.Release();
     gOFS->FuseXCastMD(nd_id, d_id, ctime, true);
     gOFS->FuseXCastRefresh(d_id, d_pid);
   } catch (eos::MDException& e) {

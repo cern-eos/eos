@@ -223,7 +223,7 @@ XrdMgmOfs::Commit(const char* path,
             continue;
           }
 
-          eos_thread_err("parent_id=%llu not found", cid);
+          eos_thread_err("msg=\"parent container not found\" cxid=%08llx", cid);
           gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
           return Emsg(epname, error, EIDRM,
                       "commit file, parent container removed [EIDRM]", "");

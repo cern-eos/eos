@@ -250,8 +250,8 @@ XrdMgmOfs::_symlink(const char* source_name,
         throw e;
       }
 
-      // As createLink(path, ...), but on the locked directory: its path walk
-      // would take read locks on the parents after this lock
+      // Create the link in the locked directory: a path walk would take read
+      // locks on the parents after this lock
       eos::FileOrContainerMD conflict = dir->findItem(oPath.GetName()).get();
 
       if (conflict.file || conflict.container) {

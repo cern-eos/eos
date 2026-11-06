@@ -1329,8 +1329,8 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
              old_file_uri.c_str(), new_file_uri.c_str());
     {
-      // As createLink(old_file_uri, ...), but on the locked directory: its
-      // path walk would take read locks on the directories locked here
+      // Create the link in the locked directory: a path walk would take read
+      // locks on the directories locked here
       std::shared_ptr<eos::IFileMD> link = gOFS->eosFileService->createFile(0);
 
       if (!link) {
