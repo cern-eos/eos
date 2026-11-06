@@ -98,8 +98,6 @@ XrdMgmOfs::_utimes(const char* path,
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
   eos_info("calling utimes for path=%s, uid=%i, gid=%i", path, vid.uid, vid.gid);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
   if (gOFS->_access(path,
                     W_OK,
                     error,
@@ -109,7 +107,11 @@ XrdMgmOfs::_utimes(const char* path,
   }
 
   try {
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, as FUSE does
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     cmd = gOFS->eosView->getContainer(path, false);
+    eos::MDLocking::ContainerWriteLock cmdLock(cmd.get());
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     eosView->updateContainerStore(cmd.get());
@@ -123,7 +125,9 @@ XrdMgmOfs::_utimes(const char* path,
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       fmd = gOFS->eosView->getFile(path, false);
+      eos::MDLocking::FileWriteLock fmdLock(fmd.get());
 
       // Set the ctime only if different from 0.0
       if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0) {
