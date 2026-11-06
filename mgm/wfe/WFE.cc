@@ -420,18 +420,47 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     // The point of prefetching here is to get the chunks preceeding the final
     // one, so that createFile is guaranteed not to wait on network requests.
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, workflowpath);
-    eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex};
-    auto fmd = gOFS->eosView->createFile(workflowpath, 0, 0);
-    auto cid = fmd->getContainerId();
-    auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-    cmd->setMTimeNow();
-    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-    gOFS->eosView->updateContainerStore(cmd.get());
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, the parent lock the ones using MD locks
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::common::Path wPath(workflowpath.c_str());
+    // The path walk runs before the MD lock of the parent
+    auto cmd = gOFS->eosView->getContainer(wPath.GetParentPath());
+    auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
+
+    if (cmd->isDeleted()) {
+      throw_mdexception(ENOENT, "No such directory : " << wPath.GetParentPath());
+    }
+
+    // As createFile(workflowpath), but on the locked directory
+    eos::FileOrContainerMD conflict = cmd->findItem(wPath.GetName()).get();
+
+    if (conflict.file || conflict.container) {
+      throw_mdexception(EEXIST, "File exists");
+    }
+
+    auto fmd = gOFS->eosFileService->createFile(0);
+
+    if (!fmd) {
+      throw_mdexception(EIO, "File creation failed");
+    }
+
+    fmd->setName(wPath.GetName());
+    fmd->setCUid(0);
+    fmd->setCGid(0);
+    fmd->setCTimeNow();
+    fmd->setATimeNow(0);
+    fmd->setMTimeNow();
+    fmd->clearChecksum(0);
     fmd->setAttribute("sys.action", mActions[0].mAction);
     fmd->setAttribute("sys.vid", vids);
     fmd->setAttribute("sys.wfe.errmsg", mErrorMessage);
     fmd->setAttribute("sys.wfe.retry", std::to_string(retry));
+    cmd->addFile(fmd.get());
     gOFS->eosView->updateFileStore(fmd.get());
+    cmd->setMTimeNow();
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+    gOFS->eosView->updateContainerStore(cmd.get());
   } catch (eos::MDException& ex) {
     eos_static_err("msg=\"failed to save workflow entry\" path=\"%s\" error=\"%s\"",
                    workflowpath.c_str(),

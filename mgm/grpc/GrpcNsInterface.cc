@@ -45,6 +45,7 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/PathProcessor.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -1123,7 +1124,9 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IFileMD> newfile;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // The namespace lock in read mode excludes the writers that still take it in
+  // write mode, the parent MD lock below the ones using per-object locks
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
 
   for (auto it : request->files()) {
@@ -1176,11 +1179,53 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
 
     try {
+      eos::MDLocking::ContainerWriteLockPtr parent_lock;
+      eos::MDLocking::FileWriteLockPtr file_lock;
+
       try {
-        newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
+        // As createFile(path), but in the locked parent: the path walk runs
+        // before the MD lock
+        eos::common::Path cPath(it.path());
+        std::string name = cPath.GetName();
+
+        if (name.empty()) {
+          throw_mdexception(EEXIST, "File exists");
+        }
+
+        std::shared_ptr<eos::IContainerMD> parent =
+            gOFS->eosView->getContainer(cPath.GetParentPath());
+        parent_lock = eos::MDLocking::writeLock(parent.get());
+
+        // A parallel rmdir removed the parent after the lookup
+        if (parent->isDeleted()) {
+          throw_mdexception(ENOENT, "No such file or directory");
+        }
+
+        eos::FileOrContainerMD conflict = parent->findItem(name).get();
+
+        if (conflict.file || conflict.container) {
+          throw_mdexception(EEXIST, "File exists");
+        }
+
+        newfile = gOFS->eosFileService->createFile(it.id());
+
+        if (!newfile) {
+          throw_mdexception(EIO, "File creation failed");
+        }
+
+        // The parent lock is held: a new file is locked after its parent
+        file_lock = eos::MDLocking::writeLock(newfile.get());
+        newfile->setName(name);
+        newfile->setCUid(it.uid());
+        newfile->setCGid(it.gid());
+        newfile->setCTimeNow();
+        newfile->setATimeNow(0);
+        newfile->setMTimeNow();
+        newfile->clearChecksum(0);
+        parent->addFile(newfile.get());
       } catch (eos::MDException& e) {
         std::ostringstream msg;
-        msg << "Failed to call gOFS->eosView->createFile(): " << e.getMessage().str();
+        msg << "Failed to create the file: " << e.getMessage().str();
         e.getMessage().str(msg.str());
         throw;
       }
@@ -1264,7 +1309,9 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IContainerMD> newdir;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // The namespace lock in read mode excludes the writers that still take it in
+  // write mode, the parent MD lock below the ones using per-object locks
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
 
   for (auto it : request->container()) {
@@ -1297,12 +1344,52 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
                     it.path().c_str(), it.id(), inherit);
 
     try {
+      std::shared_ptr<eos::IContainerMD> parent;
+      eos::MDLocking::ContainerWriteLockPtr parent_lock;
+      eos::MDLocking::ContainerWriteLockPtr dir_lock;
+
       try {
-        newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
+        // As createContainer(path, false), but in the locked parent: the
+        // path walk runs before the MD lock
+        eos::common::Path cPath(it.path());
+        std::string name = cPath.GetName();
+
+        if (name.empty()) {
+          throw_mdexception(EEXIST, it.path() << ": Container exists");
+        }
+
+        if (eos::PathProcessor::insertChunksIntoDeque(it.path()).size() >
+            eos::common::Path::MAX_LEVELS - 2) {
+          throw_mdexception(ENAMETOOLONG, it.path() << ": Too many directories");
+        }
+
+        parent = gOFS->eosView->getContainer(cPath.GetParentPath());
+        parent_lock = eos::MDLocking::writeLock(parent.get());
+
+        // A parallel rmdir removed the parent after the lookup
+        if (parent->isDeleted()) {
+          throw_mdexception(ENOENT, it.path() << ": No such file or directory");
+        }
+
+        eos::FileOrContainerMD conflict = parent->findItem(name).get();
+
+        if (conflict.file) {
+          throw_mdexception(ENOTDIR, it.path() << ": Not a directory");
+        }
+
+        if (conflict.container) {
+          throw_mdexception(EEXIST, it.path() << ": Container exists");
+        }
+
+        newdir = gOFS->eosDirectoryService->createContainer(it.id());
+        // The parent lock is held: a new directory is locked after its parent
+        dir_lock = eos::MDLocking::writeLock(newdir.get());
+        newdir->setName(name);
+        newdir->setCTimeNow();
+        parent->addContainer(newdir.get());
       } catch (eos::MDException& e) {
         std::ostringstream msg;
-        msg << "Failed to call gOFS->eosView->createContainer(): " <<
-            e.getMessage().str();
+        msg << "Failed to create the container: " << e.getMessage().str();
         e.getMessage().str(msg.str());
         throw;
       }
@@ -1324,21 +1411,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       newdir->setCUid(it.uid());
       newdir->setCGid(it.gid());
       newdir->setMode(it.mode() | S_IFDIR);
-      std::shared_ptr<eos::IContainerMD> parent;
 
       if (inherit) {
-        eos::common::Path cPath(it.path());
-
-        try {
-          parent = gOFS->eosView->getContainer(cPath.GetParentPath());
-        } catch (eos::MDException& e) {
-          std::ostringstream msg;
-          msg << "Failed to call parent gOFS->eosView->getContainer(): " <<
-              e.getMessage().str();
-          e.getMessage().str(msg.str());
-          throw;
-        }
-
         if (it.mode() == 0) {
           newdir->setMode(parent->getMode());
         }
@@ -1362,7 +1436,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       try {
         gOFS->eosView->updateContainerStore(newdir.get());
 
-        if (parent) {
+        if (inherit) {
           parent->setMTime(ctime);
           parent->notifyMTimeChange(gOFS->eosDirectoryService);
           gOFS->eosView->updateContainerStore(parent.get());

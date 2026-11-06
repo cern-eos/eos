@@ -178,21 +178,24 @@ emsg(XrdOucErrInfo& error, int ec, const char* txt, const char* txt2)
 }
 
 /*
- * Auxiliary routine: creates the copy-on-write clone an intermediate directories
- * cow_type:
+ * Copy-on-write clone (prepare_cow, apply_cow, notify_cow), cowType:
  *      0 = copy                (for file updates, two files exist)
- *      1 = rename              (for a "deletes", clone's contents survive under different name)
- *      2 = hardlink            (file untouched but a new name is created, e.g. for recycle)
+ *      1 = rename              (for a "deletes", clone's contents survive under different
+ * name) 2 = hardlink            (file untouched but a new name is created, e.g. for
+ * recycle)
  *
  * returns:
  *      - error code if the clone could not be created
  *      - -1 if the file is not to be cloned
  */
 
+//------------------------------------------------------------------------------
+// Find or create the clone directory of dmd: walks paths, so before MD locks
+//------------------------------------------------------------------------------
 int
-XrdMgmOfsFile::create_cow(int cowType,
-                          std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
-                          eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
+XrdMgmOfsFile::prepare_cow(std::shared_ptr<eos::IContainerMD> dmd,
+                           std::shared_ptr<eos::IFileMD> fmd, CowDirs& dirs,
+                           XrdOucErrInfo& error)
 {
   char sbuff[1024];
   uint64_t cloneId = fmd->getCloneId();
@@ -201,14 +204,13 @@ XrdMgmOfsFile::create_cow(int cowType,
     return -1;
   }
 
-  eos_static_info("Creating cow clone (type %d) for %s fxid:%lx cloneId %lld",
-                  cowType, fmd->getName().c_str(), fmd->getId(), cloneId);
+  eos_static_info("Creating cow clone for %s fxid:%lx cloneId %lld",
+                  fmd->getName().c_str(), fmd->getId(), cloneId);
   snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(),
            cloneId);
-  std::shared_ptr<eos::IContainerMD> cloneMd, dirMd;
 
   try {
-    cloneMd = gOFS->eosView->getContainer(sbuff);
+    dirs.clone_root = gOFS->eosView->getContainer(sbuff);
   } catch (eos::MDException& e) {
     eos_static_debug("caught exception %d %s path %s\n", e.getErrno(),
                      e.getMessage().str().c_str(), sbuff);
@@ -224,19 +226,39 @@ XrdMgmOfsFile::create_cow(int cowType,
   snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", dmd->getId());
 
   try {
-    dirMd = gOFS->eosView->getContainer(sbuff);
+    dirs.cow_dir = gOFS->eosView->getContainer(sbuff);
   } catch (eos::MDException& e) {
-    dirMd = gOFS->eosView->createContainer(sbuff, true);
-    dirMd->setMode(dmd->getMode());
+    dirs.cow_dir = gOFS->eosView->createContainer(sbuff, true);
+    dirs.cow_dir->setMode(dmd->getMode());
     eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
 
     for (const auto& a : xattrs) {
       if (a.first == "sys.acl" || a.first == "user.acl" ||
           a.first == "sys.eval.useracl") {
-        dirMd->setAttribute(a.first, a.second);
+        dirs.cow_dir->setAttribute(a.first, a.second);
       }
     }
   }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Create the clone in dirs.cow_dir, under the MD write locks of dmd,
+// dirs.cow_dir and fmd
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::apply_cow(int cowType, std::shared_ptr<eos::IContainerMD> dmd,
+                         std::shared_ptr<eos::IFileMD> fmd, const CowDirs& dirs,
+                         eos::common::VirtualIdentity& vid)
+{
+  // A parallel writer can have cloned the file since prepare_cow
+  if (fmd->getCloneId() == 0 or not fmd->getCloneFST().empty()) {
+    return -1;
+  }
+
+  char sbuff[64];
+  const auto& dirMd = dirs.cow_dir;
 
   /* create the clone */
   if (cowType ==
@@ -248,12 +270,31 @@ XrdMgmOfsFile::create_cow(int cowType,
     dirMd->addFile(fmd.get());
     gOFS->eosFileService->updateStore(fmd.get());
   } else {                              /* cowType == cowUpdate or cowType == cowUnlink */
-    std::shared_ptr<eos::IFileMD> gmd;
     eos::IFileMD::ctime_t ttime;
-    tlen = strlen(sbuff);
-    snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", fmd->getId());
-    gmd = gOFS->eosView->createFile(sbuff, vid.uid, vid.gid);
-    gmd->setAttribute("sys.clone.targetFid", sbuff + tlen + 1);
+    snprintf(sbuff, sizeof(sbuff), "%lx", fmd->getId());
+    // Create the clone in the locked directory: a path walk would lock it
+    // again
+    eos::FileOrContainerMD conflict = dirMd->findItem(sbuff).get();
+
+    if (conflict.file || conflict.container) {
+      throw_mdexception(EEXIST, "File exists");
+    }
+
+    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
+
+    if (!gmd) {
+      throw_mdexception(EIO, "File creation failed");
+    }
+
+    gmd->setName(sbuff);
+    gmd->setCUid(vid.uid);
+    gmd->setCGid(vid.gid);
+    gmd->setCTimeNow();
+    gmd->setATimeNow(0);
+    gmd->setMTimeNow();
+    gmd->clearChecksum(0);
+    dirMd->addFile(gmd.get());
+    gmd->setAttribute("sys.clone.targetFid", sbuff);
     gmd->setSize(fmd->getSize());
 
     if (cowType ==
@@ -290,10 +331,19 @@ XrdMgmOfsFile::create_cow(int cowType,
   }
 
   gOFS->eosDirectoryService->updateStore(dirMd.get());
-  gOFS->FuseXCastRefresh(dirMd->getIdentifier(), dirMd->getParentIdentifier());
-  gOFS->FuseXCastRefresh(cloneMd->getIdentifier(),
-                         cloneMd->getParentIdentifier());
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Refresh the clone directories, after the release of the MD locks
+//------------------------------------------------------------------------------
+void
+XrdMgmOfsFile::notify_cow(const CowDirs& dirs)
+{
+  gOFS->FuseXCastRefresh(dirs.cow_dir->getIdentifier(),
+                         dirs.cow_dir->getParentIdentifier());
+  gOFS->FuseXCastRefresh(dirs.clone_root->getIdentifier(),
+                         dirs.clone_root->getParentIdentifier());
 }
 
 /*----------------------------------------------------------------------------*
@@ -314,78 +364,123 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
 
   long nlink =
     -2;                /* assume this has nothing to do with hard links */
+  int retc = 0;
+  // The lookups and prepare_cow walk the tree, so they run before the MD
+  // locks of cmd, fmd and the hard link target
+  std::shared_ptr<eos::IFileMD> gmd;
+  std::shared_ptr<eos::IContainerMD> dmd;
+  CowDirs cow;
+  int cow_rc = -1;
+  bool cloned = false;
 
   if (fmd->hasAttribute(SYS_HARD_LINK)) {
-    /* this is a hard link, decrease reference count on underlying file */
     uint64_t hlTgt = std::stoull(fmd->getAttribute(SYS_HARD_LINK));
     uint64_t clock;
     /* gmd = the hard link target */
-    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
-                                          eos::common::FileId::InodeToFid(hlTgt), &clock);
-    nlink = std::stol(gmd->getAttribute(SYS_NUM_LINK)) - 1;
+    gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(hlTgt), &clock);
 
-    if (nlink > 0) {
-      gmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
-    } else {
-      gmd->removeAttribute(SYS_NUM_LINK);
-    }
-
-    gOFS->eosFileService->updateStore(gmd.get());
-    eos_static_info("hlnk update target %s for %s nlink %ld",
-                    gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-
-    if (nlink <= 0) {
-      if (gmd->getName().substr(0, 13) == "...eos.ino...") {
-        eos_static_info("hlnk unlink target %s for %s nlink %ld",
-                        gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-        uint64_t cloneId = gmd->getCloneId();
-
-        if (cloneId != 0 and
-            gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
-          XrdOucErrInfo error;
-          std::shared_ptr<eos::IContainerMD> dmd;
-
-          try {
-            dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
-          } catch (eos::MDException& e) {
-          }
-
-          XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, dmd, gmd, vid, error);
-          return 1;
-        } else {                /* delete hard link target */
-          cmd->removeFile(gmd->getName());
-          gmd->unlinkAllLocations();
-          gmd->setContainerId(0);
-        }
-
-        gOFS->eosFileService->updateStore(gmd.get());
+    if (gmd->getCloneId() != 0 and gmd->getCloneFST().empty()) {
+      try {
+        dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+      } catch (eos::MDException& e) {
       }
-    }
-  } else if (fmd->hasAttribute(SYS_NUM_LINK)) {
-    // a hard link target
-    nlink = std::stol(fmd->getAttribute(SYS_NUM_LINK));
-    eos_static_info("hlnk rm target nlink %ld", nlink);
 
-    if (nlink > 0) {
-      // hard links exist, just rename the file so the inode does not disappear
-      char nameBuf[1024];
-      uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
-      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
-      std::string nameBufs(nameBuf);
-      fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
-      eos_static_info("hlnk unlink rename %s=>%s new nlink %d",
-                      fmd->getName().c_str(), nameBufs.c_str(), nlink);
-      cmd->removeFile(nameBufs);            // if the target exists, remove it!
-      gOFS->eosView->renameFile(fmd.get(), nameBufs);
-      return 1;
+      XrdOucErrInfo error;
+      cow_rc = prepare_cow(dmd, gmd, cow, error);
     }
-
-    /* no other links exist, continue deleting the target like a simple file */
   }
 
-  eos_static_debug("hard link nlink %ld, delete %s", nlink,
-                   fmd->getName().c_str());
-  return 0;
+  {
+    eos::MDLocking::BulkMDWriteLock md_locker;
+    md_locker.add(cmd.get());
+    md_locker.add(fmd.get());
+
+    if (gmd) {
+      md_locker.add(gmd.get());
+    }
+
+    if (dmd) {
+      md_locker.add(dmd.get());
+    }
+
+    if (cow.cow_dir) {
+      md_locker.add(cow.cow_dir.get());
+    }
+
+    auto md_locks = md_locker.lockAll();
+
+    // A parallel rename or rm changed the file meanwhile: the caller checks
+    // it again under its own locks
+    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+      return 0;
+    }
+
+    if (gmd) {
+      /* this is a hard link, decrease reference count on underlying file */
+      nlink = std::stol(gmd->getAttribute(SYS_NUM_LINK)) - 1;
+
+      if (nlink > 0) {
+        gmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
+      } else {
+        gmd->removeAttribute(SYS_NUM_LINK);
+      }
+
+      gOFS->eosFileService->updateStore(gmd.get());
+      eos_static_info("hlnk update target %s for %s nlink %ld", gmd->getName().c_str(),
+                      fmd->getName().c_str(), nlink);
+
+      if (nlink <= 0) {
+        if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+          eos_static_info("hlnk unlink target %s for %s nlink %ld",
+                          gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+
+          if (gmd->getCloneId() != 0 and
+              gmd->getCloneFST().empty()) { /* this file needs to be cloned */
+            if (cow_rc == 0) {
+              cloned = (apply_cow(XrdMgmOfsFile::cowDelete, dmd, gmd, cow, vid) == 0);
+            }
+
+            retc = 1;
+          } else { /* delete hard link target */
+            cmd->removeFile(gmd->getName());
+            gmd->unlinkAllLocations();
+            gmd->setContainerId(0);
+            gOFS->eosFileService->updateStore(gmd.get());
+          }
+        }
+      }
+    } else if (fmd->hasAttribute(SYS_NUM_LINK)) {
+      // a hard link target
+      nlink = std::stol(fmd->getAttribute(SYS_NUM_LINK));
+      eos_static_info("hlnk rm target nlink %ld", nlink);
+
+      if (nlink > 0) {
+        // hard links exist, just rename the file so the inode does not disappear
+        char nameBuf[1024];
+        uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
+        snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
+        std::string nameBufs(nameBuf);
+        fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
+        eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(),
+                        nameBufs.c_str(), nlink);
+        cmd->removeFile(nameBufs); // if the target exists, remove it!
+        gOFS->eosView->renameFile(fmd.get(), nameBufs);
+        retc = 1;
+      }
+
+      /* no other links exist, continue deleting the target like a simple file */
+    }
+  }
+
+  if (cloned) {
+    notify_cow(cow);
+  }
+
+  if (!retc) {
+    eos_static_debug("hard link nlink %ld, delete %s", nlink, fmd->getName().c_str());
+  }
+
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -1850,7 +1945,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // is only written out once the lock is released
           bool emit_audit = false;
           eos::audit::Stat audit_after_stat;
-          eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+          // The namespace lock in read mode excludes the writers that still
+          // take it in write mode, the MD locks below the ones using
+          // per-object locks
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+          std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
+          eos::MDLocking::FileWriteLockPtr new_fmd_lock;
 
           try {
             // we create files with the uid/gid of the parent directory
@@ -1881,6 +1981,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
+            // The quota node lookup walks up the parents, so it runs before
+            // the MD locks
+            eos::IQuotaNode* ns_quota = nullptr;
+
+            if (!isInjection) {
+              ns_quota = gOFS->eosView->getQuotaNode(dmd.get());
+            }
+
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(dmd.get());
+
+            if (ref_fmd) {
+              md_locker.add(ref_fmd.get());
+            }
+
+            md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+                md_locker.lockAll());
+
+            // A parallel rmdir removed the parent after the lookup
+            if (dmd->isDeleted()) {
+              throw_mdexception(ENOENT, "No such file or directory");
+            }
+
             {
               eos::common::Path cPath(creation_path.c_str());
               std::string fileName = cPath.GetName();
@@ -1908,6 +2031,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 throw_mdexception(EIO, "File creation failed");
               }
 
+              // The parent lock is held: a new file is locked after its parent
+              new_fmd_lock = eos::MDLocking::writeLock(file.get());
               file->setName(fileName);
               file->setCUid(vid.uid);
               file->setCGid(vid.gid);
@@ -1997,20 +2122,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
             eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
 
-            // Account the new file in quota while holding the lock, this
-            // avoids taking the namespace write lock a second time later on.
+            // Account the new file in quota while holding the locks, this
+            // avoids taking them a second time later on.
             // The file is empty so the accounting does not depend on the
             // layout which is only set afterwards.
-            if (!isInjection) {
-              eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
-
-              if (ns_quota) {
-                ns_quota->addFile(fmd.get());
-              }
+            if (ns_quota) {
+              ns_quota->addFile(fmd.get());
             }
 
+            new_fmd_lock.reset();
+            md_locks.reset();
+            // Create walks paths, so it runs after the release of the MD locks
             gOFS->mReplicationTracker->Create(fmd);
-            ns_wr_lock.Release();
+            ns_rd_lock.Release();
 
             if (emit_audit) {
               if (auditTruncate) {
@@ -2189,8 +2313,28 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         std::string cloneFST = fmd->getCloneFST();
 
         if (cloneFST == "") {      /* This triggers the copy-on-write */
-          if (int rc = create_cow(cowUpdate, dmd, fmd, vid, error)) {
-            return rc;
+          CowDirs cow;
+          bool cloned = false;
+          {
+            // The clone is a new entry: namespace lock in read mode and MD
+            // locks. prepare_cow walks paths, so it runs before the MD locks.
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+            if (int rc = prepare_cow(dmd, fmd, cow, error)) {
+              return rc;
+            }
+
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(dmd.get());
+            md_locker.add(cow.cow_dir.get());
+            md_locker.add(fmd.get());
+            auto md_locks = md_locker.lockAll();
+            // -1: a parallel open cloned the file meanwhile
+            cloned = (apply_cow(cowUpdate, dmd, fmd, cow, vid) == 0);
+          }
+
+          if (cloned) {
+            notify_cow(cow);
           }
         }
 
@@ -2493,29 +2637,44 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (isCreation) {
           // The container mtime update, the quota accounting and the
-          // container refresh were already done while holding the namespace
-          // write lock taken for the creation, only persist the file metadata.
+          // container refresh were already done under the locks taken for
+          // the creation, only persist the file metadata.
           COMMONTIMING("filemd::update", &tm);
           updateFileStoreIfNotDeleted(fmd.get());
           gOFS->FuseXCastRefresh(fmd_id, dmd->getIdentifier());
           COMMONTIMING("fusex::bc", &tm);
         } else {
-          eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+          // The namespace lock in read mode excludes the writers that still
+          // take it in write mode, the MD locks below the ones using
+          // per-object locks
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           std::shared_ptr<eos::IContainerMD> cmd =
             gOFS->eosDirectoryService->getContainerMD(cid);
           eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
           eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
-          cmd->setMTimeNow();
+          // The quota node lookup walks up the parents, so it runs before
+          // the MD locks
+          eos::IQuotaNode* ns_quota =
+              fmd->getNumLocation() ? nullptr : gOFS->eosView->getQuotaNode(cmd.get());
+          {
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(cmd.get());
+            md_locker.add(fmd.get());
+            auto md_locks = md_locker.lockAll();
 
-          if (!fmd->getNumLocation()) {
-            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+            // A parallel rename moved, or a parallel rm removed, the file
+            // after the lookup: its quota is not in this directory
+            if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
+              throw_mdexception(ENOENT, "No such file or directory");
+            }
 
-            if (ns_quota) {
+            cmd->setMTimeNow();
+
+            if (!fmd->getNumLocation() && ns_quota) {
               ns_quota->addFile(fmd.get());
             }
           }
-
-          ns_wr_lock.Release();
+          ns_rd_lock.Release();
           COMMONTIMING("filemd::update", &tm);
           updateFileStoreIfNotDeleted(fmd.get());
           cmd->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -3663,7 +3822,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (need_persist) {
           try {
-            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
             fmd->setCacheLocation(cache_fsid);
             updateFileStoreIfNotDeleted(fmd.get());
           } catch (eos::MDException& e) {
@@ -3827,8 +3987,43 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (ret_wfe != 0) {
         // Remove the file from the namespace in this case
         try {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-          gOFS->eosView->removeFile(fmd.get());
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+          std::shared_ptr<eos::IContainerMD> pmd;
+          const auto pid = fmd->getContainerId();
+
+          if (pid) {
+            pmd = gOFS->eosDirectoryService->getContainerMD(pid);
+          }
+
+          // The creation added the file to quota. The quota node lookup walks
+          // up the parents, so it runs before the MD locks.
+          eos::IQuotaNode* ns_quota = nullptr;
+
+          if (pmd && !isInjection) {
+            try {
+              ns_quota = gOFS->eosView->getQuotaNode(pmd.get());
+            } catch (const eos::MDException& e) {
+              ns_quota = nullptr;
+            }
+          }
+
+          eos::MDLocking::BulkMDWriteLock md_locker;
+
+          if (pmd) {
+            md_locker.add(pmd.get());
+          }
+
+          md_locker.add(fmd.get());
+          auto md_locks = md_locker.lockAll();
+
+          // A parallel rm or rename can have changed the file meanwhile
+          if (!fmd->isDeleted() && (fmd->getContainerId() == pid)) {
+            if (ns_quota) {
+              ns_quota->removeFile(fmd.get());
+            }
+
+            gOFS->eosView->removeFile(fmd.get());
+          }
         } catch (eos::MDException& ex) {
           eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
                   ex.what());
@@ -4189,10 +4384,14 @@ XrdMgmOfsFile::BlockParallelEcWriters(const std::shared_ptr<eos::IFileMD>& fmd,
   // (lazy) opens are accepted and any other client is now blocked against the
   // new owner.
   try {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    // An attribute change: the file MD lock is enough
     std::shared_ptr<eos::IFileMD> wfmd = gOFS->eosFileService->getFileMD(mFid);
-    wfmd->setAttribute("sys.fusex.creator", client_uuid);
-    gOFS->eosView->updateFileStore(wfmd.get());
+    eos::MDLocking::FileWriteLock wfmd_lock(wfmd.get());
+
+    if (!wfmd->isDeleted()) {
+      wfmd->setAttribute("sys.fusex.creator", client_uuid);
+      gOFS->eosView->updateFileStore(wfmd.get());
+    }
   } catch (eos::MDException& e) {
     eos_warning("msg=\"failed to update EC creator on takeover\" "
                 "fxid=%08llx ec=%d emsg=\"%s\"",

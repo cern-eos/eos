@@ -1356,7 +1356,11 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
       eos::IFileMD::LocationVector kick_fsids;
 
       {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        // A layout change: the namespace lock in read mode excludes the
+        // writers that still take it in write mode, the file lock the ones
+        // using MD locks
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+        eos::MDLocking::FileWriteLockPtr fmd_lock;
 
         try {
           fmd = gOFS->eosView->getFile(spath.c_str());
@@ -1364,6 +1368,16 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
           errno = e.getErrno();
           std_err << "error: unable to get file meta data of file " << spath;
           retc = errno ? errno : ENOENT;
+        }
+
+        if (fmd && !retc) {
+          fmd_lock = eos::MDLocking::writeLock(fmd.get());
+
+          // A parallel rm removed the file after the lookup
+          if (fmd->isDeleted()) {
+            std_err << "error: unable to get file meta data of file " << spath;
+            retc = ENOENT;
+          }
         }
 
         if (fmd && !retc) {

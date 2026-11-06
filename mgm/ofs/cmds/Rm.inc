@@ -140,7 +140,9 @@ XrdMgmOfs::_rem(const char* path,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // The namespace lock in read mode excludes the writers that still take it in
+  // write mode, the MD locks below the ones using per-object locks
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> container;
@@ -306,7 +308,7 @@ XrdMgmOfs::_rem(const char* path,
           // eventually trigger a workflow
           workflow.Init(&attrmap, path, fid);
           errno = 0;
-          lock.Release();
+          ns_rd_lock.Release();
           auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
           if (ret_wfe < 0 && errno == ENOKEY) {
@@ -321,14 +323,14 @@ XrdMgmOfs::_rem(const char* path,
             throw e;
           }
 
-          lock.Grab(gOFS->eosViewRWMutex);
+          ns_rd_lock.Grab(gOFS->eosViewRWMutex);
         }
 
         {
           // Moved by a rename or removed by a drop while the namespace lock
-          // was released. The namespace write lock keeps it so from here on,
-          // also for the hard link and clone code below. Read before the file
-          // lock: getId locks the container.
+          // was released. The clone, hard link and removal code below checks
+          // it again under its MD locks. Read before the file lock: getId
+          // locks the container.
           const auto cid = container ? container->getId() : 0;
           eos::MDLocking::FileReadLock fmd_lock(fmd.get());
 
@@ -353,20 +355,59 @@ XrdMgmOfs::_rem(const char* path,
           }
         }
 
-        /* create a Copy-on-Write clone if needed */
-        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid,
-                                      error) == 0) {
-          // The clone moved the file out of its directory: it leaves the quota
-          // here, the check below then fails as before
-          if (ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
-            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
-            ns_quota->removeFile(fmd.get());
+        /* create a Copy-on-Write clone if needed. prepare_cow walks paths,
+           so it runs before the MD locks */
+        XrdMgmOfsFile::CowDirs cow;
+        bool cow_moved = false;
+
+        if (XrdMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
+          bool cloned = false;
+          {
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(container.get());
+            md_locker.add(cow.cow_dir.get());
+            md_locker.add(fmd.get());
+            auto md_locks = md_locker.lockAll();
+
+            // A parallel rename or rm changed the file meanwhile: the removal
+            // below then fails
+            if (!fmd->isDeleted() && (fmd->getContainerId() == container->getId()) &&
+                (fmd->getName() == rm_name)) {
+              cloned = (XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowDelete, container, fmd,
+                                                 cow, vid) == 0);
+
+              // The clone moved the file out of its directory: it leaves the
+              // quota here
+              if (cloned && ns_quota && !fmd->hasAttribute(SYS_HARD_LINK)) {
+                ns_quota->removeFile(fmd.get());
+              }
+            }
           }
 
-          ns_quota = nullptr;
+          if (cloned) {
+            XrdMgmOfsFile::notify_cow(cow);
+            ns_quota = nullptr;
+            cow_moved = true;
+          }
         }
 
-        if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
+        if (cow_moved) {
+          // The clone moved the file out of its directory and keeps its
+          // replicas: the remove is done
+          eos::ContainerIdentifier c_ident;
+          eos::ContainerIdentifier p_ident;
+          {
+            auto c_lock = eos::MDLocking::writeLock(container.get());
+            container->setMTimeNow();
+            container->notifyMTimeChange(gOFS->eosDirectoryService);
+            eosView->updateContainerStore(container.get());
+            c_ident = container->getIdentifier();
+            p_ident = container->getParentIdentifier();
+          }
+          ns_rd_lock.Release();
+          gOFS->FuseXCastDeletion(c_ident, rm_name);
+          gOFS->FuseXCastRefresh(c_ident, p_ident);
+        } else if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
           // Lock the parent and the file around the removal, as rename does:
           // writers that use MD locks only must not store the file after it
           // is removed. Unlink by object, because the path walk takes
@@ -415,7 +456,7 @@ XrdMgmOfs::_rem(const char* path,
             eos::ContainerIdentifier c_ident = container->getIdentifier();
             eos::ContainerIdentifier p_ident = container->getParentIdentifier();
             md_locks.reset();
-            lock.Release();
+            ns_rd_lock.Release();
             gOFS->FuseXCastDeletion(c_ident, deletion_name);
             gOFS->FuseXCastRefresh(c_ident, p_ident);
           }
@@ -439,7 +480,7 @@ XrdMgmOfs::_rem(const char* path,
   if (doRecycle && (!simulate)) {
     // Two-step deletion recycle logic
     XrdOucString recyclePath;
-    lock.Release();
+    ns_rd_lock.Release();
     // -------------------------------------------------------------------------
     std::string recycle_dir, recycle_id;
     auto it = attrmap.find(Recycle::gRecyclingAttribute);
@@ -489,8 +530,25 @@ XrdMgmOfs::_rem(const char* path,
           return rc;
         } else {
           if (container) {
-            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid,
-                                          error) > -1) {
+            // The clone is a new entry: namespace lock in read mode and MD
+            // locks. prepare_cow walks paths, so it runs before the MD locks.
+            XrdMgmOfsFile::CowDirs cow;
+            bool cloned = false;
+            ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+
+            if (XrdMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
+              eos::MDLocking::BulkMDWriteLock md_locker;
+              md_locker.add(cow.cow_dir.get());
+              md_locker.add(fmd.get());
+              auto md_locks = md_locker.lockAll();
+              cloned = (XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowUnlink, container, fmd,
+                                                 cow, vid) == 0);
+            }
+
+            ns_rd_lock.Release();
+
+            if (cloned) {
+              XrdMgmOfsFile::notify_cow(cow);
               eos_info("create_cow for recycled %s (fxid:%lx)", fmd->getName().c_str(),
                        fmd->getId());
             }
@@ -541,7 +599,7 @@ XrdMgmOfs::_rem(const char* path,
       errno = 0; // purge might return ENOENT if there was no version
     }
   } else {
-    lock.Release();
+    ns_rd_lock.Release();
 
     if ((!errno) && (!keepversion)) {
       // call the version purge function in case there is a version (without gQuota locked)

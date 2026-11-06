@@ -273,6 +273,28 @@ ReplicationTracker::ConversionSizePolicy(OperationMode mode, int fsid)
 }
 
 //------------------------------------------------------------------------------
+// Unlink fmd from its parent under the MD write locks of both. The caller
+// holds the namespace lock in read mode and no MD lock.
+//------------------------------------------------------------------------------
+static void
+UnlinkWithMDLocks(const std::shared_ptr<eos::IFileMD>& fmd)
+{
+  std::shared_ptr<eos::IContainerMD> cmd =
+      gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+  eos::MDLocking::BulkMDWriteLock md_locker;
+  md_locker.add(cmd.get());
+  md_locker.add(fmd.get());
+  auto md_locks = md_locker.lockAll();
+
+  // A parallel rm or rename changed the file after the lookup
+  if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+    throw_mdexception(ENOENT, "No such file : " << fmd->getName());
+  }
+
+  gOFS->eosView->unlinkFile(fmd.get());
+}
+
+//------------------------------------------------------------------------------
 // Commit a file
 //------------------------------------------------------------------------------
 void
@@ -392,11 +414,13 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
     std::string tag = prefix + eos::common::FileId::Fid2Hex(fmd->getId());
     std::string uri = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> entry_fmd;
-    eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, the MD locks the ones using per-object locks
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       entry_fmd = gOFS->eosView->getFile(tag);
-      gOFS->eosView->unlinkFile(entry_fmd.get());
+      UnlinkWithMDLocks(entry_fmd);
     } catch (const MDException& e) {
       if (e.getErrno() != ENOENT) {
         eos_static_crit("failed to remove tag file='%s' error='%s'",
@@ -562,23 +586,35 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
         std::shared_ptr<eos::IContainerMD> dmd;
         eos::IContainerMD::ctime_t ctime;
         // delete this directory if it is older than atomic_age
-        eos::common::RWMutexWriteLock viewWriteLock(gOFS->eosViewRWMutex);
+        // The namespace lock in read mode excludes the writers that still take
+        // it in write mode, the MD locks the ones using per-object locks
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
+          // The path walk runs before the MD locks
           dmd = gOFS->eosView->getContainer(rfoundit->first);
+          std::shared_ptr<eos::IContainerMD> pdmd =
+              gOFS->eosDirectoryService->getContainerMD(dmd->getParentId());
+          eos::MDLocking::BulkMDWriteLock md_locker;
+          md_locker.add(pdmd.get());
+          md_locker.add(dmd.get());
+          auto md_locks = md_locker.lockAll();
           dmd->getCTime(ctime);
           uint64_t age = now - ctime.tv_sec;
 
-          if (age > atomic_age && !dmd->getNumFiles() &&
-              !dmd->getNumContainers()) {
-            gOFS->eosView->removeContainer(rfoundit->first);
+          // A parallel rename or rmdir can change the directory after the
+          // lookup: remove the locked object, as removeContainer(path) does
+          if (!dmd->isDeleted() && (dmd->getParentId() == pdmd->getId()) &&
+              (age > atomic_age) && !dmd->getNumFiles() && !dmd->getNumContainers()) {
+            gOFS->eosDirectoryService->removeContainer(dmd.get());
+            pdmd->removeContainer(dmd->getName());
           }
         } catch (const MDException& e) {
           eos_static_crit("failed to remove directory='%s'",
                           rfoundit->first.c_str());
         }
 
-        viewWriteLock.Release();
+        ns_rd_lock.Release();
       } else {
         for (auto fileit = rfoundit->second.begin();
              fileit != rfoundit->second.end(); fileit++) {
@@ -675,12 +711,15 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           }
 
           if (cleanup && flag_deletion) {
-            eos::common::RWMutexWriteLock viewWriteLock(gOFS->eosViewRWMutex);
+            // The namespace lock in read mode excludes the writers that still
+            // take it in write mode, the MD locks the ones using per-object
+            // locks
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
             // cleanup the tag entry
             try {
               entry_fmd = gOFS->eosView->getFile(entry_path);
-              gOFS->eosView->unlinkFile(entry_fmd.get());
+              UnlinkWithMDLocks(entry_fmd);
             } catch (const MDException& e) {
               eos_static_crit("failed to remove tag file='%s'",
                               entry_path.c_str());
@@ -690,14 +729,14 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
               // cleanup the atomic left-over
               try {
                 fmd = gOFS->eosFileService->getFileMD(fid);
-                gOFS->eosView->unlinkFile(fmd.get());
+                UnlinkWithMDLocks(fmd);
               } catch (const MDException& e) {
                 eos_static_crit("failed to cleanup atomic target file='%s'",
                                 fullpath.c_str());
               }
             }
 
-            viewWriteLock.Release();
+            ns_rd_lock.Release();
           }
         }
       }

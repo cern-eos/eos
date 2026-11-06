@@ -94,10 +94,9 @@ FileRegisterCmd::ProcessRequest() noexcept
       gid = eos::common::Mapping::GroupNameToGid(reg.owner().groupname().c_str(), errc);
     }
 
-    // This creates or changes an entry without MD locks. The writers of
-    // locations and entries take this lock in read mode plus MD locks, so
-    // only write mode excludes them.
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    // The namespace lock in read mode excludes the writers that still take it
+    // in write mode, the MD locks below the ones using per-object locks
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     // Check for the parent directory
     try {
@@ -123,12 +122,51 @@ FileRegisterCmd::ProcessRequest() noexcept
         }
       }
 
+      // The quota node lookup walks up the parents and the layout policy
+      // takes the FsView locks, so they run before the MD locks
       eos::IQuotaNode* ns_quota = nullptr;
 
       try {
         ns_quota = gOFS->eosView->getQuotaNode(dir.get());
       } catch (const eos::MDException&) {
         // no quota node
+      }
+
+      unsigned long layoutId = reg.layoutid();
+
+      if (!layoutId && !reg.update()) {
+        // automatically get a layout id for this registration
+        std::string space;
+        XrdOucEnv env;
+        unsigned long forcedfsid = 0;
+        long forcedgroup = 0;
+        std::string bandwidth;
+        bool schedule = false;
+        std::string iopriority;
+        std::string iotype;
+        Policy::GetLayoutAndSpace(cPath.GetFullPath().c_str(), attrmap, vid, layoutId,
+                                  space, env, forcedfsid, forcedgroup, bandwidth,
+                                  schedule, iopriority, iotype, true, false);
+      }
+
+      eos::MDLocking::BulkMDWriteLock md_locker;
+      md_locker.add(dir.get());
+
+      if (fmd) {
+        md_locker.add(fmd.get());
+      }
+
+      auto md_locks =
+          std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(md_locker.lockAll());
+
+      // A parallel writer removed the directory or changed the entry after
+      // the lookup
+      eos::FileOrContainerMD now = dir->findItem(name).get();
+
+      if (dir->isDeleted() || (now.file != fmd) || now.container) {
+        reply.set_retc(EAGAIN);
+        reply.set_std_err("entry changed during the registration, try again");
+        return reply;
       }
 
       // An update can change owner, layout and size: take the file out of
@@ -138,8 +176,23 @@ FileRegisterCmd::ProcessRequest() noexcept
       }
 
       if (!reg.update()) {
-        // create with given uid/gid
-        fmd = gOFS->eosView->createFile(cPath.GetFullPath().c_str(), uid, gid);
+        // create with given uid/gid, in the locked directory: the conflict
+        // check and the insertion of createFile(path) are separate steps
+        fmd = gOFS->eosFileService->createFile(0);
+
+        if (!fmd) {
+          throw_mdexception(EIO, "File creation failed");
+        }
+
+        fmd->setName(name);
+        fmd->setCUid(uid);
+        fmd->setCGid(gid);
+        fmd->setCTimeNow();
+        fmd->setATimeNow(0);
+        fmd->setMTimeNow();
+        fmd->clearChecksum(0);
+        dir->addFile(fmd.get());
+        gOFS->eosView->updateFileStore(fmd.get());
       } else {
         if (uid) {
           fmd->setCUid(uid);
@@ -227,33 +280,7 @@ FileRegisterCmd::ProcessRequest() noexcept
         fmd->setAttribute(elem.first, elem.second);
       }
 
-      if (reg.layoutid()) {
-        fmd->setLayoutId(reg.layoutid());
-      } else if (!reg.update()) {
-        // automatically get a layout id for this registration
-        unsigned long layoutId;
-        std::string space;
-        XrdOucEnv env;
-        unsigned long forcedfsid = 0;
-        long forcedgroup = 0;
-        std::string bandwidth;
-        bool schedule = false;
-        std::string iopriority;
-        std::string iotype;
-        Policy::GetLayoutAndSpace(cPath.GetFullPath().c_str(),
-                                  attrmap,
-                                  vid,
-                                  layoutId,
-                                  space,
-                                  env,
-                                  forcedfsid,
-                                  forcedgroup,
-                                  bandwidth,
-                                  schedule,
-                                  iopriority,
-                                  iotype,
-                                  true,
-                                  false);
+      if (layoutId) {
         fmd->setLayoutId(layoutId);
       }
 
@@ -269,7 +296,8 @@ FileRegisterCmd::ProcessRequest() noexcept
       gOFS->eosView->updateFileStore(fmd.get());
       dir->setMTimeNow();
       gOFS->eosView->updateContainerStore(dir.get());
-      lock.Release();
+      md_locks.reset();
+      ns_rd_lock.Release();
       dir->notifyMTimeChange(gOFS->eosDirectoryService);
       return reply;
     } catch (eos::MDException& e) {
