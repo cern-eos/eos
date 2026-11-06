@@ -1209,7 +1209,6 @@ NewfindCmd::ProcessRequest() noexcept
 
     if (findRequest.path() != "/") {
       try {
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         real_path = gOFS->eosView->getRealPath(findRequest.path());
         eos_static_info("msg=\"real path resolved\" rpath=\"%s\"",
                         real_path.c_str());
@@ -2033,7 +2032,7 @@ NewfindCmd::PrintFileInfoJson(std::ostream& ss, ProcCommand& cmd,
   // find reports every child as an entry of its own, so a directory entry must
   // not collect the fileinfo of its children as well
   if (find_obj.isdir) {
-    cmd.DirJSON(id, &json, true, false);
+    cmd.DirJSON(id, &json, false);
   } else {
     cmd.FileJSON(id, &json);
   }
