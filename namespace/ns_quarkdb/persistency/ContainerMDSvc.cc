@@ -235,7 +235,20 @@ QuarkContainerMDSvc::updateStore(IContainerMD* obj)
     return;
   }
 
-  pFlusher->execute(RequestBuilder::writeContainerProto(obj));
+  // Read the object before the mutex: no MD lock is taken under it, the
+  // callers can hold MD locks while they wait for it
+  const IContainerMD::id_t id = obj->getId();
+  auto request = RequestBuilder::writeContainerProto(obj);
+  // A container removed by another thread after this one looked it up must
+  // not be written back, otherwise its record survives the removal
+  std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
+
+  if (obj->isDeleted()) {
+    eos_static_warning("msg=\"skip update of removed container\" id=%llu", id);
+    return;
+  }
+
+  pFlusher->execute(request);
 }
 
 //----------------------------------------------------------------------------
@@ -252,16 +265,19 @@ QuarkContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  std::string sid = stringify(obj->getId());
-  pFlusher->execute(RequestBuilder::deleteContainerProto(ContainerIdentifier(
-                      obj->getId())));
-
-  // If this was the root container i.e. id=1 then drop also the meta map
-  if (obj->getId() == 1) {
-    pFlusher->del(constants::sMapMetaInfoKey);
+  const IContainerMD::id_t id = obj->getId();
+  std::string sid = stringify(id);
+  {
+    // Marked before the delete is queued, under the mutex of updateStore
+    std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
+    obj->setDeleted();
+    pFlusher->execute(RequestBuilder::deleteContainerProto(ContainerIdentifier(id)));
   }
 
-  obj->setDeleted();
+  // If this was the root container i.e. id=1 then drop also the meta map
+  if (id == 1) {
+    pFlusher->del(constants::sMapMetaInfoKey);
+  }
 
   if (mNumConts) {
     --mNumConts;

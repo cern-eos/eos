@@ -161,6 +161,19 @@ static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr)
 }
 
 //------------------------------------------------------------------------------
+// True if the lookup failed with ENOENT: a parallel rm or rmdir removed the
+// entry after findItem read its id from the map
+//------------------------------------------------------------------------------
+static bool
+isRemovedEntry(const folly::exception_wrapper& e)
+{
+  bool removed = false;
+  e.with_exception(
+      [&removed](const eos::MDException& ex) { removed = (ex.getErrno() == ENOENT); });
+  return removed;
+}
+
+//------------------------------------------------------------------------------
 // Find item
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
@@ -191,31 +204,41 @@ QuarkContainerMD::findItem(const std::string& name)
 
   if (targetContainer) {
     folly::Future<FileOrContainerMD> fut =
-      pContSvc->getContainerMDFut(
-        targetContainer->getUnderlyingUInt64())
-      .thenValue(wrapContainerMD)
-    .thenError([name, id](const folly::exception_wrapper & e) {
-      // Should not happen...
-      eos_static_crit("Exception occurred while looking up container with "
-                      "name %s in subcontainer with id %llu: %s", name.c_str(),
-                      id, e.what().c_str());
-      return FileOrContainerMD {};
-    });
+        pContSvc->getContainerMDFut(targetContainer->getUnderlyingUInt64())
+            .thenValue(wrapContainerMD)
+            .thenError([name, id](const folly::exception_wrapper& e) {
+              if (isRemovedEntry(e)) {
+                eos_static_debug("msg=\"container removed during lookup\" name=%s "
+                                 "parent_id=%llu",
+                                 name.c_str(), id);
+              } else {
+                eos_static_crit("Exception occurred while looking up container with "
+                                "name %s in subcontainer with id %llu: %s",
+                                name.c_str(), id, e.what().c_str());
+              }
+
+              return FileOrContainerMD{};
+            });
     return fut;
   }
 
   if (targetFile) {
     folly::Future<FileOrContainerMD> fut =
-      pFileSvc->getFileMDFut(
-        targetFile->getUnderlyingUInt64())
-      .thenValue(wrapFileMD)
-    .thenError([name, id](const folly::exception_wrapper & e) {
-      // Should not happen...
-      eos_static_crit("Exception occurred while looking up file with name %s "
-                      "in subcontainer with id %llu: %s", name.c_str(), id,
-                      e.what().c_str());
-      return FileOrContainerMD {};
-    });
+        pFileSvc->getFileMDFut(targetFile->getUnderlyingUInt64())
+            .thenValue(wrapFileMD)
+            .thenError([name, id](const folly::exception_wrapper& e) {
+              if (isRemovedEntry(e)) {
+                eos_static_debug("msg=\"file removed during lookup\" name=%s "
+                                 "parent_id=%llu",
+                                 name.c_str(), id);
+              } else {
+                eos_static_crit("Exception occurred while looking up file with name %s "
+                                "in subcontainer with id %llu: %s",
+                                name.c_str(), id, e.what().c_str());
+              }
+
+              return FileOrContainerMD{};
+            });
     return fut;
   }
 

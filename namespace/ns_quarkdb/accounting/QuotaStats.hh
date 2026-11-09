@@ -25,6 +25,8 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 #include <mutex>
+#include <unordered_set>
+#include <vector>
 
 namespace qclient
 {
@@ -103,7 +105,17 @@ public:
   //----------------------------------------------------------------------------
   void updateCore(const QuotaNodeCore &updated) override;
 
+  //----------------------------------------------------------------------------
+  //! Meld the node into parent, mark it removed and delete its backend keys.
+  //! A writer can still hold the pointer: the object stays alive, and later
+  //! file updates go to parent.
+  //----------------------------------------------------------------------------
+  void retire(IQuotaNode* parent);
+
 private:
+  std::mutex mRemovedMtx; ///< Orders the updates with retire()
+  bool mRemoved = false;
+  IQuotaNode* mParent = nullptr; ///< Gets the file updates once removed
   //! Quota quota node uid hash key e.g. quota_node:id:uid
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id:gid
@@ -152,6 +164,11 @@ public:
   void removeNode(IContainerMD::id_t node_id) override;
 
   //----------------------------------------------------------------------------
+  //! Meld the node into its parent and remove it, with no file update lost
+  //----------------------------------------------------------------------------
+  void removeNode(IQuotaNode* node, IQuotaNode* parent) override;
+
+  //----------------------------------------------------------------------------
   //! Get the set of all quota node ids. The quota node id corresponds to the
   //! container id.
   //!
@@ -193,6 +210,11 @@ private:
   std::mutex mNodeMapMutex;
   std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>>
       pNodeMap; ///< Map of quota nodes
+  //! Removed nodes, kept alive for writers that still hold their pointer
+  std::vector<std::unique_ptr<IQuotaNode>> mRetiredNodes;
+  //! Ids of the removed nodes: their backend keys can still exist until the
+  //! flusher deletes them, a lookup must not load them again
+  std::unordered_set<IContainerMD::id_t> mRetiredIds;
   qclient::QClient* pQcl; ///< Backend client
   MetadataFlusher* pFlusher; ///< Metadata flusher object
 };
