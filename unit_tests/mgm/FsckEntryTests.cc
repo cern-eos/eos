@@ -84,15 +84,16 @@ protected:
     }
 
     // Redefine the repair factory to return a MockRepairJob
-    mFsckEntry->mRepairFactory =
-      [&](eos::common::FileId::fileid_t fid,
-          FileSystem::fsid_t fsid_src,
-          FileSystem::fsid_t fsid_trg ,
-          std::set<FileSystem::fsid_t> exclude_srcs,
-          std::set<FileSystem::fsid_t> exclude_dsts,
-          bool drop_src,
-    const std::string & app_tag,
-          bool repair_excluded) {
+    mFsckEntry->mRepairFactory = [&](eos::common::FileId::fileid_t fid,
+                                     FileSystem::fsid_t fsid_src,
+                                     FileSystem::fsid_t fsid_trg,
+                                     std::set<FileSystem::fsid_t> exclude_srcs,
+                                     std::set<FileSystem::fsid_t> exclude_dsts,
+                                     bool drop_src, const std::string& app_tag,
+                                     bool repair_excluded) {
+      mRepairCalls.push_back({fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts,
+                              drop_src, repair_excluded});
+
       if (mRepairJob) {
         return mRepairJob;
       } else {
@@ -204,8 +205,53 @@ protected:
     };
   }
 
+  //----------------------------------------------------------------------------
+  //! Turn the file into a RAIN file with 6 stripes registered on file systems
+  //! 3, 5, 6, 7, 8 and 9 (4 data + 2 parity)
+  //----------------------------------------------------------------------------
+  void
+  MakeRain()
+  {
+    auto& fmd = mFsckEntry->mMgmFmd;
+    fmd.set_layout_id(LayoutId::GetId(LayoutId::kRaid6, LayoutId::kAdler, 6,
+                                      LayoutId::k1M, LayoutId::kCRC32C, 0, 2));
+
+    for (const auto fsid : {6, 7, 8, 9}) {
+      PopulateFstFmd(fsid);
+      fmd.add_locations(fsid);
+    }
+
+    mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the mock repair job and expect it to run once with the given status
+  //----------------------------------------------------------------------------
+  void
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status status)
+  {
+    auto repair_job = mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none", false);
+    MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
+    EXPECT_CALL(*mock_job, DoItNoExcept).Times(1);
+    EXPECT_CALL(*mock_job, GetStatus).WillOnce(Return(status));
+    // Only track the calls done by the repair itself
+    mRepairCalls.clear();
+  }
+
+  //! Arguments of a call to the repair factory
+  struct RepairCall {
+    eos::common::FileId::fileid_t fid;
+    FileSystem::fsid_t fsid_src;
+    FileSystem::fsid_t fsid_trg;
+    std::set<FileSystem::fsid_t> exclude_srcs;
+    std::set<FileSystem::fsid_t> exclude_dsts;
+    bool drop_src;
+    bool repair_excluded;
+  };
+
   std::unique_ptr<eos::mgm::FsckEntry> mFsckEntry;
   std::shared_ptr<eos::mgm::FsckRepairJob> mRepairJob;
+  std::vector<RepairCall> mRepairCalls; ///< Calls done to the repair factory
 };
 
 //------------------------------------------------------------------------------
@@ -541,4 +587,113 @@ TEST_F(FsckEntryTest, SelectOverReplicatedDrops)
             mFsckEntry->SelectOverReplicatedDrops(10));
   mFsckEntry->mMgmFmd.add_locations(EOS_TAPE_FSID);
   ASSERT_EQ(4u, mFsckEntry->SelectOverReplicatedDrops(10).size());
+}
+
+//------------------------------------------------------------------------------
+// RAIN file with the nominal number of stripes all present on disk needs no
+// repair job
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplNominal)
+{
+  MakeRain();
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_TRUE(mRepairCalls.empty());
+  ASSERT_EQ(6, mFsckEntry->mMgmFmd.locations_size());
+}
+
+//------------------------------------------------------------------------------
+// RAIN file with a registered stripe missing on disk gets it reconstructed and
+// the missing location is dropped
+// Begin:                        Final:
+// MGM: 3 5 6 7 8 9              MGM: 3 5 7 8 9 x
+// FST: 3 5   7 8 9              FST: 3 5 7 8 9 x
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplMissingStripe)
+{
+  MakeRain();
+  mFsckEntry->mFstFileInfo.find(6)->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(6u, mRepairCalls[0].fsid_src);
+  ASSERT_TRUE(mRepairCalls[0].drop_src);
+  ASSERT_FALSE(mRepairCalls[0].repair_excluded);
+}
+
+//------------------------------------------------------------------------------
+// RAIN file with several stripes missing on disk gets all of them
+// reconstructed in one job
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplMissingStripes)
+{
+  MakeRain();
+
+  for (const auto fsid : {6, 8}) {
+    mFsckEntry->mFstFileInfo.find(fsid)->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  }
+
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(6u, mRepairCalls[0].fsid_src);
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{6, 8}), mRepairCalls[0].exclude_srcs);
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{6, 8}), mRepairCalls[0].exclude_dsts);
+  ASSERT_TRUE(mRepairCalls[0].repair_excluded);
+}
+
+//------------------------------------------------------------------------------
+// RAIN file with a stripe on a file system that no longer exists drops that
+// location and reconstructs the missing stripe elsewhere
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplStripeOnRemovedFs)
+{
+  MakeRain();
+  mFsckEntry->mFstFileInfo.find(9)->second->mFstErr = eos::mgm::FstErr::NotExistFs;
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 5, 6, 7, 8}), GetMgmLocations());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(0u, mRepairCalls[0].fsid_src);
+  ASSERT_FALSE(mRepairCalls[0].drop_src);
+}
+
+//------------------------------------------------------------------------------
+// Under-replicated RAIN file gets the missing stripe reconstructed without
+// dropping any of the existing stripes
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplUnderReplicated)
+{
+  MakeRain();
+  auto* locs = mFsckEntry->mMgmFmd.mutable_locations();
+  locs->RemoveLast();
+  mFsckEntry->mFstFileInfo.erase(9);
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(0u, mRepairCalls[0].fsid_src);
+  ASSERT_FALSE(mRepairCalls[0].drop_src);
+}
+
+//------------------------------------------------------------------------------
+// A failed reconstruction is reported as a failed repair
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplReconstructFails)
+{
+  MakeRain();
+  mFsckEntry->mFstFileInfo.find(7)->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::Failed);
+  ASSERT_FALSE(mFsckEntry->Repair());
+}
+
+//------------------------------------------------------------------------------
+// Over-replicated RAIN file is left for manual handling
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, RainDiffReplOverReplicated)
+{
+  MakeRain();
+  PopulateFstFmd(10);
+  mFsckEntry->mMgmFmd.add_locations(10);
+  ASSERT_FALSE(mFsckEntry->Repair());
+  ASSERT_TRUE(mRepairCalls.empty());
+  ASSERT_EQ(7, mFsckEntry->mMgmFmd.locations_size());
 }
