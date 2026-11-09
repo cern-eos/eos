@@ -22,20 +22,21 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
+#include "common/ThreadPool.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/fsck/FsckEntry.hh"
-#include "common/FileSystem.hh"
-#include "common/FileId.hh"
-#include "common/AssistedThread.hh"
-#include "common/ThreadPool.hh"
 #include "mgm/misc/IdTrackerWithValidity.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-#include <sys/types.h>
-#include <string>
-#include <stdarg.h>
 #include <map>
+#include <mutex>
 #include <set>
+#include <stdarg.h>
+#include <string>
+#include <sys/types.h>
 
 //------------------------------------------------------------------------------
 //! @file Fsck.hh
@@ -268,7 +269,17 @@ private:
   ///< Repair thread submitting jobs to the thread pool
   AssistedThread mRepairThread;
   AssistedThread mCollectorThread; ///< Thread collecting errors
-  std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
+  mutable std::mutex mQclMutex;    ///< Mutex protecting the qclient creation
+  //! QClient object for metadata, use GetQClient to access it
+  mutable std::shared_ptr<qclient::QClient> mQcl;
+
+  //----------------------------------------------------------------------------
+  //! Get the QClient object, creating it on first use. It does not depend on
+  //! any fsck configuration being applied before.
+  //!
+  //! @return QClient object or nullptr if it could not be created
+  //----------------------------------------------------------------------------
+  std::shared_ptr<qclient::QClient> GetQClient() const;
 
   //----------------------------------------------------------------------------
   //! Query QDB for fsck errors
