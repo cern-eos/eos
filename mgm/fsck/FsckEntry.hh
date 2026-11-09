@@ -31,6 +31,7 @@
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include <XrdCl/XrdClFileSystem.hh>
 #include <functional>
+#include <set>
 #include <vector>
 
 EOSMGMNAMESPACE_BEGIN
@@ -62,6 +63,20 @@ public:
   FstFileInfoT(const std::string& local_path, FstErr err):
     mLocalPath(local_path), mFstErr(err)
   {}
+};
+
+//------------------------------------------------------------------------------
+//! Options for a repair triggered by 'file adjustreplica'. The defaults keep
+//! the plain fsck repair behaviour.
+//------------------------------------------------------------------------------
+struct AdjustReplicaOpts {
+  //! Do not drop the replicas in excess of the layout
+  bool mNoDrop{false};
+  //! File systems never used as source or destination of a new replica
+  std::set<eos::common::FileSystem::fsid_t> mExcludeFsids;
+  //! Replicas the FST can not report on, e.g. their server is down, count as
+  //! missing and get replaced by new ones. Replica layouts only.
+  bool mUnavailableAsMissing{false};
 };
 
 //! Forward declaration and aliases
@@ -106,6 +121,17 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FsckEntry();
+
+  //----------------------------------------------------------------------------
+  //! Set the options of a repair triggered by 'file adjustreplica'
+  //!
+  //! @param opts adjust replica options
+  //----------------------------------------------------------------------------
+  void
+  SetAdjustOpts(const AdjustReplicaOpts& opts)
+  {
+    mAdjustOpts = opts;
+  }
 
   //----------------------------------------------------------------------------
   //! Repair current entry
@@ -246,6 +272,7 @@ public:
   RepairFactoryFnT mRepairFactory;
   //! Callable returning the configuration status of a file system
   FsStatusFnT mFsStatusFn;
+  AdjustReplicaOpts mAdjustOpts;          ///< Options set by 'file adjustreplica'
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 };
 

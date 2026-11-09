@@ -176,6 +176,21 @@ public:
                    std::string& out_msg);
 
   //----------------------------------------------------------------------------
+  //! Bring the replicas or stripes of a file back to the layout's nominal
+  //! number, i.e. 'file adjustreplica'. It runs the fsck replica count repair
+  //! (rep_diff_n) in the fsck thread pool, so the call returns right away.
+  //!
+  //! @param fid file identifier
+  //! @param opts adjust replica options
+  //! @param out_msg output message
+  //!
+  //! @return true if the job was submitted or the file is already being
+  //!         worked on, otherwise false
+  //----------------------------------------------------------------------------
+  bool AdjustReplica(eos::IFileMD::id_t fid, const AdjustReplicaOpts& opts,
+                     std::string& out_msg);
+
+  //----------------------------------------------------------------------------
   //! Update the backend given the successful outcome of the repair
   //!
   //! @param fid file identifier or 0ull when flushing is forced no matter the

@@ -607,6 +607,12 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
     return false;
   }
 
+  // The job removes the tracked entry once done, see ~FsckEntry
+  if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
+    out_msg = "msg=\"file is already being worked on, retry later\"";
+    return false;
+  }
+
   std::shared_ptr<FsckEntry> job{
       new FsckEntry(fid, fsid_err, err_type, false, GetQClient())};
 
@@ -624,6 +630,36 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
     }
   }
 
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Adjust the replicas of a file to the nominal number of the layout
+//------------------------------------------------------------------------------
+bool
+Fsck::AdjustReplica(eos::IFileMD::id_t fid, const AdjustReplicaOpts& opts,
+                    std::string& out_msg)
+{
+  if (fid == 0ull) {
+    out_msg = "msg=\"no such file id 0\"";
+    return false;
+  }
+
+  // A drain, balance, conversion or fsck job on the file already brings it
+  // back to a consistent state, so there is nothing to add
+  if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
+    out_msg = "msg=\"file is already being worked on, skip adjust replica\"";
+    eos_info("msg=\"skip adjust replica, file already tracked\" fxid=%08llx", fid);
+    return true;
+  }
+
+  // The rep_diff_n repair needs no explicit file system, 0 marks none
+  std::shared_ptr<FsckEntry> job{new FsckEntry(
+      fid, {0}, eos::common::FsckErrToString(eos::common::FsckErr::DiffRepl), false,
+      GetQClient())};
+  job->SetAdjustOpts(opts);
+  mThreadPool.PushTask<void>([job]() { (void)job->Repair(); });
+  out_msg = "msg=\"adjust replica job submitted\"";
   return true;
 }
 
