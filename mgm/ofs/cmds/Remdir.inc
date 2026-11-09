@@ -93,13 +93,13 @@ XrdMgmOfs::_remdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-  eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
   std::string aclpath;
   uid_t container_owner_uid = 0;
   bool container_vtx = false;
 
   try {
-    dh = gOFS->eosView->getContainer(path);
+    // Do not follow a final symlink: rmdir would remove its target
+    dh = gOFS->eosView->getContainer(path, false);
     eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     container_owner_uid = dh->getCUid();
@@ -143,8 +143,7 @@ XrdMgmOfs::_remdir(const char* path,
       XrdOucString option = env_info.Get("mgm.option");
 
       if (option == "r") {
-        // Recursive delete - need to unlock before calling the proc function
-        viewLock.Release();
+        // Recursive delete through the proc function
         ProcCommand cmd;
         XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
         info += path;
@@ -236,6 +235,40 @@ XrdMgmOfs::_remdir(const char* path,
       eos::ContainerIdentifier dhpar_id;
       eos::ContainerIdentifier dhpar_pid;
       std::string dh_name;
+      eos::MDLocking::BulkMDWriteLock md_locker;
+
+      if (dhpar) {
+        md_locker.add(dhpar.get());
+      }
+
+      md_locker.add(dh.get());
+      auto md_locks =
+          std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(md_locker.lockAll());
+
+      // A parallel quota set can have made it a quota node after the check
+      // above: SpaceQuota checks isDeleted after it sets the flag
+      if (dh->getFlags() & eos::QUOTA_NODE_FLAG) {
+        eos::MDException e(EBUSY);
+        e.getMessage() << path << ": this is a quota node";
+        throw e;
+      }
+
+      // A parallel rename or rmdir can change the directory after the lookup:
+      // check the locked object and remove it, not what the path names now
+      if (dhpar) {
+        if (dh->isDeleted() || (dh->getParentId() != dhpar->getId()) ||
+            (dh->getName() != cPath.GetName())) {
+          eos::MDException e(ENOENT);
+          e.getMessage() << path << ": No such file or directory";
+          throw e;
+        }
+
+        if (dh->getNumContainers() || dh->getNumFiles()) {
+          eos::MDException e(ENOTEMPTY);
+          e.getMessage() << path << ": Container is not empty";
+          throw e;
+        }
+      }
 
       // update the in-memory modification time of the parent directory
       if (dhpar) {
@@ -247,8 +280,15 @@ XrdMgmOfs::_remdir(const char* path,
         dh_name = dh->getName();
       }
 
-      eosView->removeContainer(path);
-      viewLock.Release();
+      if (dhpar) {
+        // The same two steps as removeContainer(path), on the locked objects
+        gOFS->eosDirectoryService->removeContainer(dh.get());
+        dhpar->removeContainer(dh->getName());
+      } else {
+        eosView->removeContainer(path);
+      }
+
+      md_locks.reset();
 
       if (dhpar) {
         gOFS->FuseXCastDeletion(dhpar_id, dh_name);
@@ -261,7 +301,6 @@ XrdMgmOfs::_remdir(const char* path,
     }
   }
 
-  viewLock.Release();
   EXEC_TIMING_END("RmDir");
 
   if (errno) {

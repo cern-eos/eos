@@ -472,7 +472,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
@@ -489,7 +488,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: ns does not support map resizing";
   }

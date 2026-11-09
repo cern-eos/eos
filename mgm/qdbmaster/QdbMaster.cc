@@ -179,7 +179,7 @@ QdbMaster::BootNamespace()
   try {
     MasterLog(eos_log(LOG_NOTICE, "%s",
                       "msg=\"eos file view initialize2 starting ...\""));
-    eos::common::RWMutexWriteLock wr_view_lock(gOFS->eosViewRWMutex);
+    // No lock: this runs in Configure, before any request or background thread
     gOFS->eosView->initialize2();
     MasterLog(eos_log(LOG_NOTICE, "msg=\"file view initialize2 done\" duration=%ds",
                       time(nullptr) - gOFS->mFileInitTime));

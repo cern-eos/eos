@@ -116,7 +116,6 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser,
   }
 
   if (lsuser.quotanode()) {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     // check if this is a quotanode
     std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
     eos::common::Path qPath(quota_node_path.c_str());
@@ -208,7 +207,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
   }
 
   if (ls.quotanode()) {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     // check if this is a quotanode
     std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
     eos::common::Path qPath(quota_node_path.c_str());
@@ -310,7 +308,6 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -508,7 +505,6 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {

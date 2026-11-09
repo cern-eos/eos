@@ -115,7 +115,6 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   bool enonet = false;
 
   try {
@@ -138,7 +137,6 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   if (enonet) {
     // File has no committed replicas, we might bounce to an alive remote master
     if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
-      lock.Release();
       // redirect ENONET to an alive remote master
       int port {0};
       std::string hostname;
@@ -167,18 +165,23 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
     return SFS_ERROR;
   }
 
+  eos::IFileMD::layoutId_t lid;
+  eos::Buffer cks;
+  {
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
+    lid = fmd->getLayoutId();
+    cks = fmd->getChecksum();
+  }
   // Set the checksum type
-  std::string cksum_type = eos::common::LayoutId::GetChecksumStringReal(
-                             fmd->getLayoutId());
+  std::string cksum_type = eos::common::LayoutId::GetChecksumStringReal(lid);
   sprintf(buff, "!%s ", cksum_type.c_str());
   // copy the checksum buffer
   const char* hv = "0123456789abcdef";
   size_t j = strlen(buff);
 
-  for (size_t i = 0;
-       i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-    buff[j++] = hv[(fmd->getChecksum().getDataPadded(i) >> 4) & 0x0f];
-    buff[j++] = hv[ fmd->getChecksum().getDataPadded(i) & 0x0f];
+  for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(lid); i++) {
+    buff[j++] = hv[(cks.getDataPadded(i) >> 4) & 0x0f];
+    buff[j++] = hv[cks.getDataPadded(i) & 0x0f];
   }
 
   if (j == 0) {

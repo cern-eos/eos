@@ -1116,7 +1116,6 @@ Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
 
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, report.fid);
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
@@ -1129,6 +1128,15 @@ Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
     }
 
     if (!fmd) {
+      return;
+    }
+
+    // The counters are not quota, size or location: as for an attribute
+    // change, the file MD write lock is enough
+    eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+    // A parallel rm removed the file meanwhile
+    if (fmd->isDeleted()) {
       return;
     }
 

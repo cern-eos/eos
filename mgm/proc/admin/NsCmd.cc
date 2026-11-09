@@ -1247,7 +1247,6 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   std::string cont_uri {""};
   eos::IContainerMD::id_t cont_id {0ull};
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     std::shared_ptr<IContainerMD> cont {nullptr};
 
     try {
@@ -1321,19 +1320,21 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   }
 
   // Update the quota note
+  // No namespace lock: the node updates are atomic with the file updates, a
+  // removed node stays valid
   try {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
+    eos::IQuotaNode* quotaNode = ((cont->getFlags() & eos::QUOTA_NODE_FLAG)
+                                      ? gOFS->eosView->getQuotaNode(cont.get(), false)
+                                      : nullptr);
 
-    if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+    if (quotaNode == nullptr) {
       eos_err("msg=\"quota recomputation failed, directory is not (anymore) a "
               "quota node\" cxid=%08llx path=\"%s\"", cont_id, cont_uri.c_str());
       reply.set_std_err("error: directory is not a quota node (anymore)");
       reply.set_retc(EINVAL);
       return;
     }
-
-    eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
 
     if (update) {
       quotaNode->updateCore(qnc);

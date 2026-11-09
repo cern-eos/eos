@@ -21,13 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "EvictCmd.hh"
+#include "common/Constants.hh"
+#include "common/Definitions.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
-#include "EvictCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/EosCtaReporter.hh"
-#include "common/Definitions.hh"
-#include "common/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"
 #include <optional>
 
@@ -260,8 +261,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         int evictionCounter = 0;
 
         try {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           auto fmd = gOFS->eosView->getFile(path.c_str());
+          eos::MDLocking::FileWriteLock fmdLock(fmd.get());
 
           if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
             evictionCounter = std::stoi(fmd->getAttribute(
@@ -301,10 +302,9 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     if (allReplicasRemoved) {
       // reset the retrieves counter in case of success
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
       try {
         auto fmd = gOFS->eosView->getFile(path.c_str());
+        eos::MDLocking::FileWriteLock fmdLock(fmd.get());
         fmd->setAttribute(eos::common::RETRIEVE_REQID_ATTR_NAME, "");
         fmd->setAttribute(eos::common::RETRIEVE_REQTIME_ATTR_NAME, "");
         fmd->removeAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME);

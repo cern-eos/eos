@@ -45,6 +45,7 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/PathProcessor.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -464,15 +465,11 @@ grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms,
-                       bool lock,
                        bool access_self)
 {
-  eos::common::RWMutexReadLock viewReadLock;
-
   if ((request->type() == eos::rpc::FILE) ||
       (request->type() == eos::rpc::STAT)) {
     // stream file meta data
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> pmd;
     eos::IFileMD::XAttrMap attrmapF;
@@ -493,10 +490,6 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     } else {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->id().path());
-    }
-
-    if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (fid) {
@@ -555,6 +548,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
                             "access to parent container denied");
       }
+
+      auto fmdLock = eos::MDLocking::readLock(fmd.get());
 
       if (Filter(fmd, request->selection())) {
         // short-cut for filtered MD
@@ -619,6 +614,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 
       gRPCResponse.mutable_fmd()->set_etag(etag);
       gRPCResponse.mutable_fmd()->set_path(path);
+      fmdLock.reset();
       writer->Write(gRPCResponse);
       return grpc::Status::OK;
     }
@@ -647,10 +643,6 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     } else {
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
           cid);
-    }
-
-    if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (cid) {
@@ -706,6 +698,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       }
     }
 
+    auto cmdLock = eos::MDLocking::readLock(cmd.get());
+
     if (Filter(cmd, request->selection())) {
       // short-cut for filtered MD
       return grpc::Status::OK;
@@ -747,6 +741,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     gRPCResponse.mutable_cmd()->set_path(path);
+    cmdLock.reset();
     writer->Write(gRPCResponse);
     return grpc::Status::OK;
   }
@@ -806,7 +801,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   }
 
   // stream container meta data
-  eos::common::RWMutexReadLock viewReadLock;
   std::shared_ptr<eos::IContainerMD> cmd;
   unsigned long cid = 0;
   uint64_t clock = 0;
@@ -827,8 +821,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
         cid);
   }
-
-  viewReadLock.Grab(gOFS->eosViewRWMutex);
 
   if (cid) {
     try {
@@ -869,7 +861,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     c_dir.mutable_selection()->CopyFrom(request->selection());
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
-    status = GetMD(vid, writer, &c_dir, true, false, true);
+    status = GetMD(vid, writer, &c_dir, true, true);
 
     if (!status.ok()) {
       return status;
@@ -879,7 +871,6 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   bool first = true;
   auto itf = eos::FileMapIterator(cmd);
   auto itc = eos::ContainerMapIterator(cmd);
-  viewReadLock.Release();
 
   // stream for listing and file type
   if (request->type() != eos::rpc::CONTAINER) {
@@ -966,7 +957,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
     if (request->type() != eos::rpc::FILE) {
       c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
-      status = GetMD(vid, writer, &c_dir, true, false, true);
+      status = GetMD(vid, writer, &c_dir, true, true);
     }
 
     return status;
@@ -1133,7 +1124,6 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IFileMD> newfile;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
 
   for (auto it : request->files()) {
@@ -1186,11 +1176,53 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
 
     try {
+      eos::MDLocking::ContainerWriteLockPtr parent_lock;
+      eos::MDLocking::FileWriteLockPtr file_lock;
+
       try {
-        newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
+        // As createFile(path), but in the locked parent: the path walk runs
+        // before the MD lock
+        eos::common::Path cPath(it.path());
+        std::string name = cPath.GetName();
+
+        if (name.empty()) {
+          throw_mdexception(EEXIST, "File exists");
+        }
+
+        std::shared_ptr<eos::IContainerMD> parent =
+            gOFS->eosView->getContainer(cPath.GetParentPath());
+        parent_lock = eos::MDLocking::writeLock(parent.get());
+
+        // A parallel rmdir removed the parent after the lookup
+        if (parent->isDeleted()) {
+          throw_mdexception(ENOENT, "No such file or directory");
+        }
+
+        eos::FileOrContainerMD conflict = parent->findItem(name).get();
+
+        if (conflict.file || conflict.container) {
+          throw_mdexception(EEXIST, "File exists");
+        }
+
+        newfile = gOFS->eosFileService->createFile(it.id());
+
+        if (!newfile) {
+          throw_mdexception(EIO, "File creation failed");
+        }
+
+        // The parent lock is held: a new file is locked after its parent
+        file_lock = eos::MDLocking::writeLock(newfile.get());
+        newfile->setName(name);
+        newfile->setCUid(it.uid());
+        newfile->setCGid(it.gid());
+        newfile->setCTimeNow();
+        newfile->setATimeNow(0);
+        newfile->setMTimeNow();
+        newfile->clearChecksum(0);
+        parent->addFile(newfile.get());
       } catch (eos::MDException& e) {
         std::ostringstream msg;
-        msg << "Failed to call gOFS->eosView->createFile(): " << e.getMessage().str();
+        msg << "Failed to create the file: " << e.getMessage().str();
         e.getMessage().str(msg.str());
         throw;
       }
@@ -1274,7 +1306,6 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IContainerMD> newdir;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
 
   for (auto it : request->container()) {
@@ -1307,12 +1338,52 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
                     it.path().c_str(), it.id(), inherit);
 
     try {
+      std::shared_ptr<eos::IContainerMD> parent;
+      eos::MDLocking::ContainerWriteLockPtr parent_lock;
+      eos::MDLocking::ContainerWriteLockPtr dir_lock;
+
       try {
-        newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
+        // As createContainer(path, false), but in the locked parent: the
+        // path walk runs before the MD lock
+        eos::common::Path cPath(it.path());
+        std::string name = cPath.GetName();
+
+        if (name.empty()) {
+          throw_mdexception(EEXIST, it.path() << ": Container exists");
+        }
+
+        if (eos::PathProcessor::insertChunksIntoDeque(it.path()).size() >
+            eos::common::Path::MAX_LEVELS - 2) {
+          throw_mdexception(ENAMETOOLONG, it.path() << ": Too many directories");
+        }
+
+        parent = gOFS->eosView->getContainer(cPath.GetParentPath());
+        parent_lock = eos::MDLocking::writeLock(parent.get());
+
+        // A parallel rmdir removed the parent after the lookup
+        if (parent->isDeleted()) {
+          throw_mdexception(ENOENT, it.path() << ": No such file or directory");
+        }
+
+        eos::FileOrContainerMD conflict = parent->findItem(name).get();
+
+        if (conflict.file) {
+          throw_mdexception(ENOTDIR, it.path() << ": Not a directory");
+        }
+
+        if (conflict.container) {
+          throw_mdexception(EEXIST, it.path() << ": Container exists");
+        }
+
+        newdir = gOFS->eosDirectoryService->createContainer(it.id());
+        // The parent lock is held: a new directory is locked after its parent
+        dir_lock = eos::MDLocking::writeLock(newdir.get());
+        newdir->setName(name);
+        newdir->setCTimeNow();
+        parent->addContainer(newdir.get());
       } catch (eos::MDException& e) {
         std::ostringstream msg;
-        msg << "Failed to call gOFS->eosView->createContainer(): " <<
-            e.getMessage().str();
+        msg << "Failed to create the container: " << e.getMessage().str();
         e.getMessage().str(msg.str());
         throw;
       }
@@ -1334,21 +1405,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       newdir->setCUid(it.uid());
       newdir->setCGid(it.gid());
       newdir->setMode(it.mode() | S_IFDIR);
-      std::shared_ptr<eos::IContainerMD> parent;
 
       if (inherit) {
-        eos::common::Path cPath(it.path());
-
-        try {
-          parent = gOFS->eosView->getContainer(cPath.GetParentPath());
-        } catch (eos::MDException& e) {
-          std::ostringstream msg;
-          msg << "Failed to call parent gOFS->eosView->getContainer(): " <<
-              e.getMessage().str();
-          e.getMessage().str(msg.str());
-          throw;
-        }
-
         if (it.mode() == 0) {
           newdir->setMode(parent->getMode());
         }
@@ -1372,7 +1430,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       try {
         gOFS->eosView->updateContainerStore(newdir.get());
 
-        if (parent) {
+        if (inherit) {
           parent->setMTime(ctime);
           parent->notifyMTimeChange(gOFS->eosDirectoryService);
           gOFS->eosView->updateContainerStore(parent.get());
@@ -1572,7 +1630,6 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1659,7 +1716,6 @@ grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1848,7 +1904,6 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -1858,7 +1913,6 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -1976,7 +2030,6 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
     } catch (eos::MDException& e) {
@@ -2416,7 +2469,6 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2426,7 +2478,6 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2509,7 +2560,6 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2519,7 +2569,6 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2590,8 +2639,6 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-
       if (fid) {
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());

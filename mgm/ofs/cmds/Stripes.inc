@@ -462,8 +462,6 @@ XrdMgmOfs::_replicatestripe(const char* path,
   eos_debug("msg=\"replicate file\" path=\"%s\" src_fsid=%u dst_fsid=%u drop=%d",
             path, sourcefsid, targetfsid, dropsource);
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
     try {
       dh = gOFS->eosView->getContainer(cPath.GetParentPath());
       dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
@@ -490,6 +488,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
     // get the file
     try {
       fmd = gOFS->eosView->getFile(path);
+      eos::MDLocking::FileReadLock fmdLock(fmd.get());
 
       if (fmd->hasLocation(sourcefsid)) {
         if (fmd->hasLocation(targetfsid)) {

@@ -750,24 +750,6 @@ public:
                         unsigned long long& freebytes);
 
   //----------------------------------------------------------------------------
-  //! Remove file from corresponding quota node
-  //
-  //! @param fid file identifier
-  //!
-  //! @return true if file remove successfully and quota node exists
-  //----------------------------------------------------------------------------
-  static bool RemoveFile(eos::IFileMD::id_t fid);
-
-  //----------------------------------------------------------------------------
-  //! Remove file from corresponding quota node
-  //
-  //! @param fid file identifier
-  //!
-  //! @return true if file added successful and quota node exists
-  //----------------------------------------------------------------------------
-  static bool AddFile(eos::IFileMD::id_t fid);
-
-  //----------------------------------------------------------------------------
   //! Force refresh of space quota from namespace quota node
   //!
   //! @param path quota node path

@@ -648,34 +648,15 @@ CommitHelper::log_verifychecksum(eos::common::VirtualIdentity& vid,
 // handle replica location updates
 //------------------------------------------------------------------------------
 
-bool
+void
 CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
-                              unsigned long cid,
-                              std::shared_ptr<eos::IFileMD> fmd,
-                              unsigned long fsid,
-                              unsigned long long size,
-                              CommitHelper::cgi_t& cgi,
+                              eos::IQuotaNode* ns_quota,
+                              std::shared_ptr<eos::IFileMD> fmd, unsigned long fsid,
+                              unsigned long long size, CommitHelper::cgi_t& cgi,
                               CommitHelper::option_t& option)
 {
   // For changing the modification time we have to figure out if we
   // just attach a new replica or if we have a change of the contents
-  std::shared_ptr<eos::IContainerMD> dir;
-
-  try {
-    dir = gOFS->eosDirectoryService->getContainerMD(cid);
-  } catch (eos::MDException& e) {
-    eos_thread_err("parent_id=%llu not found", cid);
-    gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
-    return false;
-  }
-
-  eos::IQuotaNode* ns_quota = nullptr;
-
-  try {
-    ns_quota = gOFS->eosView->getQuotaNode(dir.get());
-  } catch (const eos::MDException& e) {
-    // empty
-  }
 
   // Free previous quota
   if (ns_quota) {
@@ -742,8 +723,6 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
   if (ns_quota) {
     ns_quota->addFile(fmd.get());
   }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -868,7 +847,6 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
 {
   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
   std::shared_ptr<eos::IFileMD> versionfmd;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     auto fmd = gOFS->eosFileService->getFileMD(fid);
@@ -902,7 +880,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                )
 {
   eos::mgm::FusexCastBatch fuse_batch;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // Released before the fuse_batch broadcasts
+  std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
 
   // We have to de-atomize the fmd name here e.g. make the temporary
   // atomic name a persistent name
@@ -921,13 +900,57 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       return;
     }
 
-    if (option["versioning"] && strlen(paths["version"].GetPath()) &&
-        (std::string(paths["version"].GetPath()) != "/")) {
+    const bool do_version = option["versioning"] && strlen(paths["version"].GetPath()) &&
+                            (std::string(paths["version"].GetPath()) != "/");
+
+    // The path lookups walk the tree, so they run before the MD locks
+    if (do_version) {
       try {
         versiondir = gOFS->eosView->getContainer(paths["version"].GetParentPath());
-        // rename the existing path to the version path
         versionfmd = gOFS->eosView->getFile(std::string(
                                               paths["versiondir"].GetParentPath()) + std::string(paths["atomic"].GetPath()));
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                         e.getMessage().str().c_str());
+        versiondir.reset();
+        versionfmd.reset();
+      }
+    }
+
+    // The file that has the final name now
+    std::shared_ptr<eos::IFileMD> final_fmd = dir->findFile(paths["atomic"].GetName());
+    const std::string upload_name = fmd->getName();
+    eos::MDLocking::BulkMDWriteLock md_locker;
+    md_locker.add(dir.get());
+    md_locker.add(fmd.get());
+
+    if (versiondir) {
+      md_locker.add(versiondir.get());
+    }
+
+    if (versionfmd) {
+      md_locker.add(versionfmd.get());
+    }
+
+    if (final_fmd) {
+      md_locker.add(final_fmd.get());
+    }
+
+    md_locks =
+        std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(md_locker.lockAll());
+
+    // A parallel rename, rm or commit changed the file or the final name
+    // after the lookup
+    if (fmd->isDeleted() || (fmd->getContainerId() != dir->getId()) ||
+        (fmd->getName() != upload_name) ||
+        (dir->findFile(paths["atomic"].GetName()) != final_fmd)) {
+      throw_mdexception(EAGAIN, "file changed during the commit");
+    }
+
+    if (versiondir && versionfmd) {
+      try {
+        // rename the existing path to the version path
         dir->removeFile(paths["atomic"].GetName());
         // If a file with the same name already exists then we have conflict
         // and the timestamp of the version file needs to be increased
@@ -980,7 +1003,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
 
     std::shared_ptr<eos::IFileMD> pfmd;
 
-    // Rename the temporary upload path to the final path
+    // Rename the temporary upload path to the final path. It is final_fmd,
+    // locked above, or none if the versioning moved final_fmd away.
     if ((pfmd = dir->findFile(paths["atomic"].GetName()))) {
       // Check if we are tagged as that 'latest' atomic upload
       std::string atomic_tag;
@@ -1022,7 +1046,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                    e.getErrno(), e.getMessage().str().c_str());
   }
 
-  lock.Release();
+  md_locks.reset();
   // the fuse_batch guard will run broadcasts here
 }
 

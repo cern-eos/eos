@@ -388,15 +388,11 @@ ProcCommand::Find()
                 printmtime || printrep || printunlink || printhosts ||
                 printpartition || selectrepdiff || selectonehour ||
                 selectoldertime || selectyoungertime || purge_atomic) {
-              //-------------------------------------------
-              eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
               std::shared_ptr<eos::IFileMD> fmd;
 
               try {
                 bool selected = true;
                 fmd = gOFS->eosView->getFile(fspath.c_str());
-                viewReadLock.Release();
-                //-------------------------------------------
 
                 if (selectonehour) {
                   eos::IFileMD::ctime_t mtime;
@@ -739,8 +735,6 @@ ProcCommand::Find()
               } catch (eos::MDException& e) {
                 eos_debug("caught exception %d %s\n", e.getErrno(),
                           e.getMessage().str().c_str());
-                viewReadLock.Release();
-                //-------------------------------------------
               }
             } else {
               if ((!printcounter) && (!purge_atomic)) {
@@ -755,8 +749,6 @@ ProcCommand::Find()
             }
           } else {
             // get location
-            //-------------------------------------------
-            eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
             std::shared_ptr<eos::IFileMD> fmd;
 
             try {
@@ -767,9 +759,6 @@ ProcCommand::Find()
             }
 
             if (fmd) {
-              viewReadLock.Release();
-              //-------------------------------------------
-
               for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
                 int loc = fmd->getLocation(i);
                 uint64_t size = eos::common::LayoutId::GetStripeFileSize(fmd->getLayoutId(),
@@ -800,9 +789,6 @@ ProcCommand::Find()
                   }
                 }
               }
-            } else {
-              viewReadLock.Release();
-              //-------------------------------------------
             }
           }
         }
@@ -876,8 +862,6 @@ ProcCommand::Find()
 
         if (!purge && !printcounter) {
           if (printchildcount) {
-            //-------------------------------------------
-            eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
             std::shared_ptr<eos::IContainerMD> cmd;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
@@ -901,7 +885,6 @@ ProcCommand::Find()
               fprintf(fstdout, "path=%s", foundit->first.c_str());
 
               if (printuid || printgid) {
-                eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
                 std::shared_ptr<eos::IContainerMD> cmd;
 
                 try {

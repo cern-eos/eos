@@ -686,6 +686,14 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
                          &tm);
 
+            // A parallel rmdir removed the target after the lookup: moving
+            // into it would detach the file from the namespace
+            if (newdir->isDeleted()) {
+              errno = ENOENT;
+              return Emsg(epname, error, ENOENT, "rename - target directory was removed",
+                          nPath.GetParentPath());
+            }
+
             // A parallel rename or rm changed the file after the lookup
             if (file->isDeleted() || (file->getContainerId() != dir->getId()) ||
                 (file->getName() != oPath.GetName())) {
@@ -753,13 +761,8 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
 
         if (rdir) {
           {
-            eos::MDLocking::BulkMDReadLock containerBulkLocker;
-            containerBulkLocker.add(rdir.get());
-            containerBulkLocker.add(newdir.get());
-            auto containerLocks = containerBulkLocker.lockAll();
-            COMMONTIMING("rename::rename_dir_first_is_safe_to_rename_all_dirs_read_lock",
-                         &tm);
-
+            // No MD locks: the check locks each parent on its own, and the
+            // second check below, under the directory move mutex, decides
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
               errno = EINVAL;
               return Emsg(epname, error, EINVAL,
@@ -911,15 +914,12 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
             });
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
+            // Two moves of directories into each other at the same time both
+            // pass the check below, then cut both off from the namespace
+            std::unique_lock<std::mutex> dir_move_lock(gOFS->mDirMoveMutex);
             {
-              eos::MDLocking::BulkMDReadLock bulkDirLocker;
-              bulkDirLocker.add(rdir.get());
-              bulkDirLocker.add(newdir.get());
-              auto dirLocks = bulkDirLocker.lockAll();
-              COMMONTIMING("rename::rename_dir_second_is_safe_to_rename_all_dirs_read_lock",
-                           &tm);
-
-              // Do the check once again, because we're paranoid
+              // Do the check once again, because we're paranoid. No MD
+              // locks: no directory moves to another parent meanwhile
               if (!eos::isSafeToRename(gOFS->eosView, rdir.get(),
                                        newdir.get())) {
                 eos_static_crit(
@@ -1304,6 +1304,18 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     helper.add(file.get());
     auto locks = helper.lockAll();
 
+    // A parallel rmdir removed the target, or a parallel rename or rm changed
+    // the file, after the lookup
+    if (newdir->isDeleted() || file->isDeleted() ||
+        (file->getContainerId() != dir->getId()) ||
+        (file->getName() != oPath.GetName())) {
+      errno = ENOENT;
+      return Emsg(epname, error, ENOENT,
+                  "rename with symlink - source file or target directory was "
+                  "moved or removed",
+                  oPath.GetPath());
+    }
+
     // A parallel rename or mkdir took the target name after the lookup
     if (RenameTargetTaken(newdir.get(), nPath.GetName())) {
       errno = EEXIST;
@@ -1316,11 +1328,31 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
     // Create the symlink
     eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
              old_file_uri.c_str(), new_file_uri.c_str());
-    eosView->createLink(old_file_uri, new_file_uri, vid.uid, vid.gid);
+    {
+      // Create the link in the locked directory: a path walk would take read
+      // locks on the directories locked here
+      std::shared_ptr<eos::IFileMD> link = gOFS->eosFileService->createFile(0);
 
-    // The link counts in quota with the length of its target, as rm counts it
-    if (old_qnode) {
-      if (auto link = dir->findFile(oPath.GetName())) {
+      if (!link) {
+        errno = EIO;
+        return Emsg(epname, error, EIO, "rename with symlink - symlink creation failed",
+                    oPath.GetPath());
+      }
+
+      link->setName(oPath.GetName());
+      link->setCUid(vid.uid);
+      link->setCGid(vid.gid);
+      link->setCTimeNow();
+      link->setATimeNow(0);
+      link->setMTimeNow();
+      link->clearChecksum(0);
+      link->setLink(new_file_uri);
+      link->setSize(new_file_uri.length());
+      dir->addFile(link.get());
+      eosView->updateFileStore(link.get());
+
+      // The link counts in quota with the length of its target, as rm counts it
+      if (old_qnode) {
         old_qnode->addFile(link.get());
       }
     }
