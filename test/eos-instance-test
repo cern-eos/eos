@@ -2655,8 +2655,16 @@ for ((i=1; i<=${NUM_FST}; i++)); do if [[ ! " ${array_fsids[*]} " =~ " $i " ]]; 
 runtest "### Target    " unix SUCCESS "" shell test "${target_fsid}" -ne 0
 runtest "### Replicate " unix SUCCESS "" eos file replicate ${ADJUST_TEST_FILE} ${source_fsid} ${target_fsid}
 runtest "### Check     " unix SUCCESS "" wait_for 60 eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 3"
+# With --nodrop the extra replica is kept
+runtest "### Adjust nd " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE} --nodrop
+runtest "### Wait      " unix SUCCESS "" shell sleep 5
+runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 3"
 runtest "### Adjust +  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
 runtest "### Check     " unix SUCCESS "" wait_for 60 eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep -w 2"
+# Placement in a given space or subgroup is no longer supported
+runtest "### Adjust sp " unix ERROR   "" eos file adjustreplica ${ADJUST_TEST_FILE} default
+runtest "### Adjust sg " unix ERROR   "" eos file adjustreplica ${ADJUST_TEST_FILE} default 0
+runtest "### Adjust ex " unix ERROR   "" eos file adjustreplica ${ADJUST_TEST_FILE} --exclude-fs 0
 runtest "### Rm        " unix SUCCESS "" eos rm -F ${ADJUST_TEST_FILE}
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${ADJUST_TEST_DIR}
 

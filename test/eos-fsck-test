@@ -629,6 +629,176 @@ function corrupt_rain_invalid_header() {
   exec_cmd "eos-fst${FSID}" "dd if=/dev/urandom of=${LPATH} bs=1 count=4096"
 }
 
+# Print "fsid fullpath" for every registered location of the given fxid
+function adj_locations() {
+  exec_cmd eos-cli1 "eos fileinfo fxid:$1 -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{gsub(/[[:space:]]/, \"\", \$2)} \$1==\"fsid\" {fsid=\$2} \$1==\"fullpath\" {print fsid, \$2}'"
+}
+
+# Print the sorted file system ids of the given fxid on one line, this
+# includes the locations whose file system is unknown and have no fullpath
+function adj_fsids() {
+  exec_cmd eos-cli1 "eos fileinfo fxid:$1 -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fsid\" {gsub(/[[:space:]]/, \"\", \$2); print \$2}'" | sort -n | xargs
+}
+
+# Print the local path of the replica/stripe of fxid $1 on file system $2
+function adj_lpath() {
+  adj_locations $1 | awk -v fsid=$2 '$1==fsid {print $2}'
+}
+
+# Print the fxid of the given path
+function adj_fxid() {
+  exec_cmd eos-cli1 "eos fileinfo $1 -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'"
+}
+
+# Succeed if fxid $1 has exactly $2 locations and none of the remaining
+# arguments among them
+function adj_check_locations() {
+  local fsids=( $(adj_fsids $1) )
+
+  if [[ ${#fsids[@]} -ne $2 ]]; then
+    echo "fxid=$1 expected $2 locations, got: ${fsids[*]}"
+    return 1
+  fi
+
+  for absent in "${@:3}"; do
+    for fsid in ${fsids[@]}; do
+      if [[ "${fsid}" == "${absent}" ]]; then
+        echo "fxid=$1 still has location ${absent}: ${fsids[*]}"
+        return 1
+      fi
+    done
+  done
+}
+
+# Check that the file content matches the uploaded reference file
+function adj_check_content() {
+  exec_cmd eos-cli1 "export PATH=/opt/eos/xrootd/bin/:${PATH} &&
+                     xrdcp -f \${EOS_MGM_URL}/$1 /tmp/adj_check.dat &&
+                     cmp /tmp/adj_check.dat /tmp/adj_file.dat &&
+                     rm -f /tmp/adj_check.dat"
+}
+
+# Remove the physical replica/stripe of fxid $1 on file system $2
+function adj_rm_physical() {
+  local lpath=$(adj_lpath $1 $2)
+
+  if [[ -z "${lpath}" ]]; then
+    echo "error: no local path for fxid=$1 fsid=$2"
+    exit 1
+  fi
+
+  exec_cmd "eos-fst$2" "rm -f ${lpath}"
+}
+
+# 'eos file adjustreplica' runs the fsck rep_diff_n repair of a single file.
+# These checks run while the fsck repair thread is off, so any fix comes from
+# the adjustreplica command itself.
+function check_adjustreplica() {
+  local ADJ_DIR=${EOS_ROOT}/fsck/adjust
+  local ADJ_DELAY=${1:-"120"}
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config repair off"
+  exec_cmd eos-cli1 "export PATH=/opt/eos/xrootd/bin/:${PATH} &&
+                     dd if=/dev/urandom of=/tmp/adj_file.dat bs=1M count=10 &&
+                     eos -r 0 0 mkdir -p ${ADJ_DIR}/replica &&
+                     eos -r 0 0 mkdir -p ${ADJ_DIR}/rain &&
+                     eos -r 0 0 attr set default=replica ${ADJ_DIR}/replica &&
+                     eos -r 0 0 attr set default=raid6 ${ADJ_DIR}/rain &&
+                     for f in missing under over; do
+                       xrdcp -f /tmp/adj_file.dat \${EOS_MGM_URL}/${ADJ_DIR}/replica/\${f}.dat || exit 1;
+                     done &&
+                     for f in missing1 missing2 under; do
+                       xrdcp -f /tmp/adj_file.dat \${EOS_MGM_URL}/${ADJ_DIR}/rain/\${f}.dat || exit 1;
+                     done"
+
+  # Replica missing on disk: the location is removed and a new replica created
+  local fxid=$(adj_fxid ${ADJ_DIR}/replica/missing.dat)
+  local fsids=( $(adj_fsids ${fxid}) )
+  local nrep=${#fsids[@]}
+  adj_rm_physical ${fxid} ${fsids[0]}
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nrep} ${fsids[0]}" ${ADJ_DELAY} \
+    "adjustreplica replaces a replica missing on disk"
+  adj_check_content ${ADJ_DIR}/replica/missing.dat
+
+  # Under-replicated file gets a new replica, never on the excluded fs
+  fxid=$(adj_fxid ${ADJ_DIR}/replica/under.dat)
+  fsids=( $(adj_fsids ${fxid}) )
+  exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${fxid} ${fsids[0]} -f"
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid} --exclude-fs ${fsids[0]}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nrep} ${fsids[0]}" ${ADJ_DELAY} \
+    "adjustreplica restores an under-replicated file"
+  adj_check_content ${ADJ_DIR}/replica/under.dat
+
+  # Over-replicated file keeps the extra replica with --nodrop, drops it without
+  fxid=$(adj_fxid ${ADJ_DIR}/replica/over.dat)
+  fsids=( $(adj_fsids ${fxid}) )
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
+  local new_fsid=""
+
+  for (( i=1; i<=${FST_ONLINE}; i++ )); do
+    if [[ ! " ${fsids[*]} " =~ " ${i} " ]]; then
+      new_fsid=${i}
+      break
+    fi
+  done
+
+  if [[ -z "${new_fsid}" ]]; then
+    echo "error: no file system for the extra replica"
+    exit 1
+  fi
+
+  exec_cmd eos-cli1 "eos -r 0 0 file replicate fxid:${fxid} ${fsids[0]} ${new_fsid}"
+  check_until_no_errors "adj_check_locations ${fxid} $((nrep + 1))" ${ADJ_DELAY} \
+    "replicate creates an extra replica"
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid} --nodrop"
+  sleep 10
+  adj_check_locations ${fxid} $((nrep + 1))
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nrep}" ${ADJ_DELAY} \
+    "adjustreplica drops the extra replica"
+
+  # Placement in a given space is no longer supported
+  local out=$(exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid} default 2>&1 || true")
+
+  if [[ "${out}" != *"file convert"* ]]; then
+    echo "error: adjustreplica with a space argument was not rejected: ${out}"
+    exit 1
+  fi
+
+  # RAIN stripe missing on disk gets reconstructed on another file system
+  fxid=$(adj_fxid ${ADJ_DIR}/rain/missing1.dat)
+  fsids=( $(adj_fsids ${fxid}) )
+  local nstripes=${#fsids[@]}
+  adj_rm_physical ${fxid} ${fsids[0]}
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nstripes} ${fsids[0]}" ${ADJ_DELAY} \
+    "adjustreplica reconstructs a RAIN stripe missing on disk"
+  adj_check_content ${ADJ_DIR}/rain/missing1.dat
+
+  # Two RAIN stripes missing on disk get reconstructed in one go
+  fxid=$(adj_fxid ${ADJ_DIR}/rain/missing2.dat)
+  fsids=( $(adj_fsids ${fxid}) )
+  adj_rm_physical ${fxid} ${fsids[0]}
+  adj_rm_physical ${fxid} ${fsids[1]}
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nstripes} ${fsids[0]} ${fsids[1]}" \
+    ${ADJ_DELAY} "adjustreplica reconstructs two RAIN stripes missing on disk"
+  adj_check_content ${ADJ_DIR}/rain/missing2.dat
+
+  # RAIN file with a dropped stripe gets it back
+  fxid=$(adj_fxid ${ADJ_DIR}/rain/under.dat)
+  fsids=( $(adj_fsids ${fxid}) )
+  exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${fxid} ${fsids[0]} -f"
+  check_until_no_errors "adj_check_locations ${fxid} $((nstripes - 1))" ${ADJ_DELAY} \
+    "drop removes a RAIN stripe"
+  exec_cmd eos-cli1 "eos -r 0 0 file adjustreplica fxid:${fxid}"
+  check_until_no_errors "adj_check_locations ${fxid} ${nstripes}" ${ADJ_DELAY} \
+    "adjustreplica restores an under-replicated RAIN file"
+  adj_check_content ${ADJ_DIR}/rain/under.dat
+
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${ADJ_DIR} && rm -f /tmp/adj_file.dat"
+}
+
 # Configure fsck to run more often and reduce the scan times
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
@@ -805,6 +975,9 @@ echo "IS_DOCKER=$IS_DOCKER"
 echo "IS_LOCAL=$IS_LOCAL"
 echo "K8S_NAMESPACE=$K8S_NAMESPACE (if IS_DOCKER=false)"
 echo
+
+# Check 'eos file adjustreplica', which runs the fsck repair of one file
+check_adjustreplica $MAX_DELAY
 
 # Configure fsck to run more often and reduce scan times
 configure_fsck

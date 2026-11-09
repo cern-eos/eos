@@ -25,8 +25,11 @@
 #include "fst/XrdFstOfs.hh"
 #undef IN_TEST_HARNESS
 #include "common/LayoutId.hh"
+#include "common/SymKeys.hh"
 #include "fst/checksum/Adler.hh"
+#include "proto/ConsoleRequest.pb.h"
 #include "gtest/gtest.h"
+#include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <algorithm>
@@ -347,4 +350,30 @@ TEST(XrdFstOfsFileTest, AddToStripeChecksumSkipsRainHeader)
     ASSERT_FALSE(xs.NeedsRecalculation());
     ASSERT_STREQ(ref.GetHexChecksum(), xs.GetHexChecksum());
   }
+}
+
+//------------------------------------------------------------------------------
+// The repair-on-close query carries the protobuf 'file adjustreplica' command
+// for the file id and keeps the path for the MGM redirection and older MGMs
+//------------------------------------------------------------------------------
+TEST(XrdFstOfsFileTest, BuildAdjustReplicaQuery)
+{
+  const std::string query =
+      XrdFstOfsFile::BuildAdjustReplicaQuery("/eos/dev/file.dat", 0x1234abcdull);
+  ASSERT_EQ(0u, query.find("/?"));
+  XrdOucEnv env(query.substr(2).c_str());
+  ASSERT_STREQ("adjustreplica", env.Get("mgm.pcmd"));
+  ASSERT_STREQ("/eos/dev/file.dat", env.Get("mgm.path"));
+  ASSERT_NE(nullptr, env.Get("mgm.cmd.proto"));
+  std::string raw_pb;
+  ASSERT_TRUE(eos::common::SymKey::Base64Decode(env.Get("mgm.cmd.proto"), raw_pb));
+  eos::console::RequestProto req;
+  ASSERT_TRUE(req.ParseFromString(raw_pb));
+  ASSERT_TRUE(req.has_file());
+  ASSERT_TRUE(req.file().has_adjustreplica());
+  ASSERT_EQ(0x1234abcdull, req.file().md().id());
+  ASSERT_TRUE(req.file().md().path().empty());
+  ASSERT_FALSE(req.file().adjustreplica().nodrop());
+  ASSERT_TRUE(req.file().adjustreplica().space().empty());
+  ASSERT_TRUE(req.file().adjustreplica().exclude_fs().empty());
 }
