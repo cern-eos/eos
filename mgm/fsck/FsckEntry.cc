@@ -34,6 +34,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include <algorithm>
 
 using eos::common::StringConversion;
 using eos::common::LayoutId;
@@ -79,6 +80,11 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
     // Lower the min transfer rate to 5 MB/s
     fsck_job->SetMinTransferRate(5);
     return fsck_job;
+  };
+  mFsStatusFn = [](eos::common::FileSystem::fsid_t fsid) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+    return (fs ? fs->GetConfigStatus() : eos::common::ConfigStatus::kOff);
   };
 }
 
@@ -1062,10 +1068,16 @@ FsckEntry::RepairReplicaInconsistencies()
     // All the unregistered replicas can be dropped
     to_drop.insert(unreg_fsids.begin(), unreg_fsids.end());
 
-    while ((over_replicated > 0) && !mMgmFmd.locations().empty()) {
-      to_drop.insert(mMgmFmd.locations(0));
-      mMgmFmd.mutable_locations()->erase(mMgmFmd.locations().begin());
-      --over_replicated;
+    for (const auto fsid : SelectOverReplicatedDrops(over_replicated)) {
+      to_drop.insert(fsid);
+      auto* mutable_loc = mMgmFmd.mutable_locations();
+
+      for (auto it = mutable_loc->begin(); it != mutable_loc->end(); ++it) {
+        if (*it == fsid) {
+          mutable_loc->erase(it);
+          break;
+        }
+      }
     }
   } else {
     if (num_actual_rep < num_expected_rep) { // under-replicated
@@ -1137,6 +1149,45 @@ FsckEntry::RepairReplicaInconsistencies()
   ResyncFstMd(true);
   eos_info("msg=\"file replicas consistent\" fxid=%08llx", mFid);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Select the registered replicas to drop for an over-replicated file
+//------------------------------------------------------------------------------
+std::vector<eos::common::FileSystem::fsid_t>
+FsckEntry::SelectOverReplicatedDrops(size_t num) const
+{
+  using eos::common::FileSystem;
+  // Rank is (reachable, configuration status), the lowest gets dropped first
+  std::vector<std::pair<std::pair<int, int>, FileSystem::fsid_t>> ranked;
+
+  for (const auto fsid : mMgmFmd.locations()) {
+    if ((fsid == 0ull) || (fsid == EOS_TAPE_FSID)) {
+      continue;
+    }
+
+    auto it = mFstFileInfo.find(fsid);
+    const int reachable =
+        ((it != mFstFileInfo.end()) && (it->second->mFstErr == FstErr::None)) ? 1 : 0;
+    const int status = static_cast<int>(mFsStatusFn ? mFsStatusFn(fsid)
+                                                    : eos::common::ConfigStatus::kRW);
+    ranked.push_back({{reachable, status}, fsid});
+  }
+
+  std::stable_sort(ranked.begin(), ranked.end(), [](const auto& lhs, const auto& rhs) {
+    return lhs.first < rhs.first;
+  });
+  std::vector<FileSystem::fsid_t> selected;
+
+  for (const auto& elem : ranked) {
+    if (selected.size() >= num) {
+      break;
+    }
+
+    selected.push_back(elem.second);
+  }
+
+  return selected;
 }
 
 //----------------------------------------------------------------------------
