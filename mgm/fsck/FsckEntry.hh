@@ -22,15 +22,16 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
-#include "common/Logging.hh"
 #include "common/FileSystem.hh"
+#include "common/Fmd.hh"
+#include "common/Logging.hh"
+#include "mgm/Namespace.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-#include "common/Fmd.hh"
 #include <XrdCl/XrdClFileSystem.hh>
 #include <functional>
+#include <vector>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -77,6 +78,9 @@ using RepairFactoryFnT =
    bool drop_src,
    const std::string& app_tag,
    bool repair_excluded)>;
+//! Callable returning the configuration status of a file system
+using FsStatusFnT =
+    std::function<eos::common::ConfigStatus(eos::common::FileSystem::fsid_t fsid)>;
 
 //------------------------------------------------------------------------------
 //! Class FsckEntry
@@ -163,6 +167,19 @@ public:
   bool RepairBestEffort();
 
   //----------------------------------------------------------------------------
+  //! Select the registered replicas to drop for an over-replicated file. The
+  //! ones the FST could not report on go first, then the ones on file systems
+  //! with the lowest configuration status e.g. off, drain or ro before rw.
+  //! Ties keep the order of the locations.
+  //!
+  //! @param num number of replicas to select
+  //!
+  //! @return file system ids to drop, at most num entries
+  //----------------------------------------------------------------------------
+  std::vector<eos::common::FileSystem::fsid_t>
+  SelectOverReplicatedDrops(size_t num) const;
+
+  //----------------------------------------------------------------------------
   //! Collect MGM file metadata information
   //!
   //! @return 0 if successful, ENOENT if the file does not exist anymore in the
@@ -227,6 +244,8 @@ public:
   std::map<eos::common::FsckErr, RepairFnT> mMapRepairOps;
   //! Factory callable creating fsck repair jobs
   RepairFactoryFnT mRepairFactory;
+  //! Callable returning the configuration status of a file system
+  FsStatusFnT mFsStatusFn;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 };
 
