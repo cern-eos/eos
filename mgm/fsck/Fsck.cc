@@ -172,12 +172,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
   static std::set<std::string> new_keys {sCollectKey, sRepairKey,
                                          sBestEffortKey};
   std::unique_lock<std::mutex> serialize_lock(mutex);
-
-  if (mQcl == nullptr) {
-    mQcl = std::make_shared<qclient::QClient>
-           (gOFS->mQdbContactDetails.members,
-            gOFS->mQdbContactDetails.constructOptions());
-  }
+  (void)GetQClient();
 
   if (key == sCollectIntervalKey) {
     // If value is present then it represents the collection interval
@@ -383,7 +378,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
   mCollectRunning = true;
   eos_info("%s", "msg=\"started fsck collector thread\"");
 
-  if (mQcl == nullptr) {
+  if (GetQClient() == nullptr) {
     eos_err("%s", "msg=\"failed to fsck repair thread without a qclient\"");
     Log("Fsck error collection disabled, missing QuarkDB configuration");
     mCollectRunning = false;
@@ -467,7 +462,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
   mRepairRunning = true;
   eos_info("%s", "msg=\"started fsck repair thread\"");
 
-  if (mQcl == nullptr) {
+  if (GetQClient() == nullptr) {
     eos_err("%s", "msg=\"failed to fsck repair thread without a qclient\"");
     Log("Fsck error repair disabled, missing QuarkDB configuration");
     mRepairRunning = false;
@@ -532,8 +527,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
           continue;
         }
 
-        std::shared_ptr<FsckEntry> job{
-          new FsckEntry(elem.first, elem.second, err_type, mDoBestEffort, mQcl)};
+        std::shared_ptr<FsckEntry> job{new FsckEntry(elem.first, elem.second, err_type,
+                                                     mDoBestEffort, GetQClient())};
         mThreadPool.PushTask<void>([job]() {
           return job->Repair();
         });
@@ -612,8 +607,8 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
     return false;
   }
 
-  std::shared_ptr<FsckEntry> job {
-    new FsckEntry(fid, fsid_err, err_type, false, mQcl)};
+  std::shared_ptr<FsckEntry> job{
+      new FsckEntry(fid, fsid_err, err_type, false, GetQClient())};
 
   if (async) {
     out_msg = "msg=\"repair job submitted\"";
@@ -1261,7 +1256,7 @@ void
 Fsck::QueryQdb(ErrMapT& err_map)
 {
   static std::set<std::string> known_errs = eos::common::GetKnownFsckErrs();
-  qclient::QSet set_errs(*mQcl.get(), "");
+  qclient::QSet set_errs(*GetQClient(), "");
   // Helper function to parse fsck info stored in QDB
   auto parse_fsck =
     [](const std::string & data) ->
@@ -1352,7 +1347,7 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
   // Eventually flush the contents to the QDB backend if sentinel fid present
   // or if enough updates accumulated
   if (force || do_flush || (num_updates >= count_flush)) {
-    qclient::QSet qset(*mQcl.get(), "");
+    qclient::QSet qset(*GetQClient(), "");
 
     for (const auto& elem : updates) {
       qset.setKey(SSTR("fsck:" << elem.first));
@@ -1370,6 +1365,22 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
 }
 
 //------------------------------------------------------------------------------
+// Get the QClient object, creating it on first use
+//------------------------------------------------------------------------------
+std::shared_ptr<qclient::QClient>
+Fsck::GetQClient() const
+{
+  std::lock_guard<std::mutex> lock(mQclMutex);
+
+  if ((mQcl == nullptr) && gOFS) {
+    mQcl = std::make_shared<qclient::QClient>(
+        gOFS->mQdbContactDetails.members, gOFS->mQdbContactDetails.constructOptions());
+  }
+
+  return mQcl;
+}
+
+//------------------------------------------------------------------------------
 // Force clean-up the orphans from QuarkDB
 //------------------------------------------------------------------------------
 void
@@ -1377,9 +1388,9 @@ Fsck::ForceCleanQdbOrphans() const
 {
   static std::string key_orphans = "fsck:orphans_n";
 
-  if (mQcl) {
+  if (auto qcl = GetQClient()) {
     try {
-      (void)mQcl->del(key_orphans);
+      (void)qcl->del(key_orphans);
     } catch (const std::exception& e) {
       eos_static_err("%s", "msg=\"failed while doing qdb orphan clean-up\"");
     }
