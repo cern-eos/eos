@@ -427,6 +427,23 @@ void Prefetcher::prefetchContainerMDWithParentsAndWait(IView* view,
 }
 
 //------------------------------------------------------------------------------
+// Copy the ids of a file system list. The iterator holds the mutex of the
+// list, and a writer holding the MD locks of a file waits for that mutex to
+// update the list, so no MD lock may be taken while the iterator is alive.
+//------------------------------------------------------------------------------
+static std::vector<IFileMD::id_t>
+copyFileIds(std::shared_ptr<ICollectionIterator<IFileMD::id_t>> it)
+{
+  std::vector<IFileMD::id_t> ids;
+
+  for (; it && it->valid(); it->next()) {
+    ids.push_back(it->getElement());
+  }
+
+  return ids;
+}
+
+//------------------------------------------------------------------------------
 // Prefetch FileList for the given filesystem ID
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFilesystemFileListAndWait(IView* view, IFsView* fsview,
@@ -452,9 +469,8 @@ void Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(
 
   Prefetcher prefetcher(view);
 
-  for (auto it = fsview->getUnlinkedFileList(location); it &&
-       it->valid(); it->next()) {
-    prefetcher.stageFileMD(it->getElement());
+  for (const auto id : copyFileIds(fsview->getUnlinkedFileList(location))) {
+    prefetcher.stageFileMD(id);
   }
 
   prefetcher.wait();
@@ -473,8 +489,8 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(IView* view,
 
   Prefetcher prefetcher(view);
 
-  for (auto it = fsview->getFileList(location); it && it->valid(); it->next()) {
-    prefetcher.stageFileMD(it->getElement());
+  for (const auto id : copyFileIds(fsview->getFileList(location))) {
+    prefetcher.stageFileMD(id);
   }
 
   prefetcher.wait();
@@ -493,8 +509,8 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
 
   Prefetcher prefetcher(view);
 
-  for (auto it = fsview->getFileList(location); it && it->valid(); it->next()) {
-    prefetcher.stageFileMDWithParents(it->getElement());
+  for (const auto id : copyFileIds(fsview->getFileList(location))) {
+    prefetcher.stageFileMDWithParents(id);
   }
 
   prefetcher.wait();

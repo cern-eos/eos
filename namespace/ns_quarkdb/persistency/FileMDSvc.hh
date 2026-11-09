@@ -28,6 +28,8 @@
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "qclient/structures/QHash.hh"
+#include <array>
+#include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -196,6 +198,9 @@ private:
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   std::atomic<uint64_t> mNumFiles; ///< Total number of fileso
+  //! By file id: the isDeleted check and the write of updateStore must not
+  //! interleave with a removal, the record would survive it
+  std::array<std::mutex, 64> mStoreMutex;
   std::unique_ptr<MetadataProvider>
   mMetadataProvider; ///< Provides metadata from backend
   UnifiedInodeProvider mUnifiedInodeProvider; ///< Provides next free inode

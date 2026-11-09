@@ -16,18 +16,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Logging.hh"
-#include "common/Assert.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "common/Assert.hh"
+#include "common/Logging.hh"
 #include "namespace/Constants.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include <cerrno>
 #include <ctime>
-#include <functional>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <functional>
 
 using std::placeholders::_1;
 
@@ -468,23 +469,6 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid,
   parent->addFile(file.get());
   updateFileStore(file.get());
   return file;
-}
-
-//------------------------------------------------------------------------
-//! Create a link for given uri
-//------------------------------------------------------------------------
-void
-QuarkHierarchicalView::createLink(const std::string& uri,
-                                  const std::string& linkuri,
-                                  uid_t uid, gid_t gid)
-{
-  std::shared_ptr<IFileMD> file = createFile(uri, uid, gid);
-
-  if (file) {
-    file->setLink(linkuri);
-    file->setSize(linkuri.length());
-    updateFileStore(file.get());
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -1112,7 +1096,11 @@ QuarkHierarchicalView::registerQuotaNode(IContainerMD* container)
   }
 
   IQuotaNode* node = pQuotaStats->registerNewNode(container->getId());
-  container->setFlags(container->getFlags() | QUOTA_NODE_FLAG);
+  {
+    // Flag read-modify-write under the MD lock: rmdir checks it under it
+    auto cont_lock = MDLocking::writeLock(container);
+    container->setFlags(container->getFlags() | QUOTA_NODE_FLAG);
+  }
   updateContainerStore(container);
   return node;
 }
@@ -1151,20 +1139,19 @@ QuarkHierarchicalView::removeQuotaNode(IContainerMD* container)
                pContainerSvc->getContainerMD(container->getParentId()).get(), true);
   }
 
-  container->setFlags(container->getFlags() & ~QUOTA_NODE_FLAG);
+  {
+    auto cont_lock = MDLocking::writeLock(container);
+    container->setFlags(container->getFlags() & ~QUOTA_NODE_FLAG);
+  }
   updateContainerStore(container);
 
-  if (parent != nullptr) {
-    try {
-      parent->meld(node);
-    } catch (const std::runtime_error& e) {
-      MDException ex;
-      ex.getMessage() << "Failed quota node meld: " << e.what();
-      throw ex;
-    }
+  try {
+    pQuotaStats->removeNode(node, parent);
+  } catch (const std::runtime_error& e) {
+    MDException ex;
+    ex.getMessage() << "Failed quota node meld: " << e.what();
+    throw ex;
   }
-
-  pQuotaStats->removeNode(container->getId());
 }
 
 //------------------------------------------------------------------------------

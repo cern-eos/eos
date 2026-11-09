@@ -32,8 +32,10 @@
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "qclient/structures/QHash.hh"
+#include <array>
 #include <list>
 #include <map>
+#include <mutex>
 
 namespace qclient {
   class QClient;
@@ -237,6 +239,9 @@ private:
   MetadataProvider* mMetadataProvider;  ///< Provider namespace metadata
   UnifiedInodeProvider* mUnifiedInodeProvider; ///< Provide next free inode
   std::atomic<uint64_t> mNumConts;      ///< Total number of containers
+  //! By container id: the isDeleted check and the write of updateStore must
+  //! not interleave with a removal, the record would survive it
+  std::array<std::mutex, 64> mStoreMutex;
   std::string
   mCacheNum;                ///< Temporary workaround to store cache size
 };

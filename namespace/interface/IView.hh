@@ -122,13 +122,6 @@ public:
       uint64_t fid = 0) = 0;
 
   //----------------------------------------------------------------------------
-  //! Create a link for given uri
-  //----------------------------------------------------------------------------
-  virtual void createLink(const std::string& uri,
-                          const std::string& linkuri,
-                          uid_t uid = 0, gid_t gid = 0) = 0;
-
-  //----------------------------------------------------------------------------
   //! Remove the file - the pointer is not valid any more once the call
   //! returns
   //----------------------------------------------------------------------------

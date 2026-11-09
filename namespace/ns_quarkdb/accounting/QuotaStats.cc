@@ -56,6 +56,19 @@ QuarkQuotaNode::QuarkQuotaNode(IQuotaStats* quota_stats,
 void
 QuarkQuotaNode::addFile(const IFileMD* file)
 {
+  std::unique_lock<std::mutex> lock(mRemovedMtx);
+
+  if (mRemoved) {
+    IQuotaNode* parent = mParent;
+    lock.unlock();
+
+    if (parent) {
+      parent->addFile(file);
+    }
+
+    return;
+  }
+
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
@@ -84,6 +97,19 @@ QuarkQuotaNode::addFile(const IFileMD* file)
 void
 QuarkQuotaNode::removeFile(const IFileMD* file)
 {
+  std::unique_lock<std::mutex> lock(mRemovedMtx);
+
+  if (mRemoved) {
+    IQuotaNode* parent = mParent;
+    lock.unlock();
+
+    if (parent) {
+      parent->removeFile(file);
+    }
+
+    return;
+  }
+
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
@@ -105,6 +131,27 @@ QuarkQuotaNode::removeFile(const IFileMD* file)
     file->getSize(),
     size
   );
+}
+
+//------------------------------------------------------------------------------
+// Mark the node removed and delete its backend keys
+//------------------------------------------------------------------------------
+void
+QuarkQuotaNode::retire(IQuotaNode* parent)
+{
+  // File updates wait during the meld, then go to parent
+  std::lock_guard<std::mutex> lock(mRemovedMtx);
+
+  if (parent) {
+    // meld reads the backend: flush the updates queued before the lock
+    pFlusher->synchronize();
+    parent->meld(this);
+  }
+
+  mParent = parent;
+  mRemoved = true;
+  pFlusher->del(pQuotaUidKey);
+  pFlusher->del(pQuotaGidKey);
 }
 
 //------------------------------------------------------------------------------
@@ -246,6 +293,12 @@ void QuarkQuotaNode::updateFromBackend()
 void
 QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
 {
+  std::lock_guard<std::mutex> lock(mRemovedMtx);
+
+  if (mRemoved) {
+    return;
+  }
+
   pCore = updated;
   pFlusher->exec("DEL", pQuotaUidKey);
   pFlusher->exec("DEL", pQuotaGidKey);
@@ -290,6 +343,12 @@ QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
 void
 QuarkQuotaNode::updateCore(const QuotaNodeCore& updated)
 {
+  std::lock_guard<std::mutex> lock(mRemovedMtx);
+
+  if (mRemoved) {
+    return;
+  }
+
   // replace all existing entries from updated and flush them
   pCore << updated;
 
@@ -368,6 +427,10 @@ QuarkQuotaStats::getQuotaNode(IContainerMD::id_t node_id)
     return it->second.get();
   }
 
+  if (mRetiredIds.count(node_id)) {
+    return nullptr;
+  }
+
   std::string snode_id = std::to_string(node_id);
 
   if ((pQcl->exists(KeyQuotaUidMap(snode_id)) == 1) ||
@@ -400,6 +463,7 @@ QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 
   IQuotaNode* ptr = new QuarkQuotaNode(this, node_id);
   pNodeMap[node_id].reset(ptr);
+  mRetiredIds.erase(node_id);
   return ptr;
 }
 
@@ -409,18 +473,46 @@ QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 void
 QuarkQuotaStats::removeNode(IContainerMD::id_t node_id)
 {
+  QuarkQuotaNode* node = nullptr;
   {
     std::lock_guard<std::mutex> lock(mNodeMapMutex);
     auto it = pNodeMap.find(node_id);
 
     if (it != pNodeMap.end()) {
-      pNodeMap.erase(it);
+      node = static_cast<QuarkQuotaNode*>(it->second.get());
     }
   }
 
-  std::string snode_id = std::to_string(node_id);
-  pFlusher->del(KeyQuotaUidMap(snode_id));
-  pFlusher->del(KeyQuotaGidMap(snode_id));
+  if (node) {
+    removeNode(node, nullptr);
+  } else {
+    {
+      std::lock_guard<std::mutex> lock(mNodeMapMutex);
+      mRetiredIds.insert(node_id);
+    }
+    std::string snode_id = std::to_string(node_id);
+    pFlusher->del(KeyQuotaUidMap(snode_id));
+    pFlusher->del(KeyQuotaGidMap(snode_id));
+  }
+}
+
+//------------------------------------------------------------------------------
+// Meld the node into its parent and remove it. The node object is kept: a
+// writer can still hold its pointer.
+//------------------------------------------------------------------------------
+void
+QuarkQuotaStats::removeNode(IQuotaNode* node, IQuotaNode* parent)
+{
+  static_cast<QuarkQuotaNode*>(node)->retire(parent);
+  std::lock_guard<std::mutex> lock(mNodeMapMutex);
+  auto it = pNodeMap.find(node->getId());
+
+  if ((it != pNodeMap.end()) && (it->second.get() == node)) {
+    mRetiredNodes.push_back(std::move(it->second));
+    pNodeMap.erase(it);
+  }
+
+  mRetiredIds.insert(node->getId());
 }
 
 //------------------------------------------------------------------------------

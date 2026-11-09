@@ -220,6 +220,19 @@ public:
   virtual void removeNode(IContainerMD::id_t nodeId) = 0;
 
   //----------------------------------------------------------------------------
+  //! Meld the node into its parent (if any) and remove it
+  //----------------------------------------------------------------------------
+  virtual void
+  removeNode(IQuotaNode* node, IQuotaNode* parent)
+  {
+    if (parent) {
+      parent->meld(node);
+    }
+
+    removeNode(node->getId());
+  }
+
+  //----------------------------------------------------------------------------
   //! Get the set of all quota node ids. The quota node id corresponds to the
   //! container id.
   //!
