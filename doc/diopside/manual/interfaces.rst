@@ -65,7 +65,6 @@ Here you see a typical output of an `eos ns` command:
     ALL      Files                            100000 [booted] (0s)
     ALL      Directories                      66637
     ALL      Total boot time                  0 s
-    ALL      Contention                       write: 0.00 % read:0.00 %
     # ------------------------------------------------------------------------------------
     ALL      Replication                      is_master=true master_id=mgm.cern.ch:1094
     # ------------------------------------------------------------------------------------
@@ -80,14 +79,16 @@ Here you see a typical output of an `eos ns` command:
     ALL      eosxd active clients             0
     ALL      eosxd locked clients             0
     # ------------------------------------------------------------------------------------
+    ALL      FsView mutex status              available (0s)
+    ALL      FsView mutex peak-latency        0ms (last) 0ms (1 min) 0ms (2 min) 0ms (5 min)
+    ALL      MD lock waits                    479 (1189 ms in total)
+    # ------------------------------------------------------------------------------------
     ALL      File cache max num               40000000
     ALL      File cache occupancy             13
     ALL      In-flight FileMD                 0
     ALL      Container cache max num          5000000
     ALL      Container cache occupancy        16
     ALL      In-flight ContainerMD            0
-    # ------------------------------------------------------------------------------------
-    ALL      eosViewRWMutex peak-latency      0ms (last) 0ms (1 min) 0ms (2 min) 0ms (5 min)
     # ------------------------------------------------------------------------------------
     ALL      QClient overall RTT              0ms (min)  0ms (avg)  18ms (max)
     ALL      QClient recent peak RTT          1ms (1 min) 1ms (2 min) 1ms (5 min)
@@ -115,7 +116,6 @@ We will now discuss every section and their meaning.
 
 .. index::
    pair: Namespace; Statistics
-   pair: Namespace; Contention
 
 **Main Section**
  .. code-block:: bash
@@ -124,7 +124,6 @@ We will now discuss every section and their meaning.
     ALL      Files                            100000 [booted] (0s)
     ALL      Directories                      66637
     ALL      Total boot time                  0 s
-    ALL      Contention                       write: 0.00 % read:0.00 %
     # ------------------------------------------------------------------------------------
 
 **Files**
@@ -137,9 +136,6 @@ The `Directories` line shows the number of directories currently stored in the n
 
 **Total boot time**
 Total boot time is the total time to get the namespace into operational state (0s).
-
-**Contention**
-Contention expresses the ratio between wait time to obtain the namespace lock for `read` or `write` and the usage time of the namespace lock for `read` or `write` in percent. 100% means, that the average wait time to obtain a mutex is identical to the average time it is used afterwards.
 
 **Replication Section**
  .. code-block:: bash
@@ -192,6 +188,16 @@ This is the total number of FUSE clients, which were active during the last 5 mi
 *eosxd locked clients*
 
 This is the total number of FUSE clients, which have any operation which is pending more than 5 minutes. Normally this can indicate either that an access for a given user is stalled, IO is blocked for a given file or a client is dead-locked due to a bug.
+
+**Lock Section**
+
+*FsView mutex status* and *FsView mutex peak-latency*
+
+A watcher thread takes the write lock of the file system view every 2 seconds. `locked-up` means that the last attempt waits since the given number of seconds. The peak latency shows the time of the last attempt and the maximum in the last 1, 2 or 5 minutes. The values should be `0ms` most of the time.
+
+*MD lock waits*
+
+The number of file or directory metadata locks that had to wait for another thread since the MGM start, and the total wait time. The `MDLockWait` and `MDLockWaitUs` rates in `eos ns stat` show the same values per second.
 
 .. index::
    pair: Namespace; Cache Statistics
@@ -257,14 +263,9 @@ To drop a single file or container one can execute:
 .. code-block:: bash
 
    # ------------------------------------------------------------------------------------
-   ALL      eosViewRWMutex peak-latency      0ms (last) 0ms (1 min) 0ms (2 min) 0ms (5 min)
-   # ------------------------------------------------------------------------------------
    ALL      QClient overall RTT              0ms (min)  0ms (avg)  18ms (max)
    ALL      QClient recent peak RTT          1ms (1 min) 1ms (2 min) 1ms (5 min)
    # ------------------------------------------------------------------------------------
-
-*Namespace Peak Latency*
-The `eosViewRWMutex peak-latency` values measure the maximum lead time to obtain a write lock on the namespace. The values show the current measurement and the maximum in the last 1,2 or 5 minutes. The value should be most of the time `0ms` but can fluctuate for few hundred milliseconds.
 
 *QClient overall RTT*
 This sections shows the measurement of the round-trip time for QuarkDB operations with the minimum, average and maximum values.
@@ -499,8 +500,6 @@ Here is an example output of `eos ns stat`, the header columns are explained her
    all MoveStripe                                         0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
    all Newfind                                            1     0.00     0.00     0.00     0.00  4744.00      0.00  4744.00  4744.00       4s
    all NewfindEntries                                6.40 K     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-     -NA-
-   all NsLockR                                       9.51 G  8018.00  9588.22 12451.45 13669.57     -NA-      -NA-     -NA-     -NA-     -NA-
-   all NsLockW                                     163.83 M   109.25   324.59   337.82   271.71     -NA-      -NA-     -NA-     -NA-     -NA-
    all Open                                        119.59 M    91.25   124.71   115.07   132.60     0.65      0.71     7.40     2.36       3d
    all OpenDir                                     482.14 M    39.00   783.88   734.32   715.38     1.30      3.08    16.92    13.28       1d
    all OpenDir-Entry                                12.37 G  1068.25  8288.78 10319.15 26755.20     -NA-      -NA-     -NA-     -NA-     -NA-
@@ -732,11 +731,11 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     Ls
     MarkClean
     MarkDirty
+    MDLockWait
+    MDLockWaitUs
     Mkdir
     Motd
     MoveStripe
-    NsLockR
-    NsLockW
     Open
     OpenDir
     OpenDir-Entry
@@ -811,14 +810,6 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     ViewLockW
     Who
     WhoAmI
-    NsLockRWait:spl
-    NsLockRWait:min
-    NsLockRWait:avg
-    NsLockRWait:max
-    NsLockWWait:spl
-    NsLockWWait:min
-    NsLockWWait:avg
-    NsLockWWait:max
     QuotaLockRWait:spl
     QuotaLockRWait:min
     QuotaLockRWait:avg

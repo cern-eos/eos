@@ -72,7 +72,6 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
 #define EOS_RWMUTEX_CHECKORDER_UNLOCK if(sEnableGlobalOrderCheck) CheckAndUnlockOrder();
 
 #define EOS_RWMUTEX_TIMER_START                                             \
-  uint64_t l1stamp = Timing::GetNowInNs();                                  \
   bool issampled = false; uint64_t tstamp = 0;                              \
   if (mEnableTiming || sEnableGlobalTiming) {                               \
     issampled = mEnableSampling ? (!((++mCounter)%mSamplingModulo)) : true; \
@@ -80,43 +79,49 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
   }
 
 // what = mRd or mWr
-#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what)                                \
-  ++(what##LockCounter);                                                       \
-  if(issampled) {                                                              \
-    tstamp = Timing::GetNowInNs() - tstamp;                                    \
-    if(mEnableTiming) {                                                        \
-      ++(what##LockCounterSample);                                             \
-      what##CumulatedWait += tstamp;                                           \
-      bool needloop=true;                                                      \
-      do {size_t mymax = what##MaxWait.load();                                 \
-        if (tstamp > mymax)                                                    \
-          needloop = !(what##MaxWait).compare_exchange_strong(mymax, tstamp);  \
-        else needloop = false;                                                 \
-      } while(needloop);                                                       \
-      do {size_t mymin = what##MinWait.load();                                 \
-        if (tstamp < mymin)                                                    \
-          needloop = !(what##MinWait).compare_exchange_strong(mymin, tstamp);  \
-        else needloop = false;                                                 \
-      } while(needloop);                                                       \
-    }                                                                          \
-    if(sEnableGlobalTiming) {                                                  \
-      ++(what##LockCounterSample_static);                                      \
-      what##CumulatedWait_static += tstamp;                                    \
-      bool needloop = true;                                                    \
-      do {size_t mymax = what##MaxWait_static.load();                          \
-        if (tstamp > mymax)                                                    \
-          needloop = !(what##MaxWait_static).compare_exchange_strong(mymax, tstamp); \
-        else needloop = false;                                                 \
-       } while(needloop);                                                      \
-      do {size_t mymin = what##MinWait_static.load();                          \
-        if (tstamp < mymin)                                                    \
-          needloop = !(what##MinWait_static).compare_exchange_strong(mymin, tstamp); \
-        else needloop = false;                                                 \
-      } while(needloop);                                                       \
-    }                                                                          \
-  }                        \
-  uint64_t l2stamp = Timing::GetNowInNs();               \
-  (what##LockLeadTime) += (l2stamp-l1stamp);
+#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what)                                          \
+  ++(what##LockCounter);                                                                 \
+  if (issampled) {                                                                       \
+    tstamp = Timing::GetNowInNs() - tstamp;                                              \
+    if (mEnableTiming) {                                                                 \
+      ++(what##LockCounterSample);                                                       \
+      what##CumulatedWait += tstamp;                                                     \
+      bool needloop = true;                                                              \
+      do {                                                                               \
+        size_t mymax = what##MaxWait.load();                                             \
+        if (tstamp > mymax)                                                              \
+          needloop = !(what##MaxWait).compare_exchange_strong(mymax, tstamp);            \
+        else                                                                             \
+          needloop = false;                                                              \
+      } while (needloop);                                                                \
+      do {                                                                               \
+        size_t mymin = what##MinWait.load();                                             \
+        if (tstamp < mymin)                                                              \
+          needloop = !(what##MinWait).compare_exchange_strong(mymin, tstamp);            \
+        else                                                                             \
+          needloop = false;                                                              \
+      } while (needloop);                                                                \
+    }                                                                                    \
+    if (sEnableGlobalTiming) {                                                           \
+      ++(what##LockCounterSample_static);                                                \
+      what##CumulatedWait_static += tstamp;                                              \
+      bool needloop = true;                                                              \
+      do {                                                                               \
+        size_t mymax = what##MaxWait_static.load();                                      \
+        if (tstamp > mymax)                                                              \
+          needloop = !(what##MaxWait_static).compare_exchange_strong(mymax, tstamp);     \
+        else                                                                             \
+          needloop = false;                                                              \
+      } while (needloop);                                                                \
+      do {                                                                               \
+        size_t mymin = what##MinWait_static.load();                                      \
+        if (tstamp < mymin)                                                              \
+          needloop = !(what##MinWait_static).compare_exchange_strong(mymin, tstamp);     \
+        else                                                                             \
+          needloop = false;                                                              \
+      } while (needloop);                                                                \
+    }                                                                                    \
+  }
 
 #else
 #define EOS_RWMUTEX_CHECKORDER_LOCK
@@ -1375,7 +1380,6 @@ RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockWrite);
   mAcquiredAt = std::chrono::steady_clock::now();
-  mAcquiredAtSystem = std::chrono::system_clock::now();
 }
 
 
@@ -1391,11 +1395,8 @@ RWMutexWriteLock::Release()
     mWrMutex->UnLockWrite();
     RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mWrMutex->BlockedForMsInterval();
-    mWrMutex->AddWriteLockTime(blockedinterval);
     bool blockedtracing = mWrMutex->BlockedStackTracing();
     mReleasedAt = std::chrono::steady_clock::now();
-    mReleasedAtSystem = std::chrono::system_clock::now();
-    mWrMutex->addBlockingTimeInfos(mAcquiredAtSystem, mReleasedAtSystem);
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds> (mReleasedAt -
           mAcquiredAt);
@@ -1469,7 +1470,6 @@ RWMutexReadLock::Release()
     mRdMutex->UnLockRead();
     RWMutex::RecordMutexOp((uint64_t)mRdMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
-    mRdMutex->AddReadLockTime(blockedinterval);
     bool blockedtracing = mRdMutex->BlockedStackTracing();
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>

@@ -74,8 +74,9 @@ public:
   //! Initialization may fail - in such case, "false" will be returned, and
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
-  virtual bool initialize(eos::common::RWMutex* nsMtx, const
-                          std::map<std::string, std::string>& config, std::string& err,INamespaceStats * namespaceStats) override final;
+  virtual bool initialize(const std::map<std::string, std::string>& config,
+                          std::string& err,
+                          INamespaceStats* namespaceStats) override final;
 
   //----------------------------------------------------------------------------
   //! Provide file service

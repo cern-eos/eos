@@ -83,12 +83,10 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup()
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
 //------------------------------------------------------------------------------
-bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx,
-                                     const std::map<std::string, std::string>& config,
-                                     std::string& err,
-                                     INamespaceStats * namespaceStats)
+bool
+QuarkNamespaceGroup::initialize(const std::map<std::string, std::string>& config,
+                                std::string& err, INamespaceStats* namespaceStats)
 {
-  mNsMutex = nsMtx;
   mNamespaceStats = namespaceStats;
   // Mandatory configuration option: queue_path
   auto it = config.find("queue_path");

@@ -225,6 +225,8 @@ public:
   Locks lockAll() {
     Locks locks;
     auto backoffDuration = std::chrono::microseconds(10); // start with 10 microseconds
+    std::chrono::steady_clock::time_point waitStart;
+    bool waited = false;
     const auto maxBackoffDuration = std::chrono::milliseconds(10); // cap backoff at 10 milliseconds
     while(true) {
       std::unique_ptr<ContainerLocksVector> containerLocksVector = std::make_unique<ContainerLocksVector>();
@@ -237,6 +239,11 @@ public:
         if(filesLocked) {
           locks.addContainerLocks(std::move(containerLocksVector));
           locks.addFileLocks(std::move(fileLocksVector));
+
+          if (waited) {
+            MDLockWaitStats::Add(std::chrono::steady_clock::now() - waitStart);
+          }
+
           break;
         } else {
           // We did not manage to lock at least one File/ContainerMD, release all locks and retry...
@@ -245,6 +252,11 @@ public:
           containerLocksVector->releaseAllLocksAndClear();
         }
       }
+      if (!waited) {
+        waited = true;
+        waitStart = std::chrono::steady_clock::now();
+      }
+
       // Exponential backoff:
       std::this_thread::sleep_for(backoffDuration);
       // Double the backoff duration for the next iteration.

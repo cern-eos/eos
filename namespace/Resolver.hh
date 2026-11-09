@@ -42,7 +42,6 @@ public:
 
   //----------------------------------------------------------------------------
   //! Resolve a container specification message to a ContainerMD.
-  //! Assumes caller holds eosViewRWMutex.
   //----------------------------------------------------------------------------
   static IContainerMDPtr resolveContainer(IView* view,
                                           const ContainerSpecificationProto& proto);

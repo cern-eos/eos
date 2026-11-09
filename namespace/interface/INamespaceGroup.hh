@@ -62,8 +62,8 @@ public:
   //! Initialization may fail - in such case, "false" will be returned, and
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
-  virtual bool initialize(eos::common::RWMutex* mtx,
-    const std::map<std::string, std::string> &config, std::string &err, INamespaceStats * namespaceStats) = 0;
+  virtual bool initialize(const std::map<std::string, std::string>& config,
+                          std::string& err, INamespaceStats* namespaceStats) = 0;
 
   //----------------------------------------------------------------------------
   //! Provide file service
@@ -111,11 +111,6 @@ public:
   virtual void startCacheRefreshListener() = 0;
 
 protected:
-  //----------------------------------------------------------------------------
-  //! Global namespace mutex - no ownership
-  //----------------------------------------------------------------------------
-  eos::common::RWMutex* mNsMutex;
-
   //----------------------------------------------------------------------------
   //! MGM Namespace stats object - no ownership
   //----------------------------------------------------------------------------

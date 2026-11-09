@@ -536,7 +536,7 @@ XrdMgmOfs::_rem(const char* path,
 
             if (cloned) {
               XrdMgmOfsFile::notify_cow(cow);
-              eos_info("create_cow for recycled %s (fxid:%lx)", fmd->getName().c_str(),
+              eos_info("cow for recycled %s (fxid:%lx)", fmd->getName().c_str(),
                        fmd->getId());
             }
           }

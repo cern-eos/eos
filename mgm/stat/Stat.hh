@@ -577,15 +577,6 @@ public:
 
   void Clear();
 
-  //----------------------------------------------------------------------------
-  //! Get read contention approximation
-  //----------------------------------------------------------------------------
-  double GetReadContention() const;
-
-  //----------------------------------------------------------------------------
-  //! Get write contention approximation
-  //----------------------------------------------------------------------------
-  double GetWriteContention() const;
 
 
   void PrintOutTotal(XrdOucString& out, bool details = false,

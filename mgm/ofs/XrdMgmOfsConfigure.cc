@@ -1627,7 +1627,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  eosViewRWMutex.SetBlocking(true);
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
   // Initialize the HA setup
@@ -1735,7 +1734,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
-  eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
   //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
   // eos::common::RWMutex::EstimateLatenciesAndCompensation();
@@ -1746,21 +1744,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   quota_mtx->SetDebugName("QuotaView");
   quota_mtx->SetTiming(false);
   quota_mtx->SetSampling(true, 0.01);
-  ns_mtx->SetDebugName("eosView");
-  ns_mtx->SetTiming(false);
-  ns_mtx->SetSampling(true, 0.01);
   fusex_client_mtx->SetDebugName("FusexClient");
   //fusex_cap_mtx->SetDebugName("FusexCap");
   std::vector<eos::common::RWMutex*> order;
   order.push_back(fs_mtx);
-  order.push_back(ns_mtx);
   order.push_back(fusex_client_mtx);
   //order.push_back(fusex_cap_mtx);
   order.push_back(quota_mtx);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
+  mFsViewMutexWatcher.activate(FsView::gFsView.ViewMutex, "FsView::ViewMutex");
   // Configure the meta data catalog
-  mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
 
   if (!mMaster->BootNamespace()) {
     eos_static_crit("%s", "msg=\"namespace boot failed\"");
@@ -2340,10 +2334,10 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("HashGet", 0, 0, 0);
   MgmStats.Add("ViewLockR", 0, 0, 0);
   MgmStats.Add("ViewLockW", 0, 0, 0);
-  MgmStats.Add("NsLockR", 0, 0, 0);
-  MgmStats.Add("NsLockW", 0, 0, 0);
   MgmStats.Add("QuotaLockR", 0, 0, 0);
   MgmStats.Add("QuotaLockW", 0, 0, 0);
+  MgmStats.Add("MDLockWait", 0, 0, 0);
+  MgmStats.Add("MDLockWaitUs", 0, 0, 0);
   MgmStats.Add("Access", 0, 0, 0);
   MgmStats.Add("AdjustReplica", 0, 0, 0);
   MgmStats.Add("AttrGet", 0, 0, 0);

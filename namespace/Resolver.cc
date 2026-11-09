@@ -30,7 +30,6 @@ EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Resolve a container specification message to a ContainerMD.
-// Assumes caller holds eosViewRWMutex.
 //------------------------------------------------------------------------------
 IContainerMDPtr Resolver::resolveContainer(IView* view,
     const ContainerSpecificationProto& proto)

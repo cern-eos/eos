@@ -220,8 +220,7 @@ private:
   //----------------------------------------------------------------------------
   //! Refresh quota all quota values for current space
   //!
-  //! @warning Caller needs to hold a read-lock on both eosViewRWMutex and
-  //!          pMapMutex
+  //! @warning Caller needs to hold a read-lock on pMapMutex
   //----------------------------------------------------------------------------
   void Refresh(time_t age = 0);
 
@@ -244,7 +243,7 @@ private:
   //! Update ns quota node address referred to by current space quota
   //!
   //! @return true if update successful, otherwise false
-  //! @warning Caller needs to hold a read-lock on eosViewRWMutex
+  //! @warning Caller needs to hold a read-lock on pMapMutex
   //----------------------------------------------------------------------------
   bool UpdateQuotaNodeAddress();
 

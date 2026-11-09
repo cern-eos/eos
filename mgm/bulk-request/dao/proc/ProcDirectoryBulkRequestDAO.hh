@@ -142,13 +142,6 @@ private:
                                           const BulkRequest::Type& type);
 
   /**
-   * Insert the files contained in the bulk request into the directory created by createBulkRequestDirectory()
-   * @param bulkRequest the bulk-request containing the files to insert in the directory
-   * @param bulkReqProcPath the he directory in /proc/ where the files contained in the bulk-request will be saved
-   */
-  //void insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath);
-
-  /**
    * Performs the cleaning of the bulk-request directory if an exception happens during the persistency of the bulk-request
    * @param bulkReqProcPath the directory where the bulk-request should have been stored
    */

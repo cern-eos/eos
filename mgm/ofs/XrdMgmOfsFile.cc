@@ -170,8 +170,7 @@ emsg(XrdOucErrInfo& error, int ec, const char* txt, const char* txt2)
     snprintf(ebuff, sizeof(ebuff), "error code %d", ec);
   }
 
-  snprintf(sbuff, sizeof(sbuff), "create_cow: unable to %s %s: %s", txt, txt2,
-           etext);
+  snprintf(sbuff, sizeof(sbuff), "cow: unable to %s %s: %s", txt, txt2, etext);
   eos_static_err(sbuff);
   error.setErrInfo(ec, sbuff);
   return SFS_ERROR;
@@ -320,9 +319,8 @@ XrdMgmOfsFile::apply_cow(int cowType, std::shared_ptr<eos::IContainerMD> dmd,
       gOFS->eosFileService->updateStore(fmd.get());
       uint64_t hlTarget = eos::common::FileId::FidToInode(fmd->getId());
       gmd->setAttribute(SYS_HARD_LINK, std::to_string(hlTarget));
-      eos_static_debug("create_cow Unlink %s (%ld) -> %s (%ld)",
-                       gmd->getName().c_str(), gmd->getSize(),
-                       fmd->getName().c_str(), fmd->getSize());
+      eos_static_debug("cow Unlink %s (%ld) -> %s (%ld)", gmd->getName().c_str(),
+                       gmd->getSize(), fmd->getName().c_str(), fmd->getSize());
     }
 
     gOFS->eosFileService->updateStore(gmd.get());
@@ -3131,7 +3129,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           // FUSEX repair access needs to retrieve the file by fid
           // TODO: Refactor isCreation and isRecreation code paths
-          //eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
 
           try {

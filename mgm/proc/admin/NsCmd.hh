@@ -181,7 +181,6 @@ private:
   //!
   //! @return list containing lists of subcontainers at each depth level
   //!         starting with level 0 in front representing the given container
-  //! @note this function assumes a write lock on eosViewRWMutex
   //----------------------------------------------------------------------------
   std::list< std::list<eos::IContainerMD::id_t> >
   BreadthFirstSearchContainers(eos::IContainerMD* cont,

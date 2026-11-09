@@ -79,9 +79,8 @@ collect_eos_stats()
 {
     log_info "Collecting EOS stats for ${EOS_MGM_URL}"
 
-    ns_hang=$(timeout 30 eos ns stat -a -m 2>&1 | tee "${STATS_DIR}/ns_all.info" | grep ns.hanging)
-
-    if [[ -z "${ns_hang}" || "${ns_hang}" =~ ns.hanging=1 ]]; then
+    # The MGM is stuck if "ns stat" does not answer in time
+    if ! timeout 30 eos ns stat -a -m > "${STATS_DIR}/ns_all.info" 2>&1; then
         log_error "MGM is stuck, skipping extraction of MGM stats in this run!"
         return 125
     fi
