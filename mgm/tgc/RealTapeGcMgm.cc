@@ -144,9 +144,7 @@ RealTapeGcMgm::getSpaceConfigMemberUint64(
 bool RealTapeGcMgm::fileInNamespaceAndNotScheduledForDeletion(
   const IFileMD::id_t fid)
 {
-  // Prefetch before taking lock because metadata may not be in memory
   Prefetcher::prefetchFileMDAndWait(m_ofs.eosView, fid);
-  common::RWMutexReadLock lock(m_ofs.eosViewRWMutex);
   const auto fmd = m_ofs.eosFileService->getFileMD(fid);
   // A file scheduled for deletion has a container ID of 0
   return nullptr != fmd && 0 != fmd->getContainerId();
@@ -207,7 +205,6 @@ std::uint64_t RealTapeGcMgm::getFileSizeBytes(const IFileMD::id_t fid)
     throw FailedToGetFileSize(msg.str());
   }
 
-  common::RWMutexReadLock lock(m_ofs.eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
 
   try {

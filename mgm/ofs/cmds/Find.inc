@@ -298,23 +298,46 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     if (cFlag == '+' || cFlag == '-') {
       /* for '-': the clone directory may have been incorrectly removed, this should
        * not prevent a cleanup */
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::common::Path mdPath(buff);
 
       try {
+        // The path walks run before the MD locks
         std::shared_ptr<eos::IContainerMD> pCloneMd = gOFS->eosView->getContainer(
               mdPath.GetParentPath());
-        cloneMd = gOFS->eosView->createContainer(clonePath);
-        cloneMd->setMode(S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-        eos_static_info("%s permissions are %#o", clonePath.c_str(),
-                        cloneMd->getMode());
-        cloneMd->setAttribute("sys.clone.root",  gOFS->eosView->getUri(cmd.get()));
-        gOFS->eosDirectoryService->updateStore(cloneMd.get());
-        gOFS->eosDirectoryService->updateStore(pCloneMd.get());
-        eos::ContainerIdentifier md_id = cloneMd->getIdentifier(); /* see "mkdir" */
-        eos::ContainerIdentifier d_id = pCloneMd->getIdentifier();
-        eos::ContainerIdentifier d_pid = pCloneMd->getParentIdentifier();
-        lock.Release();
+        std::string clone_root = gOFS->eosView->getUri(cmd.get());
+        eos::ContainerIdentifier md_id;
+        eos::ContainerIdentifier d_id;
+        eos::ContainerIdentifier d_pid;
+        {
+          // As createContainer(clonePath), but in the locked parent
+          auto parent_lock = eos::MDLocking::writeLock(pCloneMd.get());
+
+          if (pCloneMd->isDeleted()) {
+            throw_mdexception(ENOENT, clonePath << ": No such file or directory");
+          }
+
+          eos::FileOrContainerMD conflict = pCloneMd->findItem(mdPath.GetName()).get();
+
+          if (conflict.file || conflict.container) {
+            throw_mdexception(EEXIST, clonePath << ": Container exists");
+          }
+
+          cloneMd = gOFS->eosDirectoryService->createContainer(0);
+          // The parent lock is held: a new directory is locked after its parent
+          auto clone_lock = eos::MDLocking::writeLock(cloneMd.get());
+          cloneMd->setName(mdPath.GetName());
+          cloneMd->setCTimeNow();
+          pCloneMd->addContainer(cloneMd.get());
+          cloneMd->setMode(S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+          eos_static_info("%s permissions are %#o", clonePath.c_str(),
+                          cloneMd->getMode());
+          cloneMd->setAttribute("sys.clone.root", clone_root);
+          gOFS->eosDirectoryService->updateStore(cloneMd.get());
+          gOFS->eosDirectoryService->updateStore(pCloneMd.get());
+          md_id = cloneMd->getIdentifier(); /* see "mkdir" */
+          d_id = pCloneMd->getIdentifier();
+          d_pid = pCloneMd->getParentIdentifier();
+        }
         gOFS->FuseXCastRefresh(md_id, d_id);
         gOFS->FuseXCastRefresh(d_id, d_pid);
       } catch (eos::MDException& e) {
@@ -344,7 +367,10 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
   std::shared_ptr<eos::IFileMD> fmd;
   std::string link;
   eos::IContainerMD::tmtime_t stime;
-  eos::common::RWMutexWriteLock rwlock;
+  // For '+' the directory is MD write locked while it and its files are
+  // marked, and released before the recursion: the prefetch of the children
+  // can wait for the backend, and the backend threads for the lock
+  eos::MDLocking::ContainerWriteLockPtr cmd_lock;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
   /* Only at depth 0: find/create clone anchor directory for operations that require it */
@@ -353,13 +379,8 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       return SFS_ERROR;
     }
 
-    /* The eosViewRWMutex lock is explicitly grabbed (for '+') only at the "root" level of the tree and
-     * "quickly" released and re-grabbed at each directory in lower levels. Hence at deeper
-     * recursion levels the lock is already held on entry */
-    if (cFlag == '+') {
-      rwlock.Grab(gOFS->eosViewRWMutex);
-    } else if (cFlag == '-' &&
-               cloneMd->hasAttribute("sys.clone.root")) { /* reset start of purge */
+    if (cFlag == '-' &&
+        cloneMd->hasAttribute("sys.clone.root")) { /* reset start of purge */
       std::string rootDir = cloneMd->getAttribute("sys.clone.root");
 
       try {
@@ -370,6 +391,15 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
                         cloneId, rootDir.c_str(), e.getErrno(), e.getMessage().str().c_str());
       }
+    }
+  }
+
+  if (cFlag == '+') {
+    cmd_lock = eos::MDLocking::writeLock(cmd.get());
+
+    // A parallel rmdir removed the directory while it was not locked
+    if (cmd->isDeleted()) {
+      return rc;
     }
   }
 
@@ -460,9 +490,12 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         break;
       }
 
-      fmd->setCloneId((uint64_t) newId);
-      fmd->setCloneFST("");       /* clean clone fid */
-      gOFS->eosFileService->updateStore(fmd.get());
+      {
+        eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+        fmd->setCloneId((uint64_t)newId);
+        fmd->setCloneFST(""); /* clean clone fid */
+        gOFS->eosFileService->updateStore(fmd.get());
+      }
       break;
 
     case '=':
@@ -472,12 +505,15 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       }
 
       if (cFlag == '-' && cloneId > 9) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-        std::string hex_fid = fmd->getCloneFST();
-        fmd->setCloneId(0);         /* clear cloneId */
-        fmd->setCloneFST("");       /* clean up clone fid */
-        gOFS->eosFileService->updateStore(fmd.get());
-        lock.Release();
+        std::string hex_fid;
+        {
+          // Only clone attributes change: the file MD lock is enough
+          eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+          hex_fid = fmd->getCloneFST();
+          fmd->setCloneId(0);   /* clear cloneId */
+          fmd->setCloneFST(""); /* clean up clone fid */
+          gOFS->eosFileService->updateStore(fmd.get());
+        }
 
         if (hex_fid != "") {
           eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(
@@ -516,25 +552,27 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
     _found.emplace_back(fmd->getId(), depth, false);
   }
 
+  // Copy the ids of the children, then release the directory lock before
+  // the prefetch and the recursion
+  std::vector<eos::IContainerMD::id_t> child_ids;
+
   for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-    if (cFlag == '+') {
-      gOFS->eosViewRWMutex.UnLockWrite();
-    }
+    child_ids.push_back(dit.value());
+  }
 
-    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-        dit.value(), false);
+  cmd_lock.reset();
 
-    if (cFlag == '+') {
-      gOFS->eosViewRWMutex.LockWrite();
-    }
+  for (const auto child_id : child_ids) {
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, child_id,
+                                                            false);
 
     try {
-      ccmd = gOFS->eosDirectoryService->getContainerMD(dit.value());
+      ccmd = gOFS->eosDirectoryService->getContainerMD(child_id);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       ccmd.reset();
-      eos_static_info("msg=\"exception\" ec=%d cid %#lx emsg=\"%s\"\n",
-                      e.getErrno(), dit.value(), e.getMessage().str().c_str());
+      eos_static_info("msg=\"exception\" ec=%d cid %#lx emsg=\"%s\"\n", e.getErrno(),
+                      child_id, e.getMessage().str().c_str());
       continue;
     }
 
@@ -747,8 +785,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     eos_static_info("sys.clone=%c%lld %s >%lld",
                     cFlag, clone_id, Path.c_str(), newId);
     std::list<_cloneFoundItem> _found;
-    int rc = _clone(cmd, out_error, stdErr, vid, _found, cFlag, clone_id, newId,
-                    NULL, 0);  /* clone releases and re-acquires the eosViewRWMutex! */
+    int rc = _clone(cmd, out_error, stdErr, vid, _found, cFlag, clone_id, newId, NULL, 0);
 
     if (rc == 0) {
       _cloneResp(out_error, stdErr, vid, _found, json_output, fstdout);
@@ -1025,8 +1062,8 @@ XrdMgmOfs::FindEntryName(const std::string& dir, const std::string& entry)
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(eosView, path, false);
-      eos::common::RWMutexReadLock ns_rd_lock(eosViewRWMutex);
       auto fmd = eosView->getFile(path, false);
+      auto fmd_lock = eos::MDLocking::readLock(fmd.get());
 
       if (fmd->isLink() &&
           (entry.compare(pos + sep.length(), std::string::npos, fmd->getLink()) == 0)) {

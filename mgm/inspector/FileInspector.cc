@@ -216,11 +216,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   unsigned long long nfiles_processed;
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
-  {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-    nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
-    ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
-  }
+  nfiles = (unsigned long long)gOFS->eosFileService->getNumFiles();
+  ndirs = (unsigned long long)gOFS->eosDirectoryService->getNumContainers();
   Options opts = getOptions(LockFsView::On);
   uint64_t interval = opts.interval.count();
   FileScanner scanner(*(mQcl.get()));

@@ -22,14 +22,15 @@
  ************************************************************************/
 
 #include "mgm/quota/Quota.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "mgm/config/IConfigEngine.hh"
 #include <errno.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -49,7 +50,7 @@ gid_t Quota::gProjectId = 99;
 
 //------------------------------------------------------------------------------
 // Constructor - binds to an existing quota node container given by its id.
-// Never creates a namespace container. Requires the eosViewRWMutex write-lock.
+// Never creates a namespace container. Requires the pMapMutex write-lock.
 //------------------------------------------------------------------------------
 SpaceQuota::SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id)
     : eos::common::LogId()
@@ -73,6 +74,17 @@ SpaceQuota::SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id)
   if (!mQuotaNode) {
     // Registering a quota node only marks an already existing container.
     mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
+
+    // An rmdir checks the flag under the MD lock of the directory: if it
+    // removed the directory first, undo the registration
+    if (quotadir->isDeleted()) {
+      try {
+        gOFS->eosView->removeQuotaNode(quotadir.get());
+      } catch (const eos::MDException& e) {
+      }
+
+      throw_mdexception(ENOENT, "quota directory removed: " << path);
+    }
   }
 
   UpdateLogicalSizeFactor();
@@ -1533,7 +1545,7 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
     }
   }
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  // pMapMutex is enough: quota nodes are removed under it in write mode
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
 
@@ -1852,7 +1864,8 @@ Quota::RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc)
   eos_static_debug("qpath=%s, path=%s", qpath.c_str(), path.c_str());
   bool removed = false;
   {
-    eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
+    // pMapMutex serializes the quota node add and remove. File updates on the
+    // removed node go to its parent (QuarkQuotaNode::retire).
     eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
     std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
 
@@ -2104,7 +2117,6 @@ Quota::LoadNodes()
   {
     std::string quota_path;
     std::shared_ptr<eos::IContainerMD> container;
-    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
     auto set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
     for (const auto elem : set_ids) {
@@ -2182,7 +2194,6 @@ Quota::LoadNodes()
   // Refresh the space quota objects
   {
     // loop over pMapQuota releasing locks each time in the iteration
-    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
     bool first = true;
     size_t n = 0;
@@ -2192,7 +2203,6 @@ Quota::LoadNodes()
       std::advance(it, n);
 
       if (!first) {
-        rd_ns_lock.Grab(gOFS->eosViewRWMutex);
         rd_quota_lock.Grab(pMapMutex);
         first = false;
       }
@@ -2204,7 +2214,6 @@ Quota::LoadNodes()
       it->second->Refresh(5);
       n++;
       rd_quota_lock.Release();
-      rd_ns_lock.Release();
     } while (1);
   }
 }
@@ -2485,7 +2494,7 @@ Quota::GetGroupStatistics(const std::string& qpath, long id)
 {
   std::string path = NormalizePath(qpath);
   std::map<int, unsigned long long> map;
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  // pMapMutex is enough: quota nodes are removed under it in write mode
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
@@ -2619,8 +2628,6 @@ Quota::CreateQuotaDir(const std::string& path, eos::IContainerMD::id_t& cont_id,
   }
 
   {
-    eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
-
     // Return the existing container id if it already exists
     try {
       cont_id = gOFS->eosView->getContainer(path)->getId();
@@ -2637,14 +2644,55 @@ Quota::CreateQuotaDir(const std::string& path, eos::IContainerMD::id_t& cont_id,
       }
     }
 
-    // Genuinely absent - create it deliberately. The in-memory addContainer
-    // conflict check (EEXIST) remains the backstop against duplicating a name.
+    // Genuinely absent - create it deliberately. As mkdir: each missing
+    // level is created in its parent under the parent MD write lock.
     try {
-      std::shared_ptr<eos::IContainerMD> qdir =
-          gOFS->eosView->createContainer(path, true);
-      qdir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IFDIR);
-      gOFS->eosView->updateContainerStore(qdir.get());
-      cont_id = qdir->getId();
+      std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosView->getContainer("/");
+      size_t pos = 1;
+
+      while (pos < path.size()) {
+        const size_t next = path.find('/', pos);
+        const std::string name = path.substr(pos, next - pos);
+        const bool last = (next == path.size() - 1);
+        pos = next + 1;
+        std::shared_ptr<eos::IContainerMD> child = cmd->findContainer(name);
+
+        if (!child) {
+          auto parent_lock = eos::MDLocking::writeLock(cmd.get());
+
+          if (cmd->isDeleted()) {
+            throw_mdexception(ENOENT, path << ": parent directory removed");
+          }
+
+          eos::FileOrContainerMD item = cmd->findItem(name).get();
+
+          if (item.file) {
+            throw_mdexception(ENOTDIR, path << ": Not a directory");
+          }
+
+          child = item.container;
+
+          if (!child) {
+            child = gOFS->eosDirectoryService->createContainer(0);
+            // The parent lock is held: a new directory is locked after it
+            auto child_lock = eos::MDLocking::writeLock(child.get());
+            child->setName(name);
+            child->setCTimeNow();
+
+            if (last) {
+              child->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IFDIR);
+            }
+
+            cmd->addContainer(child.get());
+            gOFS->eosDirectoryService->updateStore(child.get());
+            gOFS->eosDirectoryService->updateStore(cmd.get());
+          }
+        }
+
+        cmd = child;
+      }
+
+      cont_id = cmd->getId();
     } catch (const eos::MDException& e) {
       err = e.what();
       eos_static_crit("msg=\"failed to create quota dir\" path=\"%s\" "
@@ -2677,7 +2725,6 @@ Quota::CreateQuotaObj(const std::string& path, eos::IContainerMD::id_t cont_id)
     return false;
   }
 
-  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
 
   if (pMapQuota.count(path) == 0) {
@@ -2712,7 +2759,7 @@ std::map<std::string, std::tuple<unsigned long long,
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  // pMapMutex is enough: quota nodes are removed under it in write mode
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
   for (const auto& quotaNode : pMapQuota) {
@@ -2891,60 +2938,6 @@ Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
   }
 }
 
-
-//------------------------------------------------------------------------------
-// Remove file from corresponding quota node
-//------------------------------------------------------------------------------
-bool
-Quota::RemoveFile(eos::IFileMD::id_t fid)
-{
-  std::shared_ptr<eos::IFileMD> fmd {nullptr};
-  std::shared_ptr<eos::IContainerMD> cmd {nullptr};
-  eos::IQuotaNode* ns_quota {nullptr};
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
-  try {
-    fmd = gOFS->eosFileService->getFileMD(fid);
-    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-    ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
-  } catch (const eos::MDException& e) {
-    return false;
-  }
-
-  if (ns_quota && fmd) {
-    ns_quota->removeFile(fmd.get());
-    return true;
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// Remove file from corresponding quota node
-//------------------------------------------------------------------------------
-bool
-Quota::AddFile(eos::IFileMD::id_t fid)
-{
-  std::shared_ptr<eos::IFileMD> fmd {nullptr};
-  std::shared_ptr<eos::IContainerMD> cmd {nullptr};
-  eos::IQuotaNode* ns_quota {nullptr};
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
-  try {
-    fmd = gOFS->eosFileService->getFileMD(fid);
-    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-    ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
-  } catch (const eos::MDException& e) {
-    return false;
-  }
-
-  if (ns_quota && fmd) {
-    ns_quota->addFile(fmd.get());
-    return true;
-  }
-
-  return false;
-}
 
 //------------------------------------------------------------------------------
 // Force refresh of space quota from namespace quota node

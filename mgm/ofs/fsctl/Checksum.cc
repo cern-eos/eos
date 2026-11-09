@@ -21,14 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "namespace/utils/Checksum.hh"
 #include "common/Logging.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/utils/Checksum.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/macros/Macros.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
@@ -54,7 +55,6 @@ XrdMgmOfs::Checksum(const char* path,
   int retc = 0;
   bool fuse_readable = env.Get("mgm.option") ? (std::string(
                          env.Get("mgm.option")) == "fuse") ? true : false : false;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   XrdOucString spath = path;
   unsigned long byfid = eos::Resolver::retrieveFileIdentifier(
                           spath).getUnderlyingUInt64();
@@ -66,6 +66,7 @@ XrdMgmOfs::Checksum(const char* path,
       fmd = gOFS->eosView->getFile(path);
     }
 
+    eos::MDLocking::FileReadLock fmdLock(fmd.get());
     size_t xs_length = SHA256_DIGEST_LENGTH;
 
     if (fuse_readable) {

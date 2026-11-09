@@ -233,13 +233,12 @@ public:
   //! @param with_children if false, skip collecting the fileinfo of each child.
   //!        Callers listing the children themselves - like find - would
   //!        otherwise pay for a second walk of the namespace.
-  int DirJSON(uint64_t id, Json::Value* json, bool dolock = true,
-              bool with_children = true);
+  int DirJSON(uint64_t id, Json::Value* json, bool with_children = true);
   int File();
   int Find();
   int Fileinfo();
   int FileInfo(const char* path);
-  int FileJSON(uint64_t id, Json::Value* json, bool dolock = true);
+  int FileJSON(uint64_t id, Json::Value* json);
   int Fuse();
   int FuseX();
   int Ls();

@@ -62,11 +62,13 @@ XrdMgmOfs::_touch(const char* path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
- * @param doLock take the namespace lock
+ * @param doLock unused: _touch takes MD locks only
  * @param useLayout create a file using the layout an space policies
  * @param size to preset on the file
- * @param absorb - if true we will try to move the file into the FST tree without hardlinking it
- * @param link path - file to hardlink/symlink to the FST store - requires shared filesystem access
+ * @param absorb - if true we will try to move the file into the FST tree without
+ * hardlinking it
+ * @param link path - file to hardlink/symlink to the FST store - requires shared
+ * filesystem access
  * @param xs_hex - checksum value in hex format to register
  *
  * @return SFS_OK or SFS_ERROR
@@ -86,7 +88,6 @@ XrdMgmOfs::_touch(const char* path,
   }
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock;
   std::string fullpath;
   bool verify = true;
   std::vector<eos::IFileMD::location_t> locations;
@@ -94,9 +95,6 @@ XrdMgmOfs::_touch(const char* path,
   bool create_symlink = false;
   bool create_hardlink = false;
 
-  if (doLock) {
-    lock.Grab(gOFS->eosViewRWMutex);
-  }
 
   try {
     gOFS->eosView->getContainer(path);
@@ -212,7 +210,6 @@ XrdMgmOfs::_touch(const char* path,
   try {
     if (!fmd) {
       if (useLayout) {
-        lock.Release();
         XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(vid.tident.c_str()));
         XrdOucString opaque = ininfo;
 
@@ -237,7 +234,6 @@ XrdMgmOfs::_touch(const char* path,
           return SFS_ERROR;
         }
 
-        lock.Grab(gOFS->eosViewRWMutex);
         fmd = gOFS->eosView->getFile(path);
       } else {
         // No-layout path: apply sys.owner.auth ownership stamp.
@@ -265,7 +261,40 @@ XrdMgmOfs::_touch(const char* path,
                       e.getErrno(), e.getMessage().str().c_str());
           }
         }
-        fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+        {
+          // Create the file in the locked parent: the conflict check and the
+          // insertion of createFile(path) are separate steps
+          eos::common::Path touchPath(path);
+          auto pcmd = gOFS->eosView->getContainer(touchPath.GetParentPath());
+          auto pcmd_lock = eos::MDLocking::writeLock(pcmd.get());
+
+          // A parallel rmdir removed the parent after the lookup
+          if (pcmd->isDeleted()) {
+            throw_mdexception(ENOENT, "No such file or directory");
+          }
+
+          eos::FileOrContainerMD conflict = pcmd->findItem(touchPath.GetName()).get();
+
+          if (conflict.file || conflict.container) {
+            throw_mdexception(EEXIST, "File exists");
+          }
+
+          fmd = gOFS->eosFileService->createFile(0);
+
+          if (!fmd) {
+            throw_mdexception(EIO, "File creation failed");
+          }
+
+          fmd->setName(touchPath.GetName());
+          fmd->setCUid(vid.uid);
+          fmd->setCGid(vid.gid);
+          fmd->setCTimeNow();
+          fmd->setATimeNow(0);
+          fmd->setMTimeNow();
+          fmd->clearChecksum(0);
+          pcmd->addFile(fmd.get());
+          gOFS->eosView->updateFileStore(fmd.get());
+        }
       }
 
       // Stamp ownership using vid, which open() (useLayout path) or the
@@ -452,66 +481,82 @@ XrdMgmOfs::_touch(const char* path,
       }
     }
 
-    fmd->setMTimeNow();
-    eos::IFileMD::ctime_t mtime;
-    fmd->getMTime(mtime);
-    fmd->setCTime(mtime);
-
-    if (truncate) {
-      fmd->setSize(0);
-    } else {
-      if (size) {
-        fmd->setSize(size);
-      }
-    }
-
-    // Store the birth time as an extended attribute if this is a creation
-    if (!existedAlready) {
-      char btime[256];
-      snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
-      fmd->setAttribute("sys.eos.btime", btime);
-    }
-
-    if (create_hardlink) {
-      fmd->setAttribute("sys.hardlink.path", linkpath);
-    }
-
-    if (create_symlink) {
-      fmd->setAttribute("sys.symlink.path", linkpath);
-    }
-
-    if (absorb) {
-      fmd->setAttribute("sys.absorbed.path", linkpath);
-    }
-
-    gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(cid);
-    cmd->setMTime(mtime);
-    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-
     // Check if there is any quota node to be updated
     // Procedure already done if useLayout=true
+    // The quota node lookup walks up the parents, so it runs before the MD
+    // locks
+    eos::IQuotaNode* ns_quota = nullptr;
+
     if (!existedAlready && !useLayout) {
       try {
-        eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
-
-        if (ns_quota) {
-          ns_quota->addFile(fmd.get());
-        }
+        ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
       } catch (const eos::MDException& eq) {
         // no quota node
       }
     }
 
-    gOFS->eosView->updateContainerStore(cmd.get());
-    const eos::FileIdentifier fid = fmd->getIdentifier();
-    const eos::ContainerIdentifier did = cmd->getIdentifier();
-    const eos::ContainerIdentifier pdid = cmd->getParentIdentifier();
+    eos::IFileMD::ctime_t mtime;
+    eos::FileIdentifier fid;
+    eos::ContainerIdentifier did;
+    eos::ContainerIdentifier pdid;
+    {
+      eos::MDLocking::BulkMDWriteLock md_locker;
+      md_locker.add(cmd.get());
+      md_locker.add(fmd.get());
+      auto md_locks = md_locker.lockAll();
 
-    if (doLock) {
-      lock.Release();
+      // A parallel rm or rename changed the file meanwhile: do not store it
+      // again
+      if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
+        throw_mdexception(ENOENT, "No such file or directory");
+      }
+
+      fmd->setMTimeNow();
+      fmd->getMTime(mtime);
+      fmd->setCTime(mtime);
+
+      if (truncate) {
+        fmd->setSize(0);
+      } else {
+        if (size) {
+          fmd->setSize(size);
+        }
+      }
+
+      // Store the birth time as an extended attribute if this is a creation
+      if (!existedAlready) {
+        char btime[256];
+        snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
+        fmd->setAttribute("sys.eos.btime", btime);
+      }
+
+      if (create_hardlink) {
+        fmd->setAttribute("sys.hardlink.path", linkpath);
+      }
+
+      if (create_symlink) {
+        fmd->setAttribute("sys.symlink.path", linkpath);
+      }
+
+      if (absorb) {
+        fmd->setAttribute("sys.absorbed.path", linkpath);
+      }
+
+      gOFS->eosView->updateFileStore(fmd.get());
+      cmd->setMTime(mtime);
+      cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+
+      if (ns_quota) {
+        ns_quota->addFile(fmd.get());
+      }
+
+      gOFS->eosView->updateContainerStore(cmd.get());
+      fid = fmd->getIdentifier();
+      did = cmd->getIdentifier();
+      pdid = cmd->getParentIdentifier();
     }
 
     gOFS->FuseXCastMD(fid, did, mtime, true);

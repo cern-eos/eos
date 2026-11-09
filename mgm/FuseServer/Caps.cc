@@ -540,12 +540,6 @@ FuseServer::Caps::Print(const std::string& option,
   std::string out;
   std::string astring;
   uint64_t now = (uint64_t) time(NULL);
-  eos::common::RWMutexReadLock lock;
-
-  if (option == "p") {
-    lock.Grab(gOFS->eosViewRWMutex);
-  }
-
   eos_static_info("option=%s string=%s", option.c_str(), filter.c_str());
   regex_t regex;
 

@@ -57,7 +57,6 @@ XrdMgmOfs::Getfmd(const char* path,
     std::string fullpath;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
@@ -72,7 +71,6 @@ XrdMgmOfs::Getfmd(const char* path,
     eos::common::Path cPath(fullpath.c_str());
     std::string fmdEnv = "";
     fmd->getEnv(fmdEnv, true);
-    vlock.Release();
     fmdEnv += "&container=";
     // Patch parent name
     XrdOucString safepath = cPath.GetParentPath();

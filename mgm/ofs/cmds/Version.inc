@@ -53,8 +53,6 @@ XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
   std::string bname;
   fidvid = vid;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
     try {
       if (fid) {
         fmd = gOFS->eosFileService->getFileMD(fid);
@@ -64,6 +62,7 @@ XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
         fmd = gOFS->eosView->getFile(path);
       }
 
+      eos::MDLocking::FileReadLock fmdLock(fmd.get());
       eos::common::Path cPath(path.c_str());
       bool noversion;
       cPath.DecodeAtomicPath(noversion);

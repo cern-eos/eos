@@ -60,7 +60,6 @@ public:
   static grpc::Status GetMD(eos::common::VirtualIdentity& vid,
                             grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                             const eos::rpc::MDRequest* request, bool check_perms = true,
-                            bool lock = true,
                             bool access_self = false);
 
   static grpc::Status Stat(eos::common::VirtualIdentity& vid,

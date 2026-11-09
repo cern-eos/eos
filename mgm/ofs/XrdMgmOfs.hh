@@ -1977,6 +1977,10 @@ public:
   };
 
   std::mutex mAuthStatsMutex; ///< Mutex protecting authentication stats
+  //! Serializes the moves of directories to another parent in _rename: two
+  //! moves into each other at the same time would both pass the
+  //! isSafeToRename check. FUSE moves do not take it (EOS-6696).
+  std::mutex mDirMoveMutex;
   //! File ids of the renames that overwrite a file, from the removal of the
   //! target to the move: two renames that swap two files would remove both
   std::mutex mOverwriteRenameMutex;

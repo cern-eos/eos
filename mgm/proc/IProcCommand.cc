@@ -427,7 +427,6 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::string temp = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                            fid).get());
       path = temp;
@@ -458,7 +457,6 @@ IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::string temp = gOFS->eosView->getUri
                          (gOFS->eosDirectoryService->getContainerMD(cid).get());
       path = temp;

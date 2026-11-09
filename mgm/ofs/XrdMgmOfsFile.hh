@@ -111,16 +111,33 @@ public:
                                  mode_t& omode);
 
   //----------------------------------------------------------------------------
-  //----------------------------------------------------------------------------
-  // utility function: create copy-on-write clone
+  // copy-on-write clone types
   //----------------------------------------------------------------------------
   static const int cowUpdate = 0;              // do copy, for file updates
   static const int cowDelete = 1;              // do rename, for file deletes
   static const int cowUnlink =
     2;              // create hard link, when name vanishes e.g. Recycle
-  static int create_cow(int cowType,
-                        std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
-                        eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
+
+  //----------------------------------------------------------------------------
+  //! Create a copy-on-write clone in three steps, for callers using MD locks:
+  //! prepare_cow before the MD locks (it walks paths), apply_cow under the MD
+  //! write locks of dmd, cow_dir and fmd, notify_cow after their release.
+  //! prepare_cow and apply_cow return -1 if the file is not to be cloned.
+  //----------------------------------------------------------------------------
+  struct CowDirs {
+    std::shared_ptr<eos::IContainerMD> clone_root;
+    std::shared_ptr<eos::IContainerMD> cow_dir;
+  };
+
+  static int prepare_cow(std::shared_ptr<eos::IContainerMD> dmd,
+                         std::shared_ptr<eos::IFileMD> fmd, CowDirs& dirs,
+                         XrdOucErrInfo& error);
+
+  static int apply_cow(int cowType, std::shared_ptr<eos::IContainerMD> dmd,
+                       std::shared_ptr<eos::IFileMD> fmd, const CowDirs& dirs,
+                       eos::common::VirtualIdentity& vid);
+
+  static void notify_cow(const CowDirs& dirs);
 
   //----------------------------------------------------------------------------
   // open a file
