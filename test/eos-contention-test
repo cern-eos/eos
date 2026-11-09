@@ -135,6 +135,24 @@ if [ $recycle_ok = 1 ]; then
   check "the restored file is back" 'eos stat $base/r/rr'
 fi
 
+race 8 8 "touch of one new file" '' 'eos file touch $r/touch'
+check "the touched file exists once" '[ $(eos ls $r | grep -cx touch) = 1 ]'
+
+# If both succeed, x has no parent
+pairs "touch of e/x and rmdir of e" 'eos mkdir $r/te$k' \
+  'eos file touch $r/te$k/x' 'xrdfs $url rmdir $r/te$k'
+
+race 1 8 "register of one new name" '' 'eos register $r/reg size=0'
+check "the registered file exists" 'eos stat $r/reg'
+
+# Each overwrite commits a new version of the file
+race some 8 "overwrites of one versioned file" \
+  'eos mkdir $r/vv && eos chmod 777 $r/vv && eos attr set sys.versioning=3 $r/vv' \
+  'xrdcp -f -s $src $url/$r/vv/f'
+check "the versioned file has 1024 bytes and at most 3 versions" \
+  'n=$(eos ls "$r/vv/.sys.v#.f" 2>/dev/null | wc -l); echo "$n versions"
+   [ "$(md_field $r/vv/f size)" = 1024 ] && [ $n -le 3 ]'
+
 # An open of an existing file with an OwnCloud chunk id is refused, without
 # a stall that the client retries until its timeout
 check "an open of an existing file with oc-chunk-uuid fails at once" \
@@ -167,6 +185,15 @@ if [[ " $skip " != *" mount "* ]]; then
 fi
 
 eos attr rm sys.workflow.sync::delete.default $r/w >/dev/null
+
+# A create that the create workflow refuses removes the new file. If it
+# leaves the file in the quota, the quota end checks find the leak.
+eos mkdir $r/wc && eos chmod 777 $r/wc >/dev/null
+eos attr set 'sys.workflow.sync::create.default=bash:shell:fail false' $r/wc >/dev/null
+race 0 8 "creates that the create workflow refuses" '' \
+  'xrdcp -s $src $url/$r/wc/f$k'
+check "the refused creates leave no file" 'none eos ls $r/wc'
+eos attr rm sys.workflow.sync::create.default $r/wc >/dev/null
 eos space config default space.wfe=${wfe:-off} >/dev/null
 
 if [[ " $skip " != *" mount "* ]]; then
@@ -207,7 +234,161 @@ if [[ " $skip " != *" mount "* ]]; then
        [ "$m" = 40700 ] && [[ $a == *u:99* ]] || echo "ac$k mode=$m $a"
      done)
      [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+  # eosxd replies before the MGM has done the change: check the namespace,
+  # not the exit codes. If both moves succeed, a and b are cut off.
+  check "a FUSE move of a into b and a move of b into a keep both reachable" \
+    'for k in $(seq 1 8); do
+       eos mkdir -p $r/fm$k/a && eos mkdir $r/fm$k/b && eos chmod -r 777 $r/fm$k >/dev/null &&
+         ls $mr/fm$k/a $mr/fm$k/b >/dev/null || exit
+       together "mv $mr/fm$k/a $mr/fm$k/b/a" "xrdfs $url mv $r/fm$k/b $r/fm$k/a/b" >/dev/null
+     done; sleep 2
+     bad=$(for k in $(seq 1 8); do
+       [ $(eos find -d $r/fm$k | wc -l) = 3 ] || echo "fm$k is cut off"
+     done)
+     [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+  # If the rmdir wins over a create that succeeded, the file has no parent
+  check "a FUSE rmdir of e and a create of e/f keep each created file" \
+    'for k in $(seq 1 8); do
+       eos mkdir $r/fe$k && eos chmod 777 $r/fe$k >/dev/null && ls $mr/fe$k >/dev/null || exit
+     done
+     rcs=$(for k in $(seq 1 8); do
+       together "rmdir $mr/fe$k" "xrdcp -s $src $url/$r/fe$k/f" | tail -1
+     done); sleep 2
+     k=0; bad=$(for rc in $rcs; do
+       k=$((k + 1)); [ $rc != 0 ] || eos stat $r/fe$k/f >/dev/null 2>&1 || echo "fe$k/f is lost"
+     done)
+     [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+  # FUSE and console renames replace the target. A replaced file that stays in
+  # the quota or the namespace fails the end checks.
+  check "FUSE and console overwrite renames of 8 files onto one name leave whole files" \
+    'eos mkdir $r/fo && eos chmod 777 $r/fo >/dev/null || exit
+     for k in $(seq 1 8); do xrdcp -s $src $url/$r/fo/s$k || exit; done
+     ls $mr/fo >/dev/null; cmds=()
+     for k in 1 2 3 4; do
+       cmds+=("mv -f $mr/fo/s$k $mr/fo/t" "eos file rename $r/fo/s$((k + 4)) $r/fo/t")
+     done
+     together "${cmds[@]}" >/dev/null; sleep 2; echo $(eos ls $r/fo)
+     eos ls $r/fo | grep -vxE "s[1-8]|t" && exit 1
+     [ "$(md_field $r/fo/t size)" = 1024 ]'
 fi
+
+# Copy-on-write clone: an rm or an overwrite of a file in a cloned directory
+# keeps the old version in <proc>/clone/<clone id>/<dir id>/<file id>
+proc=$(echo $base | cut -d/ -f1-3)/proc
+cl_changed="o rm p1 p2 p3 p4 p5 p6 p7 p8"
+[[ " $skip " != *" mount "* ]] && cl_changed="$cl_changed m1 m3"
+
+if eos stat $proc/clone >/dev/null 2>&1; then
+  # A clone id of 0 to 9 only marks the directory. The clone id is the time,
+  # so wait 1 s: two clones in one second fail.
+  race some 8 "overwrites of one cloned file" \
+    'eos mkdir $r/cl && eos chmod 777 $r/cl >/dev/null || exit
+     for x in $cl_changed m2; do xrdcp -s $src $url/$r/cl/$x || exit; done
+     sleep 1; eos oldfind -x sys.clone=+10 $r/cl | head -1 | cut -d" " -f2 |
+       cut -d: -f2 > $logs/clone.id
+     cid=$(printf %x $(md_field $r/cl fid))
+     for x in $cl_changed; do
+       echo $proc/clone/$(cat $logs/clone.id)/$cid/$(printf %x $(md_field $r/cl/$x fid))
+     done > $logs/clone.paths' \
+    'xrdcp -f -s $src $url/$r/cl/o'
+  check "the overwritten cloned file has 1024 bytes and 2 replicas" \
+    '[ "$(md_field $r/cl/o size) $(md_field $r/cl/o nrep)" = "1024 2" ]'
+
+  race 1 8 "rm of one cloned file" '' 'xrdfs $url rm $r/cl/rm'
+
+  check "rm and overwrite of one cloned file at once leave no file or a whole one" \
+    'for k in $(seq 1 8); do
+       together "xrdfs $url rm $r/cl/p$k" "xrdcp -f -s $src $url/$r/cl/p$k" >/dev/null
+     done
+     bad=$(for k in $(seq 1 8); do
+       eos stat $r/cl/p$k >/dev/null 2>&1 || continue
+       [ "$(md_field $r/cl/p$k size)" = 1024 ] || echo "p$k is not whole"
+     done)
+     [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+  if [[ " $skip " != *" mount "* ]]; then
+    check "FUSE rm and mv -f over cloned files" \
+      'rm -f $mr/cl/m1 && mv -f $mr/cl/m2 $mr/cl/m3 && sync && sleep 2 || exit
+       ! eos stat $r/cl/m1 && ! eos stat $r/cl/m2 && eos stat $r/cl/m3'
+  fi
+
+  check "the clone holds the old version of each changed file" \
+    'bad=$(for p in $(cat $logs/clone.paths); do
+       eos stat $p >/dev/null 2>&1 || echo "$p is missing"
+     done)
+     [ -s $logs/clone.paths ] && [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+  # The clone files are not in the test tree: the end checks would not find
+  # them, and the namespace would keep them
+  check "the clean up of the clone removes its directory" \
+    'id=$(cat $logs/clone.id); [ -n "$id" ] || exit
+     eos oldfind -x sys.clone=-$id $r/cl >/dev/null; ! eos stat $proc/clone/$id'
+fi
+
+# Quota nodes under the test quota node $base: no namespace lock orders them
+# with the writers now. Each case removes its nodes: rm -r keeps a quota node.
+qflags() { eos -j fileinfo $1 2>/dev/null | sed -n 's/.*"flags" : \([0-9]*\).*/\1/p'; }
+qset() { eos quota set -g 99 -v 1TB -i 1M -p $1/ >/dev/null 2>&1; }
+
+# The files written while their node is removed go to the parent node
+check "quota rmnode while writers change files in the node" \
+  'for k in $(seq 1 8); do
+     eos mkdir $r/qn$k && eos chmod 777 $r/qn$k >/dev/null && qset $r/qn$k || exit
+     for x in a b c; do xrdcp -s $src $url/$r/qn$k/$x || exit; done
+     together "for i in 1 2 3 4 5 6; do xrdcp -s $src $url/$r/qn$k/w\$i; done" \
+       "for i in 1 2 3; do xrdcp -s $src $url/$r/qn$k/v\$i && xrdfs $url rm $r/qn$k/v\$i; done" \
+       "sleep 0.5; eos quota rmnode -p $r/qn$k/" >/dev/null
+   done; sleep 5
+   bad=$(for k in $(seq 1 8); do
+     [ "$(qflags $r/qn$k)" = 0 ] || echo "qn$k is still a quota node"
+     eos quota ls -m | grep -qF "space=$r/qn$k/" && echo "qn$k is still listed"
+   done)
+   [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+check "the parent quota node counts the files of the removed nodes" \
+  'a=$(project_quota | cut -d " " -f2); eos ns recompute_quotanode $base >/dev/null
+   b=$(project_quota | cut -d " " -f2); echo "$a, recomputed $b"
+   [ -n "$a" ] && [ "$a" = "$b" ]'
+
+# A quota set checks that the directory exists, then creates it if it is
+# missing. An rmdir in between must not leave a node on a removed directory.
+check "quota set and rmdir of one directory leave no quota node without it" \
+  'for k in $(seq 1 16); do
+     eos mkdir $r/qs$k || exit; t=$(awk -v k=$k "BEGIN { print 0.005 * k }")
+     together "qset $r/qs$k" "sleep $t; xrdfs $url rmdir $r/qs$k" >/dev/null
+   done
+   bad=$(for k in $(seq 1 16); do
+     n=$(eos quota ls -m | grep -cF "space=$r/qs$k/")
+     if eos stat $r/qs$k >/dev/null 2>&1; then
+       [ "$(qflags $r/qs$k)" = $n ] || echo "qs$k: flags $(qflags $r/qs$k), $n nodes"
+     else
+       [ $n = 0 ] || echo "qs$k: quota node of a removed directory"
+     fi
+   done)
+   for k in $(seq 1 16); do eos quota rmnode -p $r/qs$k/ >/dev/null 2>&1; done
+   [ -z "$bad" ] || { echo "$bad"; exit 1; }'
+
+# eosxd answers the rmdir before the MGM refuses it: check the namespace
+check "rmdir of an empty quota node directory is refused, also through eosxd" \
+  'eos mkdir $r/qe && qset $r/qe || exit
+   xrdfs $url rmdir $r/qe && exit 1
+   if [[ " $skip " != *" mount "* ]]; then ls $mr >/dev/null; rmdir $mr/qe; sleep 2; fi
+   eos stat $r/qe && [ "$(qflags $r/qe)" = 1 ]; rc=$?
+   eos quota rmnode -p $r/qe/ >/dev/null; exit $rc'
+
+# A recompute and an rmnode of one node during writes must end. A recompute
+# during writes can miss a new file (also on master): recompute the parent
+# after it, for the end checks.
+check "recompute and rmnode of one quota node during writes end" \
+  'for k in 1 2 3 4; do
+     eos mkdir $r/qr$k && eos chmod 777 $r/qr$k >/dev/null && qset $r/qr$k || exit
+     for x in a b c; do xrdcp -s $src $url/$r/qr$k/$x || exit; done
+     echo "qr$k: $(together "for i in 1 2 3 4 5 6; do xrdcp -s $src $url/$r/qr$k/w\$i; done" \
+       "eos ns recompute_quotanode $r/qr$k" "sleep 0.$k; eos quota rmnode -p $r/qr$k/" | xargs)"
+     [ "$(qflags $r/qr$k)" = 0 ] || { echo "qr$k is still a quota node"; exit 1; }
+   done
+   eos ns recompute_quotanode $base >/dev/null'
 
 # ----------------------------------------------------------------------------
 phase "Load: 2 workers of each kind for $duration s"
@@ -256,6 +437,10 @@ load read    other_fileinfo       'eos -j fileinfo $wfile'
 load read    fuse_ls              'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuse&mgm.statentries=1&mgm.path=$d" /dev/null'
 load read    fusex_get            'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuseX&mgm.op=GET&mgm.path=$d" /dev/null'
 load read    other_fusex_get      'xrdcp -f -s "$url//proc/user/?mgm.cmd=fuseX&mgm.op=GET&mgm.path=$wfile" /dev/null'
+# Opens by file id and by inode, and the FUSE caps listing
+load read    other_open_fxid      'xrdcp -f -s "$url//.fxid:$(md_field $wfile fxid)" /dev/null'
+load read    other_open_ino       'xrdcp -f -s "$url//eos/x?eos.lfn=ino:$(printf %x $(md_field $wfile ino))" /dev/null'
+load read    caps_ls              'eos fusex caps -p'
 load rest    rest_ls              'rest_call ls_cmd $d'
 load rest    other_rest_fileinfo  'rest_call fileinfo_cmd $wfile'
 
@@ -270,6 +455,8 @@ load walk    find                 'eos find --count $base'
 load walk    find_fs              'eos find -f --fid --fs --checksum $base'
 load walk    oldfind              'eos oldfind -f $base'
 load walk    quota_ls             'eos quota ls -m -p $base'
+# Prints the tracked entries: the scan runs also with the tracker off
+load walk    tracker_scan         'eos space tracker'
 
 # Write, rm, rename, mkdir and rmdir of the same 3 names
 load clash   race_write           'xrdcp -f -s $src $url/$base/d0/c$((RANDOM % 3))'
@@ -292,6 +479,10 @@ load replica race_cache_dir       'eos ns cache drop-single-container $(md_field
 load version version              'xrdcp -f -s $src $url/$base/v/f$w'
 load version other_versions       'eos file versions $base/v/f$w'
 load version other_purge          'eos file purge $base/v/f$w 1'
+
+# Clone a directory, overwrite and rm its file, then clean up the clone. Two
+# clones in one second fail: the clone id is the time.
+load clone   race_clone           'eos mkdir $own && xrdcp -s $src $url/$own/f && sleep 1 && id=$(eos oldfind -x sys.clone=+10 $own | head -1 | cut -d" " -f2 | cut -d: -f2) && xrdcp -f -s $src $url/$own/f && xrdfs $url rm $own/f; [ -z "$id" ] || eos oldfind -x sys.clone=-$id $own >/dev/null; eos rm -r -F $own'
 
 load admin   write                'xrdcp -f -s $src $url/$own'
 load admin   touch                'eos file touch $own.t'
@@ -390,8 +581,8 @@ load storm   mkdir                'eos mkdir $own'
 load storm   race_storm           'xrdstress -d $url/$own/ -o rdwr -j 8 -f 8 -s 4KB -c'
 load storm   rm_r                 'eos rm -r -F $own'
 
-# POSIX calls through the eosxd mount. The FUSE server changes the
-# namespace under the global write lock only, the others use MD locks.
+# POSIX calls through the eosxd mount. The FUSE server uses MD locks, as the
+# other interfaces do.
 load mount   mount_mkdir          'mkdir $mown'
 load mount   mount_write          'cp $src $mown/f'
 load mount   mount_append         'cat $src >> $mown/f'
