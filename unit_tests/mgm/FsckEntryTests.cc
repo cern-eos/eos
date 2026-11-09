@@ -27,6 +27,9 @@
 #define IN_TEST_HARNESS
 #include "mgm/fsck/FsckEntry.hh"
 #undef IN_TEST_HARNESS
+#include <map>
+#include <set>
+#include <vector>
 
 using ::testing::Return;
 using eos::common::LayoutId;
@@ -168,6 +171,37 @@ protected:
     proto_fmd.set_layouterror(0);
     proto_fmd.set_locations("3,5,");
     mFsckEntry->mFstFileInfo.insert(std::make_pair(fsid, std::move(finfo)));
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the locations registered in the MGM fmd structure
+  //----------------------------------------------------------------------------
+  std::set<FileSystem::fsid_t>
+  GetMgmLocations() const
+  {
+    const auto& locs = mFsckEntry->mMgmFmd.locations();
+    return std::set<FileSystem::fsid_t>(locs.begin(), locs.end());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Make an over-replicated file with replicas on file systems 3, 5, 6, 7 and
+  //! the given configuration status for each of them
+  //----------------------------------------------------------------------------
+  void
+  MakeOverReplicated(
+      const std::map<FileSystem::fsid_t, eos::common::ConfigStatus>& status)
+  {
+    mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+
+    for (const auto fsid : {6, 7}) {
+      PopulateFstFmd(fsid);
+      mFsckEntry->mMgmFmd.add_locations(fsid);
+    }
+
+    mFsckEntry->mFsStatusFn = [status](FileSystem::fsid_t fsid) {
+      auto it = status.find(fsid);
+      return ((it == status.end()) ? eos::common::ConfigStatus::kRW : it->second);
+    };
   }
 
   std::unique_ptr<eos::mgm::FsckEntry> mFsckEntry;
@@ -454,4 +488,57 @@ TEST_F(FsckEntryTest, FileMissingReplica)
   }
 
   ASSERT_FALSE(found);
+}
+
+//------------------------------------------------------------------------------
+// Over-replicated file drops the replicas the FST could not report on first,
+// then keeps the location order among the remaining equal candidates
+// Begin:                        Final:
+// MGM: 3 5 6(no contact) 7      MGM: 5 7
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileOverReplicatedDropsUnreachableFirst)
+{
+  MakeOverReplicated({});
+  mFsckEntry->mFstFileInfo.find(6)->second->mFstErr = eos::mgm::FstErr::NoContact;
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{5, 7}), GetMgmLocations());
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.find(6) == mFsckEntry->mFstFileInfo.end());
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.find(3) == mFsckEntry->mFstFileInfo.end());
+}
+
+//------------------------------------------------------------------------------
+// Over-replicated file drops the replicas on the file systems with the lowest
+// configuration status first, a rw replica is kept over a drain or ro one
+// Begin:                          Final:
+// MGM: 3(rw) 5(drain) 6(ro) 7(rw) MGM: 3 7
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileOverReplicatedDropsByFsStatus)
+{
+  using eos::common::ConfigStatus;
+  MakeOverReplicated({{3, ConfigStatus::kRW},
+                      {5, ConfigStatus::kDrain},
+                      {6, ConfigStatus::kRO},
+                      {7, ConfigStatus::kRW}});
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 7}), GetMgmLocations());
+}
+
+//------------------------------------------------------------------------------
+// The drop selection never returns more than requested and skips the tape
+// location
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, SelectOverReplicatedDrops)
+{
+  using eos::common::ConfigStatus;
+  MakeOverReplicated({{3, ConfigStatus::kRW},
+                      {5, ConfigStatus::kRW},
+                      {6, ConfigStatus::kOff},
+                      {7, ConfigStatus::kRO}});
+  ASSERT_TRUE(mFsckEntry->SelectOverReplicatedDrops(0).empty());
+  ASSERT_EQ((std::vector<FileSystem::fsid_t>{6}),
+            mFsckEntry->SelectOverReplicatedDrops(1));
+  ASSERT_EQ((std::vector<FileSystem::fsid_t>{6, 7, 3, 5}),
+            mFsckEntry->SelectOverReplicatedDrops(10));
+  mFsckEntry->mMgmFmd.add_locations(EOS_TAPE_FSID);
+  ASSERT_EQ(4u, mFsckEntry->SelectOverReplicatedDrops(10).size());
 }
