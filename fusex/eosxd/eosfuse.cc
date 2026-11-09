@@ -2216,6 +2216,25 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
                          xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
                          XrdCl::Proxy::sChunkTimeout);
+      struct timespec repts;
+      eos::common::Timing::GetTimeSpec(repts, true);
+      bool booted = false;
+      double boot_time_sec = 0.;
+      while (!booted) {
+        const std::string sv = EosFuse::Instance().mds.server_version();
+        if (sv != "<unkown>") {
+          booted = true;
+          break;
+        }
+        boot_time_sec =
+            1.0 * eos::common::Timing::GetCoarseAgeInNs(&repts, 0) / 1000000000.0;
+        if (boot_time_sec > 20.0) {
+          break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      }
+      eos_static_warning("server config reply    := %s in %.02f s",
+                         booted ? "yes" : "none", boot_time_sec);
 #ifndef USE_FUSE3
       fusesession = fuse_lowlevel_new(&args,
                                       &(get_operations()),
