@@ -46,9 +46,20 @@ std::string MakeFileHelp()
   std::ostringstream oss;
   oss << "Usage: file <subcmd> [args...]\n\n"
       << "'[eos] file ..' provides the file management interface of EOS.\n\n";
-  oss << "adjustreplica [--nodrop] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [space [subgroup]] [--exclude-fs <fsid>]\n"
-      << "  Tries to bring files with replica layouts to the nominal replica level [need root].\n"
-      << "  --exclude-fs <fsid>  exclude the given filesystem from being used for the replica adjustment\n\n";
+  oss << "adjustreplica [--nodrop] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [--exclude-fs "
+         "<fsid>]\n"
+      << "  Brings replica and RAIN files back to the nominal number of replicas/stripes "
+         "[need root].\n"
+      << "  It queues an fsck repair (rep_diff_n) of the file and returns right away. "
+         "The repair\n"
+      << "  checks every replica on its FST, removes the ones missing on disk, replaces "
+         "the ones\n"
+      << "  whose FST does not answer, reconstructs missing RAIN stripes and drops the "
+         "extra\n"
+      << "  replicas, unreachable ones and those on off/drain/ro file systems first.\n"
+      << "  --nodrop             do not drop the replicas in excess of the layout\n"
+      << "  --exclude-fs <fsid>  never use the given filesystem as source or target of a "
+         "new replica\n\n";
   oss << "check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%size%checksum%nrep%diskchecksum%force%output%silent]\n"
       << "  Retrieves stat information from the physical replicas and verifies correctness.\n"
       << "  %size        return EFAULT if mismatch between the size meta data information\n"

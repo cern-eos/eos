@@ -167,10 +167,17 @@ private:
                    const std::string& spathid, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute adjustreplica subcommand
+  //! Execute adjustreplica subcommand. It runs the fsck replica count repair
+  //! of the file asynchronously, see Fsck::AdjustReplica.
+  //!
+  //! @param adjust adjustreplica request
+  //! @param spath file path
+  //! @param fid file identifier, if 0 the path is used
+  //! @param reply reply object
   //----------------------------------------------------------------------------
   void AdjustReplicaSubcmd(const eos::console::FileAdjustreplicaProto& adjust,
-                           const std::string& spath, eos::console::ReplyProto& reply);
+                           const std::string& spath, unsigned long long fid,
+                           eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute purge subcommand
