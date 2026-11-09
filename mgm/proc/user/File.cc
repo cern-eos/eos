@@ -36,6 +36,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/proc/ProcInterface.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/xattr/XattrLock.hh"
@@ -1602,407 +1603,40 @@ ProcCommand::File()
     // Fix file by removing/repairing or adding replicas/stripes
     // -------------------------------------------------------------------------
     if (mSubCmd == "adjustreplica") {
-      // Only root can do that
+      // Run the same implementation as the protobuf command
       cmdok = true;
+      eos::console::RequestProto req;
+      auto* file = req.mutable_file();
+      auto* adjust = file->mutable_adjustreplica();
 
-      if (pVid->uid) {
-        retc = EPERM;
-        stdErr = "error: you have to take role 'root' to execute this command";
-        return SFS_OK;
+      if (spath.beginswith("fid:") || spath.beginswith("fxid:")) {
+        file->mutable_md()->set_id(
+            Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64());
+      } else {
+        file->mutable_md()->set_path(spath.c_str());
       }
 
-      uint32_t lid = 0ul;
-      uint64_t size = 0ull;
-      unsigned long long fid = 0ull;
-      std::shared_ptr<eos::IFileMD> fmd {nullptr};
-      eos::IFileMD::LocationVector loc_vect;
-      eos::IFileMD::LocationVector unlink_vect;
-      XrdOucString file_option = pOpaque->Get("mgm.file.option");
-      bool nodrop = false;
-
-      if (file_option == "nodrop") {
-        nodrop = true;
+      if (XrdOucString(pOpaque->Get("mgm.file.option")) == "nodrop") {
+        adjust->set_nodrop(true);
       }
 
-      int icreationsubgroup = -1;
-      std::string creationspace = (pOpaque->Get("mgm.file.desiredspace") ?
-                                   pOpaque->Get("mgm.file.desiredspace") : "");
+      if (pOpaque->Get("mgm.file.desiredspace")) {
+        adjust->set_space(pOpaque->Get("mgm.file.desiredspace"));
+      }
 
       if (pOpaque->Get("mgm.file.desiredsubgroup")) {
-        icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
+        adjust->set_subgroup(pOpaque->Get("mgm.file.desiredsubgroup"));
       }
 
-      {
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
-        // Reference by fid+fsid
-        if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
-          WAIT_BOOT;
-          unsigned long long fid = Resolver::retrieveFileIdentifier(
-                                     spath).getUnderlyingUInt64();
-
-          try {
-            fmd = gOFS->eosFileService->getFileMD(fid);
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            stdErr = "error: cannot retrieve file meta data - ";
-            stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n",
-                      e.getErrno(),
-                      e.getMessage().str().c_str());
-          }
-        } else {
-          // Reference by path
-          try {
-            fmd = gOFS->eosView->getFile(spath.c_str());
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            stdErr = "error: cannot retrieve file meta data - ";
-            stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n",
-                      e.getErrno(),
-                      e.getMessage().str().c_str());
-          }
-        }
-
-        if (fmd) {
-          fid = fmd->getId();
-          lid = fmd->getLayoutId();
-          loc_vect = fmd->getLocations();
-          unlink_vect = fmd->getUnlinkedLocations();
-          size = fmd->getSize();
-        } else {
-          retc = errno ? errno : EINVAL;
-          return SFS_OK;
-        }
+      if (pOpaque->Get("mgm.file.excludefs")) {
+        adjust->set_exclude_fs(pOpaque->Get("mgm.file.excludefs"));
       }
 
-      std::string refspace = "";
-      std::string space = "default";
-      unsigned int forcedsubgroup = 0;
-
-      if (eos::common::LayoutId::GetLayoutType(lid) ==
-          eos::common::LayoutId::kReplica) {
-        // Check the configured and available replicas
-        unsigned int nrep_online = 0;
-        unsigned int nrep = loc_vect.size();
-        unsigned int nrep_layout = eos::common::LayoutId::GetStripeNumber(lid) + 1;
-        // Give priority to healthy file systems during scheduling
-        std::vector<unsigned int> src_fs;
-        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-        for (auto loc_it = loc_vect.begin();
-             loc_it != loc_vect.end(); ++loc_it) {
-          if (*loc_it == 0) {
-            eos_err("msg=\"skip file system with id 0\" fxid=%08llx", fid);
-            continue;
-          }
-
-          FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*loc_it);
-
-          if (filesystem) {
-            eos::common::FileSystem::fs_snapshot_t snapshot;
-            filesystem->SnapShotFileSystem(snapshot, true);
-            // Remember the spacename
-            space = snapshot.mSpace;
-
-            if (!refspace.length()) {
-              refspace = space;
-            } else {
-              if (space != refspace) {
-                eos_warning("msg=\"replicas are in different spaces\" "
-                            "fxid=%08llx space=%s req_space=%s", fid,
-                            space.c_str(), refspace.c_str());
-                continue;
-              }
-            }
-
-            forcedsubgroup = snapshot.mGroupIndex;
-
-            // An accessible replica, i.e. one this copy can actually read
-            // from. Deliberately the client read: an operator moving data on
-            // demand is not one of the background engines. The active status
-            // is left out of it on purpose - an overloaded FST still serves a
-            // read, and counting it as down here would trigger a repair the
-            // file does not need.
-            if (eos::common::AllowsOp(snapshot.mSchedOps, eos::common::kClientRead) &&
-                (snapshot.mStatus == eos::common::BootStatus::kBooted)) {
-              ++nrep_online;
-              src_fs.insert(src_fs.begin(), *loc_it);
-            } else {
-              // Give less priority to unhealthy file systems
-              src_fs.push_back(*loc_it);
-            }
-          } else {
-            eos_err("msg=\"skip unknown file system\" fsid=%lu fxid=%08llx",
-                    *loc_it, fid);
-          }
-        }
-
-        eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu",
-                  spath.c_str(), nrep, nrep_layout, nrep_online);
-
-        if (nrep_layout > nrep_online) {
-          // Set the desired space & subgroup if provided
-          if (creationspace.length()) {
-            space = creationspace;
-          }
-
-          if (icreationsubgroup != -1) {
-            forcedsubgroup = icreationsubgroup;
-          }
-
-          // If space explicitly set, don't force a particular subgroup
-          if (creationspace.length()) {
-            forcedsubgroup = -1;
-          }
-
-          // Trigger async replication if not enough replicas online
-          int nrep_new = nrep_layout - nrep_online;
-          // Get the location where we can read that file
-          eos_debug("msg=\"creating %d new replicas\" fxid=%08llx space=%s "
-                    "forcedsubgroup=%d icreationsubgroup=%d", nrep_new,
-                    fid, space.c_str(), forcedsubgroup, icreationsubgroup);
-          // This defines the fs to use in the selectedfs vector
-          unsigned long fs_indx;
-          std::vector<unsigned int> selectedfs;
-          std::vector<unsigned int> unavailfs;
-          std::vector<unsigned int> excludefs;
-
-          // A location which is only unlinked still holds the physical replica
-          // until the file system confirms the deletion. Placing the new
-          // replica there would have the pending deletion remove it right away.
-          for (const auto uloc : unlink_vect) {
-            excludefs.push_back(uloc);
-          }
-
-          if (pOpaque->Get("mgm.file.excludefs")) {
-            unsigned int exclude_fsid = strtoul(pOpaque->Get("mgm.file.excludefs"), 0, 10);
-
-            if (exclude_fsid) {
-              excludefs.push_back(exclude_fsid);
-              src_fs.erase(std::remove(src_fs.begin(), src_fs.end(), exclude_fsid),
-                           src_fs.end());
-            }
-          }
-
-          std::string tried_cgi;
-          // Now we just need to ask for <n> targets
-          int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                         eos::common::LayoutId::kNone, nrep_new);
-          eos::common::Path cPath(spath.c_str());
-          eos::IContainerMD::XAttrMap attrmap;
-          gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char*) 0, attrmap);
-          eos::mgm::Scheduler::tPlctPolicy plctplcy;
-          std::string targetgeotag;
-          // Get placement policy
-          Policy::GetPlctPolicy(spath.c_str(), attrmap, *pVid, *pOpaque,
-                                plctplcy, targetgeotag);
-          // We don't know the container tag here, but we don't really
-          // care since we are scheduled as root
-          Scheduler::PlacementArguments plctargs;
-          plctargs.alreadyused_filesystems = &src_fs;
-          plctargs.bookingsize = size;
-          plctargs.forced_scheduling_group_index = forcedsubgroup;
-          plctargs.lid = layoutId;
-          plctargs.inode = (ino64_t) fid;
-          plctargs.path = spath.c_str();
-          plctargs.plctTrgGeotag = &targetgeotag;
-          plctargs.plctpolicy = plctplcy;
-          plctargs.exclude_filesystems = &excludefs;
-          plctargs.selected_filesystems = &selectedfs;
-          plctargs.spacename = &space;
-          plctargs.truncate = true;
-          plctargs.vid = pVid;
-
-          if (!plctargs.isValid()) {
-            stdErr += "error: invalid argument for file placement";
-            retc = EINVAL;
-          } else {
-            {
-              errno = retc = Quota::FilePlacement(&plctargs);
-            }
-
-            if (!errno) {
-              Scheduler::AccessArguments acsargs;
-              acsargs.bookingsize = 0;
-              acsargs.forcedspace = space.c_str();
-              acsargs.fsindex = &fs_indx;
-              acsargs.isRW = false;
-              acsargs.lid = (unsigned long) lid;
-              acsargs.inode = (ino64_t) fid;
-              acsargs.locationsfs = &src_fs;
-              acsargs.tried_cgi = &tried_cgi;
-              acsargs.unavailfs = &unavailfs;
-              acsargs.vid = pVid;
-
-              if (!acsargs.isValid()) {
-                stdErr += "error: invalid argument for file access";
-                retc = EINVAL;
-              } else {
-                // We got a new replication vector
-                for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-                  errno = Scheduler::Access(&acsargs);
-
-                  if (!errno) {
-                    // This is now our source filesystem
-                    unsigned int src_fsid = src_fs[fs_indx];
-
-                    if (gOFS->_replicatestripe(fmd.get(), spath.c_str(),
-                                               *mError, *pVid, src_fsid,
-                                               selectedfs[i], false)) {
-                      retc = mError->getErrInfo();
-                      stdErr = SSTR("error: unable to replicate stripe "
-                                    << src_fsid << " => " << selectedfs[i]
-                                    << " msg=" << mError->getErrText()
-                                    << std::endl).c_str();
-
-                      // Add message from previous successful replication job
-                      if (stdOut.length()) {
-                        stdErr = stdOut + stdErr;
-                      }
-                    } else {
-                      stdOut = SSTR("success: scheduled replication from source fs="
-                                    << src_fsid << " => target fs="
-                                    << selectedfs[i] << std::endl).c_str();
-                    }
-                  } else {
-                    retc = ENOSPC;
-                    stdErr = "error: create new replicas => no source available: ";
-                    stdErr += spath;
-                    stdErr += "\n";
-                  }
-                }
-              }
-            } else {
-              stdErr = "error: create new replicas => cannot place replicas: ";
-              stdErr += spath;
-              stdErr += "\n";
-            }
-          }
-        } else {
-          // Run this in case of over-replication
-          if ((nrep_layout < nrep) && (nodrop == false)) {
-            unsigned int n2delete = nrep - nrep_layout;
-            std::multimap <common::ConfigStatus, int /*fsid*/> statemap;
-            std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
-            // We have too many replica's online, we drop (nrep_online - nrep_layout)
-            // replicas starting with the lowest configuration state
-            eos_debug("msg=\"drop %d replicas\" space=%s group=%d fxid=%08llx",
-                      n2delete, creationspace.c_str(), icreationsubgroup, fid);
-            {
-              for (auto loc_it = loc_vect.begin();
-                   loc_it != loc_vect.end(); ++loc_it) {
-                if (!(*loc_it)) {
-                  eos_err("msg=\"skip file system with id 0\" fxid=%08llx", fid);
-                  continue;
-                }
-
-                eos::common::FileSystem::fsid_t fsid = *loc_it;
-                FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
-                eos::common::FileSystem::fs_snapshot_t fs;
-
-                if (filesystem && filesystem->SnapShotFileSystem(fs, true)) {
-                  statemap.insert(std::pair<common::ConfigStatus, int>(fs.mConfigStatus, fsid));
-                  groupmap.insert(std::pair<std::string, int>(fs.mGroup, fsid));
-                }
-              }
-            }
-            std::string cspace = creationspace.c_str();
-
-            if (!cspace.empty() && (icreationsubgroup > 0)) {
-              cspace += SSTR("." << icreationsubgroup);
-            }
-
-            std::multimap <common::ConfigStatus, int> limitedstatemap;
-
-            for (auto sit = groupmap.begin(); sit != groupmap.end(); ++sit) {
-              // Use fsid only if they match the space and/or group req
-              if (sit->first.find(cspace) != 0) {
-                continue;
-              }
-
-              // Default to the highest state for safety reasons
-              common::ConfigStatus state = eos::common::ConfigStatus::kRW;
-
-              // get the state for each fsid matching
-              for (auto state_it = statemap.begin();
-                   state_it != statemap.end(); ++state_it) {
-                if (state_it->second == sit->second) {
-                  state = state_it->first;
-                  break;
-                }
-              }
-
-              // fill the map containing only the candidates
-              limitedstatemap.insert(std::pair<common::ConfigStatus, int>
-                                     (state, sit->second));
-            }
-
-            std::vector<unsigned long> fsid2delete;
-
-            for (auto lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
-              fsid2delete.push_back(lit->second);
-
-              if (fsid2delete.size() == n2delete) {
-                break;
-              }
-            }
-
-            if (fsid2delete.size() != n2delete) {
-              // add a warning that something does not work as requested ....
-              stdErr = SSTR("warning: cannot adjust replicas according to "
-                            "your requirement:"
-                            << " space=" << creationspace
-                            << " subgroup=" << icreationsubgroup
-                            << std::endl).c_str();
-            }
-
-            eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
-            try { // Get again the original file meta data
-              auto fmd = gOFS->eosFileService->getFileMD(fid);
-
-              for (unsigned int i = 0; i < fsid2delete.size(); i++) {
-                if (fmd->hasLocation(fsid2delete[i])) {
-                  fmd->unlinkLocation(fsid2delete[i]);
-                  eos_debug("msg=\"removing location\" fsid=%lu fxid=%08llx",
-                            fsid2delete[i], fid);
-                  stdOut += "success: dropping replica on fsid=";
-                  stdOut += (int) fsid2delete[i];
-                  stdOut += "\n";
-                }
-              }
-
-              gOFS->eosView->updateFileStore(fmd.get());
-            } catch (eos::MDException& e) {
-              errno = e.getErrno();
-              eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
-                        e.getErrno(), e.getMessage().str().c_str());
-              stdErr = SSTR("error: drop excess replicas => cannot unlink "
-                            "location - " << e.getMessage().str().c_str()
-                            << std::endl).c_str();
-            }
-          }
-        }
-      } else {
-        // This is a rain layout, we try to rewrite the file using the converter
-        if (eos::common::LayoutId::IsRain(lid)) {
-          ProcCommand Cmd;
-          // rewrite the file asynchronous using the converter
-          XrdOucString option = pOpaque->Get("mgm.option");
-          XrdOucString info;
-          info += "&mgm.cmd=file&mgm.subcmd=convert&mgm.option=rewrite&mgm.path=";
-          info += spath.c_str();
-          retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
-          Cmd.AddOutput(stdOut, stdErr);
-          Cmd.close();
-          retc = Cmd.GetRetc();
-        } else {
-          retc = EINVAL;
-          stdOut += "warning: no action for this layout type (neither replica nor rain)\n";
-        }
-      }
+      FileCmd cmd(std::move(req), *pVid);
+      const eos::console::ReplyProto reply = cmd.ProcessRequest();
+      retc = reply.retc();
+      stdOut += reply.std_out().c_str();
+      stdErr += reply.std_err().c_str();
     }
 
     // -------------------------------------------------------------------------
