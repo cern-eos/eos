@@ -173,9 +173,16 @@ check "legacy: drop" "$out" "success: dropped stripe"
 
 ##############################################################################
 echo "=== adjustreplica ==="
-eos -b touch "$BASE/proto_adj.txt" >/dev/null 2>&1
-out_proto=$(eos -b file adjustreplica "$BASE/proto_adj.txt" 2>&1)
-check "proto: adjustreplica (no error)" "$out_proto" ""
+# A replica layout, adjustreplica does nothing for plain files
+eos -b mkdir -p "$BASE/adj" >/dev/null 2>&1
+eos -b attr set default=replica "$BASE/adj" >/dev/null 2>&1
+eos -b touch "$BASE/adj/proto_adj.txt" >/dev/null 2>&1
+out_proto=$(eos -b file adjustreplica "$BASE/adj/proto_adj.txt" 2>&1)
+check "proto: adjustreplica (fsck repair job queued)" "$out_proto" "success: adjustreplica"
+out_proto=$(eos -b file adjustreplica "$BASE/adj/proto_adj.txt" default 2>&1)
+check "proto: adjustreplica rejects a space" "$out_proto" "use 'file convert'"
+out_proto=$(eos -b file adjustreplica "$BASE/adj/proto_adj.txt" --exclude-fs 0 2>&1)
+check "proto: adjustreplica rejects a bad --exclude-fs" "$out_proto" "invalid file system id"
 
 eos -b touch "$BASE/legacy_adj.txt" >/dev/null 2>&1
 out=$(legacy "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=$BASE/legacy_adj.txt")
