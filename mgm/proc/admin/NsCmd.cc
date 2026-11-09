@@ -46,6 +46,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/LockableNSObject.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
@@ -307,7 +308,6 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
     eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
     eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
-    eos::common::RWMutex* ns_mtx = &gOFS->eosViewRWMutex;
     eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
     //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
 
@@ -350,19 +350,17 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
       oss << std::endl;
       oss << "blockedtiming  is : ";
-      oss << ns_mtx->BlockedForMsInterval() << " ms" << std::endl;
+      oss << fs_mtx->BlockedForMsInterval() << " ms" << std::endl;
     }
 
     if (mutex.toggle_timing()) {
       if (fs_mtx->GetTiming()) {
         fs_mtx->SetTiming(false);
         quota_mtx->SetTiming(false);
-        ns_mtx->SetTiming(false);
         oss << "mutex timing is off" << std::endl;
       } else {
         fs_mtx->SetTiming(true);
         quota_mtx->SetTiming(true);
-        ns_mtx->SetTiming(true);
         oss << "mutex timing is on" << std::endl;
       }
     }
@@ -389,12 +387,11 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
     if (mutex.blockedtime()) {
       fs_mtx->SetBlockedForMsInterval(mutex.blockedtime());
-      ns_mtx->SetBlockedForMsInterval(mutex.blockedtime());
       quota_mtx->SetBlockedForMsInterval(mutex.blockedtime());
       fusex_client_mtx->SetBlockedForMsInterval(mutex.blockedtime());
       //fusex_cap_mtx->SetBlockedForMsInterval(mutex.blockedtime());
-      oss << "blockedtiming set to " << ns_mtx->BlockedForMsInterval() << " ms" <<
-          std::endl;
+      oss << "blockedtiming set to " << fs_mtx->BlockedForMsInterval() << " ms"
+          << std::endl;
     }
 
     if (mutex.sample_rate1() || mutex.sample_rate10() ||
@@ -411,7 +408,6 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
       fs_mtx->SetSampling(true, rate);
       quota_mtx->SetSampling(true, rate);
-      ns_mtx->SetSampling(true, rate);
     }
 
     reply.set_std_out(oss.str());
@@ -523,18 +519,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
   CacheStatistics containerCacheStats =
     gOFS->eosDirectoryService->getCacheStatistics();
-  common::MutexLatencyWatcher::LatencySpikes viewLatency =
-    gOFS->mViewMutexWatcher.getLatencySpikes();
-  double eosViewMutexPenultimateSecWriteLockTimePercentage =
-    (gOFS->eosViewRWMutex.getNbMsMutexWriteLockedPenultimateSecond().count() /
-     1000.0) * 100.0;
-
-  if (eosViewMutexPenultimateSecWriteLockTimePercentage > 100) {
-    eosViewMutexPenultimateSecWriteLockTimePercentage = 100;
-  }
-
-  double readcontention = gOFS->MgmStats.GetReadContention();
-  double writecontention = gOFS->MgmStats.GetWriteContention();
+  common::MutexLatencyWatcher::LatencySpikes fsViewLatency =
+      gOFS->mFsViewMutexWatcher.getLatencySpikes();
+  uint64_t mdLockWaits = 0, mdLockWaitUs = 0;
+  eos::MDLockWaitStats::Get(mdLockWaits, mdLockWaitUs);
 
   qdb_ha_status = CollectQdbHaStatus(gOFS, qdb_ha_err);
 
@@ -555,8 +543,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "\nuid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
         << "\nuid=all gid=all ns.generated.cid="
         << (int)(cid_now - gOFS->mBootContainerId)
-        << "\nuid=all gid=all ns.contention.read=" << readcontention
-        << "\nuid=all gid=all ns.contention.write=" << writecontention
         << "\nuid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum
         << "\nuid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy
         << "\nuid=all gid=all ns.cache.files.requests=" << fileCacheStats.numRequests
@@ -605,20 +591,20 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.fusex.clients=" << eosxd_nclients << std::endl
         << "uid=all gid=all ns.fusex.activeclients=" << eosxd_active_clients << std::endl
         << "uid=all gid=all ns.fusex.lockedclients=" << eosxd_locked_clients << std::endl
-        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp()
-        << std::endl
-        << "uid=all gid=all ns.hanging.since=" << gOFS->mViewMutexWatcher.hangingSince()
-        << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" << viewLatency.last.count()
-        << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.1min="
-        << viewLatency.lastMinute.count() << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.2min="
-        << viewLatency.last2Minutes.count() << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.5min="
-        << viewLatency.last5Minutes.count() << std::endl
-        << "uid=all gid=all ns.eosviewmutex.penultimateseclocktimepercent="
-        << eosViewMutexPenultimateSecWriteLockTimePercentage << std::endl;
+        << "uid=all gid=all ns.fsviewmutex.hanging="
+        << gOFS->mFsViewMutexWatcher.isLockedUp() << std::endl
+        << "uid=all gid=all ns.fsviewmutex.hanging.since="
+        << gOFS->mFsViewMutexWatcher.hangingSince() << std::endl
+        << "uid=all gid=all ns.latencypeak.fsviewmutex.last="
+        << fsViewLatency.last.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.fsviewmutex.1min="
+        << fsViewLatency.lastMinute.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.fsviewmutex.2min="
+        << fsViewLatency.last2Minutes.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.fsviewmutex.5min="
+        << fsViewLatency.last5Minutes.count() << std::endl
+        << "uid=all gid=all ns.mdlock.wait.count=" << mdLockWaits << std::endl
+        << "uid=all gid=all ns.mdlock.wait.us=" << mdLockWaitUs << std::endl;
 
     if (!gOFS->namespaceGroup->isInMemory()) {
       auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>
@@ -746,9 +732,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "] (" << fboot_time << "s)" << std::endl
         << "ALL      Directories                      " << d << std::endl
         << "ALL      Total boot time                  " << boot_time << " s" << std::endl
-        << "ALL      Contention                       write: " << std::fixed
-        << std::setprecision(2) << writecontention << " % read:" << std::fixed
-        << std::setprecision(2) << readcontention << " %" << std::endl
         << line << std::endl;
 
     if (compact_status.length()) {
@@ -790,19 +773,26 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      container created since boot     "
         << (int)(cid_now - gOFS->mBootContainerId) << std::endl
         << line << std::endl
-        << "ALL      current file id                  " << fid_now
-        << std::endl
-        << "ALL      current container id             " << cid_now
-        << std::endl
+        << "ALL      current file id                  " << fid_now << std::endl
+        << "ALL      current container id             " << cid_now << std::endl
         << line << std::endl
         << "ALL      eosxd caps                       "
         << gOFS->zMQ->gFuseServer.Cap().Dump() << std::endl
-        << "ALL      eosxd clients                    " <<
-        eosxd_nclients << std::endl
-        << "ALL      eosxd active clients             " <<
-        eosxd_active_clients << std::endl
-        << "ALL      eosxd locked clients             " <<
-        eosxd_locked_clients << std::endl
+        << "ALL      eosxd clients                    " << eosxd_nclients << std::endl
+        << "ALL      eosxd active clients             " << eosxd_active_clients
+        << std::endl
+        << "ALL      eosxd locked clients             " << eosxd_locked_clients
+        << std::endl
+        << line << std::endl
+        << "ALL      FsView mutex status              "
+        << (gOFS->mFsViewMutexWatcher.isLockedUp() ? "locked-up" : "available") << " ("
+        << gOFS->mFsViewMutexWatcher.hangingSince() << "s)" << std::endl
+        << "ALL      FsView mutex peak-latency        " << fsViewLatency.last.count()
+        << "ms (last) " << fsViewLatency.lastMinute.count() << "ms (1 min) "
+        << fsViewLatency.last2Minutes.count() << "ms (2 min) "
+        << fsViewLatency.last5Minutes.count() << "ms (5 min)" << std::endl
+        << "ALL      MD lock waits                    " << mdLockWaits << " ("
+        << mdLockWaitUs / 1000 << " ms in total)" << std::endl
         << line << std::endl;
 
     if (fileCacheStats.enabled || containerCacheStats.enabled) {
@@ -820,19 +810,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << std::endl
           << line << std::endl;
     }
-
-    oss << "ALL      eosViewRWMutex status            " <<
-        (gOFS->mViewMutexWatcher.isLockedUp() ? "locked-up" : "available")
-        << " (" << gOFS->mViewMutexWatcher.hangingSince() << "s) " << std::endl;
-    oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count()
-        << "ms (last) "
-        << viewLatency.lastMinute.count() << "ms (1 min) " <<
-        viewLatency.last2Minutes.count() << "ms (2 min) " <<
-        viewLatency.last5Minutes.count() << "ms (5 min)"
-        << std::endl;
-    oss << "ALL      eosViewRWMutex locked for " <<
-        eosViewMutexPenultimateSecWriteLockTimePercentage
-        << "% of the penultimate second" << std::endl << line << std::endl;
 
     if (!gOFS->namespaceGroup->isInMemory()) {
       auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>

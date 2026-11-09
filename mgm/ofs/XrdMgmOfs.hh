@@ -39,17 +39,16 @@
  * this REST-like request/response format look at the ProcInterface class and
  * the implementations in the mgm/proc directory. The XrdMgmDirectory class
  * is provided to implement the POSIX like 'open', 'readdir', 'closedir' syntax.
- * The MGM code uses mainly three global mutexes given in the order they have
- * to be used:
+ * The MGM code uses two global mutexes given in the order they have to be
+ * used:
  * - eos::common::RWMutexXXXLock lock(FsView::gFsView.ViewMutex)  : lock 1
- * - eos::common::RWMutexXXXLock lock(gOFS->eosViewRWMutex)       : lock 2
- * - eos::common::RWMutexXXXLock lock(Quota::pMapMutex)           : lock 3
+ * - eos::common::RWMutexXXXLock lock(Quota::pMapMutex)           : lock 2
  * The XXX is either Read or Write depending what has to be done on the
  * objects they are protecting. The first mutex is the file system view object
  * (FsView.cc) which contains the current state of the storage
  * filesystem/node/group/space configuration. The second mutex is protecting
- * the quota configuration and scheduling. The last mutex is protecting the
- * namespace.
+ * the quota configuration and scheduling. The namespace objects use per-object
+ * MD locks (namespace/MDLocking.hh), taken after these mutexes.
  * The implementation uses a bunch of convenience macros to cut the code short.
  * These macro's filter/map path names, apply redirection, stalling rules and
  * require certain authentication credentials to be able to run some function.
@@ -83,8 +82,8 @@
  * "eos.lfn" - use this name as path name not the path parameter (used by prefix
  * redirector MGM's ...
  * "eos.bookingsize" - reserve the requested bytes in a file placement
- * "eos.cli.access=pio" - ask for a parallel open (changes the response of an open for RAIN layouts)
- * "eos.app" - set the application name reported by monitoring
+ * "eos.cli.access=pio" - ask for a parallel open (changes the response of an open for
+ * RAIN layouts) "eos.app" - set the application name reported by monitoring
  * "eos.targetsize" - expected size of a file to be uploaded
  * "eos.blockchecksum=ignore" - disable block checksum verification
  *
@@ -1938,10 +1937,9 @@ public:
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
   eos::mgm::NamespaceStats mNamespaceStats; //namespace-related stats operation
-  eos::common::RWMutex eosViewRWMutex; ///< RW namespace mutex
   XrdOucString
   MgmMetaLogDir; ///<  Directory containing the meta data (change) log files
-  eos::common::MutexLatencyWatcher mViewMutexWatcher;
+  eos::common::MutexLatencyWatcher mFsViewMutexWatcher; ///< FsView mutex latency
 
   // ---------------------------------------------------------------------------
   // Thread variables

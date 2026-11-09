@@ -108,7 +108,6 @@ public:
 
   void cleanNSCache();
 protected:
-  eos::common::RWMutex nsMutex;
   void initServices();
 
   std::map<std::string, std::string> testconfig;

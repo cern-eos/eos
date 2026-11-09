@@ -107,7 +107,7 @@ void NsTests::initServices()
   namespaceGroupPtr.reset(new eos::QuarkNamespaceGroup());
   std::string err;
 
-  if (!namespaceGroupPtr->initialize(&nsMutex, testconfig, err,nullptr)) {
+  if (!namespaceGroupPtr->initialize(testconfig, err, nullptr)) {
     std::cerr << "Test error: could not initialize namespace group! Terminating." <<
               std::endl;
     std::terminate();

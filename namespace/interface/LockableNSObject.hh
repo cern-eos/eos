@@ -19,16 +19,41 @@
 #ifndef EOS_LOCKABLENSOBJECT_HH
 #define EOS_LOCKABLENSOBJECT_HH
 
+#include <atomic>
+#include <chrono>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <memory>
-#include <map>
 #include <thread>
 
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
 
 EOSNSNAMESPACE_BEGIN
+
+//! Counts the MD lock acquisitions that had to wait, and the time waited.
+//! Only a thread that waits pays the cost of the clock reads.
+struct MDLockWaitStats {
+  static inline std::atomic<uint64_t> sWaits{0};
+  static inline std::atomic<uint64_t> sWaitUs{0};
+
+  static void
+  Add(std::chrono::steady_clock::duration waited)
+  {
+    sWaits.fetch_add(1, std::memory_order_relaxed);
+    sWaitUs.fetch_add(
+        std::chrono::duration_cast<std::chrono::microseconds>(waited).count(),
+        std::memory_order_relaxed);
+  }
+
+  static void
+  Get(uint64_t& waits, uint64_t& wait_us)
+  {
+    waits = sWaits.load(std::memory_order_relaxed);
+    wait_us = sWaitUs.load(std::memory_order_relaxed);
+  }
+};
 
 typedef std::unique_lock<std::shared_timed_mutex> MDWriteLock;
 typedef std::shared_lock<std::shared_timed_mutex> MDReadLock;
@@ -153,8 +178,10 @@ protected:
   void lock(LockType& lock)
   {
     //Lock the object only if it is not already read-locked or write-locked
-    if (!isLocked(lock)) {
+    if (!isLocked(lock) && !lock.try_lock()) {
+      const auto start = std::chrono::steady_clock::now();
       lock.lock();
+      MDLockWaitStats::Add(std::chrono::steady_clock::now() - start);
     }
 
     registerLock(lock);

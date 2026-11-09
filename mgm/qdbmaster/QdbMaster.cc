@@ -119,8 +119,7 @@ QdbMaster::BootNamespace()
 
   FillNsCacheConfig(gOFS->mConfigEngine, namespaceConfig);
 
-  if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
-                                        err, &gOFS->mNamespaceStats)) {
+  if (!gOFS->namespaceGroup->initialize(namespaceConfig, err, &gOFS->mNamespaceStats)) {
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }

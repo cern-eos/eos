@@ -21,11 +21,11 @@
  ************************************************************************/
 
 #pragma once
-#include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
-#include <list>
-#include <chrono>
+#include "common/RWMutex.hh"
 #include <atomic>
+#include <chrono>
+#include <list>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -42,14 +42,18 @@ public:
     std::chrono::system_clock::time_point start;
     std::chrono::system_clock::time_point end;
 
-    std::chrono::milliseconds getMilli() const {
+    std::chrono::milliseconds
+    getMilli() const
+    {
       return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     }
   };
 
   std::atomic<time_t> aStart;
 
-  bool isLockedUp() const {
+  bool
+  isLockedUp() const
+  {
     if (!aStart) {
       return false;
     } else {
@@ -57,7 +61,9 @@ public:
     }
   }
 
-  int hangingSince() const {
+  int
+  hangingSince() const
+  {
     if (!aStart) {
       return 0;
     }
@@ -82,13 +88,13 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MutexLatencyWatcher(RWMutex& mutex, const std::string &friendlyName);
-  void activate(RWMutex& mutex, const std::string &friendlyName);
+  MutexLatencyWatcher(RWMutex& mutex, const std::string& friendlyName);
+  void activate(RWMutex& mutex, const std::string& friendlyName);
 
   //----------------------------------------------------------------------------
   //! Main thread loop
   //----------------------------------------------------------------------------
-  void main(ThreadAssistant &assistant);
+  void main(ThreadAssistant& assistant);
 
   //----------------------------------------------------------------------------
   //! Get latency spikes
@@ -99,10 +105,9 @@ private:
   //----------------------------------------------------------------------------
   //! Append datapoint
   //----------------------------------------------------------------------------
-  void appendDatapoint(const Datapoint &point);
+  void appendDatapoint(const Datapoint& point);
 
-
-  eos::common::RWMutex *mMutex;
+  eos::common::RWMutex* mMutex;
   std::string mFriendlyName;
   AssistedThread mThread;
 

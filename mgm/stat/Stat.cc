@@ -21,13 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Mapping.hh"
-#include "common/table_formatter/TableFormatterBase.hh"
-#include "common/Statistics.hh"
 #include "mgm/stat/Stat.hh"
+#include "common/Mapping.hh"
+#include "common/Statistics.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/quota/Quota.hh"
+#include "namespace/interface/LockableNSObject.hh"
 #include <XrdOuc/XrdOucString.hh>
 
 EOSMGMNAMESPACE_BEGIN
@@ -666,30 +667,6 @@ Stat::GetTotalExec(double& deviation)
   }
 
   return avg;
-}
-
-//------------------------------------------------------------------------------
-// Get read contention approximation
-//------------------------------------------------------------------------------
-double
-Stat::GetReadContention() const
-{
-  XrdSysMutexHelper lock(mMutex);
-  double rnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedR");
-  return ((rnorm) ?
-          (100.0 * gOFS->MgmStats.GetTotalAvg5("NsLeadR") / rnorm) : 0.0);
-}
-
-//----------------------------------------------------------------------------
-// Get write contention approximation
-//----------------------------------------------------------------------------
-double
-Stat::GetWriteContention() const
-{
-  XrdSysMutexHelper lock(mMutex);
-  double wnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedW");
-  return ((wnorm) ?
-          (100.0 * gOFS->MgmStats.GetTotalAvg5("NsLeadW") / wnorm) : 0.0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1346,14 +1323,13 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   unsigned long long qu1 = 0;
   unsigned long long qu2 = 0;
-  unsigned long long ns1 = 0;
-  unsigned long long ns2 = 0;
   unsigned long long view1 = 0;
   unsigned long long view2 = 0;
-  eos::common::RWMutex::TimingStats qu12stmp, ns12stmp, view12stmp;
-  unsigned long long ns1tmp = 0ull, ns2tmp = 0ull, view1tmp = 0ull,
-                     view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
+  eos::common::RWMutex::TimingStats qu12stmp, view12stmp;
+  unsigned long long view1tmp = 0ull, view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
 #endif
+  uint64_t mdWaits = 0, mdWaitUs = 0;
+  eos::MDLockWaitStats::Get(mdWaits, mdWaitUs);
   auto chrononow = std::chrono::system_clock::now();
   auto chronolast = chrononow;
 
@@ -1364,17 +1340,11 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
     eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
-    eos::common::RWMutex* ns_mtx = &gOFS->eosViewRWMutex;
     // fsview statistics extraction
     view1tmp = fs_mtx->GetReadLockCounter();
     view2tmp = fs_mtx->GetWriteLockCounter();
     fs_mtx->GetTimingStatistics(view12stmp);
     fs_mtx->ResetTimingStatistics();
-    // namespace lock statistics extraction
-    ns1tmp = ns_mtx->GetReadLockCounter();
-    ns2tmp = ns_mtx->GetWriteLockCounter();
-    ns_mtx->GetTimingStatistics(ns12stmp);
-    ns_mtx->ResetTimingStatistics();
     // quota lock statistics extraction
     qu1tmp = quota_mtx->GetReadLockCounter();
     qu2tmp = quota_mtx->GetWriteLockCounter();
@@ -1382,35 +1352,27 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     quota_mtx->ResetTimingStatistics();
     Add("ViewLockR", 0, 0, view1tmp - view1);
     Add("ViewLockW", 0, 0, view2tmp - view2);
-    Add("NsLockR", 0, 0, ns1tmp - ns1);
-    Add("NsLockW", 0, 0, ns2tmp - ns2);
     Add("QuotaLockR", 0, 0, qu1tmp - qu1);
     Add("QuotaLockW", 0, 0, qu2tmp - qu2);
     AddExt("ViewLockRWait", 0, 0, (unsigned long) view12stmp.readLockCounterSample,
            view12stmp.averagewaitread, view12stmp.minwaitread, view12stmp.maxwaitread);
     AddExt("ViewLockWWait", 0, 0, (unsigned long) view12stmp.writeLockCounterSample,
            view12stmp.averagewaitwrite, view12stmp.minwaitwrite, view12stmp.maxwaitwrite);
-    AddExt("NsLockRWait", 0, 0, (unsigned long) ns12stmp.readLockCounterSample,
-           ns12stmp.averagewaitread, ns12stmp.minwaitread, ns12stmp.maxwaitread);
-    AddExt("NsLockWWait", 0, 0, (unsigned long) ns12stmp.writeLockCounterSample,
-           ns12stmp.averagewaitwrite, ns12stmp.minwaitwrite, ns12stmp.maxwaitwrite);
-    AddExt("QuotaLockRWait", 0, 0, (unsigned long) qu12stmp.readLockCounterSample,
-           qu12stmp.averagewaitread, ns12stmp.minwaitread, ns12stmp.maxwaitread);
-    AddExt("QuotaLockWWait", 0, 0, (unsigned long) qu12stmp.writeLockCounterSample,
-           qu12stmp.averagewaitwrite, ns12stmp.minwaitwrite, ns12stmp.maxwaitwrite);
+    AddExt("QuotaLockRWait", 0, 0, (unsigned long)qu12stmp.readLockCounterSample,
+           qu12stmp.averagewaitread, qu12stmp.minwaitread, qu12stmp.maxwaitread);
+    AddExt("QuotaLockWWait", 0, 0, (unsigned long)qu12stmp.writeLockCounterSample,
+           qu12stmp.averagewaitwrite, qu12stmp.minwaitwrite, qu12stmp.maxwaitwrite);
     view1 = view1tmp;
     view2 = view2tmp;
-    ns1 = ns1tmp;
-    ns2 = ns2tmp;
     qu1 = qu1tmp;
     qu2 = qu2tmp;
-    std::chrono::milliseconds elapsed =
-      std::chrono::duration_cast<std::chrono::milliseconds> (chrononow - chronolast);
-    Add("NsUsedR", 0, 0, ns_mtx->GetReadLockTime() / elapsed.count());
-    Add("NsUsedW", 0, 0, ns_mtx->GetWriteLockTime() / elapsed.count());
-    Add("NsLeadR", 0, 0, ns_mtx->GetReadLockLeadTime() / elapsed.count());
-    Add("NsLeadW", 0, 0, ns_mtx->GetWriteLockLeadTime() / elapsed.count());
 #endif
+    uint64_t mdWaitsNow = 0, mdWaitUsNow = 0;
+    eos::MDLockWaitStats::Get(mdWaitsNow, mdWaitUsNow);
+    Add("MDLockWait", 0, 0, mdWaitsNow - mdWaits);
+    Add("MDLockWaitUs", 0, 0, mdWaitUsNow - mdWaitUs);
+    mdWaits = mdWaitsNow;
+    mdWaitUs = mdWaitUsNow;
     XrdSysMutexHelper lock(mMutex);
     time_t now = time(NULL);
 

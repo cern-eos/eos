@@ -100,9 +100,9 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
-    // FSTs to notify once the namespace lock is released - DeleteExternal takes
+    // FSTs to notify once the MD locks are released - DeleteExternal takes
     // the FsView lock and does a network call, neither of which may happen
-    // while holding eosViewRWMutex (lock order is FsView -> eosView)
+    // while holding MD locks (lock order is FsView -> MD locks)
     std::vector<eos::common::FileSystem::fsid_t> external_deletions;
     eos::IFileMD::location_t cache_trunc_fsid = 0;
     // Note: we deliberately do NOT prefetch the file system file list here.

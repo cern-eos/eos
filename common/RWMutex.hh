@@ -82,13 +82,6 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! struct TimingArray aligned to a cacheline
-//------------------------------------------------------------------------------
-struct TimingArray {
-  AlignedAtomicArray<int64_t, 4> items;
-  TimingArray() : items{} {}
-};
-//------------------------------------------------------------------------------
 //! Class RWMutex
 //------------------------------------------------------------------------------
 class RWMutex
@@ -239,62 +232,6 @@ public:
     return mWrLockCounter.load();
   }
 
-  //----------------------------------------------------------------------------
-  //! Get Readlock Time
-  //----------------------------------------------------------------------------
-  inline uint64_t GetReadLockTime()
-  {
-    uint64_t rlt = mRdLockTime.load();
-    mRdLockTime = 0;
-    return rlt;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get Writelock Time
-  //----------------------------------------------------------------------------
-  inline uint64_t GetWriteLockTime()
-  {
-    uint64_t wlt = mWrLockTime.load();
-    mWrLockTime = 0;
-    return wlt;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get Readlock Time
-  //----------------------------------------------------------------------------
-  inline uint64_t GetReadLockLeadTime()
-  {
-    uint64_t rlt = mRdLockLeadTime.load();
-    mRdLockLeadTime = 0;
-    return rlt;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get Writelock Time
-  //----------------------------------------------------------------------------
-  inline uint64_t GetWriteLockLeadTime()
-  {
-    uint64_t wlt = mWrLockLeadTime.load();
-    mWrLockLeadTime = 0;
-    return wlt;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Add Readlock Time
-  //----------------------------------------------------------------------------
-  inline void AddReadLockTime(uint64_t t)
-  {
-    mRdLockTime += t;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Add Writelock Time
-  //----------------------------------------------------------------------------
-  inline void AddWriteLockTime(uint64_t t)
-  {
-    mWrLockTime += t;
-  }
-
   enum class LOCK_T { eNone, eWantLockRead, eWantUnLockRead, eLockRead, eWantLockWrite, eWantUnLockWrite, eLockWrite };
 
   //----------------------------------------------------------------------------
@@ -318,62 +255,6 @@ public:
   std::string getName() const
   {
     return mName;
-  }
-
-  void addBlockingTimeInfos(std::chrono::system_clock::time_point acquiredAt,
-                            std::chrono::system_clock::time_point releasedAt)
-  {
-    auto acquiredAtSinceEpoch = acquiredAt.time_since_epoch();
-    auto releasedAtSinceEpoch = releasedAt.time_since_epoch();
-    auto releasedAtSecondsSinceEpoch =
-      std::chrono::duration_cast<std::chrono::seconds>(releasedAtSinceEpoch).count();
-    auto acquiredAtMsSinceEpoch =
-      std::chrono::duration_cast<std::chrono::milliseconds>
-      (acquiredAtSinceEpoch).count();
-    auto releasedAtMsSinceEpoch =
-      std::chrono::duration_cast<std::chrono::milliseconds>
-      (releasedAtSinceEpoch).count();
-    auto blockedForTimepoint = releasedAt - acquiredAt;
-    auto blockedForMs = std::chrono::duration_cast<std::chrono::milliseconds>
-                        (blockedForTimepoint).count();
-    auto blockedForSeconds = std::chrono::duration_cast<std::chrono::seconds>
-                             (blockedForTimepoint).count();
-
-    if (blockedForSeconds >= 2) {
-      //The second before the current one, the mutex was locked the entire time
-      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch - 1) % 4].fetch_add(1000);
-      //We add to the current second the amount of milliseconds between the start of the current second and the releasedAt milliseconds
-      mNbMsMutexLocked.items[releasedAtSecondsSinceEpoch % 4].fetch_add(
-        std::chrono::milliseconds(releasedAtMsSinceEpoch -
-                                  (releasedAtSecondsSinceEpoch * 1000)).count());
-    } else if (blockedForSeconds >= 1) {
-      //The lock time is overlapping between the previous second and the current second
-      //compute lock time during last second to add it to last second
-      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch - 1) % 4].fetch_add(
-        std::chrono::milliseconds((releasedAtSecondsSinceEpoch * 1000) -
-                                  acquiredAtMsSinceEpoch).count());
-      //Compute lock time during the current second and add it to the current second
-      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch) % 4].fetch_add(
-        std::chrono::milliseconds(releasedAtMsSinceEpoch -
-                                  (releasedAtSecondsSinceEpoch * 1000)).count());
-    } else {
-      //The lock was acquired and released within the current second, just add the amount of milliseconds
-      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch) % 4].fetch_add(
-        blockedForMs);
-    }
-
-    //Reset the next second lock time
-    mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch + 1) % 4].store(0);
-  }
-
-  const std::chrono::milliseconds
-  getNbMsMutexWriteLockedPenultimateSecond()
-  {
-    auto now = std::chrono::duration_cast<std::chrono::seconds>
-               (std::chrono::system_clock::now().time_since_epoch()).count();
-    //We take the amount of milliseconds the mutex was locked 2 seconds before the current second
-    return std::chrono::milliseconds(mNbMsMutexLocked.items[(now - 2) % 4].load(
-                                       std::memory_order_relaxed));
   }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -672,25 +553,9 @@ private:
   struct timespec wlocktime;
   std::atomic<uint64_t> mRdLockCounter;
   std::atomic<uint64_t> mWrLockCounter;
-  std::atomic<uint64_t> mRdLockTime;
-  std::atomic<uint64_t> mWrLockTime;
-  std::atomic<uint64_t> mRdLockLeadTime;
-  std::atomic<uint64_t> mWrLockLeadTime;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
   int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
-
-  /**
-   * Array of 4 elements representing the amount of milliseconds the mutex
-   * was locked per second
-   * This array therefore represent 4 seconds of run.
-   * - Second 3: represents the current second of run
-   * - Second 2: the last second before the current one
-   * - Second 1: the second that will be displayed by eos ns stat
-   * - Second 0: Will be set to 0 to reset the counter because this second
-   * will be the one to be considered after the current one
-   */
-  TimingArray mNbMsMutexLocked;
 
   std::string mName;
 
@@ -830,9 +695,7 @@ public:
 
 private:
   std::chrono::steady_clock::time_point mAcquiredAt;
-  std::chrono::system_clock::time_point mAcquiredAtSystem;
   std::chrono::steady_clock::time_point mReleasedAt;
-  std::chrono::system_clock::time_point mReleasedAtSystem;
   RWMutex* mWrMutex {nullptr};
   const char* mFile;
   const char* mFunction;

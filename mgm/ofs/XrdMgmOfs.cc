@@ -1300,21 +1300,10 @@ XrdMgmOfs::GetPendingBkps()
 int32_t
 XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
 {
-  std::string sname = svc_name;
-
-  if (sname == "NsViewMutex") {
-    PF_Discovery_Service* ns_lock = (PF_Discovery_Service*)(opaque);
-    // TODO (esindril): Use this code when we drop SLC6 support @todo
-    //std::string htype = std::to_string(typeid(&gOFS->eosViewRWMutex).hash_code());
-    std::string htype = "eos::common::RWMutex*";
-    ns_lock->objType = (char*)calloc(htype.length() + 1, sizeof(char));
-    (void) strcpy(ns_lock->objType, htype.c_str());
-    ns_lock->ptrService = static_cast<void*>(&gOFS->eosViewRWMutex);
-  } else {
-    return EINVAL;
-  }
-
-  return 0;
+  // No service is provided any more: the namespace view mutex was the only one
+  (void)svc_name;
+  (void)opaque;
+  return EINVAL;
 }
 
 //------------------------------------------------------------------------------
