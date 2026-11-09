@@ -2167,6 +2167,28 @@ See if the fsck repair thread is active and how log its work queue is (cross che
    all FsckRepairStarted             63.19 M   857.75  1107.25  1112.05   918.32     -NA-      -NA-
    all FsckRepairSuccessful          63.12 M   857.75  1106.88  1110.64   917.44     -NA-      -NA-
 
+Adjust the replicas of a single file
+""""""""""""""""""""""""""""""""""""
+
+``eos file adjustreplica`` runs the same replica count repair (``rep_diff_n``)
+for a single file. The FSTs trigger it too, when a replica could not be written.
+The job is queued in the fsck thread pool, so the command returns right away and
+the result shows up in the MGM log and the ``FsckRepair*`` counters.
+
+Compared to the error driven fsck repair, replicas whose FST does not answer
+count as missing and get replaced. Once the replacement exists, the next run
+drops the unreachable replica. ``--nodrop`` keeps the replicas in excess of the
+layout and ``--exclude-fs <fsid>`` keeps a file system out of the new replica's
+source and destination.
+
+.. code-block:: bash
+
+   [root@mgm-1 ~]# eos file adjustreplica /eos/dev/file.dat
+   success: adjustreplica fxid=0028819b msg="adjust replica job submitted"
+
+If a drain, balance, conversion or fsck job already works on the file, the
+command does nothing.
+
 Log examples
 """""""""""""
 
