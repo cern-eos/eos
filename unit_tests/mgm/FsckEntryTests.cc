@@ -537,6 +537,25 @@ TEST_F(FsckEntryTest, FileMissingReplica)
 }
 
 //------------------------------------------------------------------------------
+// The new replica is never placed on the file system of the dropped replica,
+// the pending deletion on that FST would remove it
+// Begin:                Final:
+// MGM: 3 5              MGM: 3 x   (x != 5)
+// FST: 3
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileMissingReplicaExcludesDroppedFs)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::MissRepl;
+  mFsckEntry->mFstFileInfo.find(5)->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(3u, mRepairCalls[0].fsid_src);
+  ASSERT_FALSE(mRepairCalls[0].drop_src);
+  ASSERT_TRUE(mRepairCalls[0].exclude_dsts.count(5));
+}
+
+//------------------------------------------------------------------------------
 // Over-replicated file drops the replicas the FST could not report on first,
 // then keeps the location order among the remaining equal candidates
 // Begin:                        Final:
@@ -696,4 +715,133 @@ TEST_F(FsckEntryTest, RainDiffReplOverReplicated)
   ASSERT_FALSE(mFsckEntry->Repair());
   ASSERT_TRUE(mRepairCalls.empty());
   ASSERT_EQ(7, mFsckEntry->mMgmFmd.locations_size());
+}
+
+//------------------------------------------------------------------------------
+// Adjust replica with nodrop keeps the replicas in excess of the layout
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustNoDropKeepsExtraReplicas)
+{
+  MakeOverReplicated({});
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mNoDrop = true;
+  mFsckEntry->SetAdjustOpts(opts);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 5, 6, 7}), GetMgmLocations());
+  ASSERT_EQ(4u, mFsckEntry->mFstFileInfo.size());
+}
+
+//------------------------------------------------------------------------------
+// Adjust replica never uses an excluded file system as source or destination
+// of the new replica
+// Begin:                Final:
+// MGM: 3 5              MGM: 3 5 x   (x != 9)
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustExcludeFs)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+  // Make it a 3 replica layout so that one replica is missing
+  mFsckEntry->mMgmFmd.set_layout_id(std::stoul("0x0100212", nullptr, 16));
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mExcludeFsids = {3, 9};
+  mFsckEntry->SetAdjustOpts(opts);
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  // The excluded fs 3 is not picked as source even if it comes first
+  ASSERT_EQ(5u, mRepairCalls[0].fsid_src);
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 9}), mRepairCalls[0].exclude_srcs);
+  ASSERT_TRUE(mRepairCalls[0].exclude_dsts.count(3));
+  ASSERT_TRUE(mRepairCalls[0].exclude_dsts.count(9));
+  ASSERT_FALSE(mRepairCalls[0].drop_src);
+}
+
+//------------------------------------------------------------------------------
+// The plain fsck repair counts a replica its FST can not report on as present
+// and does not create a new one
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FsckKeepsUnreachableReplica)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+  mFsckEntry->mFstFileInfo.find(5)->second->mFstErr = eos::mgm::FstErr::NoContact;
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_TRUE(mRepairCalls.empty());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 5}), GetMgmLocations());
+}
+
+//------------------------------------------------------------------------------
+// Adjust replica treats a replica on a down server as gone, creates a new one
+// from an available replica and keeps the unreachable one registered
+// Begin:                    Final:
+// MGM: 3(no contact) 5      MGM: 3 5 x
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustUnavailableAsMissing)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+  mFsckEntry->mFstFileInfo.find(3)->second->mFstErr = eos::mgm::FstErr::NoContact;
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mUnavailableAsMissing = true;
+  mFsckEntry->SetAdjustOpts(opts);
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(5u, mRepairCalls[0].fsid_src);
+  ASSERT_FALSE(mRepairCalls[0].drop_src);
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 5}), GetMgmLocations());
+}
+
+//------------------------------------------------------------------------------
+// Adjust replica fails when no replica is available to copy from
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustUnavailableAsMissingNoSource)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+
+  for (const auto fsid : {3, 5}) {
+    mFsckEntry->mFstFileInfo.find(fsid)->second->mFstErr = eos::mgm::FstErr::NoContact;
+  }
+
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mUnavailableAsMissing = true;
+  mFsckEntry->SetAdjustOpts(opts);
+  ASSERT_FALSE(mFsckEntry->Repair());
+  ASSERT_TRUE(mRepairCalls.empty());
+}
+
+//------------------------------------------------------------------------------
+// Once the replacement exists, adjust replica drops the unreachable replica
+// Begin:                         Final:
+// MGM: 3 5 6(no contact)         MGM: 3 5
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustUnavailableAsMissingDropsUnreachable)
+{
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
+  PopulateFstFmd(6);
+  mFsckEntry->mMgmFmd.add_locations(6);
+  mFsckEntry->mFstFileInfo.find(6)->second->mFstErr = eos::mgm::FstErr::NoContact;
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mUnavailableAsMissing = true;
+  mFsckEntry->SetAdjustOpts(opts);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_TRUE(mRepairCalls.empty());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{3, 5}), GetMgmLocations());
+}
+
+//------------------------------------------------------------------------------
+// Adjust replica on a RAIN file keeps excluded file systems away from the
+// reconstruction destinations only
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, AdjustRainExcludeFs)
+{
+  MakeRain();
+  mFsckEntry->mFstFileInfo.find(6)->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  eos::mgm::AdjustReplicaOpts opts;
+  opts.mExcludeFsids = {20};
+  mFsckEntry->SetAdjustOpts(opts);
+  ExpectOneRepairJob(eos::mgm::FsckRepairJob::Status::OK);
+  ASSERT_TRUE(mFsckEntry->Repair());
+  ASSERT_EQ(1u, mRepairCalls.size());
+  ASSERT_EQ(6u, mRepairCalls[0].fsid_src);
+  ASSERT_TRUE(mRepairCalls[0].exclude_srcs.empty());
+  ASSERT_EQ((std::set<FileSystem::fsid_t>{20}), mRepairCalls[0].exclude_dsts);
 }
