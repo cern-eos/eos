@@ -837,12 +837,63 @@ FsckEntry::RepairRainInconsistencies()
     // useful when doing the transfer.
     src_fsid = 0;
 
+    // Registered stripes which are not on disk need to be reconstructed. The
+    // ones on file systems that no longer exist are dropped first, as such a
+    // file system can not be used to schedule the reconstruction.
+    std::set<eos::common::FileSystem::fsid_t> missing_fsids;
+    std::set<eos::common::FileSystem::fsid_t> gone_fsids;
+
+    for (const auto loc : mMgmFmd.locations()) {
+      auto it = mFstFileInfo.find(loc);
+
+      if (it != mFstFileInfo.end()) {
+        if (it->second->mFstErr == FstErr::NotOnDisk) {
+          missing_fsids.insert(loc);
+        } else if (it->second->mFstErr == FstErr::NotExistFs) {
+          gone_fsids.insert(loc);
+        }
+      }
+    }
+
+    for (const auto gone_fsid : gone_fsids) {
+      eos_info("msg=\"drop missing stripe on file system\" fxid=%08llx "
+               "fsid=%lu",
+               mFid, gone_fsid);
+      (void)gOFS->DropReplica(mFid, gone_fsid);
+      mFstFileInfo.erase(gone_fsid);
+      auto* mutable_loc = mMgmFmd.mutable_locations();
+
+      for (auto it = mutable_loc->begin(); it != mutable_loc->end(); ++it) {
+        if (*it == gone_fsid) {
+          mutable_loc->erase(it);
+          break;
+        }
+      }
+    }
+
+    if (mMgmFmd.locations().empty()) {
+      eos_err("msg=\"failed repair, no location available\" fxid=%08llx", mFid);
+      return false;
+    }
+
     // Over-replication should never happend for RAIN files
     if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
       eos_err("msg=\"RAIN file over-replicated, to be handled manually\" "
               "fxid=%08llu fsid_err=%lu", mFid, *mFsidErr.begin());
       return false;
+    } else if (missing_fsids.size() == 1) {
+      // Reconstruct the missing stripe and drop its location
+      src_fsid = *missing_fsids.begin();
+      drop_src_fsid = true;
+      eos_info("msg=\"reconstruct missing stripe\" fxid=%08llx fsid=%lu", mFid, src_fsid);
+    } else if (missing_fsids.size() > 1) {
+      // Reconstruct all the missing stripes in one go
+      bad_fsids = missing_fsids;
+      src_fsid = *bad_fsids.begin();
+      repair_excluded = true;
+      eos_info("msg=\"reconstruct missing stripes\" fxid=%08llx num=%lu", mFid,
+               bad_fsids.size());
     } else if (static_cast<unsigned long>(mMgmFmd.locations_size()) ==
                LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
       eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx "
