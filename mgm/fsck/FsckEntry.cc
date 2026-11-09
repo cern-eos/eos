@@ -975,8 +975,12 @@ FsckEntry::RepairRainInconsistencies()
     repair_excluded = true;
   }
 
+  // Excluded file systems only stay away from the destinations, for RAIN the
+  // excluded sources are the stripes to reconstruct
+  std::set<eos::common::FileSystem::fsid_t> exclude_dsts = bad_fsids;
+  exclude_dsts.insert(mAdjustOpts.mExcludeFsids.begin(), mAdjustOpts.mExcludeFsids.end());
   auto repair_job =
-      mRepairFactory(mFid, src_fsid, 0, bad_fsids, bad_fsids, drop_src_fsid,
+      mRepairFactory(mFid, src_fsid, 0, bad_fsids, exclude_dsts, drop_src_fsid,
                      std::string(eos::common::EOS_APP_FSCK), repair_excluded);
   repair_job->DoIt();
 
@@ -1096,6 +1100,10 @@ FsckEntry::RepairReplicaInconsistencies()
     }
   }
 
+  // The FST deletes the dropped replicas asynchronously, a new replica placed
+  // on one of these file systems would be removed together with them
+  std::set<eos::common::FileSystem::fsid_t> dropped_fsids = repmiss_fsids;
+  dropped_fsids.insert(to_drop.begin(), to_drop.end());
   to_drop.clear();
   bool to_delete = (mMgmFmd.cont_id() == 0ull);
 
@@ -1112,12 +1120,45 @@ FsckEntry::RepairReplicaInconsistencies()
 
   // Decide if we need to attach or discard any replicas
   uint32_t num_expected_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
-  uint32_t num_actual_rep = mMgmFmd.locations().size();
+  const uint32_t num_registered_rep = mMgmFmd.locations().size();
+  uint32_t num_actual_rep = num_registered_rep;
+  // Source for new replicas: a reachable location which is not excluded
+  eos::common::FileSystem::fsid_t good_fsid = 0ull;
+
+  for (const auto& fsid : mMgmFmd.locations()) {
+    auto it = mFstFileInfo.find(fsid);
+
+    if ((it != mFstFileInfo.end()) && (it->second->mFstErr == FstErr::None) &&
+        (mAdjustOpts.mExcludeFsids.find(fsid) == mAdjustOpts.mExcludeFsids.end())) {
+      good_fsid = fsid;
+      break;
+    }
+  }
+
+  if (mAdjustOpts.mUnavailableAsMissing) {
+    // Only the replicas the FST could report on count as available
+    num_actual_rep = 0;
+
+    for (const auto& fsid : mMgmFmd.locations()) {
+      auto it = mFstFileInfo.find(fsid);
+
+      if ((it != mFstFileInfo.end()) && (it->second->mFstErr == FstErr::None)) {
+        ++num_actual_rep;
+      }
+    }
+  }
 
   if (num_actual_rep >= num_expected_rep) { // over-replicated
-    int over_replicated = num_actual_rep - num_expected_rep;
+    int over_replicated = num_registered_rep - num_expected_rep;
     // All the unregistered replicas can be dropped
     to_drop.insert(unreg_fsids.begin(), unreg_fsids.end());
+
+    if (mAdjustOpts.mNoDrop && (over_replicated > 0)) {
+      eos_info("msg=\"keep over-replicated file as requested\" fxid=%08llx "
+               "num_extra=%i",
+               mFid, over_replicated);
+      over_replicated = 0;
+    }
 
     for (const auto fsid : SelectOverReplicatedDrops(over_replicated)) {
       to_drop.insert(fsid);
@@ -1165,9 +1206,24 @@ FsckEntry::RepairReplicaInconsistencies()
       while ((num_actual_rep < num_expected_rep) && mMgmFmd.locations_size()) {
         // Trigger a fsck repair job but without dropping the source, this is
         // similar to adjust replica
-        eos::common::FileSystem::fsid_t good_fsid = mMgmFmd.locations(0);
-        auto repair_job = mRepairFactory(mFid, good_fsid, 0, {}, to_drop, false,
-                                         std::string(eos::common::EOS_APP_FSCK), false);
+        if (good_fsid == 0ull) {
+          if (mAdjustOpts.mUnavailableAsMissing) {
+            eos_err("msg=\"replica inconsistency repair failed, no available "
+                    "source replica\" fxid=%08llx",
+                    mFid);
+            return false;
+          }
+
+          good_fsid = mMgmFmd.locations(0);
+        }
+
+        std::set<eos::common::FileSystem::fsid_t> exclude_dsts = to_drop;
+        exclude_dsts.insert(dropped_fsids.begin(), dropped_fsids.end());
+        exclude_dsts.insert(mAdjustOpts.mExcludeFsids.begin(),
+                            mAdjustOpts.mExcludeFsids.end());
+        auto repair_job =
+            mRepairFactory(mFid, good_fsid, 0, mAdjustOpts.mExcludeFsids, exclude_dsts,
+                           false, std::string(eos::common::EOS_APP_FSCK), false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
