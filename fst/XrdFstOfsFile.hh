@@ -581,6 +581,19 @@ public:
                                 const std::set<std::string> tags);
 
   //----------------------------------------------------------------------------
+  //! Build the query asking the MGM to adjust the replicas of a file. It
+  //! carries the protobuf 'file adjustreplica' command, the path is kept for
+  //! the redirection and for MGMs that do not read the protobuf command.
+  //!
+  //! @param ns_path namespace path of the file
+  //! @param fid file identifier
+  //!
+  //! @return query string, empty if the request could not be encoded
+  //----------------------------------------------------------------------------
+  static std::string BuildAdjustReplicaQuery(const std::string& ns_path,
+                                             unsigned long long fid);
+
+  //----------------------------------------------------------------------------
   //! Get TPC key expiration timestamp by combinding the client specified
   //! tpc.ttl value with the system TPC key minimum validity. The resulting
   //! value should always be between the system TPC key minimum validity and

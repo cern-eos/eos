@@ -26,6 +26,7 @@
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/SymKeys.hh"
 #include "common/Timing.hh"
 #include "common/WFEClient.hh"
 #include "common/http/OwnCloud.hh"
@@ -44,6 +45,7 @@
 #include "fst/storage/TrafficShaping.hh"
 #include "fst/utils/IoPriority.hh"
 #include "namespace/utils/Etag.hh"
+#include "proto/ConsoleRequest.pb.h"
 #include <XrdOss/XrdOssApi.hh>
 #include <XrdOuc/XrdOucPgrwUtils.hh>
 #include <chrono>
@@ -2343,13 +2345,12 @@ XrdFstOfsFile::_close_wr()
 
   if (mRepairOnClose && !mIsOCchunk) {
     // Trigger adjust replica for the uploaded file
-    std::ostringstream oss;
-    oss << "/?mgm.pcmd=adjustreplica&mgm.path=" << mNsPath;
+    const std::string query = BuildAdjustReplicaQuery(mNsPath.c_str(), mFileId);
     eos_info("msg=\"repair on close\" fxid=%08llx path=%s", mFileId,
              mNsPath.c_str());
 
-    if (gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
-                         oss.str())) {
+    if (query.empty() ||
+        gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(), query)) {
       eos_err("msg=\"failed adjustreplica\" fxid=%08llx path=%s",
               mFileId, mNsPath.c_str());
       gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at "
@@ -4172,6 +4173,27 @@ XrdFstOfsFile::TpcCleanup()
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Build the query asking the MGM to adjust the replicas of a file
+//------------------------------------------------------------------------------
+std::string
+XrdFstOfsFile::BuildAdjustReplicaQuery(const std::string& ns_path, unsigned long long fid)
+{
+  eos::console::RequestProto req;
+  auto* file = req.mutable_file();
+  file->mutable_md()->set_id(fid);
+  file->mutable_adjustreplica();
+  std::string b64buff;
+
+  if (!eos::common::SymKey::ProtobufBase64Encode(&req, b64buff)) {
+    eos_static_err("msg=\"failed to encode adjustreplica request\" fxid=%08llx", fid);
+    return std::string();
+  }
+
+  return SSTR("/?mgm.pcmd=adjustreplica&mgm.path=" << ns_path
+                                                   << "&mgm.cmd.proto=" << b64buff);
 }
 
 //------------------------------------------------------------------------------
