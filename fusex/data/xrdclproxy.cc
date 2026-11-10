@@ -1102,6 +1102,8 @@ XrdCl::Proxy::WriteAsync(uint64_t offset,
     // remove failing requests
     XrdSysCondVarHelper lLock(WriteCondVar());
     ChunkMap().erase((uint64_t) handler.get());
+    set_writestate(&status);
+    eos_static_crit("write error '%s'", status.ToString().c_str());
   }
 
   return status;
