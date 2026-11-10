@@ -153,7 +153,20 @@ XrdMgmOfs::Commit(const char* path,
     unsigned long mtimens = std::stoul(cgi["mtimensec"]);
 
     if (fsids.empty()) {
-      fsids.push_back(std::stoul(cgi["fsid"]));
+      if (option["reconstruction"]) {
+        // The entry server of a RAIN reconstruction commits all the stripes
+        // it wrote
+        std::vector<std::string> fsid_tokens;
+        eos::common::StringConversion::Tokenize(cgi["fsid"], fsid_tokens, ",");
+
+        for (const auto& id : fsid_tokens) {
+          fsids.push_back(std::stoul(id));
+        }
+      }
+
+      if (fsids.empty()) {
+        fsids.push_back(std::stoul(cgi["fsid"]));
+      }
     }
 
     // Single location used by the non-PIO specific commit options

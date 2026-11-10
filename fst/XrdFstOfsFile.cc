@@ -4771,24 +4771,33 @@ XrdFstOfsFile::CommitToMgm()
       ptr = mOpenOpaque->Get("eos.pio.recfs");
 
       if ((mHasReadErr == false) && ptr) {
-        if (strncmp(ptr, "0", 1) == 0) {
-          // Rain reconstruction with possibly adding new fses which
-          // are present in the opaque information
-          ptr = mOpenOpaque->Get("eos.pio.addfs");
+        // The other stripes written by the reconstruction do not commit
+        // themselves, the entry server commits all of them. The MGM lists
+        // them in eos.pio.addfs, recfs=0 only adds stripes.
+        std::vector<std::string> add_fsids;
 
-          if (ptr) {
-            oss << "&mgm.add.fsid=";
-            std::vector<std::string> fsid_tokens;
-            eos::common::StringConversion::Tokenize(ptr, fsid_tokens, ",");
+        if (strncmp(ptr, "0", 1) != 0) {
+          oss << "&mgm.drop.fsid=" << ptr;
+          // Own stripe first, an MGM taking a single fsid commits only that
+          add_fsids.push_back(std::to_string(mFmd->mProtoFmd.fsid()));
+        }
 
-            for (auto id : fsid_tokens) {
-              oss << id;
-              added_fsid = true;
-              break;
+        ptr = mOpenOpaque->Get("eos.pio.addfs");
+
+        if (ptr) {
+          std::vector<std::string> fsid_tokens;
+          eos::common::StringConversion::Tokenize(ptr, fsid_tokens, ",");
+
+          for (const auto& id : fsid_tokens) {
+            if (std::find(add_fsids.begin(), add_fsids.end(), id) == add_fsids.end()) {
+              add_fsids.push_back(id);
             }
           }
-        } else {
-          oss << "&mgm.drop.fsid=" << ptr;
+        }
+
+        if (!add_fsids.empty()) {
+          oss << "&mgm.add.fsid=" << eos::common::StringConversion::Join(add_fsids, ",");
+          added_fsid = true;
         }
       }
     }
