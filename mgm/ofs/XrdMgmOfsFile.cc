@@ -3481,6 +3481,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           replacedfs[i] = selectedfs[i];
           selectedfs[i] = pio_replacement_fs.back();
           pio_replacement_fs.pop_back();
+          // Only the entry server commits, it needs all the new stripes
+          add_new_fsid.insert(selectedfs[i]);
           eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i],
                    selectedfs[i]);
         } else {
