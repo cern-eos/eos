@@ -42,15 +42,22 @@
 class CredentialConfig
 {
 public:
-
-  CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), use_user_ztn(false),
-    tryKrb5First(false),
-    use_user_unix(false),
-    use_root_unix(false),
-    fuse_shared(false),
-    environ_deadlock_timeout(500), forknoexec_heuristic(true),
-    ignore_containerization(false) { }
+  CredentialConfig()
+      : use_user_krb5cc(false)
+      , use_user_gsiproxy(false)
+      , use_user_sss(false)
+      , use_user_oauth2(false)
+      , use_user_ztn(false)
+      , tryKrb5First(false)
+      , use_user_unix(false)
+      , use_root_unix(false)
+      , fuse_shared(false)
+      , environ_deadlock_timeout(500)
+      , forknoexec_heuristic(true)
+      , global_binding(false)
+      , ignore_containerization(false)
+  {
+  }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -74,6 +81,9 @@ public:
   unsigned environ_deadlock_timeout;
   //! Use PF_FORKNOEXEC as a heuristic to decide if the process is doing an execve.
   bool forknoexec_heuristic;
+  //! Indicates if to check the global (eosfusebind) location for krb5 and x509
+  //! credentials
+  bool global_binding;
   //! Credential store
   std::string credentialStore;
   //! Ignore containerization

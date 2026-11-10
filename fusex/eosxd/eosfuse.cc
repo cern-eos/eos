@@ -1003,6 +1003,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["auth"]["forknoexec-heuristic"] = 1;
     }
 
+    if (!root["auth"].isMember("global-binding")) {
+      root["auth"]["global-binding"] = 0;
+    }
+
     if (!root["options"].isMember("rm-rf-protect-levels")) {
       root["options"]["rm-rf-protect-levels"] = 0;
     }
@@ -1272,6 +1276,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.environ_deadlock_timeout =
       root["auth"]["environ-deadlock-timeout"].asInt();
     config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
+
+    config.auth.global_binding = (bool)root["auth"]["global-binding"].asInt();
 
     if (config.auth.environ_deadlock_timeout <= 0) {
       config.auth.environ_deadlock_timeout = 500;

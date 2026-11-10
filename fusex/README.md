@@ -78,7 +78,8 @@ This
     "unix" : 0,
     "unix-root" : 0,
     "environ-deadlock-timeout" : 100,
-    "forknoexec-heuristic" : 1
+    "forknoexec-heuristic" : 1,
+    "global-binding" : 0
   },
   "inline" : {
     "max-size" : 0,

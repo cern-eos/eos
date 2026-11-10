@@ -158,14 +158,16 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     }
   }
 
-  //----------------------------------------------------------------------------
-  // Nothing yet.. try global binding from eosfusebind...
-  //----------------------------------------------------------------------------
-  output = boundIdentityProvider.globalBindingToBoundIdentity(jail, uid, gid,
-           reconnect, scope, pidEnv);
+  if (credConfig.global_binding) {
+    //----------------------------------------------------------------------------
+    // Nothing yet.. try global binding from eosfusebind...
+    //----------------------------------------------------------------------------
+    output = boundIdentityProvider.globalBindingToBoundIdentity(jail, uid, gid, reconnect,
+                                                                scope, pidEnv);
 
-  if (output) {
-    return output;
+    if (output) {
+      return output;
+    }
   }
 
   //----------------------------------------------------------------------------
