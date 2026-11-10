@@ -40,6 +40,71 @@ smell unrelated to the task:
 
 Never mix refactoring and behavior changes in the same commit.
 
+## Debug And Ticket Priorities
+
+Severity (also the "severity" field in `FINDINGS.md`). The JIRA priority
+field is not reliable; use this scale. If a finding fits more than one
+level, use the highest.
+
+- **P0 - Data loss, corruption, or data users cannot read correctly.**
+  User data is gone, wrong, or not readable correctly, and EOS does
+  not report it. Includes wrong bytes served to a client without
+  error, even when the data on disk is fine.
+  Not P0: data temporarily unreachable with a clear error.
+- **P1 - Security.**
+  Auth/ACL bypass, privilege escalation, or data or metadata visible
+  to or changeable by the wrong user.
+  Never put security details in `FINDINGS.md` or public tickets; report
+  to a human only. This applies at any level.
+- **P2 - Persistent namespace inconsistency.**
+  Metadata is wrong after the operation finishes and stays wrong
+  across MGM restart, or needs fsck/manual repair.
+  Not P2: a wrong value that the next update or cache refresh fixes.
+- **P3 - Service availability.**
+  Crash, deadlock, hang, or resource exhaustion (threads, FDs,
+  memory) of MGM/FST/FUSE, with no data or metadata damage.
+- **P4 - Wrong but recoverable behavior.**
+  Service runs, no persistent damage, but results are wrong or slow:
+  wrong error code or output, self-healing inconsistency,
+  performance regression, missing or wrong metrics/logs.
+- **P5 - No user-visible impact.**
+  Style, dead code, theoretical races with no reachable path,
+  defensive checks for impossible states.
+
+Tie-breaks:
+
+- Persisted beats transient: the same bug is one level higher if the
+  bad state survives a restart.
+- Reachable means: triggered by a normal client or admin operation, or
+  by a realistic failure (restart, network drop, FST down, disk full).
+  Needs a debugger, an injected fault in the middle of a function, or
+  impossible timing? Drop one level.
+- When unsure between two levels, pick the higher one and say why.
+
+Validate first:
+
+- Reproduce the issue before investigating the code: a failing unit
+  test, a failing instance test, or a log line/command output from a
+  real run.
+- If it cannot be reproduced, stop and report what was tried. Do not
+  investigate an unconfirmed issue.
+- Every fix comes with a test that fails before the fix and passes
+  after it.
+
+Rules:
+
+- A finding needs a concrete, reachable path to P0-P3. "Could in
+  theory" is P5.
+- Stop exploring once the root cause is confirmed. Do not hunt for more
+  corner cases unless asked.
+- Agents do not file tickets or open MRs. For P0-P3 they draft the
+  ticket/MR text (severity, symptom, reproducer, root cause, proposed
+  fix) and a human files it. P4/P5 go to `FINDINGS.md` as one entry,
+  with no further investigation.
+- One root cause per ticket/MR. Max 5 findings per review, ranked.
+- Budget: if no root cause after ~15 files read, stop and report what
+  is known and what is missing.
+
 ## Repository Map
 
 - `mgm/`: Metadata Manager service, namespace control, scheduling, policies,
