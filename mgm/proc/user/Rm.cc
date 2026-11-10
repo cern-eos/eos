@@ -221,14 +221,7 @@ ProcCommand::Rm()
               for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                    fileit++) {
                 std::string fspath = rfoundit->first;
-                size_t l_pos;
-                std::string entry = *fileit;
-
-                if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                  entry.erase(l_pos);
-                }
-
-                fspath += entry;
+                fspath += gOFS->FindEntryName(rfoundit->first, *fileit);
 
                 if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
                   stdErr += "error: unable to remove file - bulk deletion aborted\n";
@@ -296,14 +289,7 @@ ProcCommand::Rm()
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                  fileit++) {
               std::string fspath = rfoundit->first;
-              size_t l_pos;
-              std::string entry = *fileit;
-
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
-
-              fspath += entry;
+              fspath += gOFS->FindEntryName(rfoundit->first, *fileit);
 
               if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, false, false,
                              force)) {

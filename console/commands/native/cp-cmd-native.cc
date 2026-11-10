@@ -208,7 +208,8 @@ int run_eos_command(const char* cmdline, std::vector<XrdOucString>& result);
 int run_command(const char* cmdline, std::vector<XrdOucString>& result);
 const char* absolute_path(const char* path);
 bool is_dir(const char* path, Protocol protocol, struct stat* buf = NULL);
-XrdOucString process_symlink(XrdOucString path);
+XrdOucString process_symlink(XrdOucString path, Protocol protocol,
+                             const XrdOucString& prefix);
 const char* setup_s3_environment(XrdOucString path, XrdOucString opaque);
 std::string eos_roles_opaque();
 int do_stat(const char* path, Protocol protocol, struct stat& buf);
@@ -439,7 +440,7 @@ static int cp_impl(const CpOptions& opts)
     for (auto& file : files) {
       // Check if path expansion discovered a symlink
       if (file.find(" -> ") != STR_NPOS) {
-        file = process_symlink(file.c_str());
+        file = process_symlink(file, protocol, wildcard ? basepath : "");
       }
 
       if (wildcard) {
@@ -1439,20 +1440,37 @@ const char* absolute_path(const char* path)
 }
 
 /**
- * Given a symlink path of the following format 'link -> target',
- * will return the name of the 'link'.
+ * Given a listed path of the format 'link -> target', will return the name
+ * of the 'link'. A name can contain ' -> ' itself, so the path is kept when
+ * it exists, else the last split whose name exists is used.
  * @param path the path to check
+ * @param protocol the protocol to access the path
+ * @param prefix the prefix to stat the path with
  * @return path the processed symlink name
  */
-XrdOucString process_symlink(XrdOucString path)
+XrdOucString
+process_symlink(XrdOucString path, Protocol protocol, const XrdOucString& prefix)
 {
-  int pos = path.find(" -> ");
+  static const std::string sep = " -> ";
+  const std::string spath = path.c_str();
+  struct stat buf;
 
-  if (pos != STR_NPOS) {
-    path.erase(pos);
+  if (!do_stat((prefix + path).c_str(), protocol, buf)) {
+    return path;
   }
 
-  return path;
+  size_t last = spath.rfind(sep);
+
+  for (size_t pos = last; pos != std::string::npos;
+       pos = (pos ? spath.rfind(sep, pos - 1) : std::string::npos)) {
+    XrdOucString name = spath.substr(0, pos).c_str();
+
+    if (!do_stat((prefix + name).c_str(), protocol, buf)) {
+      return name;
+    }
+  }
+
+  return spath.substr(0, last).c_str();
 }
 
 /**

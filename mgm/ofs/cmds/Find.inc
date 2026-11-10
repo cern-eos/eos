@@ -1006,3 +1006,36 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     return SFS_OK;
   }
 }
+
+//------------------------------------------------------------------------------
+// Get the name of a _find entry. _find lists a symlink as "<name> -> <target>"
+// and a name can contain " -> " itself, so take the split where <name> is a
+// link to <target>, else the full entry.
+//------------------------------------------------------------------------------
+std::string
+XrdMgmOfs::FindEntryName(const std::string& dir, const std::string& entry)
+{
+  static const std::string sep = " -> ";
+
+  for (size_t pos = entry.rfind(sep); pos != std::string::npos;
+       pos = (pos ? entry.rfind(sep, pos - 1) : std::string::npos)) {
+    // Look up the namespace directly: _readlink logs an error for each
+    // candidate that does not exist
+    const std::string path = dir + entry.substr(0, pos);
+
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(eosView, path, false);
+      eos::common::RWMutexReadLock ns_rd_lock(eosViewRWMutex);
+      auto fmd = eosView->getFile(path, false);
+
+      if (fmd->isLink() &&
+          (entry.compare(pos + sep.length(), std::string::npos, fmd->getLink()) == 0)) {
+        return entry.substr(0, pos);
+      }
+    } catch (const eos::MDException&) {
+      // not a file: try the next split
+    }
+  }
+
+  return entry;
+}
