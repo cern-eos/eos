@@ -45,11 +45,13 @@ prebuild:
       - PREBUILD_NAME: [el8, el9, el10]
 
 
-# arm64 stays separate: parallel:matrix can't vary the `tags:` key per cell
-prebuild-el9-arm64:
+# arm64 stays separate from the x86_64 matrix: parallel:matrix can't vary the
+# `tags:` key per cell
+prebuild-arm64:
   extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: el9-arm64
+  parallel:
+    matrix:
+      - PREBUILD_NAME: [el9-arm64, el10-arm64]
   tags:
     - k8s-arm
 

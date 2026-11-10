@@ -143,6 +143,9 @@ rpm_commit_artifacts:
     - job: build_el9_arm64
       artifacts: true
       optional: true
+    - job: build_el10_arm64
+      artifacts: true
+      optional: true
     - job: build_fedora_44
       artifacts: true
       optional: true

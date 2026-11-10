@@ -101,6 +101,16 @@ build_el9_arm64:
   rules: !reference [.rules-schedules-and-tags, rules]
 
 
+build_el10_arm64:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el10-arm64-${CODENAME}
+  variables:
+    BUILD_NAME: el-10-arm64
+  extends: .build-template
+  tags:
+    - k8s-arm
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
 #-------------------------------------------------------------------------------
 # EOS client builds for RHEL
 #-------------------------------------------------------------------------------
