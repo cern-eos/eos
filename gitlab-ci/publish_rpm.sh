@@ -25,6 +25,7 @@ BUILDMAP[el-9-asan]=el-9-asan
 BUILDMAP[el-9-tsan]=el-9-tsan
 BUILDMAP[el-9-ubsan]=el-9-ubsan
 BUILDMAP[el-9-arm64]=el-9
+BUILDMAP[el-10-arm64]=el-10
 BUILDMAP[el-9-vanilla-xrootd]=el-9
 
 CODENAME=$1
