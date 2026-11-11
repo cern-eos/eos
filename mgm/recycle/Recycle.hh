@@ -389,23 +389,6 @@ public:
   static bool IsSafeRecyclePath(std::string_view path);
 
   //----------------------------------------------------------------------------
-  //! Handle symlink or symlink like file names. Three scenarios:
-  //! - file does not contain the ' -> ' string so it's returned as it is
-  //! - file is not a symlink but contains the ' -> ' string in its name then
-  //!   we return it as it is
-  //! - file is a symlink so the name contains the ' -> ' string and we need
-  //!   to remove everything after this occurence so that we can properly
-  //!   target the symlink file and not the target of the symlink
-  //!
-  //! @param ppath full parent directory path
-  //! @param fn file name
-  //!
-  //! @return output file name that we can act on
-  //----------------------------------------------------------------------------
-  static std::string
-  HandlePotentialSymlink(const std::string& ppath, const std::string& fn);
-
-  //----------------------------------------------------------------------------
   //! Collect entries to recycle based on current policy
   //!
   //! @param assistant thread assistant

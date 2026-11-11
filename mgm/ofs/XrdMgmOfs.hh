@@ -591,6 +591,17 @@ public:
             ThreadAssistant* assistant = nullptr);
 
   // ---------------------------------------------------------------------------
+  //! Get the name of a _find file entry. _find lists a symlink as
+  //! "<name> -> <target>" and a name can contain " -> " itself.
+  //!
+  //! @param dir directory of the entry, with a trailing '/'
+  //! @param entry file entry as _find lists it
+  //!
+  //! @return the split where <name> is a link to <target>, else the entry
+  // ---------------------------------------------------------------------------
+  std::string FindEntryName(const std::string& dir, const std::string& entry);
+
+  // ---------------------------------------------------------------------------
   // delete dir
   // ---------------------------------------------------------------------------
   int remdir(const char* dirName,

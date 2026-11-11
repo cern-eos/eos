@@ -288,7 +288,7 @@ Recycle::RemoveSubtree(std::string_view dpath)
     // Delete files starting at the deepest level
     for (auto dit = found.rbegin(); dit != found.rend(); ++dit) {
       for (auto fit = dit->second.begin(); fit != dit->second.end(); ++fit) {
-        const std::string fname = HandlePotentialSymlink(dit->first, *fit);
+        const std::string fname = gOFS->FindEntryName(dit->first, *fit);
         eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
                          fit->c_str(), fname.c_str());
         std::string fpath = dit->first;
@@ -603,7 +603,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
             return E2BIG;;
           }
 
-          const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
+          const std::string fname = gOFS->FindEntryName(dirname.c_str(), *it_file);
           eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
                            it_file->c_str(), fname.c_str());
 
@@ -1516,34 +1516,6 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
   }
 
   return 0;
-}
-
-//----------------------------------------------------------------------------
-// Handle symlink or symlink like file names during recycle operations
-//----------------------------------------------------------------------------
-std::string
-Recycle::HandlePotentialSymlink(const std::string& ppath,
-                                const std::string& fn)
-{
-  size_t pos = fn.find(" -> ");
-
-  if (pos == std::string::npos) {
-    return fn;
-  }
-
-  // Check if this file name actually exists
-  std::string fpath = ppath + fn;
-  struct stat buf;
-  XrdOucErrInfo lerror;
-
-  if (gOFS->_stat(fpath.c_str(), &buf, lerror, mRootVid,
-                  "", nullptr, false) == SFS_OK) {
-    return fn;
-  }
-
-  // This means we are dealing with a symlink file so we need to remove the
-  // target from the filename so that we actually work with it
-  return fn.substr(0, pos);
 }
 
 EOSMGMNAMESPACE_END

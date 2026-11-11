@@ -2504,6 +2504,39 @@ runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR1}
 runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR2}
 runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR3}
 
+# ------------------------------------------------------------------------------
+# Test recursive operations on names that contain " -> " (EOS-6706): d/ has a
+# file "v -> y" and a symlink "s -> z" that points to f2
+# ------------------------------------------------------------------------------
+RM_ARROW_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_arrow"
+
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_ARROW_DIR}
+runtest "### Recycle     " unix SUCCESS "" eos recycle config --add-bin ${RM_ARROW_DIR}
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_ARROW_DIR}/d
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_ARROW_DIR}/cp
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd ${RM_ARROW_DIR}/d/f2
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_ARROW_DIR}/d/v -> y'"
+runtest "### Ln          " unix SUCCESS "" eos ln "'${RM_ARROW_DIR}/d/s -> z'" f2
+# Console cp with wildcard expansion
+runtest "### Cp * arrow  " unix SUCCESS "" eos cp "'${RM_ARROW_DIR}/d/*'" ${RM_ARROW_DIR}/cp/
+runtest "### Stat        " unix SUCCESS "" eos stat "'${RM_ARROW_DIR}/cp/v -> y'"
+runtest "### Stat        " unix SUCCESS "" eos stat "'${RM_ARROW_DIR}/cp/s -> z'"
+runtest "### Chown -r arrow" unix SUCCESS "" eos chown -r -h bin:bin ${RM_ARROW_DIR}
+# Recycle: rm -r into the bin, restore, then purge
+runtest "### Rm -r bin   " unix SUCCESS "" eos rm -r ${RM_ARROW_DIR}/d/
+runtest "### Stat        " unix ERROR "" eos stat ${RM_ARROW_DIR}/d
+runtest "### Restore     " unix SUCCESS "EOSROLE='-r 1 1'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep ${RM_ARROW_DIR}/d/ | awk '{print $10}' | tail -1`
+runtest "### Stat        " unix SUCCESS "" eos stat "'${RM_ARROW_DIR}/d/v -> y'"
+runtest "### Stat        " unix SUCCESS "" eos stat "'${RM_ARROW_DIR}/d/s -> z'"
+runtest "### Rm -r bin   " unix SUCCESS "" eos rm -r ${RM_ARROW_DIR}/d/
+runtest "### Purge       " unix SUCCESS "EOSROLE='-r 0 0'" eos recycle purge -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep ${RM_ARROW_DIR}/d/ | awk '{print $10}' | tail -1`
+runtest "### NoEntry     " unix ERROR "" eos recycle ls --all | grep ${RM_ARROW_DIR}/d/
+runtest "### Recycle     " unix SUCCESS "" eos recycle config --remove-bin ${RM_ARROW_DIR}
+# Direct delete (no recycle) of the copies and of one more symlink
+runtest "### Ln          " unix SUCCESS "" eos ln "'${RM_ARROW_DIR}/cp/l -> z'" f2
+runtest "### Rm -r arrow " unix SUCCESS "" eos rm -rF --no-confirmation ${RM_ARROW_DIR}
+runtest "### Stat        " unix ERROR "" eos stat ${RM_ARROW_DIR}
+
 # Cleanup everything
 runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $rmTestDir/
 

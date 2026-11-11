@@ -137,11 +137,6 @@ ProcCommand::Chown()
         for (foundit = found.begin(); foundit != found.end(); foundit++) {
           RECURSIVE_STALL("Chown", (*pVid));
           std::string dirname = foundit->first;
-          size_t linkpos = (dirname.find(" -> "));
-
-          if (linkpos != std::string::npos) {
-            dirname = foundit->first.substr(0, linkpos);
-          }
 
           if (gOFS->_chown(dirname.c_str(), uidt, gidt, *mError, *pVid,
                            (char*) 0, nodereference)) {
@@ -173,14 +168,7 @@ ProcCommand::Chown()
         for (fileit = foundit->second.begin(); fileit != foundit->second.end();
              fileit++) {
           std::string fpath = foundit->first;
-          std::string filename = *fileit;
-          size_t linkpos = (filename.find(" -> "));
-
-          if (linkpos != std::string::npos) {
-            filename = filename.substr(0, linkpos);
-          }
-
-          fpath += filename;
+          fpath += gOFS->FindEntryName(foundit->first, *fileit);
 
           if (gOFS->_chown(fpath.c_str(), uidt, gidt, *mError, *pVid, (char*) 0,
                            nodereference)) {
