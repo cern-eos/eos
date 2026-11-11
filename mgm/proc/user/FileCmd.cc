@@ -1229,13 +1229,14 @@ FileCmd::CopySubcmd(const eos::console::FileCopyProto& copy, const std::string& 
       for (auto dirit = found.begin(); dirit != found.end(); dirit++) {
         for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
              fileit++) {
+          const std::string name = gOFS->FindEntryName(dirit->first, *fileit);
           std::string src_path = dirit->first;
           std::string end_path = src_path;
           end_path.erase(0, src.length());
-          src_path += *fileit;
+          src_path += name;
           std::string dst_path = dst.c_str();
           dst_path += end_path;
-          dst_path += *fileit;
+          dst_path += name;
           lCopySourceList.push_back(src_path);
           lCopyTargetList.push_back(dst_path);
           std_out << "info: copying '" << src_path << "' => '" << dst_path << "' ... \n";

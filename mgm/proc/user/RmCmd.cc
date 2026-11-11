@@ -248,14 +248,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                    fileit++) {
                 std::string fspath = rfoundit->first;
-                std::string entry = *fileit;
-                size_t l_pos;
-
-                if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                  entry.erase(l_pos);
-                }
-
-                fspath += entry;
+                fspath += gOFS->FindEntryName(rfoundit->first, *fileit);
                 errInfo.clear();
 
                 if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
@@ -329,14 +322,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                  fileit++) {
               std::string fspath = rfoundit->first;
-              size_t l_pos;
-              std::string entry = *fileit;
-
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
-
-              fspath += entry;
+              fspath += gOFS->FindEntryName(rfoundit->first, *fileit);
               errInfo.clear();
 
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
