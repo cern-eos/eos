@@ -413,7 +413,14 @@ NsNativeHelper::ParseCommand(const char* arg)
       return false;
     }
     if ((option = tokenizer.GetToken())) {
-      benchmark->set_prefix(option);
+      std::string prefix = option;
+      const std::string key = "prefix=";
+
+      if (prefix.rfind(key, 0) == 0) {
+        prefix.erase(0, key.size());
+      }
+
+      benchmark->set_prefix(prefix);
     }
     benchmark->set_threads(n_threads);
     benchmark->set_subdirs(n_subdirs);
@@ -617,15 +624,15 @@ std::string MakeNsHelp()
          "the\n"
       << "    given blacklist thresholds.\n"
       << std::endl
-      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]\n"
+      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [<prefix>]\n"
       << "     run metadata benchmark inside the MGM - results are printed into the MGM "
          "logfile and the shell\n"
       << "                n-threads  : number of parallel threads running a benchmark in "
          "the MGM\n"
       << "                n-subdirs  : directories created by each threads\n"
       << "                n-subfiles : number of files created in each sub-directory\n"
-      << "                prefix     : absolute directory where to write the benchmarkf "
-         "iles - default is /benchmark\n"
+      << "                prefix     : absolute parent directory of benchmark/, also "
+         "accepted as prefix=<path> - default is /\n"
       << std::endl
       << "     example: eos ns benchmark 100 10 10\n"
       << std::endl

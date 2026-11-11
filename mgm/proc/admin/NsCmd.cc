@@ -1596,6 +1596,13 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
   size_t n_subdirs = benchmark.subdirs();
   size_t n_subfiles = benchmark.subfiles();
   std::string bench_prefix = benchmark.prefix();
+
+  if (!bench_prefix.empty() && bench_prefix[0] != '/') {
+    reply.set_std_err("error: prefix must be an absolute path");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
   eos_static_info("msg=\"runing benchmark\" nthreads=%lu ndirs=%lu nfiles=%lu",
                   n_threads,
                   n_subdirs,
@@ -1609,7 +1616,12 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     COMMONTIMING("START", &bench);
     std::vector<std::thread> workers;
     //pass 1 - create dir structure
-    gOFS->_mkdir(prefix.c_str(), 0777,  error, vid, "", 0, false);
+    if (gOFS->_mkdir(prefix.c_str(), 0777, error, vid, "", 0, false)) {
+      reply.set_std_err(std::string("error: failed to create ") + prefix + ": " +
+                        error.getErrText());
+      reply.set_retc(error.getErrInfo() ? error.getErrInfo() : EIO);
+      return;
+    }
 
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
