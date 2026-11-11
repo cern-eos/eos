@@ -121,3 +121,22 @@ TEST(Recycle, IsSafeRecyclePath)
   Recycle::gRecyclingPrefix = old_prefix;
   Recycle::gRecyclingBinLevel = old_bin_level;
 }
+
+TEST(Recycle, RemoveWaitTime)
+{
+  using std::chrono::seconds;
+  const seconds interval{3600};
+  const seconds last{100000};
+  // Right after a removal pass wait the full interval, not zero
+  EXPECT_EQ(interval, Recycle::GetRemoveWaitTime(last, last, interval));
+  EXPECT_EQ(seconds(3590),
+            Recycle::GetRemoveWaitTime(last + seconds(10), last, interval));
+  EXPECT_EQ(seconds(1), Recycle::GetRemoveWaitTime(last + seconds(3599), last, interval));
+  // Overdue but skipped removal checks again after one interval
+  EXPECT_EQ(interval, Recycle::GetRemoveWaitTime(last + interval, last, interval));
+  EXPECT_EQ(interval,
+            Recycle::GetRemoveWaitTime(last + seconds(10 * 3600), last, interval));
+  // Clock going backwards and zero interval never return a zero wait
+  EXPECT_EQ(interval, Recycle::GetRemoveWaitTime(last - seconds(10), last, interval));
+  EXPECT_EQ(seconds(1), Recycle::GetRemoveWaitTime(last, last, seconds(0)));
+}
