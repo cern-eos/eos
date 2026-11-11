@@ -1255,8 +1255,18 @@ FileCmd::CopySubcmd(const eos::console::FileCopyProto& copy, const std::string& 
   for (size_t i = 0; i < lCopySourceList.size(); i++) {
     XrdCl::PropertyList properties;
     XrdCl::PropertyList result;
+    // For a directory copy use the stat of each file, not of the source
+    // directory
+    struct stat fbuf = srcbuf;
 
-    if (srcbuf.st_size) {
+    if (S_ISDIR(srcbuf.st_mode) &&
+        gOFS->_stat(lCopySourceList[i].c_str(), &fbuf, mError, mVid, "")) {
+      std_err << "error: cannot stat '" << lCopySourceList[i] << "'\n";
+      retc = errno;
+      continue;
+    }
+
+    if (fbuf.st_size) {
       properties.Set("thirdParty", "only");
     }
 
@@ -1277,7 +1287,7 @@ FileCmd::CopySubcmd(const eos::console::FileCopyProto& copy, const std::string& 
     if (clone) {
       char clonetime[256];
       snprintf(clonetime, sizeof(clonetime) - 1, "&eos.ctime=%lu&eos.mtime=%lu",
-               srcbuf.st_ctime, srcbuf.st_mtime);
+               fbuf.st_ctime, fbuf.st_mtime);
       cgi += clonetime;
     }
 

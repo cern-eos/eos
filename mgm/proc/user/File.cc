@@ -1122,8 +1122,20 @@ ProcCommand::File()
                 // Setup a TPC job
                 XrdCl::PropertyList properties;
                 XrdCl::PropertyList result;
+                // For a directory copy use the stat of each file, not of the
+                // source directory
+                struct stat fbuf = srcbuf;
 
-                if (srcbuf.st_size) {
+                if (S_ISDIR(srcbuf.st_mode) &&
+                    gOFS->_stat(lCopySourceList[i].c_str(), &fbuf, *mError, *pVid, "")) {
+                  stdErr += "error: cannot stat '";
+                  stdErr += lCopySourceList[i].c_str();
+                  stdErr += "'\n";
+                  retc = errno;
+                  continue;
+                }
+
+                if (fbuf.st_size) {
                   // TPC for non-empty files
                   properties.Set("thirdParty", "only");
                 }
@@ -1144,8 +1156,8 @@ ProcCommand::File()
 
                 if ((option.find("c")) != STR_NPOS) {
                   char clonetime[256];
-                  snprintf(clonetime, sizeof(clonetime) - 1, "&eos.ctime=%lu&eos.mtime=%lu",
-                           srcbuf.st_ctime, srcbuf.st_mtime);
+                  snprintf(clonetime, sizeof(clonetime) - 1,
+                           "&eos.ctime=%lu&eos.mtime=%lu", fbuf.st_ctime, fbuf.st_mtime);
                   cgi += clonetime;
                 }
 

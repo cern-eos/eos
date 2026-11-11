@@ -2537,6 +2537,20 @@ runtest "### Ln          " unix SUCCESS "" eos ln "'${RM_ARROW_DIR}/cp/l -> z'" 
 runtest "### Rm -r arrow " unix SUCCESS "" eos rm -rF --no-confirmation ${RM_ARROW_DIR}
 runtest "### Stat        " unix ERROR "" eos stat ${RM_ARROW_DIR}
 
+# ------------------------------------------------------------------------------
+# Test recursive file copy of a directory with a non-empty and an empty file
+# ------------------------------------------------------------------------------
+FC_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/filecopy_dir"
+
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${FC_DIR}/src
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${FC_DIR}/dst
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd ${FC_DIR}/src/passwd
+runtest "### Touch       " unix SUCCESS "" eos touch ${FC_DIR}/src/empty
+runtest "### File copy -r" unix SUCCESS "" eos file copy -f ${FC_DIR}/src/ ${FC_DIR}/dst/
+runtest "### FileInfo    " unix SUCCESS "" eos fileinfo "${FC_DIR}/dst/passwd -m | grep -w size=`stat -c %s /etc/passwd`"
+runtest "### FileInfo    " unix SUCCESS "" eos fileinfo "${FC_DIR}/dst/empty -m | grep -w size=0"
+runtest "### Rm -r       " unix SUCCESS "" eos rm -rF --no-confirmation ${FC_DIR}
+
 # Cleanup everything
 runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $rmTestDir/
 
