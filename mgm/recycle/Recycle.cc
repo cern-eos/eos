@@ -22,24 +22,25 @@
  ************************************************************************/
 
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/recycle/RecyclePolicy.hh"
-#include "mgm/fsview/FsView.hh"
 #include "common/Constants.hh"
-#include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "common/utils/BackOffInvoker.hh"
-#include "common/RWMutex.hh"
+#include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/RWMutex.hh"
 #include "common/StringUtils.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/utils/BackOffInvoker.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/qdbmaster/QdbMaster.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/qdbmaster/QdbMaster.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/recycle/RecyclePolicy.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
+#include <algorithm>
 
 namespace
 {
@@ -391,6 +392,27 @@ Recycle::GetCutOffDate()
 }
 
 //------------------------------------------------------------------------------
+// Get the time to wait until the next removal is due
+//------------------------------------------------------------------------------
+std::chrono::seconds
+Recycle::GetRemoveWaitTime(std::chrono::seconds now_ts,
+                           std::chrono::seconds last_remove_ts,
+                           std::chrono::seconds remove_interval)
+{
+  const std::chrono::seconds min_wait{1};
+  remove_interval = std::max(remove_interval, min_wait);
+  const auto elapsed = now_ts - last_remove_ts;
+
+  // Removal is overdue but was skipped (e.g. within limits or not master),
+  // so check again after a full interval instead of spinning
+  if ((elapsed < std::chrono::seconds(0)) || (elapsed >= remove_interval)) {
+    return remove_interval;
+  }
+
+  return std::max(remove_interval - elapsed, min_wait);
+}
+
+//------------------------------------------------------------------------------
 // Recycle method doing the clean-up
 //------------------------------------------------------------------------------
 void
@@ -400,18 +422,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
   eos_static_info("%s", "\"msg = \"recycle thread started\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   mLastRemoveTs = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
-  // Lambda computing the wait time for the configuration update condition
-  // variable. We need to wait at most the remove interval time.
+  // Wait for the configuration update condition variable at most until the
+  // next removal is due
   auto getCvWaitFor = [&]() -> std::chrono::seconds {
     auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
-    std::chrono::seconds wait_for = now_ts - mLastRemoveTs;
-
-    if (wait_for.count() > 5)
-    {
-      wait_for -= std::chrono::seconds(5);
-    }
-
-    return wait_for;
+    return GetRemoveWaitTime(now_ts, mLastRemoveTs, mPolicy.mRemoveInterval.load());
   };
 
   if (assistant.terminationRequested()) {

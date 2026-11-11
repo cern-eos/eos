@@ -389,6 +389,20 @@ public:
   static bool IsSafeRecyclePath(std::string_view path);
 
   //----------------------------------------------------------------------------
+  //! Get the time to wait until the next removal is due
+  //!
+  //! @param now_ts current timestamp
+  //! @param last_remove_ts timestamp of the last removal pass
+  //! @param remove_interval configured removal interval
+  //!
+  //! @return time remaining until the next removal, or a full interval if
+  //!         the removal is already overdue; at least one second
+  //----------------------------------------------------------------------------
+  static std::chrono::seconds GetRemoveWaitTime(std::chrono::seconds now_ts,
+                                                std::chrono::seconds last_remove_ts,
+                                                std::chrono::seconds remove_interval);
+
+  //----------------------------------------------------------------------------
   //! Collect entries to recycle based on current policy
   //!
   //! @param assistant thread assistant
