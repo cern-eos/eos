@@ -667,6 +667,25 @@ eos_lru() {
   echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+# FST-local SyntheticIO bench. The CLI exits 0 even when every transfer fails,
+# so require a zero error count and a non-zero write and read total.
+eos_mirage() {
+  echo "eos -b -r 0 0 root://$EOS_TEST_REDIRECTOR bench --syntheticio --layout replica:1 10 1" >& "$EOSLASTLOG"
+  local out rc
+  out=$(command eos -b -r 0 0 "root://$EOS_TEST_REDIRECTOR" bench --syntheticio --layout replica:1 10 1 2>&1)
+  rc=$?
+  printf '%s\n' "$out" | tee -a "$EOSCERTLOG"
+  if [ "$rc" -ne 0 ]; then
+    return "$rc"
+  fi
+  printf '%s\n' "$out" | grep -q 'errors: 0$' || return 1
+  printf '%s\n' "$out" | awk '
+    /^write:/ { w = $2 + 0 }
+    /^read:/  { r = $2 + 0 }
+    END { if (w <= 0 || r <= 0) exit 1 }
+  '
+}
+
 eos_tape_rest_xrootd_client() {
   (
     set -e -o pipefail
@@ -3768,6 +3787,16 @@ runtest "### Diff      " unix SUCCESS "" shell diff "$EOS_TEST_TESTSYS/compress.
 runtest "### Plain     " unix SUCCESS "" eos file convert --uncompress "$COMPRESS_PATH | grep -c 'already marked as uncompressed' | grep -w 1"
 runtest "### Cleanup   " unix IGNORE  "" shell rm -f "$EOS_TEST_TESTSYS/compress.src" "$EOS_TEST_TESTSYS/compress.probe" "$EOS_TEST_TESTSYS/compress.out" "$EOS_TEST_TESTSYS/compress.plain"
 runtest "### Cleanup   " unix SUCCESS "" eos rm "-r" "$COMPRESS_DIR"
+
+################################################################################
+# Mirage: FST SyntheticIO bandwidth bench (replica:1, 10 s, 1 stream per FST).
+# /network is created by the bench, owned by daemon, and removed afterwards.
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="mirage"
+# ------------------------------------------------------------------------------
+runtest "### Replica   " unix SUCCESS "" eos_mirage
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/network"
 
 ################################################################################
 # HEALTH
