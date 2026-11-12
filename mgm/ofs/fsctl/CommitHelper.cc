@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/ofs/fsctl/CommitHelper.hh"
+#include "common/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
@@ -1010,7 +1011,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       std::string atomic_tag;
 
       try {
-        atomic_tag = pfmd->getAttribute("sys.tmp.atomic");
+        atomic_tag = pfmd->getAttribute(eos::common::EOS_TMP_ATOMIC_ATTR);
       } catch (eos::MDException& e) {
       }
 

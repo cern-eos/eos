@@ -2087,13 +2087,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
-            fmd->setAttribute("sys.utrace", logId);
-            fmd->setAttribute("sys.vtrace", vid.getTrace());
+            fmd->setAttribute(eos::common::EOS_UTRACE_ATTR, logId);
+            fmd->setAttribute(eos::common::EOS_VTRACE_ATTR, vid.getTrace());
 
             if (ref_fmd) {
               // If we have a target file we tag the latest atomic upload name
               // on a temporary attribute
-              ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+              ref_fmd->setAttribute(eos::common::EOS_TMP_ATOMIC_ATTR, fmd->getName());
 
               if (acl.EvalUserAttrFile()) {
                 // we inherit existing ACLs during (atomic) versioning
