@@ -96,17 +96,16 @@ struct GateArg {
 } // namespace
 
 CompressPool::CompressPool(unsigned workers)
-  : mWorkerLimit(WorkerCount(workers))
+  : mWorkerLimit(std::min(WorkerCount(workers), kMaxPoolWorkers)),
+    // Start with the configured worker count; allow growth up to the hard cap
+    // when space.compressworkers rises. Jobs are still gated by mWorkerLimit.
+    mPool(std::max(1u, mWorkerLimit ? mWorkerLimit : 1u), kMaxPoolWorkers, 1, 1,
+          1, "compress")
 {
-  if (mWorkerLimit > kMaxPoolWorkers) {
-    mWorkerLimit = kMaxPoolWorkers;
-  }
-
-  EnsureThreads(mWorkerLimit);
-
   if (mWorkerLimit) {
-    eos_static_notice("msg=\"started compression workers\" n=%u nice=19",
-                      mWorkerLimit);
+    eos_static_notice("msg=\"started compression thread pool\" n=%u max=%u "
+                      "nice=19",
+                      mWorkerLimit, kMaxPoolWorkers);
   }
 }
 
@@ -126,18 +125,11 @@ CompressPool::Stop()
     }
 
     mStop = true;
+    mQueue.clear();
   }
 
-  mCv.notify_all();
   mGateCv.notify_all();
-
-  for (auto& thread : mThreads) {
-    if (thread.joinable()) {
-      thread.join();
-    }
-  }
-
-  mThreads.clear();
+  mPool.Stop();
 }
 
 bool
@@ -155,32 +147,35 @@ CompressPool::Enqueue(Job job)
     }
   }
 
-  std::lock_guard<std::mutex> lock(mMutex);
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
 
-  if (mStop || (mWorkerLimit == 0)) {
-    return false;
+    if (mStop || (mWorkerLimit == 0)) {
+      return false;
+    }
+
+    const auto rate = mRateByFsid.find(job.fsid);
+
+    if (rate != mRateByFsid.end()) {
+      job.rate_mbs = rate->second;
+    }
+
+    // A close or scan that arrives while this path is already running must not
+    // be dropped. The worker queues it again after the current attempt.
+    if (!mQueued.insert(job.path).second) {
+      mRerun.insert(job.path);
+      return true;
+    }
+
+    if (mQueue.size() >= kMaxQueued) {
+      mQueued.erase(job.path);
+      return false;
+    }
+
+    mQueue.emplace_back(std::move(job));
   }
 
-  const auto rate = mRateByFsid.find(job.fsid);
-
-  if (rate != mRateByFsid.end()) {
-    job.rate_mbs = rate->second;
-  }
-
-  // A close or scan that arrives while this path is already running must not
-  // be dropped. The worker queues it again after the current attempt.
-  if (!mQueued.insert(job.path).second) {
-    mRerun.insert(job.path);
-    return true;
-  }
-
-  if (mQueue.size() >= kMaxQueued) {
-    mQueued.erase(job.path);
-    return false;
-  }
-
-  mQueue.emplace_back(std::move(job));
-  mCv.notify_one();
+  Schedule();
   return true;
 }
 
@@ -215,77 +210,84 @@ CompressPool::EnqueueConversion(Job job, bool want_compression)
 }
 
 void
-CompressPool::Run()
+CompressPool::Schedule()
+{
+  std::vector<Job> batch;
+
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
+
+    if (mStop || (mWorkerLimit == 0)) {
+      return;
+    }
+
+    while (mRunning < mWorkerLimit) {
+      auto it = mQueue.begin();
+
+      for (; it != mQueue.end(); ++it) {
+        if (mBusyDevices.count(it->device) == 0) {
+          break;
+        }
+      }
+
+      if (it == mQueue.end()) {
+        break;
+      }
+
+      Job job = std::move(*it);
+      mQueue.erase(it);
+      mBusyDevices.insert(job.device);
+      ++mRunning;
+      batch.emplace_back(std::move(job));
+    }
+  }
+
+  for (auto& job : batch) {
+    mPool.PushTask<void>([this, job = std::move(job)]() mutable {
+      ProcessJob(std::move(job));
+    });
+  }
+}
+
+void
+CompressPool::ProcessJob(Job job)
 {
   RunQuietly();
 
-  while (true) {
-    Job job;
+  if (mStop) {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mQueued.erase(job.path);
+    mRerun.erase(job.path);
+    mBusyDevices.erase(job.device);
 
-    {
-      std::unique_lock<std::mutex> lock(mMutex);
-      mCv.wait(lock, [this]() {
-        if (mStop) {
-          return true;
-        }
-
-        if (mRunning >= mWorkerLimit) {
-          return false;
-        }
-
-        for (const Job& queued : mQueue) {
-          if (mBusyDevices.count(queued.device) == 0) {
-            return true;
-          }
-        }
-
-        return false;
-      });
-
-      if (mStop) {
-        return;
-      }
-
-      for (auto it = mQueue.begin(); it != mQueue.end(); ++it) {
-        if (mBusyDevices.count(it->device) != 0) {
-          continue;
-        }
-
-        job = std::move(*it);
-        mQueue.erase(it);
-        mBusyDevices.insert(job.device);
-        ++mRunning;
-        mCv.notify_one();
-        break;
-      }
+    if (mRunning > 0) {
+      --mRunning;
     }
 
-    if (job.path.empty()) {
-      continue;
-    }
+    return;
+  }
 
-    const bool again = Convert(job);
-    bool rerun = false;
+  const bool again = Convert(job);
+  bool rerun = false;
 
-    {
-      std::lock_guard<std::mutex> lock(mMutex);
-      mQueued.erase(job.path);
-      rerun = mRerun.erase(job.path) != 0;
-      mBusyDevices.erase(job.device);
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mQueued.erase(job.path);
+    rerun = mRerun.erase(job.path) != 0;
+    mBusyDevices.erase(job.device);
 
-      if (mRunning > 0) {
-        --mRunning;
-      }
-    }
-
-    mCv.notify_all();
-
-    if ((again || rerun) && !Enqueue(job)) {
-      eos_static_info("msg=\"could not requeue conversion\" path=\"%s\" "
-                      "fxid=%08llx",
-                      job.path.c_str(), job.fid);
+    if (mRunning > 0) {
+      --mRunning;
     }
   }
+
+  if ((again || rerun) && !Enqueue(job)) {
+    eos_static_info("msg=\"could not requeue conversion\" path=\"%s\" "
+                    "fxid=%08llx",
+                    job.path.c_str(), job.fid);
+  }
+
+  Schedule();
 }
 
 int
@@ -412,26 +414,6 @@ CompressPool::WaitIdleAndLock(const Job& job)
 }
 
 void
-CompressPool::EnsureThreads(unsigned count)
-{
-  if (count > kMaxPoolWorkers) {
-    count = kMaxPoolWorkers;
-  }
-
-  std::lock_guard<std::mutex> lock(mMutex);
-
-  if (mStop) {
-    return;
-  }
-
-  while (mThreads.size() < count) {
-    mThreads.emplace_back([this]() {
-      Run();
-    });
-  }
-}
-
-void
 CompressPool::SetFsConfig(unsigned long fsid, const std::string& key,
                           long long value)
 {
@@ -439,7 +421,7 @@ CompressPool::SetFsConfig(unsigned long fsid, const std::string& key,
     return;
   }
 
-  unsigned spawn = 0;
+  bool reschedule = false;
 
   {
     std::lock_guard<std::mutex> lock(mMutex);
@@ -457,7 +439,13 @@ CompressPool::SetFsConfig(unsigned long fsid, const std::string& key,
       }
 
       mWorkerLimit = cap;
-      spawn = cap;
+
+      if (cap > 0) {
+        mPool.SetMaxThreads(kMaxPoolWorkers);
+        mPool.SetMinThreads(std::max(1u, cap));
+      }
+
+      reschedule = true;
       eos_static_notice("msg=\"compression worker cap\" fsid=%lu limit=%u",
                         fsid, mWorkerLimit);
     } else if (key == eos::common::COMPRESS_RATE_NAME) {
@@ -469,11 +457,9 @@ CompressPool::SetFsConfig(unsigned long fsid, const std::string& key,
     }
   }
 
-  if (spawn > 0) {
-    EnsureThreads(spawn);
+  if (reschedule) {
+    Schedule();
   }
-
-  mCv.notify_all();
 }
 
 void
