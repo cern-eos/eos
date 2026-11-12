@@ -23,24 +23,23 @@
 
 #pragma once
 
+#include "common/ThreadPool.hh"
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 namespace eos::fst::compress {
 
 //------------------------------------------------------------------------------
 //! Background compression and decompression. Workers run at nice 19.
-//! File convert, file close, and the scan only enqueue work. At most one job runs per
-//! mount, and the number of jobs is capped by the space compressworkers
-//! value. compressrate limits the bytes each worker writes, in MB/s.
+//! File convert, file close, and the scan only enqueue work. At most one job
+//! runs per mount, and the number of jobs is capped by the space
+//! compressworkers value. compressrate limits the bytes each worker writes,
+//! in MB/s. Execution uses eos::common::ThreadPool.
 //------------------------------------------------------------------------------
 class CompressPool
 {
@@ -102,7 +101,15 @@ public:
   void SetFsConfig(unsigned long fsid, const std::string& key, long long value);
 
 private:
-  void Run();
+  //----------------------------------------------------------------------------
+  //! Pull runnable jobs (free device, under worker cap) and PushTask them.
+  //----------------------------------------------------------------------------
+  void Schedule();
+
+  //----------------------------------------------------------------------------
+  //! One ThreadPool task: convert a replica, then schedule more work.
+  //----------------------------------------------------------------------------
+  void ProcessJob(Job job);
 
   //----------------------------------------------------------------------------
   //! Returns true when the same job should be queued again. That happens when
@@ -133,13 +140,11 @@ private:
   bool WaitIdleAndLock(const Job& job);
   void UnlockRename(const Job& job);
   int Arriving(const FileKey& key) const;
-  void EnsureThreads(unsigned count);
 
   unsigned mWorkerLimit = 0;
   unsigned mRunning = 0;
   bool mStop = false;
   std::mutex mMutex;
-  std::condition_variable mCv;
   std::deque<Job> mQueue;
   std::unordered_set<std::string> mQueued;
   std::unordered_set<std::string> mRerun;
@@ -150,7 +155,7 @@ private:
   std::unordered_set<std::uint64_t> mBusyDevices;
   std::unordered_map<unsigned long, unsigned> mWorkersByFsid;
   std::unordered_map<unsigned long, unsigned> mRateByFsid;
-  std::vector<std::thread> mThreads;
+  eos::common::ThreadPool mPool;
   static constexpr std::size_t kMaxQueued = 4096;
   static constexpr unsigned kMaxPoolWorkers = 64;
 };
