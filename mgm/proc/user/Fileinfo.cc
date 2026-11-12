@@ -40,6 +40,7 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
+#include <iomanip>
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -411,20 +412,26 @@ ProcCommand::FileInfo(const char* path)
                                      fmd_copy->getSize());
 
           if (!Monitoring) {
-            out << "  File: '" << spath << "'"
-                << "  Flags: " << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4);
+            // Right-align labels on the longest key so the colons share a column.
+            constexpr int kLabelWidth = 6;
+            auto label = [&](const char* name) -> std::ostream& {
+              out << std::setw(kLabelWidth) << std::right << name << ": ";
+              return out;
+            };
+            label("File") << "'" << spath << "'"
+                          << "  Flags: " << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4);
 
             if (clock) {
               out << "  Clock: " << FileId::Fid2Hex(clock);
             }
 
             out << std::endl;
-            out << "  Size: " << fmd_copy->getSize() << std::endl;
+            label("Size") << fmd_copy->getSize() << std::endl;
 
             if (fmd_copy->getCSize()) {
               const std::string ratio = LayoutId::CompressionRatio(
                                           fmd_copy->getSize(), fmd_copy->getCSize());
-              out << " CSize: " << fmd_copy->getCSize();
+              label("CSize") << fmd_copy->getCSize();
 
               if (!ratio.empty()) {
                 out << " Ratio: " << ratio;
@@ -433,67 +440,67 @@ ProcCommand::FileInfo(const char* path)
               out << std::endl;
             }
 
-            out << " Potential: " << fmd_copy->getCPotential() << "%" << std::endl;
-
-            out << " total-rbytes: " << fmd_copy->getTotalRBytes() << std::endl
-                << " total-rbc: " << fmd_copy->getTotalRbc() << std::endl
-                << " total-ubytes: " << fmd_copy->getTotalUBytes() << std::endl
-                << " total-ubc: " << fmd_copy->getTotalUbc() << std::endl
-                << "Status: " << FileMDToStatus(fmd_copy) << std::endl
-                << "Modify: " << eos::common::Timing::ltime(filemtime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
-                << std::endl
-                << "Change: " << eos::common::Timing::ltime(filectime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
-                << std::endl
-                << "Access: " << eos::common::Timing::ltime(fileatime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
-                << std::endl
-                << " Birth: " << eos::common::Timing::ltime(filebtime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
-                << std::endl
-                << "  CUid: " << fmd_copy->getCUid()
-                << " CGid: " << fmd_copy->getCGid()
-                << " Fxid: " << hex_fid
-                << " Fid: " << fmd_copy->getId()
-                << " Pid: " << fmd_copy->getContainerId()
-                << " Pxid: " << hex_pid
-                << std::endl
-                << " ETAGs: " << etag << std::endl
-                << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
-                  fmd_copy->getLayoutId())
-                << "XS: " << xs
-                << std::endl;
+            label("CPot") << fmd_copy->getCPotential() << "%" << std::endl;
+            label("RBytes") << fmd_copy->getTotalRBytes() << std::endl;
+            label("Rbc") << fmd_copy->getTotalRbc() << std::endl;
+            label("UBytes") << fmd_copy->getTotalUBytes() << std::endl;
+            label("Ubc") << fmd_copy->getTotalUbc() << std::endl;
+            label("Status") << FileMDToStatus(fmd_copy) << std::endl;
+            label("Modify") << eos::common::Timing::ltime(filemtime)
+                            << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+                            << std::endl;
+            label("Change") << eos::common::Timing::ltime(filectime)
+                            << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+                            << std::endl;
+            label("Access") << eos::common::Timing::ltime(fileatime)
+                            << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
+                            << std::endl;
+            label("Birth") << eos::common::Timing::ltime(filebtime)
+                           << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+                           << std::endl;
+            label("CUid") << fmd_copy->getCUid()
+                          << " CGid: " << fmd_copy->getCGid()
+                          << " Fxid: " << hex_fid
+                          << " Fid: " << fmd_copy->getId()
+                          << " Pid: " << fmd_copy->getContainerId()
+                          << " Pxid: " << hex_pid
+                          << std::endl;
+            label("ETAGs") << etag << std::endl;
+            label("XStype") << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                              fmd_copy->getLayoutId())
+                            << "XS: " << xs
+                            << std::endl;
             auto altchecksums = fmd_copy->getAltXs();
 
             for (auto [type, xs] : altchecksums) {
-              out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
-                    type)
-                  << "XS: " << xs << std::endl;
+              label("XStype") << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                                type)
+                              << "XS: " << xs << std::endl;
             }
 
-            out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-                << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
-                << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
-                << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
-                << " Redundancy: " << redundancy
-                << std::endl;
-            out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
+            label("Layout") << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
+                            << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
+                            << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
+                            << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
+                            << " Redundancy: " << redundancy
+                            << std::endl;
+            label("#Rep") << fmd_copy->getNumLocation() << std::endl;
 
             if (fmd_copy->getCacheLocation()) {
-              out << "Cache: " << fmd_copy->getCacheLocation() << std::endl;
+              label("Cache") << fmd_copy->getCacheLocation() << std::endl;
             }
 
             if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
               std::string storage_class = xattrs["sys.archive.storage_class"];
               std::string archive_id = xattrs["sys.archive.file_id"];
-              out << "TapeID: " << (archive_id.length() ? archive_id : "undef")
-                  << " StorageClass: " << (storage_class.length() ? storage_class : "none");
+              label("TapeID") << (archive_id.length() ? archive_id : "undef")
+                              << " StorageClass: " << (storage_class.length() ? storage_class : "none")
+                              << std::endl;
             }
 
             if (xattrs.count(eos::kAttrObfuscateKey)) {
               if (xattrs.count(eos::kAttrEncrypted)) {
-                out << " Crypt: encrypted";
+                label("Crypt") << "encrypted";
 
                 if (xattrs.count(eos::kAttrEncryptSpace)) {
                   out << " (space:" << xattrs[eos::kAttrEncryptSpace] << ")";
@@ -501,7 +508,7 @@ ProcCommand::FileInfo(const char* path)
 
                 out << std::endl;
               } else {
-                out << " Crypt: obfuscated" << std::endl;
+                label("Crypt") << "obfuscated" << std::endl;
               }
             }
           } else {
