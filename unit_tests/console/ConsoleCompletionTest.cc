@@ -400,6 +400,7 @@ TEST(ConsoleCompletion, EveryRegisteredCommandHasDeliberateCompletionCoverage)
                                                     {"archive", "create"},
                                                     {"attr", "ls"},
                                                     {"backup", "--ctime"},
+                                                    {"bench", "--syntheticio"},
                                                     {"cat", "--help"},
                                                     {"cd", "--help"},
                                                     {"chmod", "-r"},

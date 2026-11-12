@@ -208,6 +208,8 @@ void RegisterNativeConsoleCommands()
   RegisterRcloneNativeCommand();
   extern void RegisterSquashNativeCommand();
   RegisterSquashNativeCommand();
+  extern void RegisterBenchNativeCommand();
+  RegisterBenchNativeCommand();
   extern void RegisterTestNativeCommand();
   RegisterTestNativeCommand();
   // Attr/Mode

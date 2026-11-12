@@ -27,9 +27,11 @@
 
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/SyntheticIO.hh"
 #include <XrdOss/XrdOss.hh>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 
 //! Forward declarations
@@ -184,6 +186,8 @@ private:
   bool mConverted = false; ///< on-disk image is already slot-compressed
   std::uint64_t mBlockSize = 0; ///< logical compression block
   std::uint64_t mLogicalSize = 0; ///< uncompressed size of a converted file
+  std::optional<eos::common::SyntheticIOSpec> mSyntheticIOSpec; ///< synthetic data spec
+  std::uint64_t mSyntheticIOSeqOffset = 0; ///< next expected offset for streaming reads
 
   //--------------------------------------------------------------------------
   //! Read and write a file that is already stored as compressed slots.

@@ -43,6 +43,7 @@
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClPostMaster.hh>
 #include <XrdOuc/XrdOucString.hh>
+#include "common/SyntheticIO.hh"
 #include "common/XrdErrorMap.hh"
 #include "common/Timing.hh"
 #include "common/SymKeys.hh"
@@ -71,6 +72,7 @@ enum AccessType {
   RAID_ACCESS, ///< xroot protocol but with raid layout
   XRD_ACCESS, ///< xroot protocol
   RIO_ACCESS, ///< any File IO plug-in remote protocol
+  SYNTHETICIO_ACCESS, ///< synthetic syntheticio source
   CONSOLE_ACCESS ///< input/output to console
 };
 
@@ -161,7 +163,7 @@ public:
   }
 };
 
-const char* protocols[] = {"file", "raid", "xroot", "rio", NULL};
+const char* protocols[] = {"file", "raid", "xroot", "rio", "syntheticio", NULL};
 const char* xs[] = {"adler", "md5", "sha1", "crc32", "crc32c"};
 std::set<std::string> xsTypeSet(xs, xs + 5);
 
@@ -269,6 +271,44 @@ std::string progressFile = "";
 char* source[MAXSRCDST];
 char* destination[MAXSRCDST];
 
+std::optional<eos::common::SyntheticIOSpec> g_syntheticio_src_spec;
+
+//------------------------------------------------------------------------------
+// Parse a syntheticio synthetic source location.
+//------------------------------------------------------------------------------
+
+bool
+parse_syntheticio_source_location(const std::string& location, std::string& value)
+{
+  constexpr std::string_view kPrefix = "syntheticio:";
+
+  if (location.rfind(kPrefix, 0) != 0) {
+    return false;
+  }
+
+  value = location.substr(kPrefix.size());
+
+  if (value.rfind("//", 0) == 0) {
+    value.erase(0, 2);
+  }
+
+  return !value.empty();
+}
+
+off_t
+syntheticio_source_size()
+{
+  if (stopbyte >= 0 && startbyte >= 0) {
+    return stopbyte - startbyte;
+  }
+
+  if (targetsize) {
+    return static_cast<off_t>(targetsize);
+  }
+
+  return 0;
+}
+
 //------------------------------------------------------------------------------
 // Usage command
 //------------------------------------------------------------------------------
@@ -314,7 +354,13 @@ usage()
   fprintf(stderr, "       -i           : enable transparent staging\n");
   fprintf(stderr,
           "       -p           : create all needed subdirectories for destination paths\n");
-  fprintf(stderr, "       <srcN>       : path/url or - for STDIN\n");
+  fprintf(stderr, "       <srcN>       : path/url, syntheticio:<value>, or - for STDIN\n");
+  fprintf(stderr,
+          "                      syntheticio:<value> synthesizes source data using\n");
+  fprintf(stderr,
+          "                      algorithm:deterministic|algorithm:xoshiro256pp[:<seed>]|pattern:<text>\n");
+  fprintf(stderr,
+          "                      (requires -T <size> or -r <start>:<stop>)\n");
   fprintf(stderr, "       <dstN>       : path/url or - for STDOUT\n");
   fprintf(stderr, "       -5           : compute md5\n");
   fprintf(stderr,
@@ -1199,6 +1245,40 @@ main(int argc, char* argv[])
 
   for (int i = 0; i < nsrc; i++) {
     location = argv[optind + i];
+    std::string syntheticio_value;
+
+    if (parse_syntheticio_source_location(location, syntheticio_value)) {
+      if (i > 0) {
+        fprintf(stderr, "error: only one syntheticio source is supported\n");
+        exit(-EPERM);
+      }
+
+      if (eos::common::syntheticio_disabled(syntheticio_value)) {
+        fprintf(stderr, "error: invalid syntheticio source '%s'\n", location.c_str());
+        exit(-EINVAL);
+      }
+
+      auto spec = eos::common::parse_syntheticio_with_seed(
+          eos::common::normalize_syntheticio_cgi(syntheticio_value), 0);
+
+      if (!spec) {
+        fprintf(stderr, "error: invalid syntheticio source '%s'\n", location.c_str());
+        exit(-EINVAL);
+      }
+
+      g_syntheticio_src_spec = *spec;
+      address = "";
+      file_path = location;
+      src_location.push_back(std::make_pair(address, file_path));
+      src_type.push_back(SYNTHETICIO_ACCESS);
+
+      if (verbose || debug) {
+        fprintf(stdout, "src<%d>=%s ", i, location.c_str());
+      }
+
+      continue;
+    }
+
     size_t pos = location.find("://");
     pos = location.find("//", pos + 3);
 
@@ -1271,6 +1351,13 @@ main(int argc, char* argv[])
   // Get the type of access we will be doing
   //.............................................................................
   if (isRaidTransfer) {
+    for (int i = 0; i < nsrc; i++) {
+      if (src_type[i] == SYNTHETICIO_ACCESS) {
+        fprintf(stderr, "error: syntheticio source cannot be used with RAID layouts\n");
+        exit(-EINVAL);
+      }
+    }
+
     if (!nparitystripes) {
       fprintf(stderr, "error: number of parity stripes undefined\n");
       exit(-EINVAL);
@@ -1711,6 +1798,23 @@ main(int argc, char* argv[])
         stat_failed = 0;
         break;
 
+      case SYNTHETICIO_ACCESS: {
+        stat_failed = 0;
+        st[i].st_size = syntheticio_source_size();
+        st[i].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+        if (st[i].st_size <= 0) {
+          fprintf(stderr,
+                  "error: syntheticio source requires -T <size> or -r <start>:<stop>\n");
+          exit(-EINVAL);
+        }
+
+        if (startbyte < 0) {
+          startbyte = 0;
+        }
+      }
+      break;
+
       case RIO_ACCESS:
         stat_failed = 0;
         break;
@@ -1775,6 +1879,10 @@ main(int argc, char* argv[])
           break;
 
         case CONSOLE_ACCESS:
+          readlink_size = 0;
+          break;
+
+        case SYNTHETICIO_ACCESS:
           readlink_size = 0;
           break;
         }
@@ -1851,6 +1959,9 @@ main(int argc, char* argv[])
                   "[eoscp]: STDIN is transparent for staging - nothing to check\n");
         }
 
+        break;
+
+      case SYNTHETICIO_ACCESS:
         break;
       }
     }
@@ -1947,6 +2058,9 @@ main(int argc, char* argv[])
           break;
 
         case CONSOLE_ACCESS:
+          break;
+
+        case SYNTHETICIO_ACCESS:
           break;
         }
 
@@ -2117,9 +2231,20 @@ main(int argc, char* argv[])
       src_handler.push_back(std::make_pair(fileno(stdin),
                                            static_cast<XrdCl::File*>(NULL)));
       break;
+
+    case SYNTHETICIO_ACCESS:
+      if (debug) {
+        fprintf(stdout, "[eoscp]: using syntheticio synthetic source %s\n",
+                g_syntheticio_src_spec ? g_syntheticio_src_spec->value.c_str() : "");
+      }
+
+      src_handler.push_back(std::make_pair(-1,
+                                           static_cast<XrdCl::File*>(NULL)));
+      break;
     }
 
     if ((!isRaidTransfer) &&
+        (src_type[i] != SYNTHETICIO_ACCESS) &&
         (src_handler[i].first < 0) &&
         (src_handler[i].second == NULL)) {
       std::string errmsg;
@@ -2169,6 +2294,11 @@ main(int argc, char* argv[])
         break;
 
       case CONSOLE_ACCESS:
+        break;
+
+      case SYNTHETICIO_ACCESS:
+        offsetXrd = 0;
+        offsetXS = startbyte;
         break;
       }
 
@@ -2401,6 +2531,9 @@ main(int argc, char* argv[])
       dst_handler.push_back(std::make_pair(fileno(stdout),
                                            static_cast<eos::fst::XrdIo*>(NULL)));
       break;
+
+    case SYNTHETICIO_ACCESS:
+      break;
     }
 
     if ((!isRaidTransfer) &&
@@ -2447,6 +2580,9 @@ main(int argc, char* argv[])
       case CONSOLE_ACCESS:
         // Not supported
         break;
+
+      case SYNTHETICIO_ACCESS:
+        break;
       }
 
       if (startwritebyte < 0) {
@@ -2492,6 +2628,7 @@ main(int argc, char* argv[])
     case XRD_ACCESS:
     case RIO_ACCESS:
     case CONSOLE_ACCESS:
+    case SYNTHETICIO_ACCESS:
       //........................................................................
       // Not supported, no such functionality in the standard xroot or console
       //........................................................................
@@ -2532,6 +2669,10 @@ main(int argc, char* argv[])
         if ((src_type[i] == XRD_ACCESS) && (targetsize)) {
           st[i].st_size = targetsize;
         }
+
+        if (src_type[i] == SYNTHETICIO_ACCESS) {
+          st[i].st_size = syntheticio_source_size();
+        }
       }
 
       print_progbar(totalbytes, st[0].st_size);
@@ -2558,6 +2699,10 @@ main(int argc, char* argv[])
     if ((stopbyte >= 0) &&
         (((stopbyte - startbyte) - totalbytes) < buffersize)) {
       buffersize = (stopbyte - startbyte) - totalbytes;
+    } else if (src_type[0] == SYNTHETICIO_ACCESS && targetsize &&
+               (static_cast<long long>(targetsize) - totalbytes) <
+                   static_cast<long long>(buffersize)) {
+      buffersize = static_cast<uint32_t>(targetsize - totalbytes);
     }
 
     int nread = -1;
@@ -2570,6 +2715,21 @@ main(int argc, char* argv[])
                    static_cast<void*>(ptr_buffer),
                    buffersize);
       break;
+
+    case SYNTHETICIO_ACCESS: {
+      if (!g_syntheticio_src_spec) {
+        fprintf(stderr, "error: syntheticio source is not configured\n");
+        exit(-EIO);
+      }
+
+      const std::uint64_t syntheticio_offset =
+          static_cast<std::uint64_t>(startbyte) + offsetXrd;
+      eos::common::syntheticio_fill(*g_syntheticio_src_spec, syntheticio_offset, ptr_buffer,
+                               buffersize);
+      nread = static_cast<int>(buffersize);
+      offsetXrd += nread;
+    }
+    break;
 
     case RAID_ACCESS: {
       nread = redundancyObj->Read(offsetXrd, ptr_buffer, buffersize);
@@ -2702,6 +2862,9 @@ main(int argc, char* argv[])
         }
       }
       break;
+
+      case SYNTHETICIO_ACCESS:
+        break;
       }
 
       if (nwrite != nread) {
@@ -2758,6 +2921,10 @@ main(int argc, char* argv[])
     for (int i = 0; i < nsrc; i++) {
       if (src_type[i] == XRD_ACCESS) {
         st[i].st_size = totalbytes;
+      }
+
+      if (src_type[i] == SYNTHETICIO_ACCESS) {
+        st[i].st_size = syntheticio_source_size();
       }
     }
 
@@ -2819,6 +2986,9 @@ main(int argc, char* argv[])
 
     case CONSOLE_ACCESS:
       break;
+
+    case SYNTHETICIO_ACCESS:
+      break;
     }
   }
 
@@ -2870,6 +3040,9 @@ main(int argc, char* argv[])
       // Nothing to do
       //........................................................................
       break;
+
+    case SYNTHETICIO_ACCESS:
+      break;
     }
   }
 
@@ -2902,6 +3075,7 @@ main(int argc, char* argv[])
     case XRD_ACCESS:
     case RIO_ACCESS:
     case CONSOLE_ACCESS:
+    case SYNTHETICIO_ACCESS:
       //........................................................................
       // Noting to do, xrootd has no symlink support in posix
       //........................................................................
