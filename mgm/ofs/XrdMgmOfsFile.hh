@@ -526,6 +526,17 @@ private:
   int ApplySpaceEncryption(const char* path, eos::IContainerMD::XAttrMap& attrmap,
                            eos::IFileMD::XAttrMap& attrmapF, bool isRW, bool isCreation);
 
+  //----------------------------------------------------------------------------
+  //! Tell whether a file created by this open gets obfuscated: the client asks
+  //! for it with 'eos.obfuscate=1', or the directory or its space sets
+  //! sys.file.obfuscate=1, which wins over 'eos.obfuscate=0'
+  //!
+  //! @param attrmap extended attributes of the parent directory
+  //!
+  //! @return true if a new file gets an obfuscation key
+  //----------------------------------------------------------------------------
+  bool ObfuscatesNewFile(const eos::IContainerMD::XAttrMap& attrmap) const;
+
   int oh {0}; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque {nullptr}; //< opaque info given with 'open'
