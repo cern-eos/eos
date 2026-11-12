@@ -28,6 +28,8 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/utils/AttrHelper.hh"
+#include "mgm/misc/Constants.hh"
+#include "common/SyntheticIO.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IView.hh"
 
@@ -44,6 +46,15 @@ bool SanitizeXattr(const std::string& key, const std::string& value)
     std::string out_val;
     (void)eos::common::SymKey::DeBase64(value, out_val);
     return eos::common::LayoutId::IsValidBlocksize(out_val);
+  }
+
+  if ((key == SYS_FORCED_SYNTHETICIO) || (key == "user.forced.syntheticio")) {
+    // Console attr set sends values as base64:<payload>; decode like blocksize.
+    std::string raw = value;
+    (void) eos::common::SymKey::DeBase64(value, raw);
+    return eos::common::syntheticio_disabled(raw) ||
+           eos::common::parse_syntheticio(
+               eos::common::normalize_syntheticio_cgi(raw)).has_value();
   }
 
   return true;

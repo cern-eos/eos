@@ -23,6 +23,7 @@
 
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
+#include "fst/bench/SyntheticIOBench.hh"
 #include "fst/compress/BlockCompress.hh"
 #include "fst/cache/CacheLru.hh"
 #include "fst/Config.hh"
@@ -1605,6 +1606,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleCompress(env, error, client);
     }
 
+    if (execmd == "bench") {
+      return HandleBench(env, error, client);
+    }
+
     if (execmd == "getfmd") {
       char* afid = env.Get("fst.getfmd.fid");
       char* afsid = env.Get("fst.getfmd.fsid");
@@ -2403,6 +2408,104 @@ XrdFstOfs::HandleCompress(XrdOucEnv& env, XrdOucErrInfo& err_obj,
   eos_static_info("msg=\"queued replica conversion\" path=\"%s\" fxid=%08llx "
                   "fsid=%lu compress=%d",
                   path.c_str(), fid, fsid, want ? 1 : 0);
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Handle SyntheticIO bandwidth bench query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleBench(XrdOucEnv& env, XrdOucErrInfo& err_obj,
+                       const XrdSecEntity* client)
+{
+  if (!client || !client->prot || (strncmp(client->prot, "sss", 3) != 0)) {
+    eos_static_err("%s", "msg=\"bench requires sss authentication\"");
+    return Emsg("bench", err_obj, EPERM, "run syntheticio bench",
+                "- needs sss authentication");
+  }
+
+  const char* op = env.Get("fst.bench.op");
+
+  if (!op || !*op) {
+    err_obj.setErrInfo(EINVAL, "missing fst.bench.op");
+    return SFS_ERROR;
+  }
+
+  auto& bench = eos::fst::SyntheticIOBench::Instance();
+
+  if (strcmp(op, "status") == 0) {
+    const std::string resp = bench.StatusEnv();
+    err_obj.setErrInfo(resp.length() + 1, resp.c_str());
+    return SFS_DATA;
+  }
+
+  if (strcmp(op, "stop") == 0) {
+    bench.Stop();
+    const char* done = "OK";
+    err_obj.setErrInfo(strlen(done) + 1, done);
+    return SFS_DATA;
+  }
+
+  if (strcmp(op, "start") != 0) {
+    err_obj.setErrInfo(EINVAL, "fst.bench.op must be start|status|stop");
+    return SFS_ERROR;
+  }
+
+  eos::fst::SyntheticIOBench::Config cfg;
+  const char* sduration = env.Get("fst.bench.duration");
+  const char* sparallel = env.Get("fst.bench.parallel");
+  const char* ssize = env.Get("fst.bench.size");
+  const char* spath = env.Get("fst.bench.path");
+  const char* smgm = env.Get("fst.bench.mgm");
+
+  try {
+    if (sduration) {
+      cfg.duration_sec = static_cast<uint32_t>(std::stoul(sduration));
+    }
+
+    if (sparallel) {
+      cfg.parallel = static_cast<uint32_t>(std::stoul(sparallel));
+    }
+
+    if (ssize) {
+      cfg.size = std::stoull(ssize);
+    }
+  } catch (...) {
+    err_obj.setErrInfo(EINVAL, "bench numeric arguments invalid");
+    return SFS_ERROR;
+  }
+
+  if (spath && *spath) {
+    cfg.path = spath;
+  }
+
+  if (smgm && *smgm) {
+    cfg.mgm = smgm;
+  } else {
+    cfg.mgm = gConfig.GetManager();
+  }
+
+  if (gConfig.FstHostPort.length()) {
+    cfg.node_tag = gConfig.FstHostPort.c_str();
+    std::replace(cfg.node_tag.begin(), cfg.node_tag.end(), ':', '-');
+  } else if (mHostName) {
+    cfg.node_tag = mHostName;
+  } else {
+    cfg.node_tag = "fst";
+  }
+
+  if (cfg.duration_sec == 0 || cfg.parallel == 0 || cfg.mgm.empty()) {
+    err_obj.setErrInfo(EINVAL, "bench requires duration, parallel and mgm");
+    return SFS_ERROR;
+  }
+
+  if (!bench.Start(cfg)) {
+    err_obj.setErrInfo(EBUSY, "bench already running");
+    return SFS_ERROR;
+  }
+
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
   return SFS_DATA;

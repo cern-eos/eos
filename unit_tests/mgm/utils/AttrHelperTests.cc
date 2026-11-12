@@ -80,6 +80,22 @@ TEST(checkDirOwner, StickyOwner)
   ASSERT_TRUE(sticky_owner);
 }
 
+TEST(checkDirOwner, AuthNameWhenMappedUidDiffers)
+{
+  eos::common::VirtualIdentity vid;
+  vid.uid = 65534;
+  vid.gid = 65534;
+  vid.prot = "sss";
+  vid.name = "daemon";
+  vid.uid_string = "nobody";
+  bool sticky_owner = false;
+  eos::IContainerMD::XAttrMap xattrs {{SYS_OWNER_AUTH, "sss:daemon"}};
+  EXPECT_TRUE(checkDirOwner(xattrs, 2, 2, vid, sticky_owner, nullptr));
+  EXPECT_FALSE(sticky_owner);
+  EXPECT_EQ(vid.uid, 2u);
+  EXPECT_EQ(vid.gid, 2u);
+}
+
 TEST(checkDirOwner, dirOwner)
 {
   eos::common::VirtualIdentity vid;

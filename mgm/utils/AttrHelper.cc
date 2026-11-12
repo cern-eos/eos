@@ -39,15 +39,6 @@ checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
                       path, vid.uid, vid.gid, d_uid, d_gid);
       sticky_owner = true;
     } else {
-      std::string ownerkey = vid.prot.c_str();
-      ownerkey += ":";
-
-      if (vid.prot == "gsi") {
-        ownerkey += vid.dn;
-      } else {
-        ownerkey += vid.uid_string;
-      }
-
       // Anchor the match with ',' separators so that a partial prefix in the
       // comma-separated list cannot match a longer key (e.g. attribute value
       // 'krb5:alice123' must NOT match an ownerkey 'krb5:alice').
@@ -56,13 +47,33 @@ checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
       haystack.append(1, ',');
       haystack.append(kv->second);
       haystack.append(1, ',');
-      std::string needle;
-      needle.reserve(ownerkey.size() + 2);
-      needle.append(1, ',');
-      needle.append(ownerkey);
-      needle.append(1, ',');
 
-      if (haystack.find(needle) != std::string::npos) {
+      auto listed = [&](const std::string& id) {
+        if (id.empty()) {
+          return false;
+        }
+
+        const std::string needle = "," + std::string(vid.prot.c_str()) + ":" + id + ",";
+        return haystack.find(needle) != std::string::npos;
+      };
+
+      // GSI is matched by DN. Other protocols match the mapped account and
+      // the authenticated client name: an SSS login "daemon" stays uid
+      // nobody when no vid map exists, but sys.owner.auth=sss:daemon must
+      // still select that principal.
+      bool matched = false;
+
+      if (vid.prot == "gsi") {
+        matched = listed(vid.dn);
+      } else {
+        matched = listed(vid.uid_string);
+
+        if (!matched && vid.name.length()) {
+          matched = listed(std::string(vid.name.c_str()));
+        }
+      }
+
+      if (matched) {
         eos_static_info("msg=\"client authenticated as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
                         path, vid.uid, vid.gid, d_uid, d_gid);
         // yes the client can operate as the owner, we rewrite the virtual

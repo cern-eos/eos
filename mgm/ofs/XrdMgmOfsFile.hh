@@ -46,6 +46,9 @@
  * may use file systems configured to take no client traffic. Only honoured on
  * an sss-authenticated connection mapped to the daemon account, otherwise
  * silently ignored.
+ * "eos.syntheticio" - create a syntheticio object with synthetic read data
+ * Directory policy "sys.forced.syntheticio" applies to newly created files;
+ * disable/off/0/false forbid syntheticio and reject client CGI requests
  *
  */
 /*----------------------------------------------------------------------------*/

@@ -20,6 +20,7 @@
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
+#include "mgm/proc/admin/BenchCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
@@ -100,6 +101,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kDebug:
     return Debug();
+    break;
+
+  case eos::console::RequestProto::kBench:
+    return Bench();
     break;
 
   case eos::console::RequestProto::kEvict:
@@ -868,6 +873,14 @@ grpc::Status GrpcWncInterface::Debug()
   eos::console::RequestProto req = *mRequest;
   eos::mgm::DebugCmd debugcmd(std::move(req), *mVid);
   *mReply = debugcmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcWncInterface::Bench()
+{
+  eos::console::RequestProto req = *mRequest;
+  eos::mgm::BenchCmd benchcmd(std::move(req), *mVid);
+  *mReply = benchcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

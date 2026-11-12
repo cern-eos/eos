@@ -295,6 +295,7 @@ set(XRDEOSFST_SRCS
   # The pool calls this codec. The OSS plugin has its own copy for reads and
   # writes; this one lets the FST plugin load without that plugin already open.
   compress/BlockCompress.cc compress/BlockCompress.hh
+  bench/SyntheticIOBench.cc      bench/SyntheticIOBench.hh
   io/FileIoPlugin-Server.cc
   # OFS layer implementation
   XrdFstOfs.cc                   XrdFstOfs.hh

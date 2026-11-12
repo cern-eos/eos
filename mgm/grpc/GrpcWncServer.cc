@@ -76,6 +76,10 @@ class WncService final : public EosWnc::Service
       command = "Debug";
       break;
 
+    case eos::console::RequestProto::kBench:
+      command = "Bench";
+      break;
+
     case eos::console::RequestProto::kFile:
       command = "File";
       break;

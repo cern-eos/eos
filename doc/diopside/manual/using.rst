@@ -2418,6 +2418,223 @@ confirmation code - append `--no-confirmation` to skip that in scripts.
           reading a space encrypted file returns `ENOKEY` unless its
           `EOS_FUSE_SECRET` is the key of the space.
 
+SyntheticIO Objects
+-------------------
+
+SyntheticIO objects are synthetic files for load and network testing. On **PUT**
+the client still sends a real body so the network path is fully
+exercised, but the FST discards the payload and only extends a sparse
+on-disk file to the transferred size. On **GET** the server synthesizes
+bytes from a deterministic algorithm or repeating pattern instead of
+reading file contents from disk.
+
+.. index::
+   pair: SyntheticIO; Synthetic data
+
+Configuration
+^^^^^^^^^^^^^
+
+SyntheticIO behaviour can be controlled at the **directory** level with
+extended attributes or at the **space** level with space policies.
+Directory attributes take precedence over space policies and over client
+CGI parameters. If no explicit seed is given in the syntheticio value, the
+file inode is used as seed for algorithm-based SyntheticIO streams.
+
+Enabling syntheticio
+^^^^^^^^^^^^^^^^^^^^
+
+**Directory policy (extended attribute)**
+
+Set ``sys.forced.syntheticio`` on a directory to enforce syntheticio objects for
+all newly created files in that subtree:
+
+.. code-block:: bash
+
+   eos attr set sys.forced.syntheticio=algorithm:deterministic /eos/loadtest/
+   eos attr set sys.forced.syntheticio=pattern:1234567890 /eos/loadtest/
+   eos attr set sys.forced.syntheticio=true /eos/loadtest/
+
+The same settings are available as ``user.forced.syntheticio`` for
+non-administrator directory policies.
+
+**Space policy**
+
+Space policies inject ``sys.forced.syntheticio`` into directories that
+reference the configured space, unless the directory already defines the
+attribute locally:
+
+.. code-block:: bash
+
+   eos space config default space.policy.syntheticio=algorithm:deterministic
+   eos space config default space.policy.syntheticio=pattern:abcdef
+
+Disabling syntheticio
+^^^^^^^^^^^^^^^^^^^^^
+
+Administrators can forbid syntheticio objects so that users **cannot** create
+them, even when passing the ``eos.syntheticio`` CGI on file creation. Set any
+of the disable sentinels ``disable``, ``off``, ``0``, or ``false`` as a
+forced policy. New files are created as normal (non-syntheticio) objects. If a
+client still supplies ``eos.syntheticio`` with an enabling value, the MGM
+rejects the open with ``EINVAL``.
+
+**Directory level**
+
+Apply the disable sentinel on the directory subtree that should not
+allow syntheticio:
+
+.. code-block:: bash
+
+   eos attr set sys.forced.syntheticio=off /eos/production/
+   eos attr set sys.forced.syntheticio=disable /eos/user/data/
+   eos attr set sys.forced.syntheticio=0 /eos/secure/
+   eos attr set sys.forced.syntheticio=false /eos/secure/
+
+The same disable values work with ``user.forced.syntheticio``. A directory
+attribute overrides a space policy, so a local ``sys.forced.syntheticio=off``
+on ``/eos/user/`` blocks syntheticio there even if the space policy would
+otherwise allow it.
+
+To lift a directory-level block, remove the attribute:
+
+.. code-block:: bash
+
+   eos attr rm sys.forced.syntheticio /eos/production/
+
+**Space level**
+
+Block syntheticio for all directories in a space that do not define their own
+``sys.forced.syntheticio`` locally:
+
+.. code-block:: bash
+
+   eos space config default space.policy.syntheticio=off
+   eos space config default space.policy.syntheticio=disable
+   eos space config default space.policy.syntheticio=0
+   eos space config default space.policy.syntheticio=false
+
+To remove the space policy and fall back to per-directory settings (or
+client CGI where no directory policy exists), use ``remove``:
+
+.. code-block:: bash
+
+   eos space config default space.policy.syntheticio=remove
+
+**What users cannot do when syntheticio is disabled**
+
+With a disable policy active on the directory or space, the following
+client request is rejected:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/production/file?eos.syntheticio=algorithm:deterministic' /dev/null
+
+Normal uploads without ``eos.syntheticio`` continue to work. Passing
+``eos.syntheticio=off`` (or another disable sentinel) as CGI is treated as a
+no-op and also creates a normal file.
+
+Supported syntheticio values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Value
+     - Description
+   * - ``algorithm:deterministic``
+     - Offset-addressable pseudo-random stream. Supports random-access
+       reads. Shorthand aliases: ``true``, ``1``, ``on``.
+   * - ``algorithm:deterministic:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``algorithm:xoshiro256pp``
+     - Pseudo-random stream using xoshiro256++. **Only sequential
+       streaming reads are allowed.**
+   * - ``algorithm:xoshiro256pp:<seed>``
+     - Same as above with an explicit numeric seed.
+   * - ``pattern:<text>``
+     - Repeats ``<text>`` from offset 0: byte at offset *i* is
+       ``text[i % len(text)]``.
+   * - ``disable``, ``off``, ``0``, ``false``
+     - **Disable only** (directory or space policy): forbid syntheticio
+       objects and reject client ``eos.syntheticio`` CGI on create. Files
+       are stored normally. Not valid as an enabling syntheticio algorithm.
+
+Client CGI and file attributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When **no** directory or space policy applies (and syntheticio is not
+explicitly disabled), a client can request syntheticio behaviour when
+creating a file:
+
+.. code-block:: bash
+
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.syntheticio=algorithm:xoshiro256pp:42' /dev/null
+   xrdcp -d1 'root://mgm//eos/loadtest/file?eos.syntheticio=pattern:1234567890' /dev/null
+
+On creation the MGM stores the resolved syntheticio definition as a file
+extended attribute:
+
+.. code-block:: bash
+
+   sys.syntheticio=algorithm:deterministic:<inode>
+
+The syntheticio value is forwarded to the FST in the open capability as
+``eos.syntheticio``. A syntheticio-specific etag is stored temporarily as
+``sys.tmp.etag`` until the file is committed.
+
+Synthetic source with ``eoscp``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``eoscp`` can use a syntheticio definition as a **source** instead of reading
+from a file or URL. The source argument has the form
+``syntheticio:<value>`` where ``<value>`` uses the same syntax as server-side
+syntheticio (``algorithm:deterministic``, ``algorithm:xoshiro256pp[:<seed>]``,
+``pattern:<text>``, or the aliases ``true`` / ``1`` / ``on``). Specify
+how many bytes to generate with ``-T <size>`` or copy a sub-range with
+``-r <start>:<stop>``.
+
+.. code-block:: bash
+
+   eoscp -T 1073741824 syntheticio:algorithm:deterministic root://mgm//eos/loadtest/file
+   eoscp -r 0:104857600 syntheticio:pattern:1234567890 root://mgm//eos/loadtest/pattern.dat
+   eoscp -T 1073741824 -t 100 syntheticio:true /dev/null
+
+This is useful for load tests: ``eoscp`` synthesizes the payload locally
+and still exercises the full client-to-server write path on the
+destination.
+
+Instance bandwidth bench (``eos bench``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Administrators can measure instance network bandwidth with SyntheticIO
+clients that run **on every online FST**, not on the MGM or admin host:
+
+.. code-block:: bash
+
+   eos bench --syntheticio --layout replica:2 60 4
+
+The command prepares ``/network`` with ``sys.forced.syntheticio`` and the
+requested layout (``name:stripes``), then asks the MGM to start
+``fst.pcmd=bench`` on each online FST over SSS. Each FST runs
+``<parallelism>`` concurrent C++ clients for ``<duration>`` seconds of
+1 GiB SyntheticIO uploads, then the same for downloads. Live aggregate
+rates are printed in a dstat-style table. Root role is required; FST
+work is authenticated with SSS.
+
+Behaviour summary
+^^^^^^^^^^^^^^^^^
+
+* **Write:** client data is transferred over the network but not
+  persisted; the sparse file size follows the highest written offset.
+  For replication, RAIN parity, stripe checksums, and file checksums the
+  FST substitutes the client payload with bytes from the syntheticio
+  algorithm before those paths run.
+* **Read:** payload is generated from ``sys.syntheticio`` using the
+  configured algorithm or pattern.
+* **Checksums:** content checksums of the sparse on-disk file are not
+  meaningful for syntheticio objects; the etag is derived from the syntheticio
+  definition.
 
 Running Authentication Front-ends
 ---------------------------------
