@@ -706,6 +706,20 @@ XrdMgmOfsFile::GetSpaceEncryptionKey(const std::string& space)
 }
 
 //------------------------------------------------------------------------------
+// Tell whether a file created by this open gets obfuscated
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfsFile::ObfuscatesNewFile(const eos::IContainerMD::XAttrMap& attrmap) const
+{
+  if (mEosObfuscate > 0) {
+    return true;
+  }
+
+  auto it = attrmap.find(eos::kAttrFileObfuscate);
+  return (it != attrmap.end()) && (it->second == "1");
+}
+
+//------------------------------------------------------------------------------
 // Apply the instance encryption key of a space to the file being opened
 //------------------------------------------------------------------------------
 int
@@ -784,9 +798,7 @@ XrdMgmOfsFile::ApplySpaceEncryption(const char* path,
   }
 
   // Encryption requires obfuscation to be enabled for this file
-  auto it_obf = attrmap.find(eos::kAttrFileObfuscate);
-
-  if ((mEosObfuscate <= 0) && ((it_obf == attrmap.end()) || (it_obf->second != "1"))) {
+  if (!ObfuscatesNewFile(attrmap)) {
     return SFS_OK;
   }
 
@@ -1731,9 +1743,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // has to happen before an overwritten file is versioned or removed.
   // ---------------------------------------------------------------------------
   if (isPio) {
-    const bool obfuscates_new_file =
-        isRW && ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
-                                         (attrmap[eos::kAttrFileObfuscate] == "1")));
+    const bool obfuscates_new_file = isRW && ObfuscatesNewFile(attrmap);
 
     if (!mEosKey.empty() || attrmapF.count(eos::kAttrObfuscateKey) ||
         obfuscates_new_file) {
@@ -2005,10 +2015,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Generate the obfuscation key and its fingerprint before taking the
         // namespace write lock, they only depend on the space key. The policy
         // of the directory wins over eos.obfuscate=0.
-        const bool obfuscate =
-            !isConversion &&
-            ((mEosObfuscate > 0) || (attrmap.count(eos::kAttrFileObfuscate) &&
-                                     (attrmap[eos::kAttrFileObfuscate] == "1")));
+        const bool obfuscate = !isConversion && ObfuscatesNewFile(attrmap);
         std::string obfuscate_key;
         std::string obfuscate_fprint;
 
