@@ -30,12 +30,14 @@
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
+#include "common/SyntheticIO.hh"
 #include "common/SymKeys.hh"
 #include <XrdVersion.hh>
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOfs/XrdOfsTPCInfo.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <numeric>
+#include <vector>
 
 namespace eos
 {
@@ -370,6 +372,9 @@ public:
   XrdOucString mSecString; ///< string containing security summary
   std::map<std::string, std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
+  std::string mSyntheticIOValue; ///< SyntheticIO algorithm/pattern for synthetic data
+  std::optional<eos::common::SyntheticIOSpec> mSyntheticIOSpec; ///< parsed syntheticio spec
+  std::vector<char> mSyntheticIOWriteBuf; ///< scratch buffer for syntheticio writes
   unsigned long long mFileId; //! file id
   eos::common::FileSystem::fsid_t mFsId; //! file system id
   unsigned long mLid; //! layout id

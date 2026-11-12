@@ -143,6 +143,7 @@ add_library(
   proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
   proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
   proc/admin/ConvertCmd.cc proc/admin/ConvertCmd.hh
+  proc/admin/BenchCmd.cc proc/admin/BenchCmd.hh
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/DevicesCmd.cc proc/admin/DevicesCmd.hh
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh

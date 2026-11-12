@@ -161,6 +161,7 @@ set(COMMON_UT_SRCS
   common/MappingTests.cc
   common/PathTests.cc
   common/GlobTests.cc
+  common/SyntheticIOTests.cc
   common/RWMutexTest.cc
   common/RegexWrapperTests.cc
   common/StringConversionTests.cc
@@ -205,6 +206,7 @@ set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
   fst/XrdFstOssFileTest.cc
   fst/CompressOssTests.cc
+  fst/SyntheticIOOssTests.cc
   fst/HealthTest.cc
   fst/TrafficShapingTests.cc
   fst/UtilsTest.cc

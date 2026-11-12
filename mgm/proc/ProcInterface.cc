@@ -27,6 +27,7 @@
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
+#include "mgm/proc/admin/BenchCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/DevicesCmd.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
@@ -271,6 +272,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new MonitCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kBench:
+    cmd.reset(new BenchCmd(std::move(req), vid));
+    break;
+
   case RequestProto::kToken:
     cmd.reset(new TokenCmd(std::move(req), vid));
     break;
@@ -392,6 +397,7 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kFind: // @todo could perhaps, check --purge
   case RequestProto::kIo:
   case RequestProto::kDebug:
+  case RequestProto::kBench:
   case RequestProto::kConfig:
   case RequestProto::kToken:
     return false;
@@ -681,6 +687,7 @@ ProcInterface::IsAdminCmd(eos::console::RequestProto::CommandCase cc)
   case R::kRecord:
   case R::kFsck:
   case R::kDebug:
+  case R::kBench:
   case R::kConvert:
     return true;
 
