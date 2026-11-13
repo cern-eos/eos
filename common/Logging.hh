@@ -378,8 +378,11 @@ public:
   VirtualIdentity vid; //< the client identity
 };
 
-#define LOG_BUFFER_DBG 0
-
+//------------------------------------------------------------------------------
+//! Log line queue: producers format into a thread-local buffer and append the
+//! finished line to one pending byte buffer; the log thread swaps that buffer
+//! out and writes the whole batch in queue order.
+//------------------------------------------------------------------------------
 class LogBuffer
 {
 public:
@@ -423,67 +426,31 @@ public:
     }
   }
 
+  //----------------------------------------------------------------------------
+  //! Stop the log thread. A graceful shutdown writes all queued lines first,
+  //! otherwise the queued lines are dropped. Lines logged afterwards are
+  //! dropped.
+  //----------------------------------------------------------------------------
   void
   shutDown(bool gracefully = false)
   {
-    LogBuffer::log_buffer* buff;
     std::unique_lock<std::mutex> guard(log_buffer_mutex);
 
     if (shuttingDown > 0) {
       return;
     }
 
-    /* Stop allocating buffers, tell thread to stop, perhaps gracefully */
-    /* many things here  should only be modified under a lock: the log
-       thread set shuttingDown it to indicate it finishes */
-    shuttingDown = (gracefully) ? 1 : 4;
+    shuttingDown = gracefully ? kShutdownDrain : kShutdownDrop;
+    log_buffer_cond.notify_all();
+    log_buffer_shortage.notify_all();
+    guard.unlock();
 
-    if (log_thread_started) {
-      while (true) {
-        int old_q = log_buffer_in_q;
-        log_buffer_cond.notify_all();
-        guard.unlock();      /* let log_thread run for a bit */
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        guard.lock();
-
-        if (shuttingDown > 38) {
-          break;
-        }
-
-        if (log_buffer_in_q == old_q) {
-          shuttingDown++;
-        }
-      }
-
-      if (shuttingDown < 99) {
-        log_thread_p.join();
-      }
-    }
-
-    while ((buff = free_buffers) != NULL) {
-      free_buffers = buff->h.next;
-      --log_buffer_free;
-      guard.unlock();
-#if LOG_BUFFER_DBG
-
-      if (buff->h.debug1 != 52) {
-        fprintf(stderr, "*** log shutdown: free buffer %#p has debug1=%#x free=%d\n",
-                buff, buff->h.debug1, log_buffer_free);
-        break;
-      }
-
-#endif
-      free(buff);
-      guard.lock();
+    if (log_thread_p.joinable()) {
+      log_thread_p.join();
     }
   }
 
-  struct log_buffer;
   struct log_buffer_hdr {
-    struct log_buffer* next;
-#if LOG_BUFFER_DBG
-    int debug1;         /* for debugging only */
-#endif
     char* ptr;
     char* fanOutBuffer;
     FILE* fanOutS;
@@ -495,25 +462,38 @@ public:
 
   };
 
+  //! Capacity of the former 8 KB pool buffer, so long lines are cut at the
+  //! same length as before
+  static constexpr size_t kLineCapacity = 8016;
+
   struct log_buffer {
     struct log_buffer_hdr h;
-    char buffer[(8 * 1024 - sizeof(struct log_buffer_hdr))];
+    char buffer[kLineCapacity];
   };
 
-  struct log_buffer* free_buffers = NULL;
-  struct log_buffer* active_head = NULL;
-  struct log_buffer* active_tail = NULL;
-  int shuttingDown = 0;
-  int log_buffer_waiters = 0;     /* protected by log_buffer_shortage_mutex */
+  //! Header of one queued line in the pending buffer. It is followed by the
+  //! main line and, if hasFanOut, the fan-out text, each NUL terminated.
+  struct log_record {
+    size_t lineLen;
+    size_t fanOutLen;
+    size_t msgOffset; /* start of the message part, for syslog */
+    FILE* fanOutS;
+    FILE* fanOut;
+    int priority;
+    bool hasFanOut;
+    char fanOutTag[64];
+    char sourceTag[64];
+  };
 
-  /* limit number of log_buffers */
-  int log_buffer_total = 0;       /* protected by log_mutex */
-  int max_log_buffers = 2048;     /* reasonable: 2048 */;
+  static constexpr int kShutdownDrain = 1;
+  static constexpr int kShutdownDrop = 2;
+  std::atomic<int> shuttingDown{0};
+  int log_buffer_waiters = 0; /* protected by log_buffer_mutex */
 
-  /* the following are info only, could be junked */
-  int log_buffer_balance = 0;    /* between "requested" and "queued" */
-  int log_buffer_free = 0;
-  int log_buffer_in_q = 0;
+  /* the pending buffer holds at most max_log_buffers * 8 KB */
+  int max_log_buffers = 2048;
+
+  int log_buffer_in_q = 0; /* lines in the pending buffer */
   unsigned int log_buffer_num_waits = 0;
 
   bool log_suspended = false;
@@ -523,13 +503,52 @@ public:
   std::mutex log_buffer_mutex;
   std::condition_variable log_buffer_cond;
   std::condition_variable log_buffer_shortage;
+  std::string pending; /* protected by log_buffer_mutex */
 
+  //! Thread-local buffer to format one line, nullptr after shutdown
   struct log_buffer* log_alloc_buffer();
-  void log_return_buffers(struct log_buffer*);
+  //! Append the formatted line to the pending buffer, waits if it is full
   void log_queue_buffer(struct log_buffer*);
   void log_thread();
+  void log_write_batch(const std::string& batch, std::string& out,
+                       std::vector<FILE*>& toFlush);
 };
 
+//------------------------------------------------------------------------------
+//! Lock of the in-memory log ring (gLogMemory, gLogCircularIndex). A log line
+//! locks only the stripe of its thread; Lock() takes all stripes, so readers
+//! still see a consistent ring while writers do not wait for each other.
+//------------------------------------------------------------------------------
+class LogMemoryMutex {
+public:
+  static constexpr size_t kStripes = 64;
+
+  void
+  Lock()
+  {
+    for (auto& stripe : mStripes) {
+      stripe.mtx.lock();
+    }
+  }
+
+  void
+  UnLock()
+  {
+    for (size_t i = kStripes; i-- > 0;) {
+      mStripes[i].mtx.unlock();
+    }
+  }
+
+  //! Stripe of the calling thread (assigned round-robin on first use)
+  std::mutex& ThreadStripe();
+
+private:
+  struct alignas(64) Stripe {
+    std::mutex mtx;
+  };
+
+  Stripe mStripes[kStripes];
+};
 
 //------------------------------------------------------------------------------
 //! Class wrapping global singleton objects for logging
@@ -549,7 +568,8 @@ public:
   std::atomic<int> gPriorityLevel; //< log priority
   bool gToSysLog; //< duplicate into syslog
   std::atomic<bool> gToStderr; //< write to stderr, the default
-  XrdSysMutex gMutex; //< global mutex
+  LogMemoryMutex gMutex;       //< protects gLogMemory and gLogCircularIndex
+  std::mutex gRateLimitMutex;  //< protects the rate limiter state
   XrdOucString gUnit; //< global unit name
   //! Global list of function names allowed to log
   XrdOucHash<const char*> gAllowFilter;
@@ -559,7 +579,7 @@ public:
   //! Here one can define log fan-out to different file descriptors than stderr
   std::map<std::string, FILE*> gLogFanOut;
 
-  bool gRateLimiter; //< indicating to apply message rate limiting
+  std::atomic<bool> gRateLimiter; //< indicating to apply message rate limiting
 
   LogBuffer* LB;
 
@@ -642,6 +662,7 @@ public:
   void
   SetIndexSize(size_t size)
   {
+    gMutex.Lock();
     gCircularIndexSize = size;
 
     for (int i = 0; i <= LOG_DEBUG; i++) {
@@ -649,6 +670,8 @@ public:
       gLogMemory[i].resize(size);
       gLogMemory[i].shrink_to_fit();
     }
+
+    gMutex.UnLock();
   }
 
 

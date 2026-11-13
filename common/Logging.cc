@@ -32,10 +32,12 @@
 #include <unistd.h>
 #endif
 #include <XrdSys/XrdSysPthread.hh>
-#include <new>
-#include <type_traits>
+#include <algorithm>
 #include <atomic>
 #include <map>
+#include <memory>
+#include <new>
+#include <type_traits>
 
 //------------------------------------------------------------------------------
 // Anonymous namespace for gRPC logging helpers
@@ -49,7 +51,7 @@ void
 DisableGrpcLogging()
 {
 #ifdef HAVE_GRPC_LOGGING
-  auot GrpcLogFunction = []()grpc_log_func_args* args) {
+  auto GrpcLogFunction = [](gpr_log_func_args*) {
     // This function intentionally does nothing to suppress gRPC logs
   };
   gpr_set_log_function(GrpcLogFunction);
@@ -254,239 +256,77 @@ Logging::shouldlog(const char* func, int priority)
 }
 
 
-#if LOG_BUFFER_DBG
-
-static int cmpPtr(const void* a, const void* b)
-{
-  return (*(intptr_t*)a - * (intptr_t*)b);
-}
-
-static void
-check_log_buffer_chain(LogBuffer::log_buffer* chain, int maxSize,
-                       const char* name, const char* _FILE, const int _LINE)
-{
-  LogBuffer::log_buffer* buff2, *buff3;
-  LogBuffer::log_buffer** arrAct = (LogBuffer::log_buffer**) malloc(
-                                     maxSize * sizeof(void*));
-  int m;
-
-  for (m = 0, buff2 = chain; buff2 != NULL; buff2 = buff2->h.next, m++) {
-    if (m > 0) {
-      if (buff3 == buff2) {
-        fprintf(stderr,
-                "%s:%d log_buffer_prb buffer twice (in succesion) on %s chain after %u items, cut\n",
-                _FILE, _LINE, name, m);
-        fflush(stderr);
-        buff3->h.next = NULL;
-      }
-    };
-
-    buff3 = buff2;
-
-    if (m >= maxSize) {
-      fprintf(stderr,
-              "%s:%d log_buffer_prb more (%u) buffers on %s list than total (%u), cut\n",
-              _FILE, _LINE, m, name, maxSize);
-      fflush(stderr);
-      buff3->h.next = NULL;
-      break;
-    }
-
-    arrAct[m] = buff2;
-  }
-
-  if (m > 1) {
-    qsort(arrAct, m, sizeof(void*), cmpPtr);
-    int i;
-
-    for (i = 1; i < m; i++)
-      if (arrAct[i - 1] == arrAct[i]) {
-        buff2 = arrAct[i - 1];
-        fprintf(stderr,
-                "%s:%d log_buffer_prb buffer %p twice on chain %s, cut\n",  _FILE, _LINE,
-                buff2, name);
-        fflush(stderr);
-        buff2->h.next = NULL;
-      }
-  }
-
-  free(arrAct);
-  fprintf(stderr, "%s:%d log_buffer chain %s verified %u elements\n",
-          _FILE, _LINE, name, m);
-}
-#endif
-
-
 LogBuffer::log_buffer*
 LogBuffer::log_alloc_buffer()
 {
-  LogBuffer::log_buffer* buff = NULL;
-  std::unique_lock<std::mutex> guard(log_buffer_mutex);
+  static thread_local std::unique_ptr<log_buffer> tl_buffer;
 
   if (shuttingDown) {
-    return NULL;
+    return nullptr;
   }
 
-  /* log_buffer_balance is incorrect until we really allocated a buffer! */
-  LogBuffer::log_buffer_balance++;
-
-  while (true) {
-    buff = free_buffers;
-
-    if (buff != NULL) {
-      free_buffers = buff->h.next;
-      log_buffer_free--;
-      break;
-    }
-
-    if (shuttingDown) {
-      return NULL;
-    }
-
-    /* no free buffer, alloc new one if below budget, or wait */
-    if (LogBuffer::log_buffer_total < LogBuffer::max_log_buffers) {
-      buff = (struct log_buffer*) malloc(sizeof(struct log_buffer));
-      log_buffer_total++;
-#if LOG_BUFFER_DBG > 2
-      buff->h.debug1 = 7;
-      {
-        /* consistency checks, to be removed*/
-        int num_in_queue;
-        LogBuffer::log_buffer* bx = active_head, *bbx;
-
-        for (num_in_queue = 0; bx != NULL; num_in_queue++) {
-          bbx = bx->h.next;
-
-          if (bx == bbx) {
-            fprintf(stderr, "%s:%d active log_buffer_prb!\n",
-                    __FILE__, __LINE__);
-            bx->h.next = NULL;
-            break;
-          }
-
-          bx = bbx;
-        }
-
-        if (num_in_queue != log_buffer_in_q)
-          fprintf(stderr, "%s:%d wrong log_buffer_in_q: %d != %d\n",
-                  __FILE__, __LINE__,
-                  num_in_queue, log_buffer_in_q);
-
-        fprintf(stderr,
-                "\ntotal_log_buffers: %d balance %d in_q %d free %d waiters %d\n",
-                log_buffer_total, log_buffer_balance,
-                log_buffer_in_q,
-                log_buffer_free,
-                log_buffer_waiters);
-      }
-#else
-
-      if ((log_buffer_total & 0x1ff) == 0)
-        fprintf(stderr,
-                "\ntotal_log_buffers: %d balance %d in_q %d free %d waiters %d\n",
-                log_buffer_total, log_buffer_balance,
-                log_buffer_in_q, log_buffer_free, log_buffer_waiters);
-
-#endif
-      break;
-    }
-
-    /* wait for a free buffer */
-#if LOG_BUFFER_DBG > 2
-    check_log_buffer_chain(active_head, log_buffer_total,
-                           "active", __FILE__, __LINE__);
-#endif
-
-    if ((log_buffer_num_waits & 0xfff) == 0)
-      fprintf(stderr,
-              "log_buffer_shortage #%u with %u waiters, total_log_buffers %u balance %d in_q %u free %u\n",
-              log_buffer_num_waits, log_buffer_waiters,
-              LogBuffer::log_buffer_total, LogBuffer::log_buffer_balance,
-              log_buffer_in_q, log_buffer_free);
-
-    log_buffer_num_waits++;
-    LogBuffer::log_buffer_waiters++;  /* this asks for a wake-up call when a buffer is freed */
-    log_buffer_shortage.wait(guard);
-    LogBuffer::log_buffer_waiters--;
-    /* retry... */
-    continue;
+  if (!tl_buffer) {
+    tl_buffer.reset(new log_buffer());
   }
 
-  buff->h.next = NULL;
-  buff->h.fanOutBuffer = NULL;
-#if LOG_BUFFER_DBG
-  buff->h.debug1 = 42;;
-#endif
-  return buff;
+  tl_buffer->h.fanOutBuffer = nullptr;
+  tl_buffer->h.fanOutTag[0] = '\0';
+  return tl_buffer.get();
 }
 
-void
-LogBuffer::log_return_buffers(LogBuffer::log_buffer* buff)
+//------------------------------------------------------------------------------
+// The queue lock is held only for one short append: spin a little on
+// try_lock before the mutex puts the thread to sleep
+//------------------------------------------------------------------------------
+static void
+lock_queue(std::unique_lock<std::mutex>& guard)
 {
-  LogBuffer::log_buffer* buff2, *buff3;
-  /* count number of buffers returned, find last one (buff2 (='previous')) */
-  int n = 1;
-
-  for (buff2 = buff; (buff3 = buff2->h.next) != NULL; buff2 = buff3) {
-#if LOG_BUFFER_DBG > 1
-
-    if (buff3->h.debug1 != 42) {    /* check the next buffer */
-      fprintf(stderr,
-              "%s:%d log_buffer_prb returning circular buffer list %p->%p code %d, cut\n",
-              __FILE__, __LINE__, buff2, buff3, buff3->h.debug1);
-      buff2->h.next = NULL;
-      break;
-    } else          /*debug*/
-#endif
-#if LOG_BUFFER_DBG > 0
-      buff2->h.debug1 = 52;           /* flag buffer as seen */
-
-#endif
-    n++;
-  }
-
-  std::unique_lock<std::mutex> guard(log_buffer_mutex);
-#if LOG_BUFFER_DBG > 0
-  buff2->h.debug1 =
-    52;                   /* flags the last buffer as well, it has been checked */
-
-  if (log_buffer_free + n >
-      log_buffer_total) {   /* Something's wrong, check all chains thoroughly */
-    fprintf(stderr,
-            "%s:%d log_buffer_prb log_buffer_free %d > log_buffer_total %d, %d buffers returned\n",
-            __FILE__, __LINE__, log_buffer_free, log_buffer_total, n);
-    fflush(stderr);
-
-    if (n > 1) {
-      check_log_buffer_chain(buff, n + 1, "2Bfreed", __FILE__, __LINE__);
+  for (int i = 0; i < 100; ++i) {
+    if (guard.try_lock()) {
+      return;
     }
 
-    check_log_buffer_chain(active_head, log_buffer_total, "active", __FILE__,
-                           __LINE__);
-    return;         /* drop all these buffers */
-  }
-
+#if defined(__x86_64__) || defined(__i386__)
+    __builtin_ia32_pause();
+#elif defined(__aarch64__)
+    asm volatile("yield");
 #endif
-  buff2->h.next = free_buffers;
-  free_buffers = buff;
-  log_buffer_free += n;
-
-  if (log_buffer_waiters > 0) {   /* This is the condition the CV protects */
-    if (n == 1) {
-      log_buffer_shortage.notify_one();
-    } else {
-      log_buffer_shortage.notify_all();
-    }
   }
+
+  guard.lock();
 }
 
 void
 LogBuffer::log_queue_buffer(LogBuffer::log_buffer* buff)
 {
-  std::unique_lock<std::mutex> guard(log_buffer_mutex);
+  // Build the record outside the lock, the lock only covers one append
+  static thread_local std::string tl_record;
+  log_record rec{};
+  rec.lineLen = strlen(buff->buffer);
+  rec.msgOffset = buff->h.ptr - buff->buffer;
+  rec.priority = buff->h.priority;
+  // fanOutS/fanOut are only set when fanOutBuffer is set
+  rec.fanOutS = buff->h.fanOutBuffer ? buff->h.fanOutS : nullptr;
+  rec.hasFanOut = buff->h.fanOutBuffer && buff->h.fanOut;
 
-  if (shuttingDown) { /* get out quickly, the queues are no longer valid */
-    // free(buff);
+  if (rec.hasFanOut) {
+    rec.fanOut = buff->h.fanOut;
+    rec.fanOutLen = strlen(buff->h.fanOutBuffer);
+  }
+
+  memcpy(rec.fanOutTag, buff->h.fanOutTag, sizeof(rec.fanOutTag));
+  memcpy(rec.sourceTag, buff->h.sourceTag, sizeof(rec.sourceTag));
+  tl_record.assign(reinterpret_cast<const char*>(&rec), sizeof(rec));
+  tl_record.append(buff->buffer, rec.lineLen + 1);
+
+  if (rec.hasFanOut) {
+    tl_record.append(buff->h.fanOutBuffer, rec.fanOutLen + 1);
+  }
+
+  std::unique_lock<std::mutex> guard(log_buffer_mutex, std::defer_lock);
+  lock_queue(guard);
+
+  if (shuttingDown) {
     return;
   }
 
@@ -495,154 +335,159 @@ LogBuffer::log_queue_buffer(LogBuffer::log_buffer* buff)
     resume_int();
   }
 
-  LogBuffer::log_buffer* prev;
+  const size_t limit = (size_t)max_log_buffers * 8 * 1024;
 
-  if (active_tail == NULL) {
-    /* the following works because offset(next) == 0 */
-    prev = (LogBuffer::log_buffer*) &active_tail;
-  } else {
-    prev = active_tail;
+  while (!pending.empty() && (pending.size() + tl_record.size() > limit)) {
+    if ((log_buffer_num_waits & 0xfff) == 0) {
+      fprintf(stderr, "log_buffer_shortage #%u with %u waiters, in_q %d bytes %zu\n",
+              log_buffer_num_waits, log_buffer_waiters, log_buffer_in_q, pending.size());
+    }
+
+    log_buffer_num_waits++;
+    log_buffer_waiters++;
+    log_buffer_shortage.wait(guard);
+    log_buffer_waiters--;
+
+    if (shuttingDown) {
+      return;
+    }
   }
 
-  buff->h.next = NULL;
-  prev->h.next = buff;
-  active_tail = buff;
-
-  if (!active_head) {
-    active_head = buff;
-  }
-
+  // The log thread only sleeps on an empty queue
+  const bool wake = pending.empty();
+  pending += tl_record;
   log_buffer_in_q++;
-  /* log_buffer_balance designates buffers between intended allocation and print queueing */
-  log_buffer_balance--;
-  log_buffer_cond.notify_all();
-}
 
+  if (wake) {
+    log_buffer_cond.notify_one();
+  }
+}
 
 void
 LogBuffer::log_thread()
 {
-  LogBuffer::log_buffer* buff = NULL, *buff_2b_returned = NULL;
-  unsigned int num_buff_2b_returned = 0;
-#if LOG_BUFFER_DBG
-  unsigned int notify_counter = 0;
-  unsigned int old_waits = 0;
-#endif
+  std::string batch, out;
+  std::vector<FILE*> toFlush;
   std::unique_lock<std::mutex> guard(log_buffer_mutex);
 
-  while (1) {
-    if (shuttingDown > 0 or active_head == NULL or num_buff_2b_returned > 15 or
-        log_buffer_waiters > 0) {
-      if (buff_2b_returned != NULL) {
-        guard.unlock();
-        log_return_buffers(buff_2b_returned);
-        guard.lock();
-        num_buff_2b_returned = 0;
-        buff_2b_returned = NULL;
-        continue;
-      }
+  while (true) {
+    log_buffer_cond.wait(guard, [this] { return !pending.empty() || shuttingDown; });
 
-      if (shuttingDown > 0 and (active_head == NULL or shuttingDown > 3)) {
-        /* there is no safe way to dispatch what's still in the queue: the stream pointers
-         * may no longer be valid unless this is a graceful shutdown */
-        shuttingDown = 42;
-        guard.unlock();                      /* Time to get out */
-        return;
-      }
+    if ((shuttingDown == kShutdownDrop) || pending.empty()) {
+      return;
+    }
 
-      if (active_head == NULL) {
-#if LOG_BUFFER_DBG
+    batch.swap(pending);
+    log_buffer_in_q = 0;
 
-        if ((log_buffer_num_waits > old_waits) and ++notify_counter > 1000) {
-          notify_counter = 0;
-          old_waits = log_buffer_num_waits;
-          fprintf(stderr,
-                  "\nlog_buffer queue empty, log_buffer_total: %d balance %d free %d waits %u waiters %d\n",
-                  log_buffer_total, log_buffer_balance, log_buffer_free,
-                  log_buffer_num_waits, log_buffer_waiters);
-        }
+    if (log_buffer_waiters > 0) {
+      log_buffer_shortage.notify_all();
+    }
 
-#endif
-        fflush(stderr);
-        log_buffer_cond.wait(guard);
+    guard.unlock();
+    log_write_batch(batch, out, toFlush);
+    batch.clear();
+    guard.lock();
+  }
+}
 
-        if (shuttingDown) {
-          shuttingDown = 41;
-          continue;
-        }
+void
+LogBuffer::log_write_batch(const std::string& batch, std::string& out,
+                           std::vector<FILE*>& toFlush)
+{
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  out.clear();
+  toFlush.clear();
+
+  for (size_t off = 0; off < batch.size();) {
+    log_record rec;
+    memcpy(&rec, batch.data() + off, sizeof(rec));
+    const char* line = batch.data() + off + sizeof(rec);
+    const char* fanOutText = line + rec.lineLen + 1;
+    off += sizeof(rec) + rec.lineLen + 1 + (rec.hasFanOut ? rec.fanOutLen + 1 : 0);
+
+    if (g_logging.gToStderr && !g_logging.IsZstdEnabled()) {
+      out.append(line, rec.lineLen);
+      out += '\n';
+
+      if (out.size() >= (1 << 20)) {
+        fwrite(out.data(), 1, out.size(), stderr);
+        out.clear();
       }
     }
 
-    if (active_head) {
-      /* unchain */
-      buff = active_head;
-      active_head = active_head->h.next;
-      bool null_active_head = active_head == NULL;
+    if (g_logging.gToSysLog) {
+      syslog(rec.priority, "%s", line + rec.msgOffset);
+    }
 
-      if (null_active_head) {
-        active_tail = NULL;
+    if (g_logging.IsZstdEnabled()) {
+      // Resolve canonical per-tag name from source/fanout and write compressed
+      std::string tag = g_logging.ResolveZstdTag(rec.sourceTag, rec.fanOutTag);
+
+      if (!tag.empty()) {
+        g_logging.WriteZstd(tag.c_str(), line);
       }
 
-      log_buffer_in_q--;
-      guard.unlock();                                 /* drop while buffer is printed */
-
-      const bool to_stderr = eos::common::Logging::GetInstance().gToStderr &&
-                             !eos::common::Logging::GetInstance().IsZstdEnabled();
-
-      if (to_stderr) {
-        fprintf(stderr, "%s\n", buff->buffer);
-      }
-
-      if (to_stderr) {
-        if (null_active_head) {
-          fflush(stderr);        /* only flush if there's no other */
+      // Also write the main line into the compressed xrdlog.<service> stream
+      std::string mainTag = g_logging.GetMainZstdTag();
+      g_logging.WriteZstd(mainTag.c_str(), line);
+    } else {
+      auto flushLater = [&toFlush](FILE* fp) {
+        if (std::find(toFlush.begin(), toFlush.end(), fp) == toFlush.end()) {
+          toFlush.push_back(fp);
         }
+      };
+
+      if (rec.fanOutS) {
+        fwrite(line, 1, rec.lineLen, rec.fanOutS);
+        fputc('\n', rec.fanOutS);
+        flushLater(rec.fanOutS);
       }
 
-      if (eos::common::Logging::GetInstance().gToSysLog) {
-        syslog(buff->h.priority, "%s", buff->h.ptr);
+      if (rec.hasFanOut) {
+        fputs(fanOutText, rec.fanOut);
+        flushLater(rec.fanOut);
       }
-
-      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        // Resolve canonical per-tag name from source/fanout and write compressed
-        std::string tag = eos::common::Logging::GetInstance().ResolveZstdTag(
-                            buff->h.sourceTag,
-                            buff->h.fanOutTag);
-
-        if (!tag.empty()) {
-          eos::common::Logging::GetInstance().WriteZstd(tag.c_str(), buff->buffer);
-        }
-      } else {
-        if (buff->h.fanOutBuffer != NULL) {
-          if (buff->h.fanOutS != NULL) {
-            fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
-            fflush(buff->h.fanOutS);
-          }
-
-          if (buff->h.fanOut != NULL) {
-            fputs(buff->h.fanOutBuffer, buff->h.fanOut);
-            fflush(buff->h.fanOut);
-          }
-        }
-      }
-
-      // Also write the main formatted line into a compressed stream named like xrdlog.<service>
-      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        std::string mainTag = eos::common::Logging::GetInstance().GetMainZstdTag();
-        eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
-      }
-
-      if (buff_2b_returned != buff) {
-        buff->h.next = buff_2b_returned;
-        buff_2b_returned = buff;
-        num_buff_2b_returned++;
-      } else
-        fprintf(stderr, "%s.%d log_buffer_prb returning returned log_buffer\n",
-                __FILE__, __LINE__);
-
-      guard.lock();
     }
   }
+
+  if (!out.empty()) {
+    fwrite(out.data(), 1, out.size(), stderr);
+  }
+
+  fflush(stderr);
+
+  for (FILE* fp : toFlush) {
+    fflush(fp);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Stripe of the calling thread
+//------------------------------------------------------------------------------
+std::mutex&
+LogMemoryMutex::ThreadStripe()
+{
+  static std::atomic<size_t> sNext{0};
+  static thread_local const size_t tl_stripe = sNext++ % kStripes;
+  return mStripes[tl_stripe].mtx;
+}
+
+//------------------------------------------------------------------------------
+// localtime_r takes the glibc time zone lock: convert once per second and thread
+//------------------------------------------------------------------------------
+static void
+cached_localtime(time_t t, struct tm& out)
+{
+  static thread_local time_t tl_sec = -1;
+  static thread_local struct tm tl_tm;
+
+  if (t != tl_sec) {
+    localtime_r(&t, &tl_tm);
+    tl_sec = t;
+  }
+
+  out = tl_tm;
 }
 
 //------------------------------------------------------------------------------
@@ -713,7 +558,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   char sourceline[64];
 
   if (gShortFormat) {
-    localtime_r(&current_time, &tm);
+    cached_localtime(current_time, tm);
     snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
     XrdOucString slog = logid;
 
@@ -738,7 +583,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
             cident,
             vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str(),
             vid.trace.c_str(), vid.onbehalf.c_str());
-    localtime_r(&current_time, &tm);
+    cached_localtime(current_time, tm);
     snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer,
             "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ",
@@ -752,11 +597,10 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, sizeof(logBuffer->buffer) - (ptr - buffer + 1), msg, args);
 
-  if (!silent) {
-    XrdSysMutexHelper scope_lock(gMutex);
+  if (!silent && gRateLimiter) {
+    std::lock_guard<std::mutex> lock(gRateLimitMutex);
 
     if (rate_limit(tv, priority, file, line)) {
-      LB->log_return_buffers(logBuffer);
       va_end(args);
       return "";
     }
@@ -774,10 +618,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
       logBuffer->h.fanOutTag[0] = '\0';
 
       // we do log-message fanout
+      // The "*" fan-out gets the main line, the log thread adds the newline
       if (gLogFanOut.count("*")) {
         logBuffer->h.fanOutS = gLogFanOut["*"];
-        snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen, "%s\n",
-                 logBuffer->buffer);
         snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "*");
       }
 
@@ -825,22 +668,21 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     priority = LOG_DEBUG;
   }
 
-  // store into global log memory
+  // store into global log memory: reserve the slot and copy the line under
+  // the stripe of this thread, so a reader holding all stripes sees no gap
   {
-    XrdSysMutexHelper scope_lock(gMutex);
+    std::lock_guard<std::mutex> lock(gMutex.ThreadStripe());
+    const unsigned long idx =
+        __atomic_fetch_add(&gLogCircularIndex[priority], 1, __ATOMIC_RELAXED);
+    XrdOucString& slot = gLogMemory[priority][idx % gCircularIndexSize];
     /* the following copies the buffer, hence it can be queued and vanish anytime after */
-    gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] =
-      buffer;
-    rptr = gLogMemory[priority][(gLogCircularIndex[priority]) %
-                                gCircularIndexSize].c_str();
-    gLogCircularIndex[priority]++;
+    slot = buffer;
+    rptr = slot.c_str();
   }
 
   if (!silent) {
     logBuffer->h.priority = priority;
     LB->log_queue_buffer(logBuffer);
-  } else {
-    LB->log_return_buffers(logBuffer);
   }
 
   return rptr;

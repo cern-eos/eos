@@ -47,12 +47,17 @@ if (ABSL_FOUND AND NOT TARGET ABSL::ABSL)
     INTERFACE_LINK_LIBRARIES "${ABSL_LIBRARIES}")
 
   include(CheckSymbolExists)
-  # Check grpc logging function
-  check_symbol_exists(gpr_set_log_function "${ABLS_INCLUDE_DIR}" HAVE_GRPC_LOGGING)
+  # gRPC has its own log function until it moved to abseil logging. The
+  # gRPC headers sit next to abseil; compile only, so libgpr is not needed.
+  set(CMAKE_REQUIRED_INCLUDES ${ABSL_INCLUDE_DIR})
+  set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+  check_symbol_exists(gpr_set_log_function "grpc/support/log.h" HAVE_GRPC_LOGGING)
+  unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+  unset(CMAKE_REQUIRED_INCLUDES)
 
   if (HAVE_GRPC_LOGGING)
     message(STATUS "Grpc internal logging!")
-    targe_compile_definitions(ABLS::ABLS PUBLIC HAVE_GRPC_LOGGING)
+    target_compile_definitions(ABSL::ABSL INTERFACE HAVE_GRPC_LOGGING)
   else()
     message(STATUS "Grpc uses abseil logging!")
   endif()
