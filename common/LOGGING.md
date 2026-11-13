@@ -261,7 +261,13 @@ Environment variables
 ---------------------
 
 - `EOS_LOG_SYSLOG=1|true` — duplicate log messages to syslog in addition to `stderr`.
-- `EOS_MGM_LOG_BUFFERS=<N>` — cap the maximum number of internal log buffers (default 2048).
+- `EOS_MGM_LOG_BUFFERS=<N>` — limit the queue of lines that wait for the log
+  thread to N × 8 KB (default 2048, i.e. 16 MB). When the queue is full, a
+  thread that logs waits. The queue and the batch of the log thread keep their
+  capacity after a burst, so up to 2 × N × 8 KB stay allocated. The knob does
+  not limit the per-thread memory: every thread that has logged keeps an 8 KB
+  format buffer and a record buffer of its longest line (up to about 16 KB with
+  a fan-out line) until it exits.
 
 
 API reference (selected)
@@ -301,6 +307,3 @@ Route `Server.cc` logs to a separate file:
 FILE* fx = fopen("/var/log/eos/fxserver.log", "a");
 eos::common::Logging::GetInstance().AddFanOut("Server", fx); // from FuseServer/Server.cc
 ```
-
-
-
