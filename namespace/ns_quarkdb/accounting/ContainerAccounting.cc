@@ -63,15 +63,8 @@ QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
   switch (e->action) {
   // We are only interested in SizeChange events
   case IFileMDChangeListener::SizeChange:
-    // e->file can be nullptr here
-    if ((e->file && e->file->getContainerId() == 0) || !e->file) {
-      // NOTE: This is an ugly hack. The file object has not reference to the
-      // container id, therefore we hijack the "location" member of the Event
-      // class to pass in the container id.
-      QueueForUpdate(e->location, e->treeChange);
-    } else {
-      QueueForUpdate(e->file->getContainerId(), e->treeChange);
-    }
+    // Without a file, the event carries the container id
+    QueueForUpdate(e->file ? e->file->getContainerId() : e->containerId, e->treeChange);
 
     break;
 

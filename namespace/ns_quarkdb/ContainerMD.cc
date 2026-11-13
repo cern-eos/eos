@@ -266,13 +266,9 @@ QuarkContainerMD::removeContainer(const std::string& name)
     // Delete container also from KV backend
     pFlusher->hdel(pDirsKey, name);
   });
-  // NOTE: This is an ugly hack. There's no file object here
-  // and we hijack the "location" member of the Event
-  // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
-                                 // remove this container from the tree container counter
-  {0, 0, -1});
+  // Remove this container from the tree container counter
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, 0,
+                                 {0, 0, -1}, mCont.id());
   pFileSvc->notifyListeners(&e);
 }
 
@@ -315,13 +311,9 @@ QuarkContainerMD::addContainer(IContainerMD* container)
     // Add to new container to KV backend
     pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
   });
-  // NOTE: This is an ugly hack. There's no file object here
-  // and we hijack the "location" member of the Event
-  // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
-                                 //Add this container to the tree container counter
-  {0, 0, 1});
+  // Add this container to the tree container counter
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, 0, {0, 0, 1},
+                                 mCont.id());
   pFileSvc->notifyListeners(&e);
 }
 
@@ -397,10 +389,10 @@ QuarkContainerMD::addFile(IFileMD* file)
     (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
     pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
   });
-  // NOTE: We hijack the "location" member of the Event to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
-                                 // add the file size and do +1 in the tree files counter
-                                 {static_cast<int64_t>(file->getSize()), 1, 0});
+  // Add the file size and do +1 in the tree files counter
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, 0,
+                                 {static_cast<int64_t>(file->getSize()), 1, 0},
+                                 mCont.id());
   pFileSvc->notifyListeners(&e);
 }
 
@@ -427,11 +419,10 @@ QuarkContainerMD::removeFile(const std::string& name)
   if (found) {
     try {
       std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-      // NOTE: We hijack the "location" member of the Event to pass in the cid
-      IFileMDChangeListener::Event e(
-          nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
-          // remove the file size and do -1 in the tree files counter
-          {-static_cast<int64_t>(file->getSize()), -1, 0});
+      // Remove the file size and do -1 in the tree files counter
+      IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, 0,
+                                     {-static_cast<int64_t>(file->getSize()), -1, 0},
+                                     mCont.id());
       pFileSvc->notifyListeners(&e);
     } catch (MDException& e) {
       // File already removed
