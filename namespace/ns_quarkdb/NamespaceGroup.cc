@@ -54,6 +54,12 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup()
   eos_static_info("%s", "msg=\"shutting down sync accounting\"");
   mSyncAccounting.reset();
   eos_static_info("%s", "msg=\"shutting down container accounting\"");
+
+  if (mContainerService) {
+    static_cast<IContainerMDSvc*>(mContainerService.get())
+        ->setContainerAccounting(nullptr);
+  }
+
   mContainerAccounting.reset();
   eos_static_info("%s", "msg=\"shutting down file system view\"");
   mFilesystemView.reset();

@@ -43,6 +43,7 @@ namespace qclient {
 
 EOSNSNAMESPACE_BEGIN
 
+class QuarkContainerAccounting;
 class QuarkContainerMD;
 class MetadataProvider;
 
@@ -207,14 +208,10 @@ private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 
   //----------------------------------------------------------------------------
-  //! Set container accounting - no-op for this type of object since any type
-  //! of size accounting in done when manipulating files or using the
-  //! AddTree/RemoveTree interface of the continaer accounting view.
+  //! Set container accounting, used by removeContainer to pass the tree
+  //! counters of the removed container on to its parent
   //----------------------------------------------------------------------------
-  void setContainerAccounting(IFileMDChangeListener* containerAccounting) override
-  {
-    return;
-  }
+  void setContainerAccounting(IFileMDChangeListener* containerAccounting) override;
 
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
@@ -232,6 +229,7 @@ private:
   ListenerList pListeners;              ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;             ///< Quota view
   IFileMDSvc* pFileSvc;                 ///< File metadata service
+  QuarkContainerAccounting* mContainerAccounting{nullptr}; ///< Tree accounting
   qclient::QClient* pQcl;               ///< QClient object
   MetadataFlusher* pFlusher;            ///< Metadata flusher object
   //! Map holding metainfo about the namespace

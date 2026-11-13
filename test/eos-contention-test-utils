@@ -273,6 +273,13 @@ project_quota() {
     sed -E 's/.*usedlogicalbytes=(-?[0-9]+) usedfiles=(-?[0-9]+).*/\1 \2/'
 }
 
+# "<tree size> <tree files> <tree containers>" of a directory. The MGM applies
+# the tree updates every 5 s, so wait for that first.
+tree_counters() {
+  sleep 6
+  echo $(md_field $1 treesize) $(md_field $1 treefiles) $(md_field $1 treecontainers)
+}
+
 # ------------------------------------------------------------------------------
 # Background tasks of the load and clean up
 # ------------------------------------------------------------------------------
@@ -481,9 +488,17 @@ end_checks() {
      b=$(project_quota | cut -d " " -f2); echo "$a, recomputed $b"
      [ -n "$a" ] && [ "$a" = "$b" ]'
 
+  check "the tree counters match a recompute" \
+    'a=$(tree_counters $base); eos ns recompute_tree_size $base >/dev/null
+     b=$(tree_counters $base); echo "$a, recomputed $b"
+     [ -n "$a" ] && [ "$a" = "$b" ]'
+
   for k in $(eos ls $base); do
     eos rm -r -F $base/$k >/dev/null 2>&1
   done
+
+  check "the tree counters are 0 after rm of everything" \
+    'c=$(tree_counters $base); echo "$c"; [ "$c" = "0 0 0" ]'
 
   check "the quota is 0 after rm of everything" \
     'q=$(project_quota); echo "$q"; [ "$q" = "0 0" ]'

@@ -249,39 +249,63 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
   // mContIdsUnderRecompute and mUpdatedContIds are both guarded by mFlushMutex,
   // held for the whole cycle, so the recording cannot be reconfigured mid-apply
   const bool recording = !mContIdsUnderRecompute.empty();
+  std::unordered_map<IContainerMD::id_t, TreeInfos> parentDeltas;
 
-  for (auto const& elem : batch.mMap) {
-    try {
-      auto cont = mContainerMDSvc->getContainerMD(elem.first);
-      eos::MDLocking::ContainerWriteLock contLock(cont.get());
-      cont->updateTreeSize(elem.second.dsize);
-      cont->updateTreeFiles(elem.second.dtreefiles);
-      cont->updateTreeContainers(elem.second.dtreecontainers);
-      mContainerMDSvc->updateStore(cont.get());
-    } catch (const MDException& e) {
-      // TODO: (esindril) error message using default logging
-      continue;
+  // Apply one level at a time: a delta goes on to the parent read under the
+  // lock it was applied with. A move holds that lock while it reads the tree
+  // counters it moves and changes the parent, so the delta reaches either the
+  // old or the new parents, never both or none. The root is never updated.
+  for (uint16_t depth = 0; !batch.mMap.empty() && (depth < 255); ++depth) {
+    for (auto const& elem : batch.mMap) {
+      if (elem.first <= 1) {
+        continue;
+      }
+
+      IContainerMD::id_t parentId = 0;
+
+      try {
+        auto cont = mContainerMDSvc->getContainerMD(elem.first);
+        eos::MDLocking::ContainerWriteLock contLock(cont.get());
+
+        // Removed after the lookup: removeContainer already passed what was
+        // applied here on to the parent, a later delta is dropped
+        if (cont->isDeleted()) {
+          continue;
+        }
+
+        cont->updateTreeSize(elem.second.dsize);
+        cont->updateTreeFiles(elem.second.dtreefiles);
+        cont->updateTreeContainers(elem.second.dtreecontainers);
+        mContainerMDSvc->updateStore(cont.get());
+        parentId = cont->getParentId();
+      } catch (const MDException& e) {
+        // TODO: (esindril) error message using default logging
+        continue;
+      }
+
+      // This batch holds deltas originating from the whole namespace, while
+      // only a container the recompute rewrites with an absolute value can be
+      // corrupted by one: the others are dropped here rather than collected
+      // and discarded by the caller. Recorded only once durably applied: an id
+      // must not be visible to TakeUpdatedContIds() before its delta is
+      // reflected in the namespace.
+      if (recording && mContIdsUnderRecompute.count(elem.first)) {
+        mUpdatedContIds.insert(elem.first);
+      }
+
+      parentDeltas[parentId] += elem.second;
     }
 
-    // This batch holds deltas originating from the whole namespace, while only
-    // a container the recompute rewrites with an absolute value can be
-    // corrupted by one: the others are dropped here rather than collected and
-    // discarded by the caller. Recorded only once durably applied: an id must
-    // not be visible to TakeUpdatedContIds() before its delta is reflected in
-    // the namespace.
-    if (recording && mContIdsUnderRecompute.count(elem.first)) {
-      mUpdatedContIds.insert(elem.first);
-    }
+    batch.mMap.swap(parentDeltas);
+    parentDeltas.clear();
   }
 
   batch.mMap.clear();
 }
 
 //------------------------------------------------------------------------------
-// For each containerId and its associated size modified, this function
-// will go up the tree from container to '/' and submit the entire tree for
-// modification in the PropagateUpdate thread. Method ran by an asynchronous
-// thread.
+// Accumulate the queued deltas into the batch applied by the PropagateUpdate
+// thread. Method ran by an asynchronous thread.
 //------------------------------------------------------------------------------
 void
 QuarkContainerAccounting::AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept
@@ -315,43 +339,15 @@ QuarkContainerAccounting::AssistedQueueForUpdate(ThreadAssistant& assistant) noe
 }
 
 //------------------------------------------------------------------------------
-// Walk up the parent chain of the given container and accumulate the tree
-// info delta into the batch for the container and all its ancestors
+// Accumulate the tree info delta of the given container into the batch. The
+// parents are found when the delta is applied, see PropagateUpdatesOnce.
 //------------------------------------------------------------------------------
 void
 QuarkContainerAccounting::AccumulateUpdate(IContainerMD::id_t id,
                                            const TreeInfos& treeInfos)
 {
-  std::vector<IContainerMD::id_t> idsToUpdate;
-  uint16_t deepness = 0;
-
-  // Go up the tree and give the ids to update to the batch that will
-  // be taken by the PropagateUpdate thread
-  while ((id > 1) && (deepness < 255)) {
-    try {
-      idsToUpdate.push_back(id);
-      auto cont = mContainerMDSvc->getContainerMD(id);
-      // One operation, no need to lock the container
-      id = cont->getParentId();
-      ++deepness;
-    } catch (const MDException& e) {
-      // TODO (esindril): error message using default logging
-      break;
-    }
-  }
-
   std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-  auto& batch = mBatch[mAccumulateIndx];
-
-  for (auto idToUpdate : idsToUpdate) {
-    auto it_map = batch.mMap.find(idToUpdate);
-
-    if (it_map != batch.mMap.end()) {
-      it_map->second += treeInfos;
-    } else {
-      batch.mMap.emplace(idToUpdate, treeInfos);
-    }
-  }
+  mBatch[mAccumulateIndx].mMap[id] += treeInfos;
 }
 
 EOSNSNAMESPACE_END
