@@ -81,19 +81,22 @@ public:
   //! Event sent to the listener
   //----------------------------------------------------------------------------
   struct Event {
-    Event(IFileMD* _file, Action _action,
-          IFileMD::location_t _location = 0,
-          TreeInfos _changed_tree = {0,0,0}):
-      file(_file),
-      action(_action),
-      treeChange(_changed_tree),
-      location(_location) {}
+    Event(IFileMD* _file, Action _action, IFileMD::location_t _location = 0,
+          TreeInfos _changed_tree = {0, 0, 0}, uint64_t _container_id = 0)
+        : file(_file)
+        , action(_action)
+        , treeChange(_changed_tree)
+        , location(_location)
+        , containerId(_container_id)
+    {
+    }
 
     IFileMD*             file;
     Action               action;
     TreeInfos            treeChange;
     IFileMD::location_t  location;
-
+    //! Container of a SizeChange event without a file
+    uint64_t containerId;
   };
 
   virtual ~IFileMDChangeListener() {}
