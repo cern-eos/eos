@@ -36,12 +36,68 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
+#include <algorithm>
 #include <iomanip>
 #include <json/json.h>
+#include <limits>
+
+namespace
+{
+uint64_t
+SaturatingAdd(uint64_t left, uint64_t right)
+{
+  const uint64_t room = std::numeric_limits<uint64_t>::max() - left;
+  return left + std::min(right, room);
+}
+
+//------------------------------------------------------------------------------
+// Protobuf base plus the side hash and anything still waiting to be flushed.
+//------------------------------------------------------------------------------
+eos::FileIoTotals
+ShownFileIo(const eos::IFileMD& fmd)
+{
+  eos::FileIoTotals shown;
+  shown.rbytes = fmd.getTotalRBytes();
+  shown.rbc = fmd.getTotalRbc();
+  shown.ubytes = fmd.getTotalUBytes();
+  shown.ubc = fmd.getTotalUbc();
+
+  if ((gOFS != nullptr) && (gOFS->eosFileService != nullptr)) {
+    const eos::FileIoTotals extra = gOFS->eosFileService->getFileIo(fmd.getId());
+    shown.rbytes = SaturatingAdd(shown.rbytes, extra.rbytes);
+    shown.rbc = SaturatingAdd(shown.rbc, extra.rbc);
+    shown.ubytes = SaturatingAdd(shown.ubytes, extra.ubytes);
+    shown.ubc = SaturatingAdd(shown.ubc, extra.ubc);
+  }
+
+  return shown;
+}
+
+void
+ReplaceEnvCounter(std::string& env, const char* key, uint64_t value)
+{
+  const std::string token = std::string("&") + key + "=";
+  const auto pos = env.find(token);
+
+  if (pos == std::string::npos) {
+    return;
+  }
+
+  const auto begin = pos + token.size();
+  auto end = env.find('&', begin);
+
+  if (end == std::string::npos) {
+    end = env.size();
+  }
+
+  env.replace(begin, end - begin, std::to_string(value));
+}
+}  // namespace
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -324,6 +380,7 @@ ProcCommand::FileInfo(const char* path)
       std::ostringstream out;
       const std::string hex_fid = FileId::Fid2Hex(fmd_copy->getId());
       const std::string hex_pid = FileId::Fid2Hex(fmd_copy->getContainerId());
+      const eos::FileIoTotals io = ShownFileIo(*fmd_copy);
 
       if ((option.find("-m")) != STR_NPOS) {
         Monitoring = true;
@@ -337,6 +394,10 @@ ProcCommand::FileInfo(const char* path)
       if (Envformat) {
         std::string env;
         fmd_copy->getEnv(env);
+        ReplaceEnvCounter(env, "total-rbytes", io.rbytes);
+        ReplaceEnvCounter(env, "total-rbc", io.rbc);
+        ReplaceEnvCounter(env, "total-ubytes", io.ubytes);
+        ReplaceEnvCounter(env, "total-ubc", io.ubc);
         eos::common::Path cPath(spath.c_str());
         out << env << "&container=" << cPath.GetParentPath() << std::endl;
       } else {
@@ -441,10 +502,10 @@ ProcCommand::FileInfo(const char* path)
             }
 
             label("CPot") << fmd_copy->getCPotential() << "%" << std::endl;
-            label("RBytes") << fmd_copy->getTotalRBytes() << std::endl;
-            label("Rbc") << fmd_copy->getTotalRbc() << std::endl;
-            label("UBytes") << fmd_copy->getTotalUBytes() << std::endl;
-            label("Ubc") << fmd_copy->getTotalUbc() << std::endl;
+            label("RBytes") << io.rbytes << std::endl;
+            label("Rbc") << io.rbc << std::endl;
+            label("UBytes") << io.ubytes << std::endl;
+            label("Ubc") << io.ubc << std::endl;
             label("Status") << FileMDToStatus(fmd_copy) << std::endl;
             label("Modify") << eos::common::Timing::ltime(filemtime)
                             << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
@@ -536,10 +597,10 @@ ProcCommand::FileInfo(const char* path)
 
             out << " cpotential=" << fmd_copy->getCPotential();
 
-            out << " total-rbytes=" << fmd_copy->getTotalRBytes()
-                << " total-rbc=" << fmd_copy->getTotalRbc()
-                << " total-ubytes=" << fmd_copy->getTotalUBytes()
-                << " total-ubc=" << fmd_copy->getTotalUbc()
+            out << " total-rbytes=" << io.rbytes
+                << " total-rbc=" << io.rbc
+                << " total-ubytes=" << io.ubytes
+                << " total-ubc=" << io.ubc
                 << " status=" << FileMDToStatus(fmd_copy);
 
             if (fmd_copy->isLink()) {
@@ -1016,10 +1077,11 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     json["cpotential"] = fmd_copy->getCPotential();
 
-    json["total-rbytes"] = (Json::Value::UInt64) fmd_copy->getTotalRBytes();
-    json["total-rbc"] = (Json::Value::UInt64) fmd_copy->getTotalRbc();
-    json["total-ubytes"] = (Json::Value::UInt64) fmd_copy->getTotalUBytes();
-    json["total-ubc"] = (Json::Value::UInt64) fmd_copy->getTotalUbc();
+    const eos::FileIoTotals io = ShownFileIo(*fmd_copy);
+    json["total-rbytes"] = (Json::Value::UInt64) io.rbytes;
+    json["total-rbc"] = (Json::Value::UInt64) io.rbc;
+    json["total-ubytes"] = (Json::Value::UInt64) io.ubytes;
+    json["total-ubc"] = (Json::Value::UInt64) io.ubc;
     json["uid"] = fmd_copy->getCUid();
     json["gid"] = fmd_copy->getCGid();
     json["mode"] = fmd_copy->getFlags();

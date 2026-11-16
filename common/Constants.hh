@@ -162,6 +162,9 @@ static constexpr auto TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG =
 static constexpr uid_t ADM_UID = 3;
 static constexpr gid_t ADM_GID = 4;
 
+//! Default-space switch for per-file read and update byte accounting.
+//! Accepted values are 1, true, 0 and false. Unset means disabled.
+static constexpr auto SPACE_ACCOUNT_READS = "account.reads";
 //! Backend space config: name of the linked read-through cache space
 static constexpr auto SPACE_CACHE_SPACE_NAME = "cachespace";
 //! Cache space config: low watermark (used-bytes percent, 0-100)

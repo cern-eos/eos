@@ -78,6 +78,7 @@ set(MGM_UT_SRCS
   mgm/MgmStatusCollectorTests.cc
   mgm/HttpTests.cc
   mgm/IostatTests.cc
+  mgm/FileIoCountersTests.cc
   mgm/LockTrackerTests.cc
   mgm/LRUTests.cc
   mgm/ProcFsTests.cc

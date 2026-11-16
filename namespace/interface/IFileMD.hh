@@ -205,34 +205,35 @@ public:
   virtual void setCPotential(uint32_t potential) = 0;
 
   //----------------------------------------------------------------------------
-  //! Bytes read from this file so far
+  //! Protobuf base of bytes read. Live traffic is stored beside the file
+  //! record and added to this value when the counters are shown.
   //----------------------------------------------------------------------------
   virtual uint64_t getTotalRBytes() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Add bytes read from this file. The sum saturates at the counter maximum.
-  //! A non-zero add also counts one read-byte commit.
+  //! Add bytes read onto the protobuf base. The sum saturates. A non-zero add
+  //! also counts one read-byte commit. Live close reports do not call this.
   //----------------------------------------------------------------------------
   virtual void addTotalRBytes(uint64_t bytes) = 0;
 
   //----------------------------------------------------------------------------
-  //! Number of read-byte commits so far
+  //! Protobuf base of read-byte commits.
   //----------------------------------------------------------------------------
   virtual uint64_t getTotalRbc() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Bytes written into this file so far
+  //! Protobuf base of bytes written.
   //----------------------------------------------------------------------------
   virtual uint64_t getTotalUBytes() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Add bytes written into this file. The sum saturates at the counter maximum.
-  //! A non-zero add also counts one update-byte commit.
+  //! Add bytes written onto the protobuf base. The sum saturates. A non-zero
+  //! add also counts one update-byte commit. Live close reports do not call this.
   //----------------------------------------------------------------------------
   virtual void addTotalUBytes(uint64_t bytes) = 0;
 
   //----------------------------------------------------------------------------
-  //! Number of update-byte commits so far
+  //! Protobuf base of update-byte commits.
   //----------------------------------------------------------------------------
   virtual uint64_t getTotalUbc() const = 0;
 

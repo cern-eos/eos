@@ -36,6 +36,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "mgm/iostat/Iostat.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "mq/MessagingRealm.hh"
@@ -46,6 +47,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "mq/QdbListener.hh"
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdNet/XrdNetAddr.hh>
@@ -942,6 +944,11 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
   const std::string qdb_channel = "/eos/*/report";
   mq::QdbListener listener(gOFS->mQdbContactDetails, qdb_channel);
+  auto flush_file_io = [](bool force) {
+    if ((gOFS != nullptr) && (gOFS->eosFileService != nullptr)) {
+      gOFS->eosFileService->flushFileIo(force);
+    }
+  };
 
   while (!assistant.terminationRequested()) {
     std::string newmessage;
@@ -1075,12 +1082,60 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
       }
 
       AccountFileBytes(*report);
+      flush_file_io(false);
     }
 
     assistant.wait_for(std::chrono::seconds(1));
+    flush_file_io(false);
   }
 
+  flush_file_io(true);
   eos_static_info("%s", "msg=\"stopping iostat receiver thread\"");
+}
+
+//------------------------------------------------------------------------------
+// space.account.reads on the default space. Unset, 0 and false are off.
+// The value is cached for a second so a close report does not take the
+// filesystem-view lock.
+//------------------------------------------------------------------------------
+static bool
+FileReadsAccountingEnabled()
+{
+  static auto checked = std::chrono::steady_clock::time_point {};
+  static bool enabled = false;
+  const auto now = std::chrono::steady_clock::now();
+
+  if ((now - checked) < std::chrono::seconds(1)) {
+    return enabled;
+  }
+
+  checked = now;
+  enabled = false;
+
+  try {
+    FsSpace* space = nullptr;
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      const auto it = FsView::gFsView.mSpaceView.find("default");
+
+      if ((it != FsView::gFsView.mSpaceView.end()) && (it->second != nullptr)) {
+        space = it->second;
+      }
+    }
+
+    if (space == nullptr) {
+      return false;
+    }
+
+    const std::string value = space->GetConfigMember(eos::common::SPACE_ACCOUNT_READS);
+    enabled = (value == "1") || (value == "true");
+  } catch (const std::exception& e) {
+    eos_static_debug("msg=\"failed to read space.account.reads\" emsg=\"%s\"",
+                     e.what());
+    enabled = false;
+  }
+
+  return enabled;
 }
 
 //------------------------------------------------------------------------------
@@ -1090,8 +1145,11 @@ void
 Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
 {
   if ((report.fid == 0) || (gOFS == nullptr) || (gOFS->mMaster == nullptr) ||
-      !gOFS->mMaster->IsMaster() || (gOFS->eosView == nullptr) ||
-      (gOFS->eosFileService == nullptr)) {
+      !gOFS->mMaster->IsMaster() || (gOFS->eosFileService == nullptr)) {
+    return;
+  }
+
+  if (!FileReadsAccountingEnabled()) {
     return;
   }
 
@@ -1103,11 +1161,10 @@ Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
     return;
   }
 
-  auto saturating_add = [](uint64_t current, uint64_t bytes) -> uint64_t {
-    const uint64_t room = std::numeric_limits<uint64_t>::max() - current;
-    return current + std::min(bytes, room);
-  };
-  const uint64_t rbytes = saturating_add(report.rb, report.rvb_sum);
+  const uint64_t rb = report.rb;
+  const uint64_t room = std::numeric_limits<uint64_t>::max() - rb;
+  const uint64_t rbytes = rb + std::min(static_cast<uint64_t>(report.rvb_sum),
+                                        room);
   const uint64_t ubytes = report.wb;
 
   if ((rbytes == 0) && (ubytes == 0)) {
@@ -1115,36 +1172,7 @@ Iostat::AccountFileBytes(const eos::common::Report& report) noexcept
   }
 
   try {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, report.fid);
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmd;
-
-    try {
-      fmd = gOFS->eosFileService->getFileMD(report.fid);
-    } catch (eos::MDException& e) {
-      eos_static_debug("msg=\"skip file traffic counter, metadata gone\" "
-                       "fxid=%08llx ec=%d emsg=\"%s\"",
-                       report.fid, e.getErrno(), e.getMessage().str().c_str());
-      return;
-    }
-
-    if (!fmd) {
-      return;
-    }
-
-    if (rbytes) {
-      fmd->addTotalRBytes(rbytes);
-    }
-
-    if (ubytes) {
-      fmd->addTotalUBytes(ubytes);
-    }
-
-    gOFS->eosView->updateFileStore(fmd.get());
-  } catch (eos::MDException& e) {
-    eos_static_debug("msg=\"failed to account file traffic\" fxid=%08llx "
-                     "ec=%d emsg=\"%s\"",
-                     report.fid, e.getErrno(), e.getMessage().str().c_str());
+    gOFS->eosFileService->addFileIo(report.fid, rbytes, ubytes);
   } catch (const std::exception& e) {
     eos_static_err("msg=\"failed to account file traffic\" fxid=%08llx "
                    "emsg=\"%s\"", report.fid, e.what());
