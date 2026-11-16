@@ -23,7 +23,7 @@ std::string MakeVidHelp()
          "policies\n"
       << "                                        -u : show only user role mappings\n"
       << "                                        -g : show only group role mappings\n"
-      << "                                        -s : show list of sudoers\n"
+      << "                                        -s : show list of sudoers and mcp readers\n"
       << "                                        -U : show user alias mapping\n"
       << "                                        -G : show group alias mapping\n"
       << "                                        -y : show configured gateways\n"
@@ -38,6 +38,8 @@ std::string MakeVidHelp()
       << "       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n"
       << "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n"
       << "       vid set membership <uid> [+|-]sudo \n"
+      << "       vid set membership <uid> [+|-]mcp  : allow <uid> to use the read-only "
+         "admin MCP endpoint without admin rights\n"
       << "       vid rm membership <uid>             : delete the membership entries for "
          "<uid>.\n"
       << "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 "
@@ -255,6 +257,11 @@ public:
           in += "&mgm.vid.cmd=membership&mgm.vid.key=";
           in += (XrdOucString)(uid + ":root");
           in += "&mgm.vid.target.sudo=false";
+        } else if ((type == "+mcp") || (type == "-mcp")) {
+          in += "&mgm.vid.cmd=membership&mgm.vid.key=";
+          in += (XrdOucString)(uid + ":mcp");
+          in += (type == "+mcp") ? "&mgm.vid.target.mcp=true"
+                                 : "&mgm.vid.target.mcp=false";
         } else {
           printHelp();
           global_retc = EINVAL;

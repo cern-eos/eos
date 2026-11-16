@@ -271,6 +271,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     eos::common::Mapping::gVirtualUidMap.clear();
     eos::common::Mapping::gVirtualGidMap.clear();
     eos::common::Mapping::gAllowedTidentMatches.clear();
+    eos::common::Mapping::gMcpReaders.clear();
   }
   Access::Reset(!apply_stall_redirect);
   gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
@@ -558,6 +559,7 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
     eos::common::Mapping::gVirtualUidMap.clear();
     eos::common::Mapping::gVirtualGidMap.clear();
     eos::common::Mapping::gAllowedTidentMatches.clear();
+    eos::common::Mapping::gMcpReaders.clear();
   }
   Access::Reset(!apply_stall_redirect);
   gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);

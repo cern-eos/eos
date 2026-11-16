@@ -23,6 +23,8 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
+#include "mgm/mcp/McpAdmin.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
@@ -201,6 +203,32 @@ class RequestServiceImpl final : public Eos::Service {
       std::this_thread::sleep_until(start + std::chrono::milliseconds(100));
     }
     return grpc::Status::OK;
+  }
+
+  Status Mcp(ServerContext* context, const eos::rpc::McpRequest* request,
+             eos::rpc::McpReply* reply) override
+  {
+    eos::common::VirtualIdentity vid;
+    GrpcServer::Vid(context, vid, request->authkey());
+
+    if (!mcp::IsMcpCaller(vid)) {
+      eos_static_warning("msg=\"mcp admin denied\" peer=%s uid=%u",
+                         context->peer().c_str(), vid.uid);
+      return Status(grpc::StatusCode::PERMISSION_DENIED,
+                    "MCP admin endpoint requires an admin or mcp reader identity");
+    }
+
+    if (request->body().size() > mcp::kMaxRequestBytes) {
+      return Status(grpc::StatusCode::INVALID_ARGUMENT,
+                    "MCP request body is too large");
+    }
+
+    WAIT_BOOT;
+    const mcp::McpDispatchResult result = mcp::DispatchForAdmin(request->body(),
+        vid);
+    reply->set_body(result.body);
+    reply->set_notification(result.notification);
+    return Status::OK;
   }
 };
 

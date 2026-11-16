@@ -189,6 +189,11 @@ public:
   static SudoerMap_t gSudoerMap;
 
   // ---------------------------------------------------------------------------
+  //! Uids allowed to use the read-only admin MCP endpoint without being admin
+  // ---------------------------------------------------------------------------
+  static uid_set gMcpReaders;
+
+  // ---------------------------------------------------------------------------
   //! Map keeping the geo location HostName=>GeoTag translation
   // ---------------------------------------------------------------------------
   static GeoLocationMap_t gGeoMap;

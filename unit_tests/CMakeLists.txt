@@ -119,6 +119,7 @@ set(MGM_UT_SRCS
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
   mgm/http/HttpServerTests.cc
+  mgm/mcp/McpAdminTests.cc
   mgm/http/rest-api/tape/RestApiTest.cc
   mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc
   mgm/http/rest-api/tape/TapeJsonifierTest.cc

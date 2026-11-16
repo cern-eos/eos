@@ -288,6 +288,12 @@ add_library(
   monitoring/PrometheusExporter.hh
   http/HttpServer.cc
   http/HttpHandler.cc
+  mcp/McpAdmin.cc
+  mcp/McpAdmin.hh
+  mcp/McpAdminCommands.cc
+  mcp/McpAdminCommands.hh
+  mcp/McpAdminSource.cc
+  mcp/McpAdminSource.hh
   http/webdav/WebDAVHandler.cc
   http/webdav/WebDAVResponse.cc
   http/webdav/PropFindResponse.cc

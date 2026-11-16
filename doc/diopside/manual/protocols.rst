@@ -159,6 +159,18 @@ verbose information you can change the log level:
    eos debug info
 
 .. index::
+   pair: HTTP; MCP
+   pair: gRPC; MCP
+
+Read-only admin MCP
+"""""""""""""""""""
+
+The MGM serves a read-only `Model Context Protocol <https://modelcontextprotocol.io>`_
+endpoint for administration on the MGM HTTP port as ``POST /mcp`` and on the
+Eos gRPC service as ``Eos.Mcp``. The setup of a dedicated non-admin MCP user,
+the tools and the troubleshooting are described in :ref:`mcp`.
+
+.. index::
    pair: HTTP; SE Linux
 
 SE Linux

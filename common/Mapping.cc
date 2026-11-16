@@ -119,6 +119,7 @@ Mapping::GroupRoleMap_t Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
+Mapping::uid_set Mapping::gMcpReaders;
 std::atomic<bool> Mapping::gRootSquash = true;
 std::atomic<bool> Mapping::gSecondaryGroups = false;
 std::atomic<int> Mapping::gTokenSudo = Mapping::kAlways;
@@ -1434,6 +1435,26 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
 
         stdOut += ",";
       }
+    }
+
+    if (stdOut.endswith(",")) {
+      stdOut.erase(stdOut.length() - 1);
+    }
+
+    stdOut += ")\n";
+    stdOut += "mcp                    => uids(";
+
+    for (const auto uid : gMcpReaders) {
+      int errc = 0;
+      std::string username = UidToUserName(uid, errc);
+
+      if (!errc && translateids) {
+        stdOut += username.c_str();
+      } else {
+        stdOut += (int) uid;
+      }
+
+      stdOut += ",";
     }
 
     if (stdOut.endswith(",")) {

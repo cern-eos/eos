@@ -128,6 +128,9 @@ HttpResponse::GetResponseCodeDescription()
   case CREATED:
     return std::string("CREATED");
 
+  case ACCEPTED:
+    return std::string("ACCEPTED");
+
   case NO_CONTENT:
     return std::string("NO_CONTENT");
 
@@ -158,6 +161,9 @@ HttpResponse::GetResponseCodeDescription()
   case METHOD_NOT_ALLOWED:
     return std::string("METHOD_NOT_ALLOWED");
 
+  case NOT_ACCEPTABLE:
+    return std::string("NOT_ACCEPTABLE");
+
   case CONFLICT:
     return std::string("CONFLICT");
 
@@ -166,6 +172,9 @@ HttpResponse::GetResponseCodeDescription()
 
   case PRECONDITION_FAILED:
     return std::string("PRECONDITION_FAILED");
+
+  case PAYLOAD_TOO_LARGE:
+    return std::string("PAYLOAD_TOO_LARGE");
 
   case UNSUPPORTED_MEDIA_TYPE:
     return std::string("UNSUPPORTED_MEDIA_TYPE");

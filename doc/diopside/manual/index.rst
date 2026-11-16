@@ -19,6 +19,7 @@ Manual
    interfaces
    microservices
    protocols
+   mcp
    using
    read_through_cache
    formats

@@ -34,6 +34,7 @@
 #include "namespace/utils/Mode.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/mcp/McpAdmin.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -59,6 +60,13 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("handling http request");
   eos::common::HttpResponse* response = 0;
+
+  if (mcp::IsMcpPath(request->GetUrl(true))) {
+    response = mcp::HandleHttp(request, mVirtualIdentity);
+    mHttpResponse = response;
+    return;
+  }
+
   bool isRestRequest = gOFS->mRestApiManager->isRestRequest(request->GetUrl());
 
   if (isRestRequest) {

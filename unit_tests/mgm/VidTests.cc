@@ -48,6 +48,7 @@ protected:
   {
     eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
     eos::common::Mapping::gSudoerMap.clear();
+    eos::common::Mapping::gMcpReaders.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -145,4 +146,32 @@ TEST_F(VidSudoerTest, UnknownUserNameRemovalAllowed)
                             "&mgm.vid.target.sudo=false";
   ASSERT_TRUE(eos::mgm::Vid::Set(input.c_str(), false));
   ASSERT_FALSE(IsSudoer(eos::common::VirtualIdentity::kNobodyUid));
+}
+
+//------------------------------------------------------------------------------
+// The mcp membership adds and removes a read-only MCP reader, never nobody,
+// and does not grant sudo rights
+//------------------------------------------------------------------------------
+TEST_F(VidSudoerTest, McpReaderMembership)
+{
+  auto is_reader = [](uid_t uid) {
+    eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
+    return eos::common::Mapping::gMcpReaders.count(uid) != 0;
+  };
+  const std::string add = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=membership"
+                          "&mgm.vid.key=12345:mcp&mgm.vid.source.uid=12345"
+                          "&mgm.vid.target.mcp=true";
+  ASSERT_TRUE(eos::mgm::Vid::Set(add.c_str(), false));
+  ASSERT_TRUE(is_reader(12345));
+  ASSERT_FALSE(IsSudoer(12345));
+  const std::string rm = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=membership"
+                         "&mgm.vid.key=12345:mcp&mgm.vid.source.uid=12345"
+                         "&mgm.vid.target.mcp=false";
+  ASSERT_TRUE(eos::mgm::Vid::Set(rm.c_str(), false));
+  ASSERT_FALSE(is_reader(12345));
+  const std::string nobody = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=membership"
+                             "&mgm.vid.key=xyzabcde:mcp&mgm.vid.source.uid=xyzabcde"
+                             "&mgm.vid.target.mcp=true";
+  ASSERT_FALSE(eos::mgm::Vid::Set(nobody.c_str(), false));
+  ASSERT_FALSE(is_reader(eos::common::VirtualIdentity::kNobodyUid));
 }

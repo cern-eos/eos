@@ -169,6 +169,18 @@ public:
   //----------------------------------------------------------------------------
   static std::string ToLogJson(const eos::console::RequestProto& req);
 
+  //----------------------------------------------------------------------------
+  //! Handle protobuf request
+  //!
+  //! @parm protobuf request object
+  //! @param vid virtual identity of the client
+  //!
+  //! @return unique pointer to ProcCommand object or null otherwise
+  //----------------------------------------------------------------------------
+  static std::unique_ptr<IProcCommand>
+  HandleProtobufRequest(eos::console::RequestProto& req,
+                        eos::common::VirtualIdentity& vid);
+
   ///! Pool of threads executing asynchronously long-running client commands
   static eos::common::ThreadPool sProcThreads;
 
@@ -194,18 +206,6 @@ private:
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
   HandleProtobufRequest(const char* opaque, eos::common::VirtualIdentity& vid);
-
-  //----------------------------------------------------------------------------
-  //! Handle protobuf request
-  //!
-  //! @parm protobuf request object
-  //! @param vid virtual identity of the client
-  //!
-  //! @return unique pointer to ProcCommand object or null otherwise
-  //----------------------------------------------------------------------------
-  static std::unique_ptr<IProcCommand>
-  HandleProtobufRequest(eos::console::RequestProto& req,
-                        eos::common::VirtualIdentity& vid);
 
   //! Map of command id to async proc commands
   static std::unordered_map<std::string, std::unique_ptr<IProcCommand>> mMapCmds;

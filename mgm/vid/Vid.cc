@@ -201,6 +201,31 @@ Vid::Set(const char* value, bool storeConfig)
         return true;
       }
     }
+
+    if ((val = env.Get("mgm.vid.target.mcp"))) {
+      if (std::string(val) == "true") {
+        if (uid == eos::common::VirtualIdentity::kNobodyUid) {
+          eos_static_err("msg=\"refusing to add nobody to the mcp reader list\" "
+                         "key=\"%s\" value=\"%s\"",
+                         skey.c_str(), value);
+          return false;
+        }
+
+        eos::common::Mapping::gMcpReaders.insert(uid);
+
+        if (storeConfig) {
+          gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), value);
+        }
+      } else {
+        eos::common::Mapping::gMcpReaders.erase(uid);
+
+        if (storeConfig) {
+          gOFS->mConfigEngine->DeleteConfigValue("vid", skey.c_str());
+        }
+      }
+
+      return true;
+    }
   }
 
   if (vidcmd == "map") {

@@ -174,7 +174,7 @@ VidCompletion(CommandCompletionSchema& schema, CLI::App& app)
   schema.argument(geotag, "geotag");
   auto& membership = schema.sub(set, "membership");
   schema.argument(membership, "uid");
-  schema.argument(membership, "operation", {"-uids", "-gids", "+sudo", "-sudo"});
+  schema.argument(membership, "operation", {"-uids", "-gids", "+sudo", "-sudo", "+mcp", "-mcp"});
   schema.argument(membership, "ids");
   auto& map = schema.sub(set, "map");
   schema.argument(map, "authentication",

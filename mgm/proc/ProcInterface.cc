@@ -635,9 +635,10 @@ ProcInterface::VidIsAdmin(const eos::common::VirtualIdentity& vid,
 {
   // Prefer the protocol reported by the security entity (matches the legacy
   // Authorize behaviour); fall back to vid.prot for callers that don't have
-  // an entity available (e.g. the protobuf dispatcher).
-  const std::string protocol = entity ? entity->prot
-                                      : std::string(vid.prot.c_str());
+  // an entity available (e.g. the protobuf dispatcher). A default-constructed
+  // identity leaves the XrdOucString empty, and c_str() is then null.
+  const char* reported = entity ? entity->prot : vid.prot.c_str();
+  const std::string protocol = reported ? reported : "";
 
   // Hosts with 'sss' authentication can run admin commands only when the
   // login is the daemon account.

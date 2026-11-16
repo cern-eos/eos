@@ -37,6 +37,7 @@
 #include <XrdOuc/XrdOucPinPath.hh>
 #include <stdio.h>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/mcp/McpAdmin.hh"
 
 #include <set>
 
@@ -319,6 +320,22 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (mMgmOfsHandler->mRestGrpcSrv && IsRestApiRequest(req)) {
     return ProcessRestApiPost(req, normalized_headers);
+  }
+
+  if (eos::mgm::mcp::IsMcpPath(req.resource) && req.verb == "POST") {
+    if (req.length > static_cast<long long>(eos::mgm::mcp::kMaxRequestBytes)) {
+      const std::string errmsg = "MCP request body is too large";
+      return req.SendSimpleResp(413, "PAYLOAD_TOO_LARGE", nullptr,
+                                errmsg.c_str(), errmsg.length());
+    }
+
+    if (req.length > 0) {
+      std::optional<int> retCode = readBody(req, body);
+
+      if (retCode) {
+        return retCode.value();
+      }
+    }
   }
 
   bool is_rest_req = mMgmOfsHandler->mRestApiManager->isRestRequest(
