@@ -243,6 +243,8 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
   // held for the whole cycle, so the recording cannot be reconfigured mid-apply
   const bool recording = !mContIdsUnderRecompute.empty();
   std::unordered_map<IContainerMD::id_t, TreeInfos> parentDeltas;
+  // Containers updated in memory by the levels below, written once at the end
+  std::unordered_map<IContainerMD::id_t, IContainerMDPtr> updated;
 
   // Apply one level at a time: a delta goes on to the parent read under the
   // lock it was applied with. A move holds that lock while it reads the tree
@@ -269,21 +271,11 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
         cont->updateTreeSize(elem.second.dsize);
         cont->updateTreeFiles(elem.second.dtreefiles);
         cont->updateTreeContainers(elem.second.dtreecontainers);
-        mContainerMDSvc->updateStore(cont.get());
         parentId = cont->getParentId();
+        updated.emplace(elem.first, cont);
       } catch (const MDException& e) {
         // TODO: (esindril) error message using default logging
         continue;
-      }
-
-      // This batch holds deltas originating from the whole namespace, while
-      // only a container the recompute rewrites with an absolute value can be
-      // corrupted by one: the others are dropped here rather than collected
-      // and discarded by the caller. Recorded only once durably applied: an id
-      // must not be visible to TakeUpdatedContIds() before its delta is
-      // reflected in the namespace.
-      if (recording && mContIdsUnderRecompute.count(elem.first)) {
-        mUpdatedContIds.insert(elem.first);
       }
 
       parentDeltas[parentId] += elem.second;
@@ -294,6 +286,32 @@ QuarkContainerAccounting::PropagateUpdatesOnce()
   }
 
   batch.mMap.clear();
+
+  // One store write per container and cycle, not one per level: a container
+  // gets a delta at each level that has a descendant with a delta
+  for (const auto& [id, cont] : updated) {
+    try {
+      eos::MDLocking::ContainerWriteLock contLock(cont.get());
+
+      if (cont->isDeleted()) {
+        continue;
+      }
+
+      mContainerMDSvc->updateStore(cont.get());
+    } catch (const MDException& e) {
+      continue;
+    }
+
+    // This batch holds deltas originating from the whole namespace, while
+    // only a container the recompute rewrites with an absolute value can be
+    // corrupted by one: the others are dropped here rather than collected
+    // and discarded by the caller. Recorded only once durably applied: an id
+    // must not be visible to TakeUpdatedContIds() before its delta is
+    // reflected in the namespace.
+    if (recording && mContIdsUnderRecompute.count(id)) {
+      mUpdatedContIds.insert(id);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

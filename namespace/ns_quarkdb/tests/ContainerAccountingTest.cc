@@ -28,6 +28,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>
@@ -353,4 +354,62 @@ TEST_F(ContainerAccountingF, MovedContainerKeepsParentsExact)
   ASSERT_EQ(1500, cont->getTreeSize());
   ASSERT_EQ(2, cont->getTreeFiles());
   ASSERT_EQ(3, cont->getTreeContainers());
+}
+
+//------------------------------------------------------------------------------
+// Container service that forwards to the real one and counts the store writes
+//------------------------------------------------------------------------------
+class CountingContainerMDSvc : public eos::QuarkContainerMDSvc {
+public:
+  explicit CountingContainerMDSvc(eos::IContainerMDSvc* svc)
+      : eos::QuarkContainerMDSvc(nullptr, nullptr)
+      , mSvc(svc)
+  {
+  }
+
+  eos::IContainerMDPtr
+  getContainerMD(eos::IContainerMD::id_t id, uint64_t* clock) override
+  {
+    return mSvc->getContainerMD(id, clock);
+  }
+
+  void
+  updateStore(eos::IContainerMD* obj) override
+  {
+    ++mNumUpdates;
+    mSvc->updateStore(obj);
+  }
+
+  eos::IContainerMDSvc* mSvc;
+  int mNumUpdates = 0;
+};
+
+//------------------------------------------------------------------------------
+// A propagation cycle writes each container it updates once, not once per
+// level that brings it a delta
+//------------------------------------------------------------------------------
+TEST_F(ContainerAccountingF, PropagationWritesEachContainerOnce)
+{
+  constexpr int depth = 30;
+  std::string path = "/test";
+  std::vector<eos::IContainerMD::id_t> chain;
+
+  for (int i = 0; i < depth; ++i) {
+    path += "/c" + std::to_string(i);
+    chain.push_back(view()->createContainer(path, true)->getId());
+  }
+
+  namespaceGroupPtr->getQuarkContainerAccounting()->Flush();
+  CountingContainerMDSvc svc(containerSvc());
+  eos::QuarkContainerAccounting accounting(&svc, sNoPeriodicPropagationSec);
+
+  for (auto id : chain) {
+    accounting.QueueForUpdate(id, eos::TreeInfos{1, 1, 0});
+  }
+
+  accounting.Flush();
+  // The chain and /test
+  ASSERT_EQ(depth + 1, svc.mNumUpdates);
+  ASSERT_EQ(depth, view()->getContainer("/test")->getTreeFiles());
+  ASSERT_EQ(depth, view()->getContainer("/test/c0")->getTreeFiles());
 }
