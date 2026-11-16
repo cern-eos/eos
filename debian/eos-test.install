@@ -7,6 +7,7 @@ usr/sbin/eos-file-cont-detached-test
 usr/sbin/eos-lru-test
 usr/sbin/eos-io-test
 usr/sbin/eos-io-tool
+usr/sbin/eos-jwk-https-test
 usr/sbin/eos-oc-test
 usr/sbin/eos-rain-test
 usr/sbin/eos-rain-pio-write-test

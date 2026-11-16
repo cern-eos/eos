@@ -1,0 +1,202 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------
+# File: eos-jwk-https-test
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Checks eos-jwk-https, the HTTPS server of eos-scitokenapi that publishes the
+# public keys of a local token issuer.
+
+usage() {
+  cat <<'EOF'
+Usage: eos-jwk-https-test [<eos-jwk-https>]
+
+  <eos-jwk-https>  the server to test (default: /usr/sbin/eos-jwk-https)
+
+It needs python3, curl and jq. It starts the server without
+arguments, which serves on port 4443 with the host certificate, so it runs as
+root on a host with /etc/grid-security/daemon/host{cert,key}.pem, and port
+4443 must be free.
+EOF
+}
+
+set -o pipefail
+
+if [[ $# -gt 1 || $1 == -h || $1 == --help ]]; then
+  usage
+  exit 2
+fi
+
+server=${1:-/usr/sbin/eos-jwk-https}
+hostcert=/etc/grid-security/daemon/hostcert.pem
+hostkey=/etc/grid-security/daemon/hostkey.pem
+
+for cmd in python3 curl jq; do
+  if ! command -v "$cmd" > /dev/null; then
+    echo "FAIL: $cmd not found"
+    exit 1
+  fi
+done
+
+if [[ ! -f $server || ! -x $server ]]; then
+  echo "FAIL: $server is not an executable file"
+  exit 1
+fi
+
+if [[ ! -r $hostcert || ! -r $hostkey ]]; then
+  echo "FAIL: $hostcert or $hostkey is not readable"
+  exit 1
+fi
+
+if (exec 3<> /dev/tcp/127.0.0.1/4443) 2> /dev/null; then
+  echo "FAIL: port 4443 is in use"
+  exit 1
+fi
+
+fqdn=$(python3 -c 'import socket; print(socket.getfqdn())') || exit 1
+work=$(mktemp -d) || exit 1
+pid=""
+code=""
+curl_rc=0
+body=""
+failures=0
+
+cleanup() {
+  if [[ -n $pid ]]; then
+    kill "$pid" 2> /dev/null
+    wait "$pid" 2> /dev/null
+  fi
+
+  rm -rf "$work"
+}
+
+trap cleanup EXIT
+
+fail() {
+  echo "FAIL: $1"
+  failures=$((failures + 1))
+}
+
+# get <URL> [curl options...]
+# Sets $code, $curl_rc, and $body to the exact response body. Leaves the body
+# and the headers in $work/body and $work/headers.
+get() {
+  local url=$1
+  shift
+  : > "$work/body"
+  : > "$work/headers"
+  code=$(curl -s -D "$work/headers" -o "$work/body" -w '%{http_code}' "$@" "$url")
+  curl_rc=$?
+  body=$(cat "$work/body"; printf x)
+  body=${body%x}
+}
+
+# expect <name> <HTTP code> <URL> [curl options...]
+# Fetches <URL> and checks that curl reads the whole answer, that it has
+# <HTTP code>, and that a Content-Length gives its end: curl 8, and so
+# scitokens-cpp, fails to read an answer that ends with a TLS close without
+# close_notify.
+expect() {
+  local name=$1 want=$2 length size
+  shift 2
+  get "$@"
+
+  if [[ $curl_rc != 0 ]]; then
+    fail "$name: curl failed to read the answer (rc $curl_rc, HTTP $code): $body"
+    return 1
+  fi
+
+  if [[ $code != "$want" ]]; then
+    fail "$name: HTTP $code instead of $want: $body"
+    return 1
+  fi
+
+  length=$(awk 'tolower($1) == "content-length:" { print $2 + 0 }' "$work/headers")
+  size=$(( $(wc -c < "$work/body") ))
+
+  if [[ $length != "$size" ]]; then
+    fail "$name: Content-Length is '$length' instead of the body size $size"
+    return 1
+  fi
+}
+
+# start <name> <probe URL> [server arguments...]
+# Starts the server, with its stdout and stderr in $work/<name>.{out,err}, and
+# waits until it answers 200 on <probe URL>, even if curl fails to read it.
+start() {
+  local name=$1 probe=$2 i
+  shift 2
+
+  "$server" "$@" > "$work/$name.out" 2> "$work/$name.err" &
+  pid=$!
+
+  for i in $(seq 1 50); do
+    get "$probe" -k
+
+    if [[ $code == 200 ]]; then
+      return 0
+    fi
+
+    if ! kill -0 "$pid" 2> /dev/null; then
+      break
+    fi
+
+    sleep 0.2
+  done
+
+  fail "$name: the server did not start:"
+  cat "$work/$name.err"
+  return 1
+}
+
+stop() {
+  kill -TERM "$pid"
+  wait "$pid"
+  pid=""
+}
+
+# --- No arguments: EOS_JWK on port 4443 with the host certificate ------------
+# The JWKS is served verbatim, so its spacing must survive.
+jwks='{"keys": [ {"kty": "EC", "kid": "noarg", "crv": "P-256",
+  "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+  "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"} ]}'
+base="https://127.0.0.1:4443"
+
+if EOS_JWK=$jwks start noarg "$base/.well-known/openid-configuration"; then
+  if expect "noarg: openid-configuration" 200 "$base/.well-known/openid-configuration" -k &&
+     ! jq -e --arg u "https://$fqdn:4443/jwk" '.jwks_uri == $u' "$work/body" > /dev/null; then
+    fail "noarg: openid-configuration: jwks_uri is not https://$fqdn:4443/jwk: $body"
+  fi
+
+  if expect "noarg: /jwk" 200 "$base/jwk" -k && [[ $body != "$jwks" ]]; then
+    fail "noarg: /jwk is not EOS_JWK verbatim: $body"
+  fi
+
+  expect "noarg: /other" 404 "$base/other" -k
+  stop
+fi
+
+if (( failures )); then
+  echo "FAIL: $failures check(s) failed"
+  exit 1
+fi
+
+echo "PASS"
