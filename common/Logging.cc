@@ -662,7 +662,6 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   }
 
   va_end(args);
-  const char* rptr;
 
   if (silent) {
     priority = LOG_DEBUG;
@@ -679,7 +678,6 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     XrdOucString& slot = gLogMemory[priority][pos];
     /* the following copies the buffer, hence it can be queued and vanish anytime after */
     slot = buffer;
-    rptr = slot.c_str();
   }
 
   if (!silent) {
@@ -687,7 +685,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     LB->log_queue_buffer(logBuffer);
   }
 
-  return rptr;
+  // Not the ring slot: other threads reuse it when the ring wraps. The thread
+  // local buffer stays valid until this thread logs again.
+  return buffer;
 }
 
 bool

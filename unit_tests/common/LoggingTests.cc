@@ -260,4 +260,38 @@ TEST(Logging, RingSlotOneWriterAtATime)
   gLogging.SetLogPriority(old_level);
 }
 
+//------------------------------------------------------------------------------
+// The line returned by log() stays valid when other threads wrap the ring
+//------------------------------------------------------------------------------
+TEST(Logging, ReturnedLineSurvivesRingWrap)
+{
+  using namespace eos::common;
+  LogBuffer* old_lb = gLogging.LB;
+  const bool old_stderr = gLogging.gToStderr;
+  const int old_level = gLogging.gPriorityLevel;
+  const auto old_fanout = gLogging.gLogFanOut;
+  LogBuffer lb;
+  gLogging.LB = &lb;
+  gLogging.gToStderr = false;
+  gLogging.gLogFanOut.clear();
+  gLogging.SetLogPriority(LOG_INFO);
+  gLogging.SetIndexSize(2);
+  const char* line = eos_static_log(LOG_INFO, "msg=\"returned line\"");
+  const std::string expected = line;
+  std::thread other([]() {
+    for (int i = 0; i < 2; ++i) {
+      eos_static_info("msg=\"other thread\" seq=%d", i);
+    }
+  });
+  other.join();
+  const std::string after = line;
+  lb.shutDown(true);
+  gLogging.SetIndexSize(EOSCOMMONLOGGING_CIRCULARINDEXSIZE);
+  gLogging.LB = old_lb;
+  gLogging.gToStderr = old_stderr;
+  gLogging.gLogFanOut = old_fanout;
+  gLogging.SetLogPriority(old_level);
+  EXPECT_EQ(after, expected);
+}
+
 EOSCOMMONTESTING_END
