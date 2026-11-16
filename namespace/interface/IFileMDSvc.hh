@@ -38,6 +38,18 @@ EOSNSNAMESPACE_BEGIN
 
 //! Forward declaration
 class IContainerMDSvc;
+
+//----------------------------------------------------------------------------
+//! Traffic accounted beside the file protobuf. File info adds these values
+//! to the protobuf base.
+//----------------------------------------------------------------------------
+struct FileIoTotals {
+  uint64_t rbytes = 0;
+  uint64_t rbc = 0;
+  uint64_t ubytes = 0;
+  uint64_t ubc = 0;
+};
+
 class IQuotaStats;
 
 struct TreeInfos {
@@ -187,6 +199,27 @@ public:
   //! Remove object from the store, you should write lock the file before calling this
   //------------------------------------------------------------------------
   virtual void removeFile(IFileMD* obj) = 0;
+
+  //------------------------------------------------------------------------
+  //! Add a close report onto the in-memory file traffic counters. A non-zero
+  //! byte count also counts one commit. The counters are flushed to the
+  //! eos-file-io:<fid> hash.
+  //------------------------------------------------------------------------
+  virtual void addFileIo(IFileMD::id_t /*id*/, uint64_t /*rbytes*/,
+                          uint64_t /*ubytes*/) {}
+
+  //------------------------------------------------------------------------
+  //! Stored side-hash counters plus anything still waiting to be flushed.
+  //------------------------------------------------------------------------
+  virtual FileIoTotals getFileIo(IFileMD::id_t /*id*/)
+  {
+    return {};
+  }
+
+  //------------------------------------------------------------------------
+  //! Queue accumulated file traffic counters. With force, flush immediately.
+  //------------------------------------------------------------------------
+  virtual void flushFileIo(bool /*force*/ = false) {}
 
   //------------------------------------------------------------------------
   //! Get number of files

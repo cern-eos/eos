@@ -25,6 +25,7 @@
 #define EOS_NS_FILE_MD_SVC_HH
 
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/FileIoCounters.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "qclient/structures/QHash.hh"
@@ -120,6 +121,10 @@ public:
   //------------------------------------------------------------------------
   virtual void removeFile(IFileMD* obj) override;
 
+  void addFileIo(IFileMD::id_t id, uint64_t rbytes, uint64_t ubytes) override;
+  FileIoTotals getFileIo(IFileMD::id_t id) override;
+  void flushFileIo(bool force) override;
+
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
@@ -204,6 +209,7 @@ private:
   std::unique_ptr<MetadataProvider>
   mMetadataProvider; ///< Provides metadata from backend
   UnifiedInodeProvider mUnifiedInodeProvider; ///< Provides next free inode
+  FileIoCounters mFileIo; ///< In-memory file traffic, flushed to eos-file-io
 };
 
 EOSNSNAMESPACE_END

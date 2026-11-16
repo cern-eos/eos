@@ -211,6 +211,8 @@ std::string MakeSpaceHelp()
          "enable/disable the 'file archived' garbage collector [ default=off ]\n"
       << "space config <space-name> space.tracker=on|off                        : "
          "enable/disable the space layout creation tracker [ default=off ]\n"
+      << "space config default space.account.reads=1|true|0|false               : "
+         "count bytes read and written on each file [ default=off ]\n"
       << "space config <space-name> space.inspector=on|off                      : "
          "enable/disable the file inspector [ default=off ]\n"
       << "space config <space-name> space.inspector.interval=<sec>              : time "

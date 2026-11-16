@@ -92,6 +92,7 @@ add_library(
 
   ns_quarkdb/CacheRefreshListener.cc                      ns_quarkdb/CacheRefreshListener.hh
   ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
+  ns_quarkdb/FileIoCounters.cc                            ns_quarkdb/FileIoCounters.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
                                                           ns_quarkdb/LRU.hh
   ns_quarkdb/NamespaceGroup.cc                            ns_quarkdb/NamespaceGroup.hh

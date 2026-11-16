@@ -970,7 +970,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key.substr(0, 9) == std::string("attr.sys.")) ||
           (key == eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF) ||
           (key == eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF) ||
-          (key == "groupsize") || (key == "groupmod") || (key == "quota")) {
+          (key == "groupsize") || (key == "groupmod") || (key == "quota") ||
+          (key == eos::common::SPACE_ACCOUNT_READS)) {
         if ((key == "balancer") || (key == "tracker") || (key == "inspector") ||
             (key == "lru") || (key == "groupbalancer") || (key == "geobalancer") ||
             (key == "geo.access.policy.read.exact") ||
@@ -1150,6 +1151,23 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             } else {
               std_out.str("success: setting quota=" + value);
             }
+          }
+        } else if (key == eos::common::SPACE_ACCOUNT_READS) {
+          applied = true;
+
+          if (space_name != "default") {
+            ret_c = EINVAL;
+            std_err.str("error: space.account.reads can only be set on the "
+                        "default space");
+          } else if ((value != "1") && (value != "true") && (value != "0") &&
+                     (value != "false")) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to be 1, true, 0 or false");
+          } else if (!space->SetConfigMember(key, value)) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            std_out.str("success: setting space.account.reads=" + value);
           }
         } else if (key == "wfe") {
           applied = true;

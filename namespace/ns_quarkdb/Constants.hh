@@ -34,6 +34,8 @@ namespace constants
 static const std::string sContainerKey {"eos-container-md"};
 //! Key for file metadata locality hash.
 static const std::string sFileKey {"eos-file-md"};
+//! Prefix of the per-file traffic counter hash, eos-file-io:<fid>.
+static const std::string sFileIoPrefix {"eos-file-io:"};
 //! Suffix for set of subcontainers in a container
 static const std::string sMapDirsSuffix{":map_conts"};
 //! Suffix for set of files in a container

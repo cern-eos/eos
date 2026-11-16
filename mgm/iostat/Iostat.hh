@@ -586,10 +586,11 @@ public:
                        time_t start, time_t stop);
 
   //----------------------------------------------------------------------------
-  //! Add a close report's bytes onto the file's total-rbytes / total-ubytes.
-  //! Each non-zero add also counts one total-rbc or total-ubc commit.
-  //! Runs off the client close path. Drain, balance and conversion transfers,
-  //! and the replica fan-out of a transfer, are not counted.
+  //! Add a close report's bytes onto the file traffic counters. Each non-zero
+  //! add also counts one commit. The counters stay in memory and are flushed
+  //! to eos-file-io:<fid>. Counting is off unless the default space has
+  //! space.account.reads set to 1 or true. Drain, balance and conversion
+  //! transfers, and the replica fan-out of a transfer, are not counted.
   //!
   //! @param report close report already parsed from an FST
   //----------------------------------------------------------------------------
