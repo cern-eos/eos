@@ -2314,6 +2314,37 @@ Permanently deleting the achive will not delete any data from EOS, but only the 
 Therefore, it is the **user's responsibility** to make sure he/she first gets the data back to EOS before
 requesting the deletion of the archive.
 
+Per-file byte counters
+----------------------
+
+EOS can count the bytes read from a file and the bytes written into it.
+The count comes from the close report of a client transfer. Drain, balance,
+conversion, and the extra replica copies of a transfer are not counted. Each
+counted close also increments a commit counter.
+
+Counting is off unless the default space enables it:
+
+.. code-block:: bash
+
+   eos space config default space.account.reads=1
+   eos space config default space.account.reads=true
+   eos space config default space.account.reads=0
+   eos space config default space.account.reads=false
+
+``1`` and ``true`` enable counting. ``0``, ``false``, and a missing key leave
+it disabled. The key is accepted only on the ``default`` space.
+
+New counts stay in memory on the master and are flushed every five seconds
+with ``HINCRBYMULTI`` into the QuarkDB hash ``eos-file-io:<fid>``. The fields
+are ``rbytes``, ``rbc``, ``ubytes``, and ``ubc``. Deleting a file deletes that
+hash. Values already stored in the file record stay there and are not rewritten
+on each close.
+
+``eos file info`` prints the sum of the file record and that hash. The
+human-readable labels are ``RBytes``, ``Rbc``, ``UBytes``, and ``Ubc``.
+Monitoring and JSON keep the names ``total-rbytes``, ``total-rbc``,
+``total-ubytes``, and ``total-ubc``.
+
 Data Obufscation and Encryption
 -------------------------------
 

@@ -42,13 +42,16 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient* qcl, MetadataFlusher* flusher)
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher),
-    pQcl(qcl), mMetaMap(), mNumFiles(0ull), mMetadataProvider(nullptr) {}
+    pQcl(qcl), mMetaMap(), mNumFiles(0ull), mMetadataProvider(nullptr),
+    mFileIo(qcl, flusher) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 QuarkFileMDSvc::~QuarkFileMDSvc()
 {
+  mFileIo.flush(true);
+
   if (pFlusher) {
     pFlusher->synchronize();
   }
@@ -270,6 +273,7 @@ QuarkFileMDSvc::removeFile(IFileMD* obj)
     // Marked before the delete is queued, under the mutex of updateStore
     std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
     obj->setDeleted();
+    mFileIo.drop(id);
     pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(id)));
     pFlusher->srem(constants::sOrphanFiles, sid);
   }
@@ -279,6 +283,33 @@ QuarkFileMDSvc::removeFile(IFileMD* obj)
   if (mNumFiles) {
     --mNumFiles;
   }
+}
+
+//------------------------------------------------------------------------------
+// Add close-report bytes onto the side counter
+//------------------------------------------------------------------------------
+void
+QuarkFileMDSvc::addFileIo(IFileMD::id_t id, uint64_t rbytes, uint64_t ubytes)
+{
+  mFileIo.add(id, rbytes, ubytes);
+}
+
+//------------------------------------------------------------------------------
+// Read the side counter, including bytes still waiting to be flushed
+//------------------------------------------------------------------------------
+FileIoTotals
+QuarkFileMDSvc::getFileIo(IFileMD::id_t id)
+{
+  return mFileIo.get(id);
+}
+
+//------------------------------------------------------------------------------
+// Flush accumulated side counters
+//------------------------------------------------------------------------------
+void
+QuarkFileMDSvc::flushFileIo(bool force)
+{
+  mFileIo.flush(force);
 }
 
 //------------------------------------------------------------------------------
