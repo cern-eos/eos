@@ -29,28 +29,34 @@ import socket
 import os
 
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    # curl 8, and so scitokens-cpp, fails to read an answer that ends with a TLS
+    # close without close_notify, so a Content-Length must give its end.
+    def send_body(self, text):
+        body = bytes(text, 'UTF-8')
+        self.send_response(200)
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         wellknown = '{"jwks_uri":"https://';
         wellknown += socket.getfqdn()
         wellknown += ":4443"
         wellknown += '/jwk"}'
         if self.path == "/.well-known/openid-configuration":
-           self.send_response(200)
-           self.end_headers()
-           self.wfile.write(bytes(wellknown,'UTF-8'))
+           self.send_body(wellknown)
         else:
            if self.path == "/jwk":
-              self.send_response(200)
-              self.end_headers()
-              self.wfile.write(bytes(os.environ["EOS_JWK"],'UTF-8'))
+              self.send_body(os.environ["EOS_JWK"])
            else:
               self.send_error(404, "File not found")
               return
 
 httpd = HTTPServer(('', 4443), SimpleHTTPRequestHandler)
 
-httpd.socket = ssl.wrap_socket (httpd.socket, 
-        keyfile='/etc/grid-security/daemon/hostkey.pem', 
-        certfile='/etc/grid-security/daemon/hostcert.pem', server_side=True)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(certfile='/etc/grid-security/daemon/hostcert.pem',
+                        keyfile='/etc/grid-security/daemon/hostkey.pem')
+httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
 
 httpd.serve_forever()
