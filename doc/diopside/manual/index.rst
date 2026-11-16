@@ -21,6 +21,7 @@ Manual
    protocols
    using
    read_through_cache
+   qdrant
    formats
    develop
    egi

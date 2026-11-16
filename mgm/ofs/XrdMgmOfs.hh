@@ -182,6 +182,7 @@ class CommitHelper;
 class ReplicationTracker;
 class ConversionJob;
 class ConverterEngine;
+class QdrantEngine;
 }
 
 namespace eos::mgm::tgc
@@ -2186,6 +2187,14 @@ public:
   std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
   Drainer mDrainEngine; ///< Draining engine
   std::unique_ptr<ConverterEngine> mConverterEngine; ///< Converter engine
+  std::unique_ptr<QdrantEngine> mQdrantEngine; ///< External Qdrant index
+  std::string mQdrantEndpoint; ///< Qdrant HTTP endpoint, empty disables search
+  std::string mQdrantApiKey; ///< Qdrant api-key, kept in the process config
+  std::string mQdrantCollection = "eos"; ///< Qdrant collection name
+  std::string mQdrantEmbedEndpoint; ///< OpenAI-compatible embedding URL
+  std::string mQdrantEmbedModel = "text-embedding"; ///< Embedding model id
+  int mQdrantOverfetch = 5; ///< Neighbors requested per result returned
+  uint64_t mQdrantMaxBytes = 32ull * 1024ull * 1024ull; ///< Largest indexed file
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server

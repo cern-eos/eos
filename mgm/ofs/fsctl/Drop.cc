@@ -27,6 +27,7 @@
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/MDLocking.hh"
@@ -238,6 +239,10 @@ XrdMgmOfs::Drop(const char* path,
             }
 
             gOFS->eosView->removeFile(fmd.get());
+
+            if (gOFS->mQdrantEngine) {
+              gOFS->mQdrantEngine->NoteFileRemoved(fmd->getId());
+            }
 
             if (container) {
               container->setMTimeNow();

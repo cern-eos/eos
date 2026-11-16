@@ -218,6 +218,13 @@ private:
   //----------------------------------------------------------------------------
   void FileinfoSubcmd(const eos::console::FileinfoProto& info,
                       eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Search indexed documents. Qdrant supplies neighbors and the caller's
+  //! virtual identity is checked before any path or text is returned.
+  //----------------------------------------------------------------------------
+  void SearchSubcmd(const eos::console::FileSearchProto& search,
+                    eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END

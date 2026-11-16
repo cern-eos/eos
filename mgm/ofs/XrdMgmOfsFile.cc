@@ -37,6 +37,7 @@
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/filesystem/FileSystem.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/ofs/XrdMgmOfsSecurity.hh"
 #include "mgm/stat/Stat.hh"
@@ -4124,6 +4125,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             gOFS->eosView->removeFile(fmd.get());
+
+            if (gOFS->mQdrantEngine) {
+              gOFS->mQdrantEngine->NoteFileRemoved(fmd->getId());
+            }
           }
         } catch (eos::MDException& ex) {
           eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",

@@ -25,6 +25,7 @@
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
@@ -1591,6 +1592,11 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
       if ((fmd->getContainerId() == 0) && (fmd->getNumLocation() == 0) &&
           (fmd->getNumUnlinkedLocation() == 0)) {
         gOFS->eosView->removeFile(fmd.get());
+
+        if (gOFS->mQdrantEngine) {
+          gOFS->mQdrantEngine->NoteFileRemoved(fmd->getId());
+        }
+
         ++removed;
       } else {
         gOFS->eosView->updateFileStore(fmd.get());

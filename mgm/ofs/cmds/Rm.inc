@@ -428,6 +428,10 @@ XrdMgmOfs::_rem(const char* path,
 
           gOFS->eosView->unlinkFile(fmd.get());
 
+          if (gOFS->mQdrantEngine) {
+            gOFS->mQdrantEngine->NoteFileRemoved(fmd->getId());
+          }
+
           // Drop the TAPE_FS_ID which otherwise would prevent the
           // file metadata cleanup
           if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {

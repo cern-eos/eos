@@ -222,6 +222,7 @@ add_library(
   convert/ConversionInfo.cc
   convert/ConversionJob.cc
   convert/ConverterEngine.cc
+  qdrant/QdrantEngine.cc qdrant/QdrantEngine.hh
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc

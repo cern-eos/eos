@@ -178,6 +178,10 @@ static constexpr auto TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG =
 static constexpr uid_t ADM_UID = 3;
 static constexpr gid_t ADM_GID = 4;
 
+//! Default-space switch for document indexing into the configured Qdrant
+//! endpoint. Accepted values are 1, true, 0 and false. Unset means disabled.
+static constexpr auto SPACE_QDRANT_INDEX = "qdrant.index";
+
 //! Backend space config: name of the linked read-through cache space
 static constexpr auto SPACE_CACHE_SPACE_NAME = "cachespace";
 //! Cache space config: low watermark (used-bytes percent, 0-100)

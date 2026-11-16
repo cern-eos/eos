@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "fst/XrdFstOfs.hh"
+#include "fst/qdrant/QdrantIndexer.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/compress/BlockCompress.hh"
 #include "fst/cache/CacheLru.hh"
@@ -466,6 +467,10 @@ XrdFstOfs::EnqueueCompression(eos::fst::compress::CompressPool::Job job,
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
+  if (mQdrantIndexer) {
+    mQdrantIndexer->Stop();
+  }
+
   mCompressPool.Stop();
 
   if (mHostName) {
@@ -477,6 +482,16 @@ XrdFstOfs::~XrdFstOfs()
     free(ConfigFN);
     ConfigFN = nullptr;
   }
+}
+
+bool
+XrdFstOfs::QueueDocumentIndex(uint64_t fid, eos::common::FileSystem::fsid_t fsid,
+                              const std::string& path, const std::string& lfn,
+                              const std::string& checksum, uint64_t size,
+                              bool immediate)
+{
+  return mQdrantIndexer &&
+         mQdrantIndexer->Enqueue(fid, fsid, path, lfn, checksum, size, immediate);
 }
 
 //------------------------------------------------------------------------------
@@ -801,6 +816,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   if (!mQdbContactDetails.empty()) {
     mQcl.reset(new qclient::QClient(mQdbContactDetails.members,
                                     mQdbContactDetails.constructOptions()));
+    mQdrantIndexer.reset(new QdrantIndexer(mQcl));
+    mQdrantIndexer->Start();
   }
 
   if (!gConfig.FstOfsBrokerUrl.endswith("/")) {

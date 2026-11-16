@@ -636,6 +636,11 @@ public:
   void QueueCompression();
 
   //----------------------------------------------------------------------------
+  //! Queue this replica for document indexing after a successful write close.
+  //----------------------------------------------------------------------------
+  void QueueDocumentIndex();
+
+  //----------------------------------------------------------------------------
   //! Low-level open calling the default XrdOfs plugin and being called from
   //! one of the layout implementations.
   //----------------------------------------------------------------------------

@@ -21,6 +21,7 @@
  ************************************************************************/
 #include "fst/XrdFstOfsFile.hh"
 #include "common/Constants.hh"
+#include "common/qdrant/DocumentIndex.hh"
 #include "common/CtaCommon.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
@@ -2197,6 +2198,10 @@ XrdFstOfsFile::_close_wr()
 
   if (!mDelOnClose) {
     QueueCompression();
+  }
+
+  if ((rc == 0) && !mDelOnClose) {
+    QueueDocumentIndex();
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
@@ -4625,6 +4630,43 @@ XrdFstOfsFile::QueueCompression()
   job.publish = mLayout->IsEntryServer() && !LayoutId::IsRain(mLid);
   gOFS.mCompressPool.EnqueueConversion(std::move(job),
                                        LayoutId::HasCompression(mLid));
+}
+
+//------------------------------------------------------------------------------
+// Queue this replica for document indexing after a successful write close.
+// The indexer re-reads the local file, so this only hands it the path.
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::QueueDocumentIndex()
+{
+  if (mFstPath.empty() || !mNsPath.length() || !mLayout || mCloseSize <= 0) {
+    return;
+  }
+
+  if (!(mIsCreation || mHasWrite) ||
+      eos::common::LayoutId::IsRain(mLid) ||
+      !eos::common::IsIndexableDocument(mNsPath.c_str())) {
+    return;
+  }
+
+  if (!mChecksumGroup || !mChecksumGroup->HasChecksums()) {
+    return;
+  }
+
+  eos::fst::CheckSum* xs = mChecksumGroup->GetDefault();
+
+  if (xs == nullptr) {
+    return;
+  }
+
+  const std::string checksum = xs->GetHexChecksum();
+
+  if (gOFS.QueueDocumentIndex(mFileId, mFsId, mFstPath,
+                              std::string(mNsPath.c_str()), checksum,
+                              static_cast<uint64_t>(mCloseSize), true)) {
+    eos_info("msg=\"queued document for indexing\" fxid=%08llx lfn=\"%s\"",
+             mFileId, mNsPath.c_str());
+  }
 }
 
 //------------------------------------------------------------------------------

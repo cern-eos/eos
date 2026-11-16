@@ -247,6 +247,9 @@ std::string MakeSpaceHelp()
          "configure the maximum number of groups in the space\n"
       << "space config <space-name> space.quota=on|off                          : "
          "enable/disable quota for this space\n"
+      << "space config default space.qdrant.index=1|true|0|false              : "
+         "enable document indexing when a Qdrant endpoint is configured "
+         "[ default=off ]\n"
       << std::endl
       << "Read-through cache parameters (configure on the backend space, typically "
          "default):\n"

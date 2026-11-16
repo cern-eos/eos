@@ -31,6 +31,7 @@
 #include "mgm/cache/ReadThroughCache.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/convert/ConverterEngine.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/misc/Constants.hh"
@@ -282,6 +283,10 @@ FileCmd::ProcessRequest() noexcept
 
   case eos::console::FileProto::kFileinfo:
     FileinfoSubcmd(file.fileinfo(), reply);
+    break;
+
+  case eos::console::FileProto::kSearch:
+    SearchSubcmd(file.search(), reply);
     break;
 
   case eos::console::FileProto::kRegister:
@@ -2241,6 +2246,31 @@ FileCmd::FileinfoSubcmd(const eos::console::FileinfoProto& info,
   eos::common::StringConversion::UnSeal(err_out);
   reply.set_std_err(err_out.c_str() ? err_out.c_str() : "");
   reply.set_retc(cmd.GetRetc());
+}
+
+//------------------------------------------------------------------------------
+// Search indexed documents through Qdrant, then apply the caller's ACLs
+//------------------------------------------------------------------------------
+void
+FileCmd::SearchSubcmd(const eos::console::FileSearchProto& search,
+                      eos::console::ReplyProto& reply)
+{
+  if (gOFS == nullptr || gOFS->mQdrantEngine == nullptr) {
+    reply.set_retc(ENOTSUP);
+    reply.set_std_err("error: qdrant endpoint is not configured\n");
+    return;
+  }
+
+  const auto result = gOFS->mQdrantEngine->Search(mVid, search.query(), search.limit(),
+                                                   WantsJsonOutput());
+  reply.set_retc(result.retc);
+
+  if (result.retc != 0) {
+    reply.set_std_err("error: " + result.error + "\n");
+    return;
+  }
+
+  reply.set_std_out(result.text);
 }
 
 EOSMGMNAMESPACE_END

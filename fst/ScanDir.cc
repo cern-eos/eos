@@ -22,9 +22,14 @@
  ************************************************************************/
 
 #include "fst/ScanDir.hh"
+#include <cerrno>
+#include <chrono>
+#include <cstdlib>
+#include <mutex>
 #include "ContainerMd.pb.h"
 #include "LayoutId.hh"
 #include "common/Constants.hh"
+#include "common/qdrant/DocumentIndex.hh"
 #include "common/FsOps.hh"
 #include "common/StringConversion.hh"
 #include "common/thread_id.hh"
@@ -47,6 +52,7 @@
 #include "fst/utils/ScanRate.hh"
 #include "mgm/misc/Constants.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "qclient/structures/QHash.hh"
 #include "qclient/structures/QSet.hh"
 #include <fcntl.h>
 #include <fts.h>
@@ -1192,6 +1198,84 @@ PublishCompressionPotential(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   }
 }
 
+namespace {
+
+//------------------------------------------------------------------------------
+// Queue a changed document for the local FST indexer. The scan thread does
+// not read the payload again and does not call Qdrant.
+//------------------------------------------------------------------------------
+void
+EnqueueDocument(eos::common::FileId::fileid_t fid,
+                eos::common::FileSystem::fsid_t fsid, const std::string& path,
+                const std::string& lfn, const std::string& checksum,
+                unsigned long long size)
+{
+  if (gOFS.mQcl == nullptr || checksum.empty() || fid == 0) {
+    return;
+  }
+
+  static std::mutex gateMutex;
+  static auto checked = std::chrono::steady_clock::time_point {};
+  static bool enabled = false;
+  static uint64_t maxBytes = eos::common::kQdrantDefaultMaxBytes;
+  const auto now = std::chrono::steady_clock::now();
+  {
+    const std::lock_guard<std::mutex> lock(gateMutex);
+
+    if (now - checked > std::chrono::seconds(30)) {
+      checked = now;
+      enabled = false;
+
+      try {
+        auto flag = gOFS.mQcl->exec("GET", eos::common::kQdrantEnabledKey).get();
+
+        if (flag && flag->type == REDIS_REPLY_STRING && flag->len == 1 &&
+            flag->str[0] == '1') {
+          enabled = true;
+        }
+
+        auto bytes = gOFS.mQcl->exec("GET", eos::common::kQdrantMaxBytesKey).get();
+
+        if (bytes && bytes->type == REDIS_REPLY_STRING && bytes->str != nullptr) {
+          char* end = nullptr;
+          errno = 0;
+          const auto parsed = std::strtoull(bytes->str, &end, 10);
+
+          if (errno == 0 && end != bytes->str && parsed > 0) {
+            maxBytes = parsed;
+          }
+        }
+      } catch (const std::exception& e) {
+        eos_static_debug("msg=\"qdrant gate lookup failed\" emsg=\"%s\"", e.what());
+        enabled = false;
+      }
+    }
+
+    if (!enabled || size == 0 || size > maxBytes) {
+      return;
+    }
+  }
+
+  try {
+    const std::string field = std::to_string(static_cast<unsigned long long>(fid));
+    qclient::QHash catalog(*gOFS.mQcl, eos::common::kQdrantCatalogKey);
+
+    if (catalog.hget(field) == checksum) {
+      return;
+    }
+
+    if (gOFS.QueueDocumentIndex(static_cast<unsigned long long>(fid), fsid, path, lfn,
+                                checksum, size)) {
+      eos_static_info("msg=\"queued document for indexing\" fxid=%08llx lfn=\"%s\"",
+                      static_cast<unsigned long long>(fid), lfn.c_str());
+    }
+  } catch (const std::exception& e) {
+    eos_static_debug("msg=\"failed to queue document\" emsg=\"%s\"", e.what());
+  }
+}
+
+}
+
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
@@ -1276,6 +1360,11 @@ ScanDir::ScanFile(eos::fst::FileIo* io, const std::string& fpath,
   if (mBgThread) {
     gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
                                          scan_xs_hex, gOFS.mQcl);
+
+    if (fmd && !eos::common::LayoutId::IsRain(fmd->mProtoFmd.lid()) &&
+        !filexs_err && !lfn.empty() && eos::common::IsIndexableDocument(lfn)) {
+      EnqueueDocument(fid, mFsId, fpath, lfn, scan_xs_hex, scan_size);
+    }
   }
 
   if (measured_potential && fmd &&

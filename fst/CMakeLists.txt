@@ -288,6 +288,7 @@ set(XRDEOSFST_SRCS
   Health.cc
   ScanDir.cc
   compress/CompressPool.cc compress/CompressPool.hh
+  qdrant/QdrantIndexer.cc qdrant/QdrantIndexer.hh
   # The pool calls this codec. The OSS plugin has its own copy for reads and
   # writes; this one lets the FST plugin load without that plugin already open.
   compress/BlockCompress.cc compress/BlockCompress.hh

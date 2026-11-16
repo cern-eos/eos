@@ -65,6 +65,7 @@
 #include "mgm/commandmap/CommandMap.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/convert/ConverterEngine.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/devices/Devices.hh"
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/filesystem/FileSystem.hh"
@@ -752,6 +753,12 @@ XrdMgmOfs::OrderlyShutdown()
     mVectTid.clear();
     eos_warning("%s", "msg=\"deleting the ZMQ context\"");
     delete mZmqContext;
+  }
+
+  eos_warning("%s", "msg=\"stopping qdrant engine\"");
+
+  if (mQdrantEngine) {
+    mQdrantEngine->Stop();
   }
 
   eos_warning("%s", "msg=\"stopping converter engine\"");
@@ -1991,6 +1998,11 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
       // If there are no more locations we can also delete the file object
       if (file->getUnlinkedLocations().empty()) {
         gOFS->eosFileService->removeFile(file.get());
+
+        if (mQdrantEngine) {
+          mQdrantEngine->NoteFileRemoved(file->getId());
+        }
+
         msg = "info: file object removed from namespace";
       } else {
         // Move the unlinked locations to the locations list and back so
@@ -2005,6 +2017,11 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
         if (force) {
           gOFS->eosFileService->removeFile(file.get());
+
+          if (mQdrantEngine) {
+            mQdrantEngine->NoteFileRemoved(file->getId());
+          }
+
           msg = "info: file force removed from namespace, best-effort disk "
                 "deletion(s)";
         } else {

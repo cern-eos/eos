@@ -371,6 +371,9 @@ SpaceConfiguration()
   for (const auto* value : {"on", "off", "paused"}) {
     result.emplace_back(std::string("space.wfe=") + value);
   }
+  for (const auto* value : {"1", "true", "0", "false"}) {
+    result.emplace_back(std::string("space.qdrant.index=") + value);
+  }
   for (const auto* value : {"std", "minmax", "freespace"}) {
     result.emplace_back(std::string("space.groupbalancer.engine=") + value);
   }

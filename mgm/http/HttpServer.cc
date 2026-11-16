@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/http/HttpServer.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "common/ErrnoToString.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
@@ -442,6 +443,17 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
   vid->name = (errc ? std::to_string(vid->uid).c_str() : usr_name.c_str());
   // Add the path to the vid's scope member for token ACL path validation
   vid->scope = uri;
+  bool documentSearch = false;
+  {
+    std::string searchPath = uri;
+    const auto queryPos = searchPath.find('?');
+
+    if (queryPos != std::string::npos) {
+      searchPath.resize(queryPos);
+    }
+
+    documentSearch = (searchPath == "/v1/search" || searchPath == "/v1/search/");
+  }
   eos_static_info("request=%s client-real-ip=%s client-real-host=%s "
                   "vid.name=%s vid.uid=%s vid.gid=%s vid.host=%s "
                   "vid.dn=%s vid.tident=%s",
@@ -449,9 +461,14 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
                   headers["client-real-host"].c_str(), vid->name.c_str(),
                   vid->uid_string.c_str(), vid->gid_string.c_str(),
                   vid->host.c_str(), vid->dn.c_str(), vid->tident.c_str());
-  ProtocolHandlerFactory factory = ProtocolHandlerFactory();
-  std::unique_ptr<eos::common::ProtocolHandler> handler
-  {factory.CreateProtocolHandler(method, headers, vid.release())};
+  std::unique_ptr<eos::common::ProtocolHandler> handler;
+
+  if (documentSearch) {
+    handler = CreateQdrantSearchHandler(vid.release());
+  } else {
+    ProtocolHandlerFactory factory = ProtocolHandlerFactory();
+    handler.reset(factory.CreateProtocolHandler(method, headers, vid.release()));
+  }
 
   if (!handler) {
     eos_static_err("msg=\"no matching protocol for request method %s\"",

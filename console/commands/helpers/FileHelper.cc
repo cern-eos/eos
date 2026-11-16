@@ -136,6 +136,8 @@ struct FileOptions {
   bool infoPath = false, infoFid = false, infoFxid = false, infoSize = false;
   bool infoChecksum = false, fullPath = false, proxy = false, monitoring = false;
   bool env = false;
+  std::string searchQuery;
+  uint32_t searchLimit = 8;
 
   CLI::App*
   Add(const std::string& name, const std::string& description, bool info = false,
@@ -310,6 +312,14 @@ struct FileOptions {
     info->add_flag("--proxy", proxy);
     info->add_flag("-m", monitoring);
     info->add_flag("--env", env);
+    auto* search = app.add_subcommand("search", "Search indexed document text");
+    search->add_option("query", searchQuery, "Text to search for")
+        ->required()
+        ->check(eos::console::NonEmptyArgument);
+    search->add_option("--limit", searchLimit, "Maximum number of authorized hits")
+        ->default_val(8u)
+        ->check(CLI::Range(1u, 50u));
+    commands.emplace("search", search);
   }
 };
 } // namespace
@@ -360,6 +370,15 @@ FileHelper::ParseArguments(const std::vector<std::string>& args)
   }
   eos::console::FileProto file;
   const std::string command = options.app.get_subcommands().front()->get_name();
+
+  if (command == "search") {
+    auto* search = file.mutable_search();
+    search->set_query(options.searchQuery);
+    search->set_limit(options.searchLimit);
+    *mReq.mutable_file() = std::move(file);
+    return true;
+  }
+
   SetPathOrId(command == "info" ? file.mutable_fileinfo()->mutable_md()
                                 : file.mutable_md(),
               options.source, command == "info",
@@ -598,6 +617,10 @@ FileHelper::LegacyRequest(std::string& req, std::string& err) const
     req = "&mgm.subcmd=share" + target +
           "&mgm.file.expires=" + std::to_string(file.share().expires());
     break;
+
+  case Cmd::kSearch:
+    err = "error: file search requires an MGM with the Qdrant search command";
+    return false;
 
   case Cmd::kTouch: {
     const auto& touch = file.touch();

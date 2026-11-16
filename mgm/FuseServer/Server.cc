@@ -32,6 +32,7 @@
 #include "mgm/misc/AuditHelpers.hh"
 #include "mgm/misc/Constants.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
@@ -3264,6 +3265,15 @@ RemoveOverwrittenFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
     gOFS->eosFileService->updateStore(gmd.get());
     pcmd->removeFile(ofmd->getName());
     gOFS->eosFileService->removeFile(ofmd.get());
+
+    if (gOFS->mQdrantEngine) {
+      if (nlink <= 0) {
+        gOFS->mQdrantEngine->NoteFileRemoved(gmd->getId());
+      }
+
+      gOFS->mQdrantEngine->NoteFileRemoved(ofmd->getId());
+    }
+
     return;
   }
 
@@ -3287,6 +3297,10 @@ RemoveOverwrittenFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
   }
 
   gOFS->eosFileService->updateStore(ofmd.get());
+
+  if (gOFS->mQdrantEngine) {
+    gOFS->mQdrantEngine->NoteFileRemoved(ofmd->getId());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -4179,6 +4193,11 @@ Server::OpDeleteLink(const std::string& id,
     }
 
     gOFS->eosView->removeFile(fmd.get());
+
+    if (gOFS->mQdrantEngine) {
+      gOFS->mQdrantEngine->NoteFileRemoved(fmd->getId());
+    }
+
     gOFS->eosDirectoryService->updateStore(pcmd.get());
     pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
     // release the locks before serialization/broadcasting

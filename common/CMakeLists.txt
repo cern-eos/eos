@@ -175,6 +175,8 @@ add_library(EosCommon-Objects OBJECT
   BehaviourConfig.cc
   UnixGroupsFetcher.cc
   Audit.cc
+  qdrant/DocumentIndex.cc
+  qdrant/QdrantClient.cc
 )
 
 # Avoid warnings related to bfd_get_section* macros being redefined

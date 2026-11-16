@@ -1151,6 +1151,23 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out.str("success: setting quota=" + value);
             }
           }
+        } else if (key == eos::common::SPACE_QDRANT_INDEX) {
+          applied = true;
+
+          if (space_name != "default") {
+            ret_c = EINVAL;
+            std_err.str("error: space.qdrant.index can only be set on the "
+                        "default space");
+          } else if ((value != "1") && (value != "true") && (value != "0") &&
+                     (value != "false")) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to be 1, true, 0 or false");
+          } else if (!space->SetConfigMember(key, value)) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            std_out.str("success: setting space.qdrant.index=" + value);
+          }
         } else if (key == "wfe") {
           applied = true;
 

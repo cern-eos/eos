@@ -62,6 +62,7 @@
 #include "mgm/lru/LRU.hh"
 #include "mgm/monitoring/Monitoring.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/qdrant/QdrantEngine.hh"
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/qdbmaster/QdbMaster.hh"
@@ -650,6 +651,83 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
           mQdbContactDetails.password = mQdbPassword;
+        }
+
+        if (!strcmp("qdrant_endpoint", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qdrant_endpoint is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantEndpoint = val;
+            Eroute.Say("=====> mgmofs.qdrant_endpoint : ", mQdrantEndpoint.c_str());
+          }
+        }
+
+        if (!strcmp("qdrant_apikey", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qdrant_apikey is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantApiKey = val;
+            Eroute.Say("=====> mgmofs.qdrant_apikey : configured");
+          }
+        }
+
+        if (!strcmp("qdrant_collection", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qdrant_collection is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantCollection = val;
+            Eroute.Say("=====> mgmofs.qdrant_collection : ", mQdrantCollection.c_str());
+          }
+        }
+
+        if (!strcmp("embed_endpoint", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for embed_endpoint is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantEmbedEndpoint = val;
+            Eroute.Say("=====> mgmofs.embed_endpoint : ", mQdrantEmbedEndpoint.c_str());
+          }
+        }
+
+        if (!strcmp("embed_model", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for embed_model is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantEmbedModel = val;
+            Eroute.Say("=====> mgmofs.embed_model : ", mQdrantEmbedModel.c_str());
+          }
+        }
+
+        if (!strcmp("qdrant_overfetch", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qdrant_overfetch is invalid");
+            NoGo = 1;
+          } else {
+            mQdrantOverfetch = atoi(val);
+            Eroute.Say("=====> mgmofs.qdrant_overfetch : ", val);
+          }
+        }
+
+        if (!strcmp("qdrant_maxbytes", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qdrant_maxbytes is invalid");
+            NoGo = 1;
+          } else {
+            errno = 0;
+            mQdrantMaxBytes = eos::common::StringConversion::GetSizeFromString(val);
+
+            if (errno) {
+              Eroute.Emsg("Config", "argument for qdrant_maxbytes is invalid");
+              NoGo = 1;
+            } else {
+              Eroute.Say("=====> mgmofs.qdrant_maxbytes : ", val);
+            }
+          }
         }
 
         if (!strcmp("qclientdir", var)) {
@@ -2227,6 +2305,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // properly initialized.
   eos_static_info("%s", "msg=\"starting converter engine\"");
   mConverterEngine.reset(new eos::mgm::ConverterEngine(mQdbContactDetails));
+  {
+    eos::mgm::QdrantEngine::Config qdrant;
+    qdrant.endpoint = mQdrantEndpoint;
+    qdrant.apiKey = mQdrantApiKey;
+    qdrant.collection = mQdrantCollection;
+    qdrant.embedEndpoint = mQdrantEmbedEndpoint;
+    qdrant.embedModel = mQdrantEmbedModel;
+    qdrant.overfetch = mQdrantOverfetch;
+    qdrant.maxBytes = mQdrantMaxBytes;
+    eos_static_info("%s", "msg=\"starting qdrant engine\"");
+    mQdrantEngine.reset(new eos::mgm::QdrantEngine(std::move(qdrant),
+                                                   mQdbContactDetails));
+    mQdrantEngine->Start();
+  }
 
   if (mMaster->IsMaster()) {
     mConverterEngine->ApplyConfig();

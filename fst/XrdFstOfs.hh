@@ -78,6 +78,7 @@ class HttpServer;
 class Storage;
 class XrdFstOfsFile;
 class FmdHandler;
+class QdrantIndexer;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs
@@ -434,6 +435,16 @@ public:
   const char* mHostName; ///< FST hostname
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
   std::shared_ptr<qclient::QClient> mQcl; ///< Qclient
+  std::unique_ptr<QdrantIndexer> mQdrantIndexer; ///< Local document indexer
+
+  //----------------------------------------------------------------------------
+  //! Hand a local replica to the Qdrant indexer and return immediately.
+  //! `immediate` puts a file that just closed ahead of scan work.
+  //----------------------------------------------------------------------------
+  bool QueueDocumentIndex(uint64_t fid, eos::common::FileSystem::fsid_t fsid,
+                          const std::string& path, const std::string& lfn,
+                          const std::string& checksum, uint64_t size,
+                          bool immediate = false);
   int mHttpdPort; ///< listening port of the http server
   //! Embedded http server if available
   std::unique_ptr<eos::fst::HttpServer> mHttpd;

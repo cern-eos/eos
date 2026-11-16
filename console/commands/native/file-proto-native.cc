@@ -117,6 +117,10 @@ std::string MakeFileHelp()
       << "  - create symlink in the source directory to the new location\n\n";
   oss << "replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2>\n"
       << "  Replicate file part on <fsid1> to <fsid2>.\n\n";
+  oss << "search <query> [--limit <n>]\n"
+      << "  Search indexed documents. The MGM embeds the query, asks Qdrant for\n"
+      << "  neighbors, and returns a hit only when the caller may read that file.\n"
+      << "  --limit <n>   maximum number of authorized hits (default 8, maximum 50)\n\n";
   oss << "share <path> [lifetime]\n"
       << "  Create a share link. <lifetime> defaults to 28d (1, 1s, 1d, 1w, 1mo, 1y, ...).\n\n";
   oss << "symlink [-f] <name> <target>\n"
@@ -688,6 +692,7 @@ RegisterFileProtoNativeCommand()
          "rename_with_symlink ",
          "Move a file and leave a symbolic link."},
         {{"replicate"}, "replicate ", "Replicate a file to another filesystem."},
+        {{"search"}, "search ", "Search indexed document text."},
         {{"share"}, "share ", "Create a time-limited share link."},
         {{"symlink"}, "symlink ", "Create a symbolic link."},
         {{"tag"}, "tag ", "Change the recorded filesystem locations."},
