@@ -31,10 +31,11 @@ Usage: eos-jwk-https-test [<eos-jwk-https>]
 
   <eos-jwk-https>  the server to test (default: /usr/sbin/eos-jwk-https)
 
-It needs python3, curl and jq. It starts the server without
-arguments, which serves on port 4443 with the host certificate, so it runs as
-root on a host with /etc/grid-security/daemon/host{cert,key}.pem, and port
-4443 must be free.
+It needs python3, curl, jq, openssl and timeout, and IPv6 on the loopback
+(::1). Most cases use a self-signed certificate on a free port. One case
+starts the server without arguments, which serves on port 4443 with the host
+certificate, so the test runs as root on a host with
+/etc/grid-security/daemon/host{cert,key}.pem, and port 4443 must be free.
 EOF
 }
 
@@ -49,7 +50,7 @@ server=${1:-/usr/sbin/eos-jwk-https}
 hostcert=/etc/grid-security/daemon/hostcert.pem
 hostkey=/etc/grid-security/daemon/hostkey.pem
 
-for cmd in python3 curl jq; do
+for cmd in python3 curl jq openssl timeout; do
   if ! command -v "$cmd" > /dev/null; then
     echo "FAIL: $cmd not found"
     exit 1
@@ -71,9 +72,15 @@ if (exec 3<> /dev/tcp/127.0.0.1/4443) 2> /dev/null; then
   exit 1
 fi
 
+if ! grep -q '^0\{31\}1 ' /proc/net/if_inet6 2> /dev/null; then
+  echo "FAIL: no IPv6 on the loopback (::1)"
+  exit 1
+fi
+
 fqdn=$(python3 -c 'import socket; print(socket.getfqdn())') || exit 1
 work=$(mktemp -d) || exit 1
 pid=""
+url=""
 code=""
 curl_rc=0
 body=""
@@ -81,7 +88,7 @@ failures=0
 
 cleanup() {
   if [[ -n $pid ]]; then
-    kill "$pid" 2> /dev/null
+    kill -KILL "$pid" 2> /dev/null
     wait "$pid" 2> /dev/null
   fi
 
@@ -138,20 +145,32 @@ expect() {
   fi
 }
 
-# start <name> <probe URL> [server arguments...]
-# Starts the server, with its stdout and stderr in $work/<name>.{out,err}, and
-# waits until it answers 200 on <probe URL>, even if curl fails to read it.
-start() {
-  local name=$1 probe=$2 i
+# check <name> <jq filter> [jq options...]
+# Checks the last body fetched with jq.
+check() {
+  local name=$1 filter=$2
   shift 2
 
-  "$server" "$@" > "$work/$name.out" 2> "$work/$name.err" &
+  if ! jq -e "$@" "$filter" "$work/body" > /dev/null; then
+    fail "$name: $filter is false for: $body"
+  fi
+}
+
+# start <name> <command> [arguments...]
+# Starts the server, with its stdout and stderr in $work/<name>.{out,err}, and
+# waits for its "ready <issuer URL>" line. Sets $url to that URL.
+start() {
+  local name=$1 i line=""
+  shift
+
+  "$@" > "$work/$name.out" 2> "$work/$name.err" &
   pid=$!
 
   for i in $(seq 1 50); do
-    get "$probe" -k
+    IFS= read -r line < "$work/$name.out"
 
-    if [[ $code == 200 ]]; then
+    if [[ $line == "ready "* ]]; then
+      url=${line#ready }
       return 0
     fi
 
@@ -162,28 +181,209 @@ start() {
     sleep 0.2
   done
 
-  fail "$name: the server did not start:"
+  fail "$name: the server did not print its ready line; stdout: '$line', stderr:"
   cat "$work/$name.err"
+  kill -KILL "$pid" 2> /dev/null
+  wait "$pid" 2> /dev/null
+  pid=""
   return 1
 }
 
+# stop <name> <signal>
+# Sends <signal> to the server and checks that it exits with 0.
 stop() {
-  kill -TERM "$pid"
+  local name=$1 sig=$2 i rc
+
+  kill -s "$sig" "$pid"
+
+  for i in $(seq 1 50); do
+    if ! kill -0 "$pid" 2> /dev/null; then
+      break
+    fi
+
+    sleep 0.2
+  done
+
+  if kill -0 "$pid" 2> /dev/null; then
+    fail "$name: the server is still running 10 s after SIG$sig"
+    kill -KILL "$pid"
+  fi
+
   wait "$pid"
+  rc=$?
   pid=""
+
+  if [[ $rc != 0 ]]; then
+    fail "$name: exit code $rc after SIG$sig instead of 0"
+  fi
 }
 
+# refused <name> <error pattern> <command> [arguments...]
+# Checks that the server does not start: an exit code other than 0, no ready
+# line, and an error on stderr that matches <error pattern>.
+refused() {
+  local name=$1 pattern=$2 rc
+  shift 2
+
+  timeout 10 "$@" > "$work/$name.out" 2> "$work/$name.err"
+  rc=$?
+
+  if [[ $rc == 0 || $rc == 124 || -s $work/$name.out ]] ||
+     ! grep -qF -- "$pattern" "$work/$name.err"; then
+    fail "$name: rc $rc, stdout '$(cat "$work/$name.out")', no '$pattern' in stderr: $(cat "$work/$name.err")"
+  fi
+}
+
+# --- Fixtures ----------------------------------------------------------------
+if ! openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+       -days 1 -subj /CN=localhost \
+       -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1" \
+       -keyout "$work/key.pem" -out "$work/cert.pem" 2> "$work/openssl.err"; then
+  echo "FAIL: cannot create a self-signed certificate:"
+  cat "$work/openssl.err"
+  exit 1
+fi
+
+tls=(--cert "$work/cert.pem" --key "$work/key.pem")
+ca=(--cacert "$work/cert.pem")
+
+jwk_a='{"kty": "EC", "kid": "a", "crv": "P-256",
+  "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+  "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"}'
+printf '%s\n' "$jwk_a" > "$work/a.jwk"
+jq -c '{keys: [(. + {kid: "b1"}), (. + {kid: "b2"})]}' "$work/a.jwk" > "$work/b.jwks" || exit 1
+printf '{"kid": "neither a JWK nor a JWKS"}\n' > "$work/bad.jwk"
+decoy=$(jq -c '{keys: [(. + {kid: "decoy"})]}' "$work/a.jwk") || exit 1
+
+# Runs the server as on a host without IPv6: creating an IPv6 socket fails as
+# it does when the kernel has no IPv6.
+read -r -d '' no_ipv6 <<'EOF'
+import errno, runpy, socket, sys
+
+class NoIPv6Socket(socket.socket):
+    def __init__(self, family=socket.AF_INET, *args, **kwargs):
+        if family == socket.AF_INET6:
+            raise OSError(errno.EAFNOSUPPORT, "Address family not supported by protocol")
+        super().__init__(family, *args, **kwargs)
+
+socket.socket = NoIPv6Socket
+sys.argv = sys.argv[1:]
+runpy.run_path(sys.argv[0], run_name="__main__")
+EOF
+
+# --- Key files, free port, IPv4 and IPv6 -------------------------------------
+# --jwk replaces EOS_JWK, and the keys of all the files make one JWKS.
+port=""
+
+if EOS_JWK=$decoy start files "$server" "${tls[@]}" --port 0 \
+     --jwk "$work/a.jwk" --jwk "$work/b.jwks"; then
+  port=${url##*:}
+
+  if [[ ! $port =~ ^[1-9][0-9]*$ || $url != "https://$fqdn:$port" ]]; then
+    fail "files: ready URL $url instead of https://$fqdn:<free port>"
+  fi
+
+  for base in "https://127.0.0.1:$port" "https://[::1]:$port"; do
+    if expect "files: $base openid-configuration" 200 \
+         "$base/.well-known/openid-configuration" "${ca[@]}"; then
+      check "files: $base openid-configuration" \
+        '.issuer == $u and .jwks_uri == $u + "/jwk"' --arg u "$url"
+    fi
+
+    if expect "files: $base/jwk" 200 "$base/jwk" "${ca[@]}"; then
+      check "files: $base/jwk" '.keys == [$a[0]] + $b[0].keys' \
+        --slurpfile a "$work/a.jwk" --slurpfile b "$work/b.jwks"
+    fi
+
+    expect "files: $base/other" 404 "$base/other" "${ca[@]}"
+  done
+
+  if ! grep -q '"GET /jwk HTTP/1.1" 200' "$work/files.err"; then
+    fail "files: no request log on stderr: $(cat "$work/files.err")"
+  fi
+
+  refused busyport "cannot listen on port $port" \
+    "$server" "${tls[@]}" --port "$port" --jwk "$work/a.jwk"
+  stop files TERM
+fi
+
+# --- Issuer URL with a path, port of the issuer ------------------------------
+if [[ -n $port ]]; then
+  issuer="https://localhost:$port/eos"
+
+  if start issuer "$server" "${tls[@]}" --issuer "$issuer" --jwk "$work/a.jwk"; then
+    if [[ $url != "$issuer" ]]; then
+      fail "issuer: ready URL $url instead of $issuer"
+    fi
+
+    if expect "issuer: openid-configuration" 200 \
+         "$issuer/.well-known/openid-configuration" "${ca[@]}"; then
+      check "issuer: openid-configuration" \
+        '.issuer == $u and .jwks_uri == $u + "/jwk"' --arg u "$issuer"
+    fi
+
+    if expect "issuer: /eos/jwk" 200 "$issuer/jwk" "${ca[@]}"; then
+      check "issuer: /eos/jwk" '.keys == $a' --slurpfile a "$work/a.jwk"
+    fi
+
+    expect "issuer: /jwk, outside the issuer path" 404 \
+      "https://localhost:$port/jwk" "${ca[@]}"
+    stop issuer INT
+  fi
+else
+  fail "issuer: not run, the files case found no free port"
+fi
+
+# --- A single JWK in EOS_JWK is served as a JWKS -----------------------------
+if EOS_JWK=$jwk_a start envjwk "$server" "${tls[@]}" --port 0; then
+  if expect "envjwk: /jwk" 200 "https://127.0.0.1:${url##*:}/jwk" "${ca[@]}"; then
+    check "envjwk: /jwk" '.keys == $a' --slurpfile a "$work/a.jwk"
+  fi
+
+  stop envjwk TERM
+fi
+
+# --- Without IPv6, the server listens on IPv4 --------------------------------
+if start noipv6 python3 -c "$no_ipv6" "$server" "${tls[@]}" --port 0 --jwk "$work/a.jwk"; then
+  if expect "noipv6: IPv4" 200 "https://127.0.0.1:${url##*:}/jwk" "${ca[@]}"; then
+    check "noipv6: IPv4" '.keys == $a' --slurpfile a "$work/a.jwk"
+  fi
+
+  get "https://[::1]:${url##*:}/jwk" "${ca[@]}"
+
+  if [[ $curl_rc != 7 ]]; then
+    fail "noipv6: IPv6 answered (curl rc $curl_rc, HTTP $code) instead of refusing the connection"
+  fi
+
+  stop noipv6 TERM
+fi
+
+# --- The server refuses to start with bad arguments --------------------------
+refused nokey "no key" env -u EOS_JWK "$server" "${tls[@]}" --port 0
+refused badjwk "$work/bad.jwk" "$server" "${tls[@]}" --port 0 --jwk "$work/bad.jwk"
+refused badcert "cannot load $work/missing.pem" \
+  "$server" --cert "$work/missing.pem" --key "$work/key.pem" --port 0 --jwk "$work/a.jwk"
+refused badport "between 0 and 65535" "$server" "${tls[@]}" --port 65536 --jwk "$work/a.jwk"
+
+for issuer in "http://localhost:4443" "https://localhost:x"; do
+  refused badissuer "must be an https URL" "$server" "${tls[@]}" --issuer "$issuer" --jwk "$work/a.jwk"
+done
+
 # --- No arguments: EOS_JWK on port 4443 with the host certificate ------------
-# The JWKS is served verbatim, so its spacing must survive.
+# A JWKS in EOS_JWK is served verbatim, so its spacing must survive.
 jwks='{"keys": [ {"kty": "EC", "kid": "noarg", "crv": "P-256",
   "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
   "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"} ]}'
 base="https://127.0.0.1:4443"
 
-if EOS_JWK=$jwks start noarg "$base/.well-known/openid-configuration"; then
-  if expect "noarg: openid-configuration" 200 "$base/.well-known/openid-configuration" -k &&
-     ! jq -e --arg u "https://$fqdn:4443/jwk" '.jwks_uri == $u' "$work/body" > /dev/null; then
-    fail "noarg: openid-configuration: jwks_uri is not https://$fqdn:4443/jwk: $body"
+if EOS_JWK=$jwks start noarg "$server"; then
+  if [[ $url != "https://$fqdn:4443" ]]; then
+    fail "noarg: ready URL $url instead of https://$fqdn:4443"
+  fi
+
+  if expect "noarg: openid-configuration" 200 "$base/.well-known/openid-configuration" -k; then
+    check "noarg: openid-configuration" \
+      '.issuer == $u and .jwks_uri == $u + "/jwk"' --arg u "https://$fqdn:4443"
   fi
 
   if expect "noarg: /jwk" 200 "$base/jwk" -k && [[ $body != "$jwks" ]]; then
@@ -191,7 +391,7 @@ if EOS_JWK=$jwks start noarg "$base/.well-known/openid-configuration"; then
   fi
 
   expect "noarg: /other" 404 "$base/other" -k
-  stop
+  stop noarg TERM
 fi
 
 if (( failures )); then

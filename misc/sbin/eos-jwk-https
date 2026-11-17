@@ -23,40 +23,180 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import ssl
-import socket
+# Serves, over HTTPS, the OpenID configuration and the public keys (JWKS) of a
+# local token issuer, so that an MGM can validate the tokens signed with
+# "eos scitoken create". Python 3.6 or later, standard library only.
+
+import argparse
+import errno
+import json
 import os
+import signal
+import socket
+import ssl
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlsplit
+
+DEFAULT_PORT = 4443
+DEFAULT_CERT = '/etc/grid-security/daemon/hostcert.pem'
+DEFAULT_KEY = '/etc/grid-security/daemon/hostkey.pem'
+
 
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    # curl 8, and so scitokens-cpp, fails to read an answer that ends with a TLS
-    # close without close_notify, so a Content-Length must give its end.
-    def send_body(self, text):
-        body = bytes(text, 'UTF-8')
+    # Path -> body (bytes) of the documents to serve.
+    documents = {}
+
+    def do_GET(self):
+        body = self.documents.get(self.path)
+        if body is None:
+            self.send_error(404, "File not found")
+            return
+        # curl 8, and so scitokens-cpp, fails to read an answer that ends with
+        # a TLS close without close_notify, so a Content-Length must give its
+        # end.
         self.send_response(200)
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):
-        wellknown = '{"jwks_uri":"https://';
-        wellknown += socket.getfqdn()
-        wellknown += ":4443"
-        wellknown += '/jwk"}'
-        if self.path == "/.well-known/openid-configuration":
-           self.send_body(wellknown)
-        else:
-           if self.path == "/jwk":
-              self.send_body(os.environ["EOS_JWK"])
-           else:
-              self.send_error(404, "File not found")
-              return
+    def log_message(self, format, *args):
+        super().log_message(format, *args)
+        # Before Python 3.9, stderr is block-buffered when it is not a tty.
+        sys.stderr.flush()
 
-httpd = HTTPServer(('', 4443), SimpleHTTPRequestHandler)
 
-context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-context.load_cert_chain(certfile='/etc/grid-security/daemon/hostcert.pem',
-                        keyfile='/etc/grid-security/daemon/hostkey.pem')
-httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+class DualStackHTTPServer(HTTPServer):
+    address_family = socket.AF_INET6
 
-httpd.serve_forever()
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
+def make_server(port):
+    """Listens on IPv6 and IPv4, or on IPv4 only on a host without IPv6."""
+    try:
+        return DualStackHTTPServer(('::', port), SimpleHTTPRequestHandler)
+    except OSError as e:
+        if e.errno not in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+            raise
+    return HTTPServer(('', port), SimpleHTTPRequestHandler)
+
+
+def parse_keys(text, source):
+    """Returns the keys of the JWK or JWKS in text, and whether it is a JWKS."""
+    try:
+        doc = json.loads(text)
+    except ValueError as e:
+        raise ValueError('%s: invalid JSON: %s' % (source, e))
+    if isinstance(doc, dict) and isinstance(doc.get('keys'), list):
+        return doc['keys'], True
+    if isinstance(doc, dict) and 'kty' in doc:
+        return [doc], False
+    raise ValueError('%s: neither a JWK nor a JWKS' % source)
+
+
+def load_jwks(files):
+    """Returns the JWKS to serve: the keys of all the files, else EOS_JWK."""
+    if files:
+        keys = []
+        for name in files:
+            with open(name) as f:
+                keys += parse_keys(f.read(), name)[0]
+        return json.dumps({'keys': keys})
+    text = os.environ.get('EOS_JWK')
+    if text is None:
+        raise ValueError('no key to serve: give --jwk FILE or set EOS_JWK')
+    keys, is_jwks = parse_keys(text, 'EOS_JWK')
+    # A JWKS is served as is, as it always was.
+    return text if is_jwks else json.dumps({'keys': keys})
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Serve the OpenID configuration and the public keys (JWKS) '
+                    'of a local token issuer over HTTPS. Prints "ready <issuer '
+                    'URL>" once it listens, and exits on SIGTERM or SIGINT.')
+    parser.add_argument(
+        '--jwk', action='append', metavar='FILE',
+        help='JWK or JWKS file to serve; repeat it to serve the keys of '
+             'several files as one JWKS (default: the JWK or JWKS in the '
+             'environment variable EOS_JWK)')
+    parser.add_argument(
+        '--issuer', metavar='URL',
+        help='issuer URL: the OpenID configuration and the JWKS are served '
+             'below its path (default: https://<FQDN>:<port>)')
+    parser.add_argument(
+        '--port', type=int, metavar='N',
+        help='port, 0 for a free one (default: the port of --issuer, '
+             'else %d)' % DEFAULT_PORT)
+    parser.add_argument(
+        '--cert', default=DEFAULT_CERT, metavar='FILE',
+        help='certificate (default: %(default)s)')
+    parser.add_argument(
+        '--key', default=DEFAULT_KEY, metavar='FILE',
+        help='private key of the certificate (default: %(default)s)')
+    args = parser.parse_args()
+
+    if args.issuer is not None:
+        try:
+            url = urlsplit(args.issuer)
+            issuer_port = url.port
+        except ValueError:
+            url = None
+        if url is None or url.scheme != 'https' or not url.hostname:
+            parser.error('--issuer must be an https URL: %s' % args.issuer)
+        if args.port is None:
+            args.port = issuer_port or 443
+    if args.port is None:
+        args.port = DEFAULT_PORT
+    if not 0 <= args.port <= 65535:
+        parser.error('--port must be between 0 and 65535')
+    return args
+
+
+def main():
+    args = parse_args()
+    prog = os.path.basename(sys.argv[0])
+
+    try:
+        jwks = load_jwks(args.jwk)
+    except (OSError, ValueError) as e:
+        sys.exit('%s: %s' % (prog, e))
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    try:
+        context.load_cert_chain(certfile=args.cert, keyfile=args.key)
+    except OSError as e:
+        sys.exit('%s: cannot load %s and %s: %s' % (prog, args.cert, args.key, e))
+
+    try:
+        httpd = make_server(args.port)
+    except OSError as e:
+        sys.exit('%s: cannot listen on port %d: %s' % (prog, args.port, e))
+
+    issuer = args.issuer
+    if issuer is None:
+        issuer = 'https://%s:%d' % (socket.getfqdn(), httpd.server_address[1])
+    path = urlsplit(issuer).path.rstrip('/')
+    config = {'issuer': issuer, 'jwks_uri': issuer.rstrip('/') + '/jwk'}
+    SimpleHTTPRequestHandler.documents = {
+        path + '/.well-known/openid-configuration':
+            json.dumps(config).encode('UTF-8'),
+        path + '/jwk': jwks.encode('UTF-8'),
+    }
+
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, lambda signum, frame: sys.exit(0))
+    print('ready %s' % issuer, flush=True)
+
+    try:
+        httpd.serve_forever()
+    finally:
+        httpd.server_close()
+
+
+if __name__ == '__main__':
+    main()
