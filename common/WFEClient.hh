@@ -33,6 +33,7 @@
 #include <XrdSsiPbIStreamBuffer.hpp>
 #include <grpc++/grpc++.h>
 #include <grpcpp/security/credentials.h>
+#include <mutex>
 
 class WFEClient {
 public:
@@ -46,7 +47,6 @@ public:
     endpoint = endpoint_str;
     token_path = token_path_str;
 
-    std::shared_ptr<grpc::ChannelCredentials> credentials;
     grpc::SslCredentialsOptions ssl_options;
 
     if (protowfusegrpctls) {
@@ -58,20 +58,14 @@ public:
         ssl_options.pem_root_certs = "";
       }
       eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
-      credentials = grpc::SslCredentials(ssl_options);
+      mCredentials = grpc::SslCredentials(ssl_options);
     } else {
-      credentials = grpc::InsecureChannelCredentials();
+      mCredentials = grpc::InsecureChannelCredentials();
     }
-    // Create a channel with SSL credentials
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, credentials);
-    client_stub = cta::xrd::CtaRpc::NewStub(channel);
+    client_stub = NewStub();
   }
 
-  // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
   cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
-    grpc::ClientContext context;
-    grpc::Status status;
-
     std::string token_contents;
     // read the token from the path
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
@@ -86,25 +80,27 @@ public:
       throw;
     }
 
-    context.AddMetadata("authorization", "Bearer " + token_contents);
-    eos_static_debug("msg=\"successfully attached call credentials\"");
+    using Method = grpc::Status (cta::xrd::CtaRpc::Stub::*)(
+        grpc::ClientContext*, const cta::xrd::Request&, cta::xrd::Response*);
+    Method method = nullptr;
+    grpc::Status status;
 
     switch (request.notification().wf().event()) {
       // this is prepare
       case cta::eos::Workflow::CREATE:
-        status = client_stub->Create(&context, request, &response);
+        method = &cta::xrd::CtaRpc::Stub::Create;
         break;
       case cta::eos::Workflow::CLOSEW:
-        status = client_stub->Archive(&context, request, &response);
+        method = &cta::xrd::CtaRpc::Stub::Archive;
         break;
       case cta::eos::Workflow::PREPARE:
-        status = client_stub->Retrieve(&context, request, &response);
+        method = &cta::xrd::CtaRpc::Stub::Retrieve;
         break;
       case cta::eos::Workflow::ABORT_PREPARE:
-        status = client_stub->CancelRetrieve(&context, request, &response);
+        method = &cta::xrd::CtaRpc::Stub::CancelRetrieve;
         break;
       case cta::eos::Workflow::DELETE:
-        status = client_stub->Delete(&context, request, &response);
+        method = &cta::xrd::CtaRpc::Stub::Delete;
         break;
       case cta::eos::Workflow::OPENW:
         // this does nothing and we don't have a gRPC method for it
@@ -116,6 +112,29 @@ public:
         status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "gRPC method not implemented for " + cta::eos::Workflow_EventType_Name(request.notification().wf().event()));
         break;
     }
+
+    // A restarted or moved CTA frontend fails the first call on the old
+    // connection. Retry once at once on a new channel: it opens a new
+    // connection and resolves the endpoint name again.
+    std::shared_ptr<cta::xrd::CtaRpc::Stub> stub = GetStub();
+
+    for (int attempt = 0; method && attempt < 2; ++attempt) {
+      grpc::ClientContext context;
+      context.AddMetadata("authorization", "Bearer " + token_contents);
+      eos_static_debug("msg=\"successfully attached call credentials\"");
+      status = ((*stub).*method)(&context, request, &response);
+
+      if (status.error_code() != grpc::StatusCode::UNAVAILABLE) {
+        break;
+      }
+
+      eos_static_warning("msg=\"CTA frontend unavailable, retry on a new channel\" "
+                         "endpoint=\"%s\" attempt=%d reason=\"%s\"",
+                         endpoint.c_str(), attempt + 1, status.error_message().c_str());
+      stub = Reconnect(stub);
+      response.Clear();
+    }
+
     if (status.ok()){
       return cta::xrd::Response::RSP_SUCCESS;
     } else {
@@ -142,8 +161,41 @@ public:
     }
   }
 private:
+  std::shared_ptr<cta::xrd::CtaRpc::Stub>
+  NewStub() const
+  {
+    // A local subchannel pool keeps a new channel from reusing the failed
+    // connection of the old one
+    grpc::ChannelArguments args;
+    args.SetInt(GRPC_ARG_USE_LOCAL_SUBCHANNEL_POOL, 1);
+    return cta::xrd::CtaRpc::NewStub(
+        grpc::CreateCustomChannel(endpoint, mCredentials, args));
+  }
+
+  std::shared_ptr<cta::xrd::CtaRpc::Stub>
+  GetStub()
+  {
+    std::lock_guard<std::mutex> lock(mStubMutex);
+    return client_stub;
+  }
+
+  // Replace the stub only if no other thread did it since the failed call
+  std::shared_ptr<cta::xrd::CtaRpc::Stub>
+  Reconnect(const std::shared_ptr<cta::xrd::CtaRpc::Stub>& failed)
+  {
+    std::lock_guard<std::mutex> lock(mStubMutex);
+
+    if (client_stub == failed) {
+      client_stub = NewStub();
+    }
+
+    return client_stub;
+  }
+
   std::string endpoint;
-  std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
+  std::shared_ptr<grpc::ChannelCredentials> mCredentials;
+  std::mutex mStubMutex;
+  std::shared_ptr<cta::xrd::CtaRpc::Stub> client_stub;
   std::string token_path;
 };
 
