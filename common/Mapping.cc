@@ -342,9 +342,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // HTTPS mapping
   if (vid.prot == "https") {
     eos_static_debug("%s", "msg=\"https mapping\"");
+    const bool has_token = authz_obj && !authz.empty() && (authz.find("Bearer%20") == 0);
 
     // Handle bearer token authorization
-    if (authz_obj && !authz.empty() && (authz.find("Bearer%20") == 0)) {
+    if (has_token) {
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
           XrdAccPriv_None) {
         // Downgrade to 'nobody' but keep prot/tident - a full reset via
@@ -363,11 +364,15 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     // Check if we have the request.name in the attributes of the XrdSecEntity
     // object which is the client username according to the authz mapping.
+    // With a token, an empty name means that the token maps to no user, so the
+    // client is nobody. Without a token, an empty name is no name.
     std::string client_username;
     std::string user_value;
     static const std::string user_key = "request.name";
+    const bool has_user = has_token ? client->eaAPI->Get(user_key, user_value)
+                                    : SecEntity::GetRequestName(client, user_value);
 
-    if (client->eaAPI->Get(user_key, user_value)) {
+    if (has_user) {
       client_username = user_value;
     } else {
       if (client->name) {
