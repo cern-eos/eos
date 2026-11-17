@@ -264,15 +264,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   err = "";
   // Cleanup quota map
   (void) Quota::CleanUp();
-  {
-    eos::common::RWMutexWriteLock wr_lock(eos::common::Mapping::gMapMutex);
-    eos::common::Mapping::gUserRoleVector.clear();
-    eos::common::Mapping::gGroupRoleVector.clear();
-    eos::common::Mapping::gVirtualUidMap.clear();
-    eos::common::Mapping::gVirtualGidMap.clear();
-    eos::common::Mapping::gAllowedTidentMatches.clear();
-    eos::common::Mapping::gMcpReaders.clear();
-  }
+  eos::common::Mapping::ClearConfigured();
   Access::Reset(!apply_stall_redirect);
   gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
   {
@@ -552,15 +544,7 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
 {
   mConfigFile.clear();
   (void) Quota::CleanUp();
-  {
-    eos::common::RWMutexWriteLock wr_lock(eos::common::Mapping::gMapMutex);
-    eos::common::Mapping::gUserRoleVector.clear();
-    eos::common::Mapping::gGroupRoleVector.clear();
-    eos::common::Mapping::gVirtualUidMap.clear();
-    eos::common::Mapping::gVirtualGidMap.clear();
-    eos::common::Mapping::gAllowedTidentMatches.clear();
-    eos::common::Mapping::gMcpReaders.clear();
-  }
+  eos::common::Mapping::ClearConfigured();
   Access::Reset(!apply_stall_redirect);
   gOFS->mBehaviourCfg->Clear(eos::common::BehaviourType::All);
   gOFS->ResetPathMap();

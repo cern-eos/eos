@@ -86,6 +86,7 @@ set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/VidTests.cc
+  mgm/AdminCmdRoleTests.cc
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/GrpcStreamReplyTests.cc

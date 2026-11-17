@@ -164,6 +164,12 @@ public:
                     std::string path = "", bool log = true);
 
   // ---------------------------------------------------------------------------
+  //! Drop all mapping rules and memberships restored from the MGM
+  //! configuration, before a configuration is applied or reset
+  // ---------------------------------------------------------------------------
+  static void ClearConfigured();
+
+  // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has
   // ---------------------------------------------------------------------------
   static UserRoleMap_t gUserRoleVector;

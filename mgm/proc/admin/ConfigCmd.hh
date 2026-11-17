@@ -56,6 +56,13 @@ public:
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
+  //----------------------------------------------------------------------------
+  //! Check if the identity may run the subcommand: the read-only ls and dump
+  //! need an admin (dump masks secret values), everything else the root role
+  //----------------------------------------------------------------------------
+  static bool IsAllowed(eos::console::ConfigProto::SubcmdCase subcmd,
+                        const eos::common::VirtualIdentity& vid);
+
 private:
 
   //----------------------------------------------------------------------------

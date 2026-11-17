@@ -25,11 +25,30 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/proc/ProcInterface.hh"
 #ifdef EOS_GRPC_GATEWAY
 #include "mgm/grpc/GrpcStreamReply.hh"
 #endif
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Check if the identity may run the subcommand
+//------------------------------------------------------------------------------
+bool
+FsckCmd::IsAllowed(eos::console::FsckProto::SubcmdCase subcmd,
+                   const eos::common::VirtualIdentity& vid)
+{
+  if (subcmd == eos::console::FsckProto::kReport) {
+    return true;
+  }
+
+  if (subcmd == eos::console::FsckProto::kStat) {
+    return ProcInterface::VidIsAdmin(vid);
+  }
+
+  return (vid.uid == 0);
+}
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed
@@ -41,7 +60,7 @@ FsckCmd::ProcessRequest() noexcept
   eos::console::FsckProto fsck = mReqProto.fsck();
   eos::console::FsckProto::SubcmdCase subcmd = fsck.subcmd_case();
 
-  if ((subcmd != eos::console::FsckProto::kReport) && (mVid.uid != 0)) {
+  if (!IsAllowed(subcmd, mVid)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: only admin can execute this command");
     return reply;
@@ -178,7 +197,7 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   eos::console::FsckProto::SubcmdCase subcmd = fsck.subcmd_case();
 
   // Check for admin privileges
-  if ((subcmd != eos::console::FsckProto::kReport) && (mVid.uid != 0)) {
+  if (!IsAllowed(subcmd, mVid)) {
     StreamReply.set_retc(EPERM);
     StreamReply.set_std_err("error: only admin can execute this command");
     writer->Write(StreamReply);

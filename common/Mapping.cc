@@ -1316,6 +1316,22 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
 }
 
 //------------------------------------------------------------------------------
+// Drop all mapping rules and memberships restored from the configuration
+//------------------------------------------------------------------------------
+void
+Mapping::ClearConfigured()
+{
+  eos::common::RWMutexWriteLock wr_lock(gMapMutex);
+  gUserRoleVector.clear();
+  gGroupRoleVector.clear();
+  gVirtualUidMap.clear();
+  gVirtualGidMap.clear();
+  gAllowedTidentMatches.clear();
+  gSudoerMap.clear();
+  gMcpReaders.clear();
+}
+
+//------------------------------------------------------------------------------
 // Print the current mappings
 //------------------------------------------------------------------------------
 void

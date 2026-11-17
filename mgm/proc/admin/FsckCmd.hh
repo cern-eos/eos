@@ -61,6 +61,13 @@ public:
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
+  //----------------------------------------------------------------------------
+  //! Check if the identity may run the subcommand: stat needs an admin,
+  //! report is open, everything else needs the root role
+  //----------------------------------------------------------------------------
+  static bool IsAllowed(eos::console::FsckProto::SubcmdCase subcmd,
+                        const eos::common::VirtualIdentity& vid);
+
 #ifdef EOS_GRPC_GATEWAY
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed and

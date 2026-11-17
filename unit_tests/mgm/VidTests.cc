@@ -149,6 +149,21 @@ TEST_F(VidSudoerTest, UnknownUserNameRemovalAllowed)
 }
 
 //------------------------------------------------------------------------------
+// Clearing the configured mappings before a configuration is applied must
+// also drop sudoers, otherwise a removed sudoer keeps the right
+//------------------------------------------------------------------------------
+TEST_F(VidSudoerTest, ClearConfiguredDropsSudoers)
+{
+  const std::string add = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=membership"
+                          "&mgm.vid.key=12345:root&mgm.vid.source.uid=12345"
+                          "&mgm.vid.target.sudo=true";
+  ASSERT_TRUE(eos::mgm::Vid::Set(add.c_str(), false));
+  ASSERT_TRUE(IsSudoer(12345));
+  eos::common::Mapping::ClearConfigured();
+  ASSERT_FALSE(IsSudoer(12345));
+}
+
+//------------------------------------------------------------------------------
 // The mcp membership adds and removes a read-only MCP reader, never nobody,
 // and does not grant sudo rights
 //------------------------------------------------------------------------------

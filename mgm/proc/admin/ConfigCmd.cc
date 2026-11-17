@@ -44,7 +44,7 @@ ConfigCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
 
-  if ((mVid.uid != 0)) {
+  if (!IsAllowed(mReqProto.config().subcmd_case(), mVid)) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return reply;
@@ -87,6 +87,21 @@ ConfigCmd::ProcessRequest() noexcept
   }
 
   return reply;
+}
+
+//------------------------------------------------------------------------------
+// Check if the identity may run the subcommand
+//------------------------------------------------------------------------------
+bool
+ConfigCmd::IsAllowed(eos::console::ConfigProto::SubcmdCase subcmd,
+                     const eos::common::VirtualIdentity& vid)
+{
+  if ((subcmd == eos::console::ConfigProto::kLs) ||
+      (subcmd == eos::console::ConfigProto::kDump)) {
+    return ProcInterface::VidIsAdmin(vid);
+  }
+
+  return (vid.uid == 0);
 }
 
 //----------------------------------------------------------------------------
