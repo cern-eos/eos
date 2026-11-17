@@ -30,9 +30,13 @@
 #undef IN_TEST_HARNESS
 
 #include "common/UnixGroupsFetcher.hh"
+#include "unit_tests/common/MappingTestFixture.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <XrdSec/XrdSecEntity.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
 #include <memory>
 #include <pthread.h>
+#include <pwd.h>
 #include <unistd.h>
 
 EOSCOMMONTESTING_BEGIN
@@ -312,6 +316,138 @@ TEST(VirtualIdentity, HandleKEYS)
   ASSERT_EQ(mapped_gid, vid.gid);
 }
 
+//------------------------------------------------------------------------------
+// The token plugins, e.g. XrdSciTokens, put the user they map a token to in the
+// "request.name" attribute of the entity. With a token, an empty value means
+// that the token maps to no user: the client is nobody, even if it has a name
+// of its own. Without a token, an empty value is no user name.
+//------------------------------------------------------------------------------
+
+//! Authorizes everything, like a token plugin that accepted the token
+class AllowAllAuthz : public XrdAccAuthorize {
+public:
+  using XrdAccAuthorize::Access;
+
+  XrdAccPrivs
+  Access(const XrdSecEntity*, const char*, const Access_Operation, XrdOucEnv*) override
+  {
+    return XrdAccPriv_All;
+  }
+
+  int
+  Audit(const int, const XrdSecEntity*, const char*, const Access_Operation,
+        XrdOucEnv*) override
+  {
+    return 0;
+  }
+
+  int
+  Test(const XrdAccPrivs, const Access_Operation) override
+  {
+    return 0;
+  }
+};
+
+//! Maps the https and ztn clients to the local user of their name, like
+//! "eos vid enable https" and "eos vid enable ztn". The clients are named
+//! "daemon", and the tokens map to "bin".
+class TokenUserNameF : public MappingTestF {
+protected:
+  void
+  SetUp() override
+  {
+    MappingTestF::SetUp();
+    mUids.swap(Mapping::gVirtualUidMap);
+    mGids.swap(Mapping::gVirtualGidMap);
+
+    for (const std::string prot : {"https", "ztn"}) {
+      Mapping::gVirtualUidMap[prot + ":\"<pwd>\":uid"] = 0;
+      Mapping::gVirtualGidMap[prot + ":\"<pwd>\":gid"] = 0;
+    }
+
+    const struct passwd* pw = getpwnam("daemon");
+    ASSERT_NE(nullptr, pw);
+    mDaemonUid = pw->pw_uid;
+    mDaemonGid = pw->pw_gid;
+    pw = getpwnam("bin");
+    ASSERT_NE(nullptr, pw);
+    mBinUid = pw->pw_uid;
+    mBinGid = pw->pw_gid;
+  }
+
+  void
+  TearDown() override
+  {
+    mUids.swap(Mapping::gVirtualUidMap);
+    mGids.swap(Mapping::gVirtualGidMap);
+    MappingTestF::TearDown();
+  }
+
+  Mapping::VirtualUserMap_t mUids;
+  Mapping::VirtualGroupMap_t mGids;
+  uid_t mDaemonUid{0};
+  gid_t mDaemonGid{0};
+  uid_t mBinUid{0};
+  gid_t mBinGid{0};
+  std::string mName{"daemon"};
+  std::string mTident{"daemon.1:2@client.example.org"};
+};
+
+TEST_F(TokenUserNameF, HttpsWithoutTokenEmptyUserNameMapsTheClientName)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  VirtualIdentity vid;
+  // Without the attribute, the client maps with its own name
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, nullptr, AOP_Stat, "", false);
+  ASSERT_EQ(mDaemonUid, vid.uid);
+  ASSERT_EQ(mDaemonGid, vid.gid);
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, nullptr, AOP_Stat, "", false);
+  EXPECT_EQ(mDaemonUid, vid.uid);
+  EXPECT_EQ(mDaemonGid, vid.gid);
+}
+
+TEST_F(TokenUserNameF, HttpsTokenWithEmptyUserNameMapsToNobody)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  AllowAllAuthz authz;
+  const char* env = "authz=Bearer%20token";
+  VirtualIdentity vid;
+  // The client maps to the user of the token, not to its own name
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
+  Mapping::IdMap(&client, env, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  ASSERT_EQ(mBinUid, vid.uid);
+  ASSERT_EQ(mBinGid, vid.gid);
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
+  Mapping::IdMap(&client, env, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
+  EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
+}
+
+TEST_F(TokenUserNameF, ZtnTokenWithEmptyUserNameMapsToNobody)
+{
+  XrdSecEntity client("ztn");
+  std::string creds{"token"};
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  client.creds = creds.data();
+  client.credslen = creds.size();
+  AllowAllAuthz authz;
+  VirtualIdentity vid;
+  // The client maps to the user of the token, not to its own name
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  ASSERT_EQ(mBinUid, vid.uid);
+  ASSERT_EQ(mBinGid, vid.gid);
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
+  EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
+}
 
 struct MockGroupListProvider : UnixGroupListFetcher {
   MOCK_METHOD(std::vector<gid_t>, getGroups, (const std::string&, gid_t), (override));

@@ -132,8 +132,7 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
 
   if (Entity) {
     std::string user_value;
-    std::string user_key = "request.name";
-    has_user = Entity->eaAPI->Get(user_key, user_value);
+    has_user = SecEntity::GetRequestName(Entity, user_value);
     eos_static_debug("msg=\"checking access\" path=\"%s\", name=\"%s\" "
                      "request.name=\"%s\"", path, Entity->name,
                      (has_user ? user_value.c_str() : ""));

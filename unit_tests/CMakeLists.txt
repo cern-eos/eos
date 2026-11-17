@@ -115,6 +115,7 @@ set(MGM_UT_SRCS
   mgm/WFEClientTests.cc
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
+  mgm/XrdMgmAuthzTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
@@ -194,6 +195,7 @@ set(COMMON_UT_SRCS
   common/concurrency/RCUTests.cc
   common/RandTests.cc
   common/SciTokensTests.cc
+  common/SecEntityTests.cc
   common/WebNotifyTests.cc
   common/CrashHandlerTests.cc
 )

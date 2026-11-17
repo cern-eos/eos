@@ -27,8 +27,10 @@
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
 #include <XrdSec/XrdSecEntity.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
 #include <map>
 #include <string>
+#include <utility>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -180,6 +182,29 @@ public:
     }
 
     return rs;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the user name that a token authorization plugin, e.g. XrdSciTokens,
+  //! mapped the client to. It is in the "request.name" attribute.
+  //!
+  //! @param entity client entity
+  //! @param name set to the user name
+  //!
+  //! @return true if the entity has a non-empty user name, otherwise false
+  //----------------------------------------------------------------------------
+  static bool
+  GetRequestName(const XrdSecEntity* entity, std::string& name)
+  {
+    std::string value;
+
+    if (entity && entity->eaAPI && entity->eaAPI->Get("request.name", value) &&
+        !value.empty()) {
+      name = std::move(value);
+      return true;
+    }
+
+    return false;
   }
 };
 
