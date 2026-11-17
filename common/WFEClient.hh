@@ -21,8 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
+
 #include "XrdSsiPbConfig.hpp"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include "cta_frontend.grpc.pb.h"
 #include "cta_frontend.pb.h"
 #include "jwt-cpp/jwt.h"
@@ -84,8 +87,7 @@ public:
     }
 
     context.AddMetadata("authorization", "Bearer " + token_contents);
-    eos_static_debug("msg=\"successfully attached call credentials\" token=\"%s\"",
-                     token_contents.c_str());
+    eos_static_debug("msg=\"successfully attached call credentials\"");
 
     switch (request.notification().wf().event()) {
       // this is prepare
@@ -162,8 +164,11 @@ private:
   XrdSsiPbServiceType service;
 };
 
-std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path, bool protowfusegrpctls) {
+inline std::unique_ptr<WFEClient>
+CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource,
+                    std::optional<std::string> root_certs, std::string token_path,
+                    bool protowfusegrpctls)
+{
   if (protowfusegrpc) {
     return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path, protowfusegrpctls);
   } else {
