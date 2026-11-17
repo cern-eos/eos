@@ -1,0 +1,414 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------
+# File: eos-tape-rest-token-test
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Checks the WLCG Tape REST API of the MGM with WLCG tokens from a local token
+# issuer. It runs on the MGM host, as root.
+
+usage() {
+  cat <<'EOF'
+Usage: eos-tape-rest-token-test -t <directory> [-h <host>] [-p <https port>]
+                                [-i <issuer URL>] [-k <key id>] [-u <tape user>]
+                                [-a <audience>] [-S]
+
+  -t  EOS directory under which the test creates, and then removes, its own tree
+  -h  MGM host name, as in its certificate (default: hostname -f)
+  -p  MGM HTTPS port (default: $EOS_HTTPS_PORT)
+  -i  token issuer URL (default: https://<host>:4443)
+  -k  key id of the issuer's signing key in /etc/xrootd (default: tapetest)
+  -u  local user the issuer's tokens are mapped to (default: the default_user
+      of that issuer in /etc/xrootd/scitokens.cfg)
+  -a  token audience (default: https://wlcg.cern.ch/jwt/v1/any)
+  -S  serve the issuer from this test with eos-jwk-https, on the port of the
+      issuer URL, with the host certificate. The signing key is created if it
+      does not exist. Also set by EOS_TAPE_REST_TOKEN_SERVE_ISSUER=1.
+
+Prerequisites on the MGM:
+  - mgmofs.tapeenabled true, taperestapi.status=on and taperestapi.stage=on;
+  - mgmofs.macaroonslib loads libXrdAccSciTokens.so, and "eos vid enable https";
+  - /etc/xrootd/scitokens.cfg has an [Issuer] section with the issuer URL,
+    base_path = /, map_subject = False and default_user = <tape user>, and its
+    [Global] audience is the token audience;
+  - without -S, the issuer serves the public key of
+    "eos scitoken create-keys --keyid <key id>" (e.g. with eos-jwk-https);
+  - the system trust store accepts the certificates of the issuer and the MGM.
+A missing prerequisite skips the test, or fails it if EOS_TAPE_REST_TOKEN_REQUIRE=1.
+EOF
+}
+
+set -o pipefail
+
+host=$(hostname -f)
+port=${EOS_HTTPS_PORT:-}
+prefix=""
+issuer=""
+keyid="tapetest"
+user=""
+audience="https://wlcg.cern.ch/jwt/v1/any"
+serve=${EOS_TAPE_REST_TOKEN_SERVE_ISSUER:-0}
+
+while getopts "t:h:p:i:k:u:a:S" opt; do
+  case $opt in
+    t) prefix=${OPTARG%/} ;;
+    h) host=$OPTARG ;;
+    p) port=$OPTARG ;;
+    i) issuer=${OPTARG%/} ;;
+    k) keyid=$OPTARG ;;
+    u) user=$OPTARG ;;
+    a) audience=$OPTARG ;;
+    S) serve=1 ;;
+    *) usage; exit 2 ;;
+  esac
+done
+
+if [[ -z $prefix || -z $port ]]; then
+  usage
+  exit 2
+fi
+
+issuer=${issuer:-https://$host:4443}
+mgm="https://$host:$port"
+rooturl="root://localhost"
+jwk="/etc/xrootd/$keyid-sci.jwk"
+
+skip_or_fail() {
+  if [[ ${EOS_TAPE_REST_TOKEN_REQUIRE:-0} == 1 ]]; then
+    echo "FAIL: missing prerequisite: $1"
+    exit 1
+  fi
+
+  echo "SKIP: $1"
+  exit 0
+}
+
+for cmd in eos curl jq xrdcp; do
+  if ! command -v "$cmd" > /dev/null; then
+    echo "FAIL: $cmd not found"
+    exit 1
+  fi
+done
+
+if [[ $serve == 1 ]] && ! command -v eos-jwk-https > /dev/null; then
+  echo "FAIL: eos-jwk-https (package eos-scitokenapi) not found, needed by -S"
+  exit 1
+fi
+
+# --- Prerequisites on the MGM ------------------------------------------------
+[[ $(eos -b "$rooturl" ns stat -m) =~ (^|[[:space:]])ns\.tapeenabled=true([[:space:]]|$) ]] ||
+  skip_or_fail "the MGM is not tape-enabled"
+
+space=$(eos -b "$rooturl" space status default -m)
+[[ $space =~ (^|[[:space:]])taperestapi\.status=on([[:space:]]|$) &&
+   $space =~ (^|[[:space:]])taperestapi\.stage=on([[:space:]]|$) ]] ||
+  skip_or_fail "taperestapi.status or taperestapi.stage is not on in the default space"
+
+curl -fsS "$mgm/.well-known/wlcg-tape-rest-api" 2>&1 |
+  jq -e '.endpoints | any(.version == "v1")' > /dev/null ||
+  skip_or_fail "$mgm does not serve the v1 tape REST API (or its certificate is not trusted)"
+
+if [[ -z $user ]]; then
+  user=$(awk -v iss="$issuer" '
+    function val(s) { sub(/^[^=]*=[[:space:]]*/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    /^[[:space:]]*\[/ {
+      if (found && du != "") { print du; printed = 1; exit }
+      found = 0; du = ""; next
+    }
+    /^[[:space:]]*issuer[[:space:]]*=/ { v = val($0); sub(/\/$/, "", v); if (v == iss) found = 1 }
+    /^[[:space:]]*default_user[[:space:]]*=/ { du = val($0) }
+    END { if (!printed && found && du != "") print du }' /etc/xrootd/scitokens.cfg 2> /dev/null)
+fi
+
+[[ -n $user ]] ||
+  skip_or_fail "no [Issuer] for $issuer with a default_user in /etc/xrootd/scitokens.cfg"
+getent passwd "$user" > /dev/null ||
+  skip_or_fail "tape user $user does not exist"
+
+# --- Fixture -----------------------------------------------------------------
+work=$(mktemp -d) || exit 1
+dir="$prefix/tape-rest-token-$(cat /proc/sys/kernel/random/uuid)"
+in="$dir/in/f"
+created=0
+requests=()
+failures=0
+code=""
+issuer_pid=""
+TOK_STAGE=""
+
+# api <method> <path below /api/v1/> <token or ""> [JSON body]
+# Sets $code and leaves the response body in $work/body.
+api() {
+  local args=(-s -o "$work/body" -w '%{http_code}' -X "$1")
+
+  if [[ -n $3 ]]; then
+    args+=(-H "Authorization: Bearer $3")
+  fi
+
+  if [[ -n ${4:-} ]]; then
+    args+=(-H "Content-Type: application/json" --data-binary "$4")
+  fi
+
+  code=$(curl "${args[@]}" "$mgm/api/v1/$2") || code=000
+}
+
+cleanup() {
+  local rc=$? id
+
+  trap - EXIT
+
+  for id in "${requests[@]}"; do
+    api DELETE "stage/$id" "$TOK_STAGE"
+
+    if [[ $code != 200 && $code != 404 ]]; then
+      echo "FAIL: cleanup of stage request $id: HTTP $code"
+      rc=1
+    fi
+  done
+
+  if (( created )) && ! eos -b "$rooturl" rm -r "$dir" > /dev/null; then
+    echo "FAIL: cleanup of $dir"
+    rc=1
+  fi
+
+  if [[ -n $issuer_pid ]] && ! stop_issuer; then
+    rc=1
+  fi
+
+  rm -rf "$work"
+  exit $rc
+}
+
+trap cleanup EXIT
+
+# Prints what eos-jwk-https wrote to stderr: its errors and the requests it got.
+issuer_log() {
+  if [[ -s $work/issuer.err ]]; then
+    echo "eos-jwk-https log:"
+    sed 's/^/  /' "$work/issuer.err"
+  fi
+}
+
+# Starts eos-jwk-https in the background and waits for its "ready" line.
+start_issuer() {
+  local i line=""
+
+  if [[ ! -e /etc/xrootd/$keyid-key.pem ]]; then
+    eos scitoken create-keys --keyid "$keyid" > /dev/null || return 1
+  fi
+
+  if [[ ! -r $jwk ]]; then
+    echo "FAIL: $jwk is missing; remove /etc/xrootd/$keyid-*.pem to create a new key"
+    return 1
+  fi
+
+  eos-jwk-https --issuer "$issuer" --jwk "$jwk" > "$work/issuer.out" 2> "$work/issuer.err" &
+  issuer_pid=$!
+
+  for i in $(seq 1 50); do
+    IFS= read -r line < "$work/issuer.out"
+
+    if [[ $line == "ready "* ]]; then
+      return 0
+    fi
+
+    if ! kill -0 "$issuer_pid" 2> /dev/null; then
+      wait "$issuer_pid"
+      issuer_pid=""
+      break
+    fi
+
+    sleep 0.2
+  done
+
+  issuer_log
+  echo "FAIL: eos-jwk-https did not print its ready line for $issuer"
+  return 1
+}
+
+# Stops eos-jwk-https with SIGTERM, which makes it exit with 0.
+stop_issuer() {
+  local i rc
+
+  kill -TERM "$issuer_pid" 2> /dev/null
+
+  for i in $(seq 1 50); do
+    kill -0 "$issuer_pid" 2> /dev/null || break
+    sleep 0.2
+  done
+
+  if kill -0 "$issuer_pid" 2> /dev/null; then
+    echo "FAIL: eos-jwk-https still runs 10 s after SIGTERM"
+    kill -KILL "$issuer_pid" 2> /dev/null
+  fi
+
+  wait "$issuer_pid"
+  rc=$?
+  issuer_pid=""
+
+  if [[ $rc != 0 ]]; then
+    echo "FAIL: eos-jwk-https exited with $rc"
+    return 1
+  fi
+}
+
+if [[ $serve == 1 ]]; then
+  start_issuer || exit 1
+fi
+
+[[ -r /etc/xrootd/$keyid-key.pem ]] ||
+  skip_or_fail "no signing key /etc/xrootd/$keyid-key.pem"
+
+curl -fsS "$issuer/.well-known/openid-configuration" 2>&1 |
+  jq -e '.jwks_uri | type == "string"' > /dev/null ||
+  skip_or_fail "issuer $issuer is not reachable (or its certificate is not trusted)"
+
+setup() {
+  local d w
+
+  printf 'EOS tape REST token test\n' > "$work/payload" || return 1
+  eos -b "$rooturl" mkdir -p "$dir" || return 1
+  created=1
+
+  # Only <tape user> may prepare, so a request mapped to nobody is refused.
+  for d in "$dir/in" "$dir/out"; do
+    eos -b "$rooturl" mkdir "$d" &&
+      eos -b "$rooturl" chown "$user" "$d" &&
+      eos -b "$rooturl" attr set "sys.acl=u:$user:p" "$d" || return 1
+
+    # No-op workflows: without CTA, stage, release and cancel only run the
+    # MGM checks.
+    for w in prepare evict_prepare abort_prepare; do
+      eos -b "$rooturl" attr set "sys.workflow.sync::$w.default=noop" "$d" || return 1
+    done
+
+    xrdcp -s -f "$work/payload" "$rooturl/$d/f" &&
+      eos -b "$rooturl" chown "$user" "$d/f" &&
+      eos -b "$rooturl" chmod 600 "$d/f" || return 1
+  done
+}
+
+# mint <scope> [subject]
+mint() {
+  eos scitoken create --issuer "$issuer" --keyid "$keyid" --profile wlcg \
+    --claim "sub=${2:-tape-rest-token-test}" --claim "aud=$audience" \
+    --claim "scope=$1" --expires $(( $(date +%s) + 3600 ))
+}
+
+is_jwt() {
+  [[ $1 =~ ^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]
+}
+
+pass() {
+  echo "PASS: $1"
+}
+
+fail() {
+  echo "FAIL: $1"
+
+  if [[ -s $work/body ]]; then
+    echo "  body: $(head -c 2000 "$work/body")"
+  fi
+
+  failures=$((failures + 1))
+}
+
+# expect <case> <HTTP code> [jq filter [jq options...]]
+expect() {
+  local name=$1 want=$2 filter=${3:-}
+
+  if [[ $code != "$want" ]]; then
+    fail "$name: HTTP $code, expected $want"
+    return 1
+  fi
+
+  if [[ -n $filter ]] && ! jq -e "${@:4}" "$filter" "$work/body" > /dev/null 2>&1; then
+    fail "$name: unexpected response body"
+    return 1
+  fi
+
+  pass "$name"
+}
+
+echo "MGM $mgm, issuer $issuer (key $keyid$([[ $serve == 1 ]] && echo ", served by the test")), tape user $user, directory $dir"
+
+if ! setup; then
+  echo "FAIL: setup of $dir"
+  exit 1
+fi
+
+TOK_STAGE=$(mint "storage.stage:$dir/in")
+TOK_READ=$(mint "storage.read:$dir/in")
+
+if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ"; then
+  echo "FAIL: eos scitoken create did not return a token"
+  exit 1
+fi
+
+# --- Cases -------------------------------------------------------------------
+: > "$work/body"
+code=$(curl -s -o "$work/body" -w '%{http_code}' "$mgm/.well-known/wlcg-tape-rest-api") || code=000
+expect "well-known, no credentials" 200 \
+  '.endpoints | any(.version == "v1" and (.uri | endswith("/api/v1")))'
+
+api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$in\"]}"
+expect "archiveinfo, in-scope token" 200 \
+  'length == 1 and .[0].path == $p and .[0].locality == "DISK" and (.[0].error // "") == ""' \
+  --arg p "$in"
+
+api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$in\"}]}"
+
+if expect "stage, in-scope token" 201 '.requestId | type == "string" and length > 0'; then
+  id=$(jq -r .requestId "$work/body")
+  requests+=("$id")
+
+  api GET "stage/$id" "$TOK_STAGE"
+  expect "stage status, same token" 200 \
+    '.id == $id and (.files | length == 1) and .files[0].path == $p and (.files[0].error // "") == ""' \
+    --arg id "$id" --arg p "$in"
+
+  api POST "release/$id" "$TOK_STAGE" "{\"paths\":[\"$in\"]}"
+  expect "release, same token" 200
+
+  api POST "stage/$id/cancel" "$TOK_STAGE" "{\"paths\":[\"$in\"]}"
+  expect "cancel, same token" 200
+
+  api DELETE "stage/$id" "$TOK_STAGE"
+  expect "delete, same token" 200
+
+  api GET "stage/$id" "$TOK_STAGE"
+  expect "stage status after delete" 404
+else
+  fail "stage status, release, cancel and delete not run: no stage request"
+fi
+
+: > "$work/body"
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK_READ" "$mgm$in") ||
+  code=000
+expect "GET of an in-scope file, read token" 307
+
+if (( failures )); then
+  issuer_log
+  echo "FAIL: $failures case(s) failed"
+  exit 1
+fi
+
+echo "PASS: all cases"

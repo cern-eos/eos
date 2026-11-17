@@ -951,6 +951,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-macaroon-init
 %{_sbindir}/eos-http-upload-test
 %{_sbindir}/eos-https-functional-test
+%{_sbindir}/eos-tape-rest-token-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fusex-tests
 %{_sbindir}/eos-fusex-functional-test

@@ -885,6 +885,16 @@ eos_lru() {
   echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+eos_tape_rest_token() {
+  local rc
+  echo eos-tape-rest-token-test -t "$1"
+  eos-tape-rest-token-test -h "${EOS_TEST_FULL_REDIRECTOR}" -p "${EOS_HTTPS_PORT}" -t "$1" >> "$EOSCERTLOG" 2>&1
+  rc=$?
+  # The last line is the PASS, SKIP or FAIL summary.
+  tail -n 1 "$EOSCERTLOG"
+  return $rc
+}
+
 eos_tape_rest_xrootd_client() {
   (
     set -e -o pipefail
@@ -4145,6 +4155,14 @@ runtest "### eos-accounting  " unix SUCCESS "" eos_accounting "/eos/$EOS_TEST_IN
 categorie="taperest"
 # ------------------------------------------------------------------------------
 runtest "### Tape REST " unix SUCCESS "" eos_tape_rest_xrootd_client "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+
+################################################################################
+# Tape REST API tests with WLCG tokens
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="tapejwt"
+# ------------------------------------------------------------------------------
+runtest "### Tape REST tokens " unix SUCCESS "" eos_tape_rest_token "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 
 ################################################################################
 # lru tests
