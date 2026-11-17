@@ -12,6 +12,7 @@ usr/sbin/eos-jwk-https-test
 usr/sbin/eos-oc-test
 usr/sbin/eos-rain-test
 usr/sbin/eos-rain-pio-write-test
+usr/sbin/eos-tape-rest-token-test
 usr/sbin/eoscp-rain-test
 usr/sbin/fusex-benchmark
 usr/sbin/xrdcpabort
