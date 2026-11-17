@@ -21,10 +21,24 @@
  ************************************************************************/
 
 #include "common/WFEClient.hh"
+#include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
 #include <gtest/gtest.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
+
+namespace {
+class FakeCtaFrontend : public cta::xrd::CtaRpc::Service {
+  grpc::Status
+  Archive(grpc::ServerContext*, const cta::xrd::Request*, cta::xrd::Response*) override
+  {
+    return grpc::Status::OK;
+  }
+};
+} // namespace
 
 //------------------------------------------------------------------------------
 // The JWT sent to the CTA frontend must not show up in the logs, not even at
@@ -60,4 +74,59 @@ TEST(WFEGrpcClient, TokenNotLogged)
       ASSERT_TRUE(text == nullptr || strstr(text, token.c_str()) == nullptr) << text;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// A restarted CTA frontend resets the old connection. The client must
+// reconnect and retry at once, not fail the request.
+//------------------------------------------------------------------------------
+TEST(WFEGrpcClient, RetryAfterConnectionReset)
+{
+  const std::string token =
+      jwt::create().set_issuer("eos-unit-test").sign(jwt::algorithm::hs256{"secret"});
+  char path[] = "/tmp/eos-wfe-jwt-XXXXXX";
+  int fd = mkstemp(path);
+  ASSERT_NE(fd, -1);
+  ASSERT_EQ(write(fd, token.c_str(), token.size()), (ssize_t)token.size());
+  close(fd);
+  // This listener resets the first connection, then the real frontend
+  // takes over the same port
+  int lfd = socket(AF_INET, SOCK_STREAM, 0);
+  ASSERT_GE(lfd, 0);
+  int one = 1;
+  setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  socklen_t len = sizeof(addr);
+  ASSERT_EQ(0, bind(lfd, (sockaddr*)&addr, len));
+  ASSERT_EQ(0, listen(lfd, 1));
+  ASSERT_EQ(0, getsockname(lfd, (sockaddr*)&addr, &len));
+  const std::string endpoint = "127.0.0.1:" + std::to_string(ntohs(addr.sin_port));
+  FakeCtaFrontend service;
+  std::unique_ptr<grpc::Server> server;
+  std::thread restarter([&]() {
+    int cfd = accept(lfd, nullptr, nullptr);
+    char buf[256];
+    (void)!read(cfd, buf, sizeof(buf));
+    close(lfd);
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(endpoint, grpc::InsecureServerCredentials());
+    builder.RegisterService(&service);
+    server = builder.BuildAndStart();
+    linger lg{1, 0};
+    setsockopt(cfd, SOL_SOCKET, SO_LINGER, &lg, sizeof(lg));
+    close(cfd);
+  });
+  WFEGrpcClient client(endpoint, std::nullopt, path, false);
+  cta::xrd::Request request;
+  cta::xrd::Response response;
+  request.mutable_notification()->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
+  cta::xrd::Response::ResponseType rsp = cta::xrd::Response::RSP_INVALID;
+  EXPECT_NO_THROW(rsp = client.send(request, response));
+  EXPECT_EQ(cta::xrd::Response::RSP_SUCCESS, rsp);
+  restarter.join();
+  ASSERT_TRUE(server);
+  server->Shutdown();
+  unlink(path);
 }
