@@ -23,6 +23,19 @@ if [[ ${EOS_MGM_ENABLE_TAPE_REST:-0} == 1 ]]; then
         grep -qxF "$setting" /etc/xrd.cf.mgm ||
           printf '%s\n' "$setting" >> /etc/xrd.cf.mgm
       done
+      # WLCG tokens of the issuer that "eos-tape-rest-token-test -S" serves.
+      # Unconditional: a missing library must fail the job, not skip the test.
+      grep -q '^mgmofs\.macaroonslib .*libXrdAccSciTokens' /etc/xrd.cf.mgm ||
+        sed -i '/^mgmofs\.macaroonslib /s/$/ libXrdAccSciTokens.so/' /etc/xrd.cf.mgm
+      # XrdSciTokens re-reads its configuration, so replace it, never rewrite it.
+      printf '%s\n' '[Global]' 'audience = https://wlcg.cern.ch/jwt/v1/any' '' \
+        '[Issuer tapetest]' "issuer = https://$(hostname -f):4443" 'base_path = /' \
+        'map_subject = False' 'default_user = eos-user' > /etc/xrootd/scitokens.cfg.new
+      if cmp -s /etc/xrootd/scitokens.cfg.new /etc/xrootd/scitokens.cfg; then
+        rm -f /etc/xrootd/scitokens.cfg.new
+      else
+        mv -f /etc/xrootd/scitokens.cfg.new /etc/xrootd/scitokens.cfg
+      fi
     fi
 EOF
 fi

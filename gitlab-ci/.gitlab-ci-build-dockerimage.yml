@@ -90,6 +90,8 @@ el9_docker_image:
   extends: .build_dockerimage-template
   variables:
     DIST: el-9
+    # eos-jwk-https, for the tapejwt instance test of k8s_tape_rest
+    INSTALL_EXTRA: "eos-scitokenapi"
   needs:
     - job: clone_docker
     - job: build_el9
