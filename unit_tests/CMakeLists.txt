@@ -23,6 +23,8 @@
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/common/
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/
   ${CMAKE_SOURCE_DIR}/console/commands/helpers/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -109,6 +111,7 @@ set(MGM_UT_SRCS
   mgm/tgc/SpaceToTapeGcMapTests.cc
   mgm/tgc/TapeGcTests.cc
   mgm/CtaUtilsTests.cc
+  mgm/WFEClientTests.cc
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
