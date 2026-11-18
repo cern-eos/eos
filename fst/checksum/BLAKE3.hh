@@ -33,13 +33,6 @@
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
-#include <zlib.h>
-
-#ifdef ISAL_FOUND
-#include <isa-l.h>
-#endif
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 

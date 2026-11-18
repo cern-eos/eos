@@ -33,9 +33,6 @@
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
-#include <zlib.h>
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
