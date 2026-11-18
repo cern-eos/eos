@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #include "common/SymKeys.hh"
-#include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Deletion.hh"
 #include "fst/Config.hh"
+#include "fst/Deletion.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/storage/Storage.hh"
+#include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -99,8 +100,8 @@ Storage::Remover()
     }
 
     auto now_ts = std::chrono::system_clock::now();
-    bool request_del = (std::chrono::duration_cast<std::chrono::seconds>
-                        (now_ts - last_request_ts) > request_interval);
+    bool request_del = (std::chrono::duration_cast<std::chrono::seconds>(
+                            now_ts - last_request_ts) >= request_interval);
 
     // Ask for more deletions if deleted something in last round or request
     // interval expired
@@ -109,7 +110,9 @@ Storage::Remover()
       last_request_ts = now_ts;
       (void) gOFS.Query2Delete();
     } else {
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      // Do not oversleep a short query interval; keep at most 10 seconds for
+      // deletions pushed by the MGM.
+      std::this_thread::sleep_for(std::clamp(request_interval, seconds(1), seconds(10)));
     }
   }
 }
