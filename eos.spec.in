@@ -206,6 +206,11 @@ BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 %endif
 
+# ISA-L adler32 (FST and eoscp) beats the EL9 zlib; EL10 zlib-ng is faster
+%if 0%{?rhel} == 9
+BuildRequires: isa-l-devel
+%endif
+
 BuildRequires: eos-grpc = %{eos_grpc_version}
 BuildRequires: eos-grpc-devel = %{eos_grpc_version}
 BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
