@@ -35,10 +35,6 @@
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
 
-#ifdef ISAL_FOUND
-#include <isa-l.h>
-#endif
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -81,11 +77,7 @@ public:
       finalized = false;
     }
 
-#ifdef ISAL_FOUND
-    crcsum = crc32_iscsi((unsigned char*) buffer, length, crcsum);
-#else
     crcsum = ~XrdOucCRC::Calc32C(buffer, length, ~crcsum);
-#endif
     crc32coffset += length;
     return true;
   }
