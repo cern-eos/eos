@@ -18,6 +18,8 @@
 
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "common/StacktraceHere.hh"
+#include "namespace/MDLocking.hh"
+#include "namespace/locking/NSObjectLocker.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -231,8 +233,11 @@ QuarkFileMDSvc::updateStore(IFileMD* obj)
     return;
   }
 
-  // Read the object before the mutex: no MD lock is taken under it, the
-  // callers can hold MD locks while they wait for it
+  // Keep the read lock until the write is queued: otherwise a caller without
+  // the MD lock can queue this state after the one of a newer change. Take it
+  // before the mutex: no MD lock is taken under it, the callers can hold MD
+  // locks while they wait for it
+  MDLocking::FileReadLock md_lock(obj);
   const IFileMD::id_t id = obj->getId();
   auto request = RequestBuilder::writeFileProto(obj);
   const bool detached = (obj->getContainerId() == 0);
