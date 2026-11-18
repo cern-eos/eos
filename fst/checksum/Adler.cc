@@ -24,7 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/checksum/Adler.hh"
 
-#ifdef ISAL_FOUND
+// zlib-ng (EL10) has a faster SIMD adler32 than ISA-L; classic zlib (EL9) is
+// several times slower than both
+#if defined(ISAL_FOUND) && !defined(ZLIBNG_VERSION)
+#define EOS_ADLER_USE_ISAL
 #include <isa-l.h>
 #endif
 
@@ -50,7 +53,7 @@ Adler::Add(const char* buffer, size_t length, off_t offset)
 
   adler = adler32(0L, Z_NULL, 0);
   Chunk currChunk;
-#ifdef ISAL_FOUND
+#ifdef EOS_ADLER_USE_ISAL
   adler = isal_adler32(adler, (const unsigned char*) buffer, length);
 #else
   adler = adler32(adler, (const Bytef*) buffer, length);

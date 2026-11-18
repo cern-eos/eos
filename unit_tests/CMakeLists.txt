@@ -218,6 +218,7 @@ set(FST_UT_SRCS
   fst/HttpHandlerFstFileCacheTests.cc
   fst/ChecksumGroupTests.cc
   fst/CRC32CTests.cc
+  fst/AdlerTests.cc
   fst/NfsIoTests.cc
   fst/BlockXsMapTests.cc
   fst/SparseJournalTests.cc
