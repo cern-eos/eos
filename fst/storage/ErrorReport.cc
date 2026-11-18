@@ -60,14 +60,15 @@ Storage::ErrorReport(ThreadAssistant& assistant) noexcept
       g_logging.gMutex.UnLock();
 
       if (endpos > localCircularIndex[i]) {
-        // we have to follow the messages and add them to the queue
+        // copy the new messages to the queue, under one Lock() of all stripes
+        g_logging.gMutex.Lock();
+
         for (unsigned long j = localCircularIndex[i]; j < endpos; j++) {
-          // copy the messages to the queue
-          g_logging.gMutex.Lock();
           ErrorReportQueue.push_back(g_logging.gLogMemory[i][j %
                                      g_logging.gCircularIndexSize]);
-          g_logging.gMutex.UnLock();
         }
+
+        g_logging.gMutex.UnLock();
 
         localCircularIndex[i] = endpos;
       }
@@ -117,5 +118,3 @@ Storage::ErrorReport(ThreadAssistant& assistant) noexcept
 }
 
 EOSFSTNAMESPACE_END
-
-

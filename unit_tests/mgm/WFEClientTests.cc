@@ -65,15 +65,17 @@ TEST(WFEGrpcClient, TokenNotLogged)
   EXPECT_ANY_THROW(client.send(request, response));
   logging.SetLogPriority(old_priority);
   unlink(path);
-  XrdSysMutexHelper lock(logging.gMutex);
+  logging.gMutex.Lock();
 
   for (const auto& lines : logging.gLogMemory) {
     for (const auto& line : lines) {
       // Unused slots of the log ring are empty and have a null c_str()
       const char* text = line.c_str();
-      ASSERT_TRUE(text == nullptr || strstr(text, token.c_str()) == nullptr) << text;
+      EXPECT_TRUE(text == nullptr || strstr(text, token.c_str()) == nullptr) << text;
     }
   }
+
+  logging.gMutex.UnLock();
 }
 
 //------------------------------------------------------------------------------

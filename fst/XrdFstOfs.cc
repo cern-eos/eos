@@ -2186,14 +2186,15 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   int logtagindex = g_logging.GetPriorityByString(tag.c_str());
 
+  // Lock() takes all ring stripes: lock once per level, not once per line
   for (int j = 0; j <= logtagindex; j++) {
+    g_logging.gMutex.Lock();
+
     for (int i = 1; i <= atoi(lines.c_str()); i++) {
-      g_logging.gMutex.Lock();
       XrdOucString logline = g_logging.gLogMemory[j][
                                (g_logging.gLogCircularIndex[j] - i +
                                 g_logging.gCircularIndexSize) %
                                g_logging.gCircularIndexSize].c_str();
-      g_logging.gMutex.UnLock();
 
       if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
         response += logline;
@@ -2204,6 +2205,8 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
         break;
       }
     }
+
+    g_logging.gMutex.UnLock();
   }
 
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection

@@ -200,8 +200,10 @@ set_target_properties(EosCliProto-Objects PROPERTIES
 # Generate protocol buffer objects for GRPC
 #-------------------------------------------------------------------------------
 if (Linux)
-     add_custom_target(RpcFileGeneration DEPENDS
-    ${GRPC_SRCS} ${GRPC_HDRS})
+  # Rpc.pb.h includes the headers of all protos it imports, directly or not
+  add_custom_target(RpcFileGeneration DEPENDS
+    ${GRPC_SRCS} ${GRPC_HDRS} ${FILE_HDRS} ${METADATA_HDRS} ${AUTH_HDRS}
+    ${RECY_HDRS} ${TRAFFIC_SHAPING_HDRS})
 
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/Rpc.proto)
   set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
