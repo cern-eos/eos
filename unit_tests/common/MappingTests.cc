@@ -449,6 +449,77 @@ TEST_F(TokenUserNameF, ZtnTokenWithEmptyUserNameMapsToNobody)
   EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
 }
 
+//------------------------------------------------------------------------------
+// With a token, only the token gives the identity: the VOMS groups of the
+// client's certificate must not change it. Without a token, they map the
+// client as before.
+//------------------------------------------------------------------------------
+class TokenVomsF : public TokenUserNameF {
+protected:
+  void
+  SetUp() override
+  {
+    TokenUserNameF::SetUp();
+    const struct passwd* pw = getpwnam("lp");
+    ASSERT_NE(nullptr, pw);
+    mVomsUid = pw->pw_uid;
+    mVomsGid = pw->pw_gid;
+    // Restored by TokenUserNameF::TearDown
+    Mapping::gVirtualUidMap["voms:\"/cms:production\":uid"] = mVomsUid;
+    Mapping::gVirtualGidMap["voms:\"/cms:production\":gid"] = mVomsGid;
+  }
+
+  //! Client "daemon" with the VOMS group /cms and the role production
+  void
+  SetVomsClient(XrdSecEntity& client)
+  {
+    client.name = mName.data();
+    client.tident = mTident.c_str();
+    client.grps = mGrps.data();
+    client.role = mRole.data();
+  }
+
+  uid_t mVomsUid{0};
+  gid_t mVomsGid{0};
+  std::string mGrps{"/cms"};
+  std::string mRole{"production"};
+  const char* mBearer = "authz=Bearer%20token";
+};
+
+TEST_F(TokenVomsF, HttpsWithoutTokenMapsTheVomsUser)
+{
+  XrdSecEntity client("https");
+  SetVomsClient(client);
+  VirtualIdentity vid;
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, nullptr, AOP_Stat, "", false);
+  EXPECT_EQ(mVomsUid, vid.uid);
+  EXPECT_EQ(mVomsGid, vid.gid);
+}
+
+TEST_F(TokenVomsF, HttpsTokenUserIsNotReplacedByTheVomsUser)
+{
+  XrdSecEntity client("https");
+  SetVomsClient(client);
+  AllowAllAuthz authz;
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
+  VirtualIdentity vid;
+  Mapping::IdMap(&client, mBearer, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  EXPECT_EQ(mBinUid, vid.uid);
+  EXPECT_EQ(mBinGid, vid.gid);
+}
+
+TEST_F(TokenVomsF, HttpsTokenWithEmptyUserNameIsNotTheVomsUser)
+{
+  XrdSecEntity client("https");
+  SetVomsClient(client);
+  AllowAllAuthz authz;
+  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
+  VirtualIdentity vid;
+  Mapping::IdMap(&client, mBearer, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
+  EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
+}
+
 struct MockGroupListProvider : UnixGroupListFetcher {
   MOCK_METHOD(std::vector<gid_t>, getGroups, (const std::string&, gid_t), (override));
 };
