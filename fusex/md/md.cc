@@ -2943,10 +2943,12 @@ metad::mdcallback(ThreadAssistant& assistant)
             int logtagindex =
               eos::common::Logging::GetInstance().GetPriorityByString("debug");
 
+            // Lock() takes all ring stripes: lock once per level
             for (int j = 0; j <= logtagindex; j++) {
+              eos::common::Logging::GetInstance().gMutex.Lock();
+
               for (int i = 1; i <= 512; i++) {
                 std::string logline;
-                eos::common::Logging::GetInstance().gMutex.Lock();
                 const char* log = eos::common::Logging::GetInstance().gLogMemory[j][
                                     (eos::common::Logging::GetInstance().gLogCircularIndex[j] - i +
                                      eos::common::Logging::GetInstance().gCircularIndexSize) %
@@ -2956,13 +2958,13 @@ metad::mdcallback(ThreadAssistant& assistant)
                   logline = log;
                 }
 
-                eos::common::Logging::GetInstance().gMutex.UnLock();
-
                 if (logline.length()) {
                   sendlog += logline;
                   sendlog += "\n";
                 }
               }
+
+              eos::common::Logging::GetInstance().gMutex.UnLock();
             }
 
             mCb.Lock();
