@@ -21,15 +21,179 @@
 //! @brief File metadata service tests
 //------------------------------------------------------------------------------
 
+#include "namespace/MDLocking.hh"
+#include "namespace/locking/BulkNsObjectLocker.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
+#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include <atomic>
+#include <functional>
 #include <gtest/gtest.h>
 #include <memory>
+#include <thread>
+#include <vector>
 
 class ContainerMDSvcF : public eos::ns::testing::NsTestsFixture {};
+
+namespace {
+//------------------------------------------------------------------------------
+// Run the jobs in parallel, once per round, and count the rounds after which
+// isStale is true
+//------------------------------------------------------------------------------
+uint64_t
+countStaleRounds(const std::vector<std::function<void(uint64_t)>>& jobs,
+                 const std::function<bool()>& isStale, uint64_t rounds)
+{
+  std::atomic<uint64_t> round{0};
+  std::atomic<uint64_t> finished{0};
+  std::atomic<bool> stop{false};
+  std::vector<std::thread> threads;
+
+  for (const auto& job : jobs) {
+    threads.emplace_back([&]() {
+      uint64_t seen = 0;
+
+      while (true) {
+        uint64_t current;
+
+        while ((current = round.load()) == seen) {
+          if (stop.load()) {
+            return;
+          }
+
+          std::this_thread::yield();
+        }
+
+        seen = current;
+        job(current);
+        finished.fetch_add(1);
+      }
+    });
+  }
+
+  uint64_t stale = 0;
+
+  for (uint64_t r = 1; r <= rounds; ++r) {
+    finished.store(0);
+    round.store(r);
+
+    while (finished.load() != jobs.size()) {
+      std::this_thread::yield();
+    }
+
+    if (isStale()) {
+      ++stale;
+    }
+  }
+
+  stop.store(true);
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  return stale;
+}
+} // namespace
+
+//------------------------------------------------------------------------------
+// A store without the MD lock of the container must not replace the record
+// written by a parallel rename with the older state of the container
+//------------------------------------------------------------------------------
+TEST_F(ContainerMDSvcF, UnlockedStoreDoesNotUndoRename)
+{
+  std::shared_ptr<eos::IContainerMD> parent = view()->createContainer("/race/", true);
+  std::shared_ptr<eos::IContainerMD> dir = view()->createContainer("/race/n0", true);
+  const eos::IContainerMD::id_t id = dir->getId();
+  std::vector<std::function<void(uint64_t)>> jobs;
+  jobs.push_back([&](uint64_t) { containerSvc()->updateStore(dir.get()); });
+  jobs.push_back([&](uint64_t round) {
+    eos::MDLocking::BulkMDWriteLock locker;
+    locker.add(parent.get());
+    locker.add(dir.get());
+    auto locks = locker.lockAll();
+    view()->renameContainer(dir.get(), "n" + std::to_string(round));
+    view()->updateContainerStore(parent.get());
+  });
+
+  // Stores of other directories delay the ones waiting for the same mutex
+  for (int i = 0, found = 0; found < 2; ++i) {
+    auto other = view()->createContainer("/other/d" + std::to_string(i), true);
+
+    if (other->getId() % 64 == id % 64) {
+      ++found;
+      jobs.push_back([this, other](uint64_t) {
+        for (int n = 0; n < 3; ++n) {
+          eos::MDLocking::ContainerWriteLock lock(other.get());
+          other->setMTimeNow();
+          view()->updateContainerStore(other.get());
+        }
+      });
+    }
+  }
+
+  const uint64_t stale = countStaleRounds(
+      jobs,
+      [&]() {
+        mdFlusher()->synchronize();
+        return eos::MetadataFetcher::getContainerFromId(qcl(),
+                                                        eos::ContainerIdentifier(id))
+                   .get()
+                   .name() != dir->getName();
+      },
+      2000);
+  EXPECT_EQ(stale, 0u);
+}
+
+//------------------------------------------------------------------------------
+// The same for a file
+//------------------------------------------------------------------------------
+TEST_F(ContainerMDSvcF, UnlockedFileStoreDoesNotUndoRename)
+{
+  std::shared_ptr<eos::IContainerMD> parent = view()->createContainer("/race/", true);
+  std::shared_ptr<eos::IFileMD> file = view()->createFile("/race/n0", 0, 0);
+  const eos::IFileMD::id_t id = file->getId();
+  std::vector<std::function<void(uint64_t)>> jobs;
+  jobs.push_back([&](uint64_t) { fileSvc()->updateStore(file.get()); });
+  jobs.push_back([&](uint64_t round) {
+    eos::MDLocking::BulkMDWriteLock locker;
+    locker.add(parent.get());
+    locker.add(file.get());
+    auto locks = locker.lockAll();
+    view()->renameFile(file.get(), "n" + std::to_string(round));
+    view()->updateFileStore(file.get());
+  });
+  view()->createContainer("/other/", true);
+
+  for (int i = 0, found = 0; found < 2; ++i) {
+    auto other = view()->createFile("/other/f" + std::to_string(i), 0, 0);
+
+    if (other->getId() % 64 == id % 64) {
+      ++found;
+      jobs.push_back([this, other](uint64_t) {
+        for (int n = 0; n < 3; ++n) {
+          eos::MDLocking::FileWriteLock lock(other.get());
+          other->setMTimeNow();
+          view()->updateFileStore(other.get());
+        }
+      });
+    }
+  }
+
+  const uint64_t stale = countStaleRounds(
+      jobs,
+      [&]() {
+        mdFlusher()->synchronize();
+        return eos::MetadataFetcher::getFileFromId(qcl(), eos::FileIdentifier(id))
+                   .get()
+                   .name() != file->getName();
+      },
+      2000);
+  EXPECT_EQ(stale, 0u);
+}
 
 TEST_F(ContainerMDSvcF, BasicSanity)
 {
