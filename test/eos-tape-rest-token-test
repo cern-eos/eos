@@ -29,7 +29,8 @@ usage() {
   cat <<'EOF'
 Usage: eos-tape-rest-token-test -t <directory> [-h <host>] [-p <https port>]
                                 [-i <issuer URL>] [-k <key id>] [-u <tape user>]
-                                [-a <audience>] [-S]
+                                [-a <audience>] [-c <client cert>]
+                                [-K <client key>] [-S]
 
   -t  EOS directory under which the test creates, and then removes, its own tree
   -h  MGM host name, as in its certificate (default: hostname -f)
@@ -39,6 +40,10 @@ Usage: eos-tape-rest-token-test -t <directory> [-h <host>] [-p <https port>]
   -u  local user the issuer's tokens are mapped to (default: the default_user
       of that issuer in /etc/xrootd/scitokens.cfg)
   -a  token audience (default: https://wlcg.cern.ch/jwt/v1/any)
+  -c  X.509 client certificate (default: $X509_USER_CERT, or
+      /root/.globus/usercert.pem)
+  -K  key of the X.509 client certificate (default: $X509_USER_KEY, or
+      /root/.globus/userkey.pem)
   -S  serve the issuer from this test with eos-jwk-https, on the port of the
       issuer URL, with the host certificate. The signing key is created if it
       does not exist. Also set by EOS_TAPE_REST_TOKEN_SERVE_ISSUER=1.
@@ -51,7 +56,9 @@ Prerequisites on the MGM:
     [Global] audience is the token audience;
   - without -S, the issuer serves the public key of
     "eos scitoken create-keys --keyid <key id>" (e.g. with eos-jwk-https);
-  - the system trust store accepts the certificates of the issuer and the MGM.
+  - the system trust store accepts the certificates of the issuer and the MGM;
+  - the MGM maps the X.509 client certificate to the tape user, e.g. with a
+    gridmap line, and accepts unix authentication from localhost.
 A missing prerequisite skips the test, or fails it if EOS_TAPE_REST_TOKEN_REQUIRE=1.
 EOF
 }
@@ -66,8 +73,10 @@ keyid="tapetest"
 user=""
 audience="https://wlcg.cern.ch/jwt/v1/any"
 serve=${EOS_TAPE_REST_TOKEN_SERVE_ISSUER:-0}
+cert=${X509_USER_CERT:-/root/.globus/usercert.pem}
+certkey=${X509_USER_KEY:-/root/.globus/userkey.pem}
 
-while getopts "t:h:p:i:k:u:a:S" opt; do
+while getopts "t:h:p:i:k:u:a:c:K:S" opt; do
   case $opt in
     t) prefix=${OPTARG%/} ;;
     h) host=$OPTARG ;;
@@ -76,6 +85,8 @@ while getopts "t:h:p:i:k:u:a:S" opt; do
     k) keyid=$OPTARG ;;
     u) user=$OPTARG ;;
     a) audience=$OPTARG ;;
+    c) cert=$OPTARG ;;
+    K) certkey=$OPTARG ;;
     S) serve=1 ;;
     *) usage; exit 2 ;;
   esac
@@ -101,7 +112,7 @@ skip_or_fail() {
   exit 0
 }
 
-for cmd in eos curl jq xrdcp; do
+for cmd in eos curl jq xrdcp runuser; do
   if ! command -v "$cmd" > /dev/null; then
     echo "FAIL: $cmd not found"
     exit 1
@@ -142,11 +153,17 @@ fi
   skip_or_fail "no [Issuer] for $issuer with a default_user in /etc/xrootd/scitokens.cfg"
 getent passwd "$user" > /dev/null ||
   skip_or_fail "tape user $user does not exist"
+[[ -r $cert && -r $certkey ]] ||
+  skip_or_fail "no X.509 client certificate $cert with its key $certkey"
+! grep -q ENCRYPTED "$certkey" ||
+  skip_or_fail "the key $certkey has a pass phrase; the test needs a key without one"
 
 # --- Fixture -----------------------------------------------------------------
 work=$(mktemp -d) || exit 1
 dir="$prefix/tape-rest-token-$(cat /proc/sys/kernel/random/uuid)"
 in="$dir/in/f"
+out="$dir/out/f"
+xt=""
 created=0
 requests=()
 failures=0
@@ -154,10 +171,13 @@ code=""
 issuer_pid=""
 TOK_STAGE=""
 
-# api <method> <path below /api/v1/> <token or ""> [JSON body]
-# Sets $code and leaves the response body in $work/body.
+# api <method> <path below /api/v1/> <token or ""> [JSON body [curl options...]]
+# Sets $code and leaves the response body in $work/body, and curl's error in
+# $work/curl.err.
 api() {
-  local args=(-s -o "$work/body" -w '%{http_code}' -X "$1")
+  local args=(-sS -o "$work/body" -w '%{http_code}' -X "$1")
+
+  : > "$work/body"
 
   if [[ -n $3 ]]; then
     args+=(-H "Authorization: Bearer $3")
@@ -167,7 +187,7 @@ api() {
     args+=(-H "Content-Type: application/json" --data-binary "$4")
   fi
 
-  code=$(curl "${args[@]}" "$mgm/api/v1/$2") || code=000
+  code=$(curl "${args[@]}" "${@:5}" "$mgm/api/v1/$2" 2> "$work/curl.err") || code=000
 }
 
 cleanup() {
@@ -193,7 +213,7 @@ cleanup() {
     rc=1
   fi
 
-  rm -rf "$work"
+  rm -rf "$work" ${xt:+"$xt"}
   exit $rc
 }
 
@@ -284,11 +304,12 @@ curl -fsS "$issuer/.well-known/openid-configuration" 2>&1 |
 setup() {
   local d w
 
-  printf 'EOS tape REST token test\n' > "$work/payload" || return 1
   eos -b "$rooturl" mkdir -p "$dir" || return 1
   created=1
 
-  # Only <tape user> may prepare, so a request mapped to nobody is refused.
+  # Only <tape user> may read and prepare, so a request mapped to nobody is
+  # refused. EOS checks the directory's permissions when a file is read, not the
+  # file's own mode.
   for d in "$dir/in" "$dir/out"; do
     eos -b "$rooturl" mkdir "$d" &&
       eos -b "$rooturl" chown "$user" "$d" &&
@@ -300,9 +321,14 @@ setup() {
       eos -b "$rooturl" attr set "sys.workflow.sync::$w.default=noop" "$d" || return 1
     done
 
-    xrdcp -s -f "$work/payload" "$rooturl/$d/f" &&
+    # Each file holds its own path, so that a copy shows which file it is.
+    # Restrict the directory last: once it is 700, the xrdcp above cannot
+    # write into it.
+    printf '%s\n' "$d/f" > "$work/payload" &&
+      xrdcp -s -f "$work/payload" "$rooturl/$d/f" &&
       eos -b "$rooturl" chown "$user" "$d/f" &&
-      eos -b "$rooturl" chmod 600 "$d/f" || return 1
+      eos -b "$rooturl" chmod 600 "$d/f" &&
+      eos -b "$rooturl" chmod 700 "$d" || return 1
   done
 }
 
@@ -335,6 +361,11 @@ fail() {
 expect() {
   local name=$1 want=$2 filter=${3:-}
 
+  if [[ $code == 000 ]]; then
+    fail "$name: no HTTP answer, expected $want: $(tail -n 1 "$work/curl.err" 2> /dev/null)"
+    return 1
+  fi
+
   if [[ $code != "$want" ]]; then
     fail "$name: HTTP $code, expected $want"
     return 1
@@ -362,6 +393,10 @@ if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ"; then
   echo "FAIL: eos scitoken create did not return a token"
   exit 1
 fi
+
+# The claims of TOK_STAGE with the signature of TOK_READ: a WLCG token that
+# does not validate.
+TOK_INVALID="${TOK_STAGE%.*}.${TOK_READ##*.}"
 
 # --- Cases -------------------------------------------------------------------
 : > "$work/body"
@@ -404,6 +439,94 @@ fi
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK_READ" "$mgm$in") ||
   code=000
 expect "GET of an in-scope file, read token" 307
+
+# --- Requests on one connection ----------------------------------------------
+# The MGM keeps the client's identity for the whole connection. Each request
+# must map only with its own credentials, never with the user that a token gave
+# to an earlier request on the same connection. The out file is outside the
+# scope of the tokens, but the tape user may read and prepare it.
+
+# Whether curl sent its second request on the connection of the first one
+reused() {
+  grep -qE 'Re-?using existing' "$work/curl.err"
+}
+
+name="GET of the out file without a token, after a token GET on the same connection"
+: > "$work/body"
+mapfile -t codes < <(curl -sv -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOK_READ" "$mgm$in" \
+  --next -o /dev/null -w '%{http_code}\n' "$mgm$out" 2> "$work/curl.err")
+
+if ! reused; then
+  fail "$name: curl did not reuse the connection"
+elif [[ ${codes[0]:-} != 307 ]]; then
+  fail "$name: the token GET got HTTP ${codes[0]:-none}, expected 307"
+elif [[ ${codes[1]:-} != 403 ]]; then
+  fail "$name: HTTP ${codes[1]:-none}, expected 403"
+else
+  pass "$name"
+fi
+
+name="archiveinfo of the out file with an invalid token, after a valid token on the same connection"
+: > "$work/body"
+mapfile -t codes < <(curl -sv -o /dev/null -w '%{http_code}\n' -X POST \
+  -H "Authorization: Bearer $TOK_STAGE" -H "Content-Type: application/json" \
+  --data-binary "{\"paths\":[\"$in\"]}" "$mgm/api/v1/archiveinfo/" \
+  --next -o "$work/body" -w '%{http_code}\n' -X POST \
+  -H "Authorization: Bearer $TOK_INVALID" -H "Content-Type: application/json" \
+  --data-binary "{\"paths\":[\"$out\"]}" "$mgm/api/v1/archiveinfo/" 2> "$work/curl.err")
+
+if ! reused; then
+  fail "$name: curl did not reuse the connection"
+elif [[ ${codes[0]:-} != 200 ]]; then
+  fail "$name: the valid token got HTTP ${codes[0]:-none}, expected 200"
+else
+  code=${codes[1]:-000}
+  expect "$name" 200 \
+    'length == 1 and .[0].path == $p and .[0].locality == null and (.[0].error | type == "string" and length > 0)' \
+    --arg p "$out"
+fi
+
+# xrdcp opens its sources one after the other, on one connection to the MGM.
+name="xroot open of the out file with an invalid token, after a valid token on the same connection"
+: > "$work/body"
+
+if ! xt=$(mktemp -d) || ! chown nobody "$xt"; then
+  fail "$name: cannot create a directory for nobody"
+else
+  # nobody cannot read root's X.509 credentials
+  runuser -u nobody -- env -u X509_USER_CERT -u X509_USER_KEY -u X509_USER_PROXY \
+    XrdSecPROTOCOL=unix "$(command -v xrdcp)" -s -f \
+    "$rooturl/$in?authz=Bearer%20$TOK_READ" \
+    "$rooturl/$out?authz=Bearer%20$TOK_INVALID" "$xt/" > "$work/body" 2>&1
+  rc=$?
+
+  if [[ $rc == 0 ]]; then
+    fail "$name: xrdcp copied both files"
+  elif [[ $(cat "$xt/f" 2> /dev/null) != "$in" ]]; then
+    # e.g. "eos vid add gateway localhost unix" maps unix clients by their own
+    # name after the token mapping
+    fail "$name: xrdcp failed with $rc, and the in file was not copied: the valid token did not map to $user over xroot (a gateway or tident rule for unix on localhost?)"
+  else
+    pass "$name"
+  fi
+fi
+
+# --- A client certificate with a token ---------------------------------------
+# With a token, only the token gives the identity: the token's user, or nobody,
+# never the client's X.509 identity.
+api POST archiveinfo/ "" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
+
+if ! expect "archiveinfo, client certificate" 200 \
+       'length == 1 and .[0].path == $p and .[0].locality == "DISK" and (.[0].error // "") == ""' \
+       --arg p "$in"; then
+  echo "  the MGM must map the X.509 identity of $cert to $user"
+fi
+
+api POST archiveinfo/ "$TOK_INVALID" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
+expect "archiveinfo, client certificate and an invalid token" 200 \
+  'length == 1 and .[0].path == $p and .[0].locality == null and (.[0].error | type == "string" and length > 0)' \
+  --arg p "$in"
 
 if (( failures )); then
   issuer_log
