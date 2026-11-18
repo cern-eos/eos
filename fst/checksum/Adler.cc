@@ -28,7 +28,7 @@
 // several times slower than both
 #if defined(ISAL_FOUND) && !defined(ZLIBNG_VERSION)
 #define EOS_ADLER_USE_ISAL
-#include <isa-l.h>
+#include <isa-l/igzip_lib.h>
 #endif
 
 EOSFSTNAMESPACE_BEGIN
