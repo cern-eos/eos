@@ -162,6 +162,7 @@ add_library(EosFstIo-Objects OBJECT
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
   EosCommon
+  ISAL::ISAL
   DAVIX::DAVIX
   XFS::XFS
   XROOTD::PRIVATE
