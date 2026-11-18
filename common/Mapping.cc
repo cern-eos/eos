@@ -260,6 +260,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     return;
   }
 
+  // The entity lives as long as the client's connection: the user that a token
+  // gave to an earlier request must not map this one.
+  SecEntity::ClearRequestName(client);
   eos_static_debug("msg=\"XrdSecEntity client\" name=\"%s\" role=\"%s\" "
                    "group=\"%s\" tident=\"%s\" cred=\"%s\"",
                    (client->name ? client->name : "null"),
@@ -362,22 +365,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
     }
 
-    // Check if we have the request.name in the attributes of the XrdSecEntity
-    // object which is the client username according to the authz mapping.
-    // With a token, an empty name means that the token maps to no user, so the
-    // client is nobody. Without a token, an empty name is no name.
+    // With a token, only the token gives the identity: the user that the authz
+    // plugin mapped it to, or nobody. Without a token, the client's own name.
     std::string client_username;
-    std::string user_value;
-    static const std::string user_key = "request.name";
-    const bool has_user = has_token ? client->eaAPI->Get(user_key, user_value)
-                                    : SecEntity::GetRequestName(client, user_value);
 
-    if (has_user) {
-      client_username = user_value;
-    } else {
-      if (client->name) {
-        client_username = client->name;
-      }
+    if (has_token) {
+      SecEntity::GetRequestName(client, client_username);
+    } else if (client->name) {
+      client_username = client->name;
     }
 
     HandleUidGidMapping(client_username.c_str(), vid,
@@ -415,21 +410,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         return;
       }
 
-      // Check if we have the request.name in the attributes of the XrdSecEntity
-      // object which is the client username according to the authz mapping.
+      // The token gives the identity: the user that the authz plugin mapped it
+      // to, or nobody.
       std::string client_username;
-      std::string user_value;
-      static const std::string user_key = "request.name";
-
-      if (client->eaAPI->Get(user_key, user_value)) {
-        // we got a user name from the token
-        client_username = user_value;
-      } else {
-        if (client->name) {
-          client_username = client->name;
-        }
-      }
-
+      SecEntity::GetRequestName(client, client_username);
       HandleUidGidMapping(client_username.c_str(), vid,
                           g_ztn_uid_key, g_ztn_gid_key);
     } else {
@@ -463,14 +447,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         return;
       }
 
-      // Check if we have the request.name in the attributes of the XrdSecEntity
-      // object which is the client username according to the authz mapping.
+      // A user name from the token forces the mapping to that user. Without
+      // one, the unix rules map the client as nobody, and may force every
+      // unix client to one local user.
       std::string client_username = "nobody";
       std::string user_value;
-      static const std::string user_key = "request.name";
       bool force_mapping = false;
 
-      if (client->eaAPI->Get(user_key, user_value)) {
+      if (SecEntity::GetRequestName(client, user_value)) {
         force_mapping = true;
         client_username = user_value;
       } else {

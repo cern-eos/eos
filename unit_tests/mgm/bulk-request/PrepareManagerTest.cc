@@ -21,9 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "unit_tests/mgm/bulk-request/PrepareManagerTest.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
+#include "unit_tests/mgm/FakeSciTokensAuthz.hh"
+#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include <pwd.h>
 
 using ::testing::Return;
 using ::testing::_;
@@ -743,4 +745,106 @@ TEST_F(PrepareManagerTest, queryPrepareFileNoPreparePermissionOnDirectory)
   ASSERT_EQ("USER ERROR: you don't have prepare permission", file.error_text);
   ASSERT_TRUE(file.request_time.empty());
   ASSERT_EQ(paths[0], file.path);
+}
+
+//------------------------------------------------------------------------------
+// The tape REST API queries the files of a request with its token, one file
+// at a time. The client's entity lives as long as its connection: a token that
+// does not validate must not give the user of an earlier token.
+//------------------------------------------------------------------------------
+class PrepareManagerTokenTest : public PrepareManagerTest {
+protected:
+  void
+  SetUp() override
+  {
+    PrepareManagerTest::SetUp();
+    mUids.swap(eos::common::Mapping::gVirtualUidMap);
+    mGids.swap(eos::common::Mapping::gVirtualGidMap);
+    // Map the https clients to the local user of their name, like
+    // "eos vid enable https"
+    eos::common::Mapping::gVirtualUidMap["https:\"<pwd>\":uid"] = 0;
+    eos::common::Mapping::gVirtualGidMap["https:\"<pwd>\":gid"] = 0;
+  }
+
+  void
+  TearDown() override
+  {
+    mUids.swap(eos::common::Mapping::gVirtualUidMap);
+    mGids.swap(eos::common::Mapping::gVirtualGidMap);
+    PrepareManagerTest::TearDown();
+  }
+
+  eos::common::Mapping::VirtualUserMap_t mUids;
+  eos::common::Mapping::VirtualGroupMap_t mGids;
+};
+
+TEST_F(PrepareManagerTokenTest, queryPrepareInvalidTokenIgnoresTheUserOfAnEarlierToken)
+{
+  const struct passwd* pw = getpwnam("daemon");
+  ASSERT_NE(nullptr, pw);
+  const uid_t tokenUid = pw->pw_uid;
+  int nbFiles = 2;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+  FakeSciTokensAuthz authz("valid-token", "", "daemon");
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr =
+      std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface>& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, getTokenHandler()).WillRepeatedly(Return(&authz));
+  // Only the user of the token sees the files
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _))
+      .WillRepeatedly(
+          Invoke([tokenUid](const char* path, XrdSfsFileExistence& file_exists,
+                            XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
+                            const char* opaque, bool take_lock) {
+            const bool visible = (vid.uid == tokenUid);
+            file_exists = visible ? XrdSfsFileExistIsFile : XrdSfsFileExistNo;
+            return visible ? SFS_OK : SFS_ERROR;
+          }));
+  EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
+      .WillRepeatedly(
+          Invoke(MockPrepareMgmFSInterface::_ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA));
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _))
+      .WillRepeatedly(
+          Invoke(MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA));
+  // A client without a name of its own: without a token, it is nobody
+  XrdSecEntity client("https");
+  std::string tident = "client.1:2@client.example.org";
+  client.tident = tident.c_str();
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+  // A query on the client's connection, with the token of its Authorization
+  // header
+  auto query = [&](const std::string& auth) {
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Nobody();
+    vid.deferredClientPtr = &client;
+    vid.deferredAuth = auth;
+    PrepareArgumentsWrapper pargs("testReqId", Prep_QUERY, paths, oinfos);
+    ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+    return pm.queryPrepare(*(pargs.getPrepareArguments()), *errorWrapper.getError(),
+                           &vid);
+  };
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> valid = query("Bearer valid-token");
+  ASSERT_EQ(SFS_DATA, valid->getReturnCode());
+  ASSERT_EQ(paths.size(), valid->getResponse()->responses.size());
+
+  for (const auto& file : valid->getResponse()->responses) {
+    ASSERT_TRUE(file.is_exists) << file.path;
+    EXPECT_TRUE(file.can_show_locality.value_or(false)) << file.path;
+    EXPECT_EQ("", file.error_text) << file.path;
+  }
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> invalid =
+      query("Bearer invalid-token");
+  ASSERT_EQ(SFS_DATA, invalid->getReturnCode());
+  const auto& responses = invalid->getResponse()->responses;
+  ASSERT_EQ(paths.size(), responses.size());
+
+  for (const auto& file : responses) {
+    EXPECT_FALSE(file.is_exists) << file.path;
+    EXPECT_FALSE(file.can_show_locality.has_value()) << file.path;
+    EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
+              file.error_text);
+  }
 }

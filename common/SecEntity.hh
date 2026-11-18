@@ -206,6 +206,23 @@ public:
 
     return false;
   }
+
+  //----------------------------------------------------------------------------
+  //! Clear the user name that a token authorization plugin mapped the client
+  //! to. The entity lives as long as the client's connection, so the name that
+  //! a token gave to an earlier request must not be used for the next one.
+  //! The attribute cannot be removed, so it is set to empty, which
+  //! GetRequestName treats as no user name.
+  //!
+  //! @param entity client entity
+  //----------------------------------------------------------------------------
+  static void
+  ClearRequestName(const XrdSecEntity* entity)
+  {
+    if (entity && entity->eaAPI) {
+      entity->eaAPI->Add("request.name", "", true);
+    }
+  }
 };
 
 EOSCOMMONNAMESPACE_END
