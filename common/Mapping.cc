@@ -382,7 +382,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     HandleUidGidMapping(client_username.c_str(), vid,
                         g_https_uid_key, g_https_gid_key);
-    HandleVOMS(client, vid);
+
+    // The VOMS groups come from the client's certificate: with a token, only
+    // the token gives the identity.
+    if (!has_token) {
+      HandleVOMS(client, vid);
+    }
+
     HandleKEYS(client, vid);
   }
 
