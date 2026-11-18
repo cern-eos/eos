@@ -116,6 +116,7 @@ set(MGM_UT_SRCS
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/XrdMgmAuthzTests.cc
+  mgm/TokenAuthzChainTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc

@@ -37,7 +37,9 @@
 #include <memory>
 #include <pthread.h>
 #include <pwd.h>
+#include <string>
 #include <unistd.h>
+#include <utility>
 
 EOSCOMMONTESTING_BEGIN
 
@@ -323,14 +325,23 @@ TEST(VirtualIdentity, HandleKEYS)
 // of its own. Without a token, an empty value is no user name.
 //------------------------------------------------------------------------------
 
-//! Authorizes everything, like a token plugin that accepted the token
-class AllowAllAuthz : public XrdAccAuthorize {
+//! Authorizes everything, like a token plugin that accepted the token, and
+//! writes the user that the token maps to in "request.name", as XrdSciTokens
+//! does. An empty user is a token that maps to no user.
+class TokenUserAuthz : public XrdAccAuthorize {
 public:
   using XrdAccAuthorize::Access;
 
-  XrdAccPrivs
-  Access(const XrdSecEntity*, const char*, const Access_Operation, XrdOucEnv*) override
+  explicit TokenUserAuthz(std::string user)
+      : mUser(std::move(user))
   {
+  }
+
+  XrdAccPrivs
+  Access(const XrdSecEntity* entity, const char*, const Access_Operation,
+         XrdOucEnv*) override
+  {
+    entity->eaAPI->Add("request.name", mUser, true);
     return XrdAccPriv_All;
   }
 
@@ -346,6 +357,9 @@ public:
   {
     return 0;
   }
+
+private:
+  std::string mUser;
 };
 
 //! Maps the https and ztn clients to the local user of their name, like
@@ -414,16 +428,15 @@ TEST_F(TokenUserNameF, HttpsTokenWithEmptyUserNameMapsToNobody)
   XrdSecEntity client("https");
   client.name = mName.data();
   client.tident = mTident.c_str();
-  AllowAllAuthz authz;
   const char* env = "authz=Bearer%20token";
   VirtualIdentity vid;
   // The client maps to the user of the token, not to its own name
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
-  Mapping::IdMap(&client, env, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  TokenUserAuthz bin("bin");
+  Mapping::IdMap(&client, env, mTident.c_str(), vid, &bin, AOP_Stat, "", false);
   ASSERT_EQ(mBinUid, vid.uid);
   ASSERT_EQ(mBinGid, vid.gid);
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
-  Mapping::IdMap(&client, env, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  TokenUserAuthz no_user("");
+  Mapping::IdMap(&client, env, mTident.c_str(), vid, &no_user, AOP_Stat, "", false);
   EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
   EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
 }
@@ -436,15 +449,31 @@ TEST_F(TokenUserNameF, ZtnTokenWithEmptyUserNameMapsToNobody)
   client.tident = mTident.c_str();
   client.creds = creds.data();
   client.credslen = creds.size();
-  AllowAllAuthz authz;
   VirtualIdentity vid;
   // The client maps to the user of the token, not to its own name
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
-  Mapping::IdMap(&client, "", mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  TokenUserAuthz bin("bin");
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, &bin, AOP_Stat, "", false);
   ASSERT_EQ(mBinUid, vid.uid);
   ASSERT_EQ(mBinGid, vid.gid);
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
-  Mapping::IdMap(&client, "", mTident.c_str(), vid, &authz, AOP_Stat, "", false);
+  TokenUserAuthz no_user("");
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, &no_user, AOP_Stat, "", false);
+  EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
+  EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
+}
+
+// The entity lives as long as the connection: a request without a token, after
+// one with a token, must not map to the user of that token.
+TEST_F(TokenUserNameF, HttpsWithoutTokenIgnoresTheUserOfAnEarlierToken)
+{
+  XrdSecEntity client("https");
+  client.tident = mTident.c_str();
+  VirtualIdentity vid;
+  TokenUserAuthz bin("bin");
+  Mapping::IdMap(&client, "authz=Bearer%20token", mTident.c_str(), vid, &bin, AOP_Stat,
+                 "", false);
+  ASSERT_EQ(mBinUid, vid.uid);
+  ASSERT_EQ(mBinGid, vid.gid);
+  Mapping::IdMap(&client, "", mTident.c_str(), vid, nullptr, AOP_Stat, "", false);
   EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);
   EXPECT_EQ(VirtualIdentity::kNobodyGid, vid.gid);
 }
@@ -500,8 +529,7 @@ TEST_F(TokenVomsF, HttpsTokenUserIsNotReplacedByTheVomsUser)
 {
   XrdSecEntity client("https");
   SetVomsClient(client);
-  AllowAllAuthz authz;
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "bin", true));
+  TokenUserAuthz authz("bin");
   VirtualIdentity vid;
   Mapping::IdMap(&client, mBearer, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
   EXPECT_EQ(mBinUid, vid.uid);
@@ -512,8 +540,7 @@ TEST_F(TokenVomsF, HttpsTokenWithEmptyUserNameIsNotTheVomsUser)
 {
   XrdSecEntity client("https");
   SetVomsClient(client);
-  AllowAllAuthz authz;
-  ASSERT_TRUE(client.eaAPI->Add("request.name", "", true));
+  TokenUserAuthz authz("");
   VirtualIdentity vid;
   Mapping::IdMap(&client, mBearer, mTident.c_str(), vid, &authz, AOP_Stat, "", false);
   EXPECT_EQ(VirtualIdentity::kNobodyUid, vid.uid);

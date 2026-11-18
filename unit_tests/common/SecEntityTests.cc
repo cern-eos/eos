@@ -73,3 +73,15 @@ TEST(SecEntity, GetRequestNameAfterReplacement)
   EXPECT_FALSE(SecEntity::GetRequestName(&entity, name));
   EXPECT_TRUE(name.empty());
 }
+
+TEST(SecEntity, ClearRequestNameWithoutEntity) { SecEntity::ClearRequestName(nullptr); }
+
+TEST(SecEntity, ClearRequestNameRemovesTheUserName)
+{
+  XrdSecEntity entity("https");
+  ASSERT_TRUE(entity.eaAPI->Add("request.name", "alice", true));
+  SecEntity::ClearRequestName(&entity);
+  std::string name;
+  EXPECT_FALSE(SecEntity::GetRequestName(&entity, name));
+  EXPECT_TRUE(name.empty());
+}
