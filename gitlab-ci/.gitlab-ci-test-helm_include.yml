@@ -357,6 +357,7 @@ helm_contention:
   rules: !reference [.rules-manual, rules]
 
 helm_groupdrainer:
+  rules: !reference [.rules-full-ci, rules]
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   variables:
@@ -378,6 +379,7 @@ helm_groupdrainer:
   retry: 1
 
 helm_traffic_shaping:
+  rules: !reference [.rules-full-ci, rules]
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   variables:

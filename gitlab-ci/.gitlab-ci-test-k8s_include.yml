@@ -30,6 +30,7 @@ k8s_system:
 
 
 k8s_contention:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_contention_test_template
   image: alpine/k8s:1.18.2
   needs:
@@ -43,6 +44,7 @@ k8s_contention:
 
 
 k8s_mgm_ha:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_base
   resource_group: $EOS_K8S_QUEUE_2
   image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
@@ -70,6 +72,7 @@ k8s_mgm_ha:
 
 
 k8s_tape_rest:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_base
   image: alpine/k8s:1.18.2
   variables:
@@ -89,6 +92,7 @@ k8s_tape_rest:
 
 
 k8s_system_flatscheduler:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_system_test_template
   resource_group: $EOS_K8S_QUEUE_3
   variables:
@@ -105,6 +109,7 @@ k8s_system_flatscheduler:
 
 
 k8s_conv_fsck_recycle:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_convert_fsck_recycle_template
   image: alpine/k8s:1.18.2
   needs:
@@ -117,6 +122,7 @@ k8s_conv_fsck_recycle:
 
 
 k8s_rtb_clone:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_rtb_clone_template
   image: alpine/k8s:1.18.2
   needs:
@@ -130,6 +136,7 @@ k8s_rtb_clone:
 
 
 k8s_fusex:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2
   needs:
@@ -142,6 +149,7 @@ k8s_fusex:
     - k8s
 
 k8s_flamegraph:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_flamegraph_test_template
   image: alpine/k8s:1.18.2
   needs:
@@ -154,6 +162,7 @@ k8s_flamegraph:
 
 
 k8s_cbox:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_cbox_test_template
   resource_group: $EOS_K8S_QUEUE_2
   image: alpine/k8s:1.18.2
@@ -165,6 +174,7 @@ k8s_cbox:
     - k8s
 
 k8s_reva:
+  rules: !reference [.rules-full-ci, rules]
   extends: .dock8s_reva_test_template
   resource_group: $EOS_K8S_QUEUE_8
   image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
@@ -176,6 +186,7 @@ k8s_reva:
     - k8s
 
 k8s_stress:
+  rules: !reference [.rules-full-ci, rules]
   extends:
     - .dock8s_base
   resource_group: $EOS_K8S_QUEUE_5
