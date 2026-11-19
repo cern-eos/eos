@@ -21,6 +21,7 @@
 //! @breif HierarchicalView tests
 //------------------------------------------------------------------------------
 #include "common/LayoutId.hh"
+#include "namespace/Constants.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
@@ -445,6 +446,21 @@ TEST_F(HierarchicalViewF, QuotaTest)
   std::shared_ptr<eos::IContainerMD> root{view()->getContainer("/")};
   ASSERT_NO_THROW(containerSvc()->removeContainer(root.get()));
   ASSERT_NO_THROW(view()->finalize());
+}
+
+// A quota set that loses the race with an rmdir undoes the registration of
+// a container that is already removed from the container service
+TEST_F(HierarchicalViewF, RemoveQuotaNodeOfRemovedContainer)
+{
+  std::shared_ptr<eos::IContainerMD> cont =
+      view()->createContainer("/test/quota/qs", true);
+  eos::IQuotaNode* node = view()->registerQuotaNode(cont.get());
+  ASSERT_NE(node, nullptr);
+  view()->getContainer("/test/quota")->removeContainer("qs");
+  containerSvc()->removeContainer(cont.get());
+  ASSERT_NO_THROW(view()->removeQuotaNode(cont.get()));
+  ASSERT_EQ(cont->getFlags() & eos::QUOTA_NODE_FLAG, 0);
+  ASSERT_EQ(view()->getQuotaStats()->getQuotaNode(cont->getId()), nullptr);
 }
 
 TEST_F(HierarchicalViewF, LostContainerTest)
