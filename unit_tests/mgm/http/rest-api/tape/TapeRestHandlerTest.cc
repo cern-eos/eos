@@ -23,6 +23,8 @@
 
 #include "MockTapeRestApiBusiness.hh"
 #include "RestApiTestSupport.hh"
+#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
@@ -38,6 +40,11 @@ using eos::mgm::rest::test::parseResponseJson;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::Throw;
+
+namespace {
+const std::vector<std::string> kPathsWithDotComponents = {"/eos/in/../out/f",
+                                                          "/eos/in/./f"};
+}
 
 class TapeRestHandlerTest : public ::testing::Test
 {
@@ -166,4 +173,75 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesRelease200Empty)
   std::unique_ptr<eos::common::HttpResponse> response(
     mHandler->handleRequest(request.get(), &mVid));
   assertEmptyOkResponse(response.get());
+}
+
+// Each route that takes paths refuses a path with a "." or ".." component
+// before it reaches the business layer.
+TEST_F(TapeRestHandlerTest, handleRequestRefusesDotComponentsInStage)
+{
+  auto stageRequest = std::make_shared<eos::mgm::bulk::StageBulkRequest>("req-id", mVid);
+  ON_CALL(*mMockBusiness, createStageBulkRequest(_, _))
+      .WillByDefault(Return(stageRequest));
+  EXPECT_CALL(*mMockBusiness, createStageBulkRequest(_, _)).Times(0);
+
+  for (const auto& path : kPathsWithDotComponents) {
+    const std::string body = R"({"files":[{"path":")" + path + R"("}]})";
+    auto request = createHttpRequest("POST", "/api/v1/stage/", body);
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &mVid));
+    ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode())
+        << path;
+    ASSERT_EQ("JSON Validation error",
+              parseResponseJson(response.get())["title"].asString());
+  }
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestRefusesDotComponentsInArchiveInfo)
+{
+  ON_CALL(*mMockBusiness, getFileInfo(_, _))
+      .WillByDefault(Return(std::make_shared<eos::mgm::bulk::QueryPrepareResponse>()));
+  EXPECT_CALL(*mMockBusiness, getFileInfo(_, _)).Times(0);
+
+  for (const auto& path : kPathsWithDotComponents) {
+    const std::string body = R"({"paths":[")" + path + R"("]})";
+    auto request = createHttpRequest("POST", "/api/v1/archiveinfo/", body);
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &mVid));
+    ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode())
+        << path;
+    ASSERT_EQ("JSON Validation error",
+              parseResponseJson(response.get())["title"].asString());
+  }
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestRefusesDotComponentsInRelease)
+{
+  EXPECT_CALL(*mMockBusiness, releasePaths(_, _)).Times(0);
+
+  for (const auto& path : kPathsWithDotComponents) {
+    const std::string body = R"({"paths":[")" + path + R"("]})";
+    auto request = createHttpRequest("POST", "/api/v1/release/req-id", body);
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &mVid));
+    ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode())
+        << path;
+    ASSERT_EQ("JSON Validation error",
+              parseResponseJson(response.get())["title"].asString());
+  }
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestRefusesDotComponentsInCancel)
+{
+  EXPECT_CALL(*mMockBusiness, cancelStageBulkRequest(_, _, _)).Times(0);
+
+  for (const auto& path : kPathsWithDotComponents) {
+    const std::string body = R"({"paths":[")" + path + R"("]})";
+    auto request = createHttpRequest("POST", "/api/v1/stage/req-id/cancel", body);
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &mVid));
+    ASSERT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode())
+        << path;
+    ASSERT_EQ("JSON Validation error",
+              parseResponseJson(response.get())["title"].asString());
+  }
 }
