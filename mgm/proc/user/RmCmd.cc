@@ -157,7 +157,6 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
       // List the path and match against filter
       XrdMgmOfsDirectory dir;
-      eos::common::Glob glob;
       int listrc = dir.open(spath.c_str(), mVid, nullptr);
 
       if (!listrc) {
@@ -173,7 +172,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             continue;
           }
 
-          if (glob.Match(filter.c_str(), entry.c_str())) {
+          if (eos::common::Glob::Match(filter.c_str(), val)) {
             rmList.insert(mpath.c_str());
           }
         }
@@ -189,7 +188,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
         }
       }
 
-      // if we have rm * (whatever wildcard) we remove the -r flag
+      // A wildcard selects direct children of the parent directory, even with -r.
       recursive = false;
     } else {
       rmList.insert(spath);
