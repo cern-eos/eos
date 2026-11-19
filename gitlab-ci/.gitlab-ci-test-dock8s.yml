@@ -57,7 +57,7 @@
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    - exec_cmd eos-mgm1 'eos-instance-test-ci'
+    - exec_cmd eos-mgm1 "EOS_SCHEDULER_TYPE=${EOS_SCHEDULER_TYPE} eos-instance-test-ci"
     - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - date
