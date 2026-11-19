@@ -229,8 +229,8 @@ private:
   void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
-  //! Walk up the parent chain of the given container and accumulate the
-  //! tree info delta into the batch for the container and all its ancestors
+  //! Accumulate the tree info delta of the given container into the batch.
+  //! The delta reaches the ancestors when it is applied.
   //!
   //! @param id container id where the change originated
   //! @param treeInfos tree info delta to accumulate
@@ -239,7 +239,9 @@ private:
 
   //----------------------------------------------------------------------------
   //! Perform one propagation cycle: swap the accumulate/commit batches and
-  //! apply the committed deltas to the containers. Serialized with mFlushMutex
+  //! apply the committed deltas to the containers and their ancestors, one
+  //! level at a time. A container can be written once per level that brings
+  //! it a delta. Serialized with mFlushMutex
   //! so the periodic thread and Flush() never apply concurrently; outside of
   //! this method the commit batch is always empty, hence a single call
   //! applies everything accumulated so far.

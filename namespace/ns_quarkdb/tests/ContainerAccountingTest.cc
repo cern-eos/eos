@@ -26,8 +26,11 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include <atomic>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <thread>
 #include <vector>
@@ -267,4 +270,146 @@ TEST_F(ContainerAccountingF, RecordingUpdatedContIdsWithLiveThreads)
   view()->updateFileStore(fmd.get());
   accounting->Flush();
   ASSERT_TRUE(accounting->TakeUpdatedContIds().empty());
+}
+
+//------------------------------------------------------------------------------
+// A delta of a directory that is removed before the delta is accumulated must
+// still reach the old parents. The delta is queued after the removal: the same
+// as a queue thread that pops it late, e.g. the last file removal of rm -r.
+//------------------------------------------------------------------------------
+TEST_F(ContainerAccountingF, RemovedContainerKeepsParentsExact)
+{
+  auto d1 = view()->createContainer("/test/d1", true);
+  auto sub = view()->createContainer("/test/d1/sub", true);
+  auto* accounting = namespaceGroupPtr->getQuarkContainerAccounting();
+  ASSERT_NE(accounting, nullptr);
+  accounting->QueueForUpdate(sub->getId(), eos::TreeInfos{1000, 1, 0});
+  accounting->Flush();
+  ASSERT_EQ(1000, view()->getContainer("/test/d1")->getTreeSize());
+  {
+    eos::MDLocking::BulkMDWriteLock locker;
+    locker.add(d1.get());
+    locker.add(sub.get());
+    auto locks = locker.lockAll();
+    containerSvc()->removeContainer(sub.get());
+    d1->removeContainer("sub");
+  }
+  accounting->QueueForUpdate(sub->getId(), eos::TreeInfos{-1000, -1, 0});
+  accounting->Flush();
+
+  for (const std::string path : {"/test/d1", "/test"}) {
+    auto cont = view()->getContainer(path);
+    ASSERT_EQ(0, cont->getTreeSize()) << path;
+    ASSERT_EQ(0, cont->getTreeFiles()) << path;
+  }
+
+  ASSERT_EQ(0, view()->getContainer("/test/d1")->getTreeContainers());
+  ASSERT_EQ(1, view()->getContainer("/test")->getTreeContainers());
+}
+
+//------------------------------------------------------------------------------
+// A delta accumulated before a directory move, but applied after it, must
+// reach the new parents only. The move is done as Rename.inc does it.
+//------------------------------------------------------------------------------
+TEST_F(ContainerAccountingF, MovedContainerKeepsParentsExact)
+{
+  auto src = view()->createContainer("/test/src", true);
+  auto dst = view()->createContainer("/test/dst", true);
+  auto moved = view()->createContainer("/test/src/moved", true);
+  namespaceGroupPtr->getQuarkContainerAccounting()->Flush();
+  // Fed manually and with no periodic propagation: the delta below stays in
+  // the batch until the Flush() after the move
+  eos::QuarkContainerAccounting accounting(containerSvc(), sNoPeriodicPropagationSec);
+  accounting.QueueForUpdate(moved->getId(), eos::TreeInfos{1000, 1, 0});
+  accounting.Flush();
+  accounting.QueueForUpdate(moved->getId(), eos::TreeInfos{500, 1, 0});
+  // Let the queue thread accumulate it before the move. Only the code before
+  // the fix depends on this, the expected values below do not.
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  {
+    eos::MDLocking::BulkMDWriteLock locker;
+    locker.add(src.get());
+    locker.add(dst.get());
+    locker.add(moved.get());
+    auto locks = locker.lockAll();
+    const eos::TreeInfos tree{static_cast<int64_t>(moved->getTreeSize()),
+                              static_cast<int64_t>(moved->getTreeFiles()),
+                              static_cast<int64_t>(moved->getTreeContainers())};
+    src->removeContainer("moved");
+    accounting.RemoveTree(src.get(), tree);
+    dst->addContainer(moved.get());
+    accounting.AddTree(dst.get(), tree);
+  }
+  accounting.Flush();
+  namespaceGroupPtr->getQuarkContainerAccounting()->Flush();
+  auto cont = view()->getContainer("/test/src");
+  ASSERT_EQ(0, cont->getTreeSize());
+  ASSERT_EQ(0, cont->getTreeFiles());
+  ASSERT_EQ(0, cont->getTreeContainers());
+  cont = view()->getContainer("/test/dst");
+  ASSERT_EQ(1500, cont->getTreeSize());
+  ASSERT_EQ(2, cont->getTreeFiles());
+  ASSERT_EQ(1, cont->getTreeContainers());
+  cont = view()->getContainer("/test");
+  ASSERT_EQ(1500, cont->getTreeSize());
+  ASSERT_EQ(2, cont->getTreeFiles());
+  ASSERT_EQ(3, cont->getTreeContainers());
+}
+
+//------------------------------------------------------------------------------
+// Container service that forwards to the real one and counts the store writes
+//------------------------------------------------------------------------------
+class CountingContainerMDSvc : public eos::QuarkContainerMDSvc {
+public:
+  explicit CountingContainerMDSvc(eos::IContainerMDSvc* svc)
+      : eos::QuarkContainerMDSvc(nullptr, nullptr)
+      , mSvc(svc)
+  {
+  }
+
+  eos::IContainerMDPtr
+  getContainerMD(eos::IContainerMD::id_t id, uint64_t* clock) override
+  {
+    return mSvc->getContainerMD(id, clock);
+  }
+
+  void
+  updateStore(eos::IContainerMD* obj) override
+  {
+    ++mNumUpdates;
+    mSvc->updateStore(obj);
+  }
+
+  eos::IContainerMDSvc* mSvc;
+  int mNumUpdates = 0;
+};
+
+//------------------------------------------------------------------------------
+// A propagation cycle writes each container it updates once, not once per
+// level that brings it a delta
+//------------------------------------------------------------------------------
+TEST_F(ContainerAccountingF, PropagationWritesEachContainerOnce)
+{
+  constexpr int depth = 30;
+  std::string path = "/test";
+  std::vector<eos::IContainerMD::id_t> chain;
+
+  for (int i = 0; i < depth; ++i) {
+    path += "/c" + std::to_string(i);
+    chain.push_back(view()->createContainer(path, true)->getId());
+  }
+
+  namespaceGroupPtr->getQuarkContainerAccounting()->Flush();
+  CountingContainerMDSvc svc(containerSvc());
+  eos::QuarkContainerAccounting accounting(&svc, sNoPeriodicPropagationSec);
+
+  for (auto id : chain) {
+    accounting.QueueForUpdate(id, eos::TreeInfos{1, 1, 0});
+  }
+
+  accounting.Flush();
+  // The chain and /test
+  ASSERT_EQ(depth + 1, svc.mNumUpdates);
+  ASSERT_EQ(depth, view()->getContainer("/test")->getTreeFiles());
+  ASSERT_EQ(depth, view()->getContainer("/test/c0")->getTreeFiles());
 }
