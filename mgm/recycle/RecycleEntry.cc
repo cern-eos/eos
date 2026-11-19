@@ -68,6 +68,10 @@ RecycleEntry::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
   struct tm nowtm;
   localtime_r(&now, &nowtm);
   size_t index = 0;
+  // A purge removes the empty date directories, also while mkdir -p creates
+  // them or before the stat or chown that follows: then try again
+  int retries = 3;
+  auto retry = [&]() { return (error.getErrInfo() == ENOENT) && (--retries > 0); };
 
   do {
     snprintf(prefix, sizeof(prefix) - 1, "%s/%s/%04u/%02u/%02u/%lu",
@@ -86,12 +90,20 @@ RecycleEntry::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
       // Create recycle directory
       if (gOFS->_mkdir(prefix, S_IRUSR | S_IXUSR | SFS_O_MKPTH,
                        error, mRootVid, "")) {
+        if (retry()) {
+          continue;
+        }
+
         return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
                           "recycle space user directory couldn't be created");
       }
 
       // Check recycle directory ownership
       if (gOFS->_stat(prefix, &buf, error, mRootVid, "")) {
+        if (retry()) {
+          continue;
+        }
+
         return gOFS->Emsg(epname, error, EIO, "remove existing file - could "
                           "not determine ownership of the recycle space "
                           "user directory", prefix);
@@ -100,6 +112,10 @@ RecycleEntry::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
       // Update the ownership of the user directory
       if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid)) {
         if (gOFS->_chown(prefix, mOwnerUid, mOwnerGid, error, mRootVid, "")) {
+          if (retry()) {
+            continue;
+          }
+
           return gOFS->Emsg(epname, error, EIO, "remove existing file - could "
                             "not change ownership of the recycle space user "
                             "directory", prefix);

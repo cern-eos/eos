@@ -359,11 +359,12 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       for (const auto& it : rmList) {
         errInfo.clear();
 
-        if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
-                       force, false, true, noworkflow) && (errno != ENOENT)) {
+        if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false, force, false,
+                       true, noworkflow) &&
+            (errInfo.getErrInfo() != ENOENT)) {
           errStream << "error: unable to remove file/directory '" << it << "'"
                     << std::endl;
-          ret_c |= errno;
+          ret_c |= errInfo.getErrInfo();
         }
       }
     }
