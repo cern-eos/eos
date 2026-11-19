@@ -82,6 +82,10 @@ XrdMgmOfs::_touch(const char* path,
   errno = 0;
   std::shared_ptr<eos::IFileMD> fmd;
   bool existedAlready = false;
+  // A parallel create of the same new file can win over ours. Then the touch
+  // runs again, as the caller: open() and sys.owner.auth may rewrite vid.
+  bool created_meanwhile = false;
+  const eos::common::VirtualIdentity vid_in = vid;
 
   if (_access(path, W_OK, error, vid, ininfo)) {
     return SFS_ERROR;
@@ -220,6 +224,13 @@ XrdMgmOfs::_touch(const char* path,
                            file->error.getErrText());
 
           if (rc != SFS_REDIRECT) {
+            // The open creates exclusively
+            if (file->error.getErrInfo() == EEXIST) {
+              delete file;
+              created_meanwhile = true;
+              throw_mdexception(EEXIST, "File exists");
+            }
+
             error.setErrCode(file->error.getErrInfo());
             errno = file->error.getErrInfo();
             eos_static_info("open failed");
@@ -276,6 +287,7 @@ XrdMgmOfs::_touch(const char* path,
           eos::FileOrContainerMD conflict = pcmd->findItem(touchPath.GetName()).get();
 
           if (conflict.file || conflict.container) {
+            created_meanwhile = true;
             throw_mdexception(EEXIST, "File exists");
           }
 
@@ -566,6 +578,14 @@ XrdMgmOfs::_touch(const char* path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  // The file did not exist at the lookup, and a parallel create made it before
+  // ours: touch the file that exists now. No MD lock is held here.
+  if (created_meanwhile) {
+    vid = vid_in;
+    return _touch(path, error, vid, ininfo, doLock, useLayout, truncate, size, absorb,
+                  linkpath, xs_hex, errmsg);
   }
 
   if (linking) {
