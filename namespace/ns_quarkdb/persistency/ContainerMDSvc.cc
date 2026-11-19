@@ -26,6 +26,7 @@
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
@@ -272,6 +273,21 @@ QuarkContainerMDSvc::removeContainer(IContainerMD* obj)
 
   const IContainerMD::id_t id = obj->getId();
   std::string sid = stringify(id);
+
+  // The container is empty, so its pending tree deltas add up to minus the
+  // counters already applied to it. They are dropped once it is deleted: pass
+  // them on to the parent. The caller holds the MD write lock of obj, and the
+  // accounting applies a delta only under that lock if obj is not deleted.
+  if (mContainerAccounting) {
+    const TreeInfos applied{static_cast<int64_t>(obj->getTreeSize()),
+                            static_cast<int64_t>(obj->getTreeFiles()),
+                            static_cast<int64_t>(obj->getTreeContainers())};
+
+    if (applied.dsize || applied.dtreefiles || applied.dtreecontainers) {
+      mContainerAccounting->QueueForUpdate(obj->getParentId(), -applied);
+    }
+  }
+
   {
     // Marked before the delete is queued, under the mutex of updateStore
     std::lock_guard<std::mutex> lock(mStoreMutex[id % mStoreMutex.size()]);
@@ -287,6 +303,15 @@ QuarkContainerMDSvc::removeContainer(IContainerMD* obj)
   if (mNumConts) {
     --mNumConts;
   }
+}
+
+//------------------------------------------------------------------------------
+// Set container accounting
+//------------------------------------------------------------------------------
+void
+QuarkContainerMDSvc::setContainerAccounting(IFileMDChangeListener* containerAccounting)
+{
+  mContainerAccounting = dynamic_cast<QuarkContainerAccounting*>(containerAccounting);
 }
 
 //------------------------------------------------------------------------------
