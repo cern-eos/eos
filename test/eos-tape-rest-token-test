@@ -440,6 +440,43 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK_REA
   code=000
 expect "GET of an in-scope file, read token" 307
 
+# --- Paths with "." or ".." components ---------------------------------------
+# Every route that takes paths refuses a path with a "." or ".." component.
+# Names that only contain dots, such as "a..b", stay valid.
+dotdot="$dir/in/../out/f"
+dot="$dir/in/./f"
+invalid_path='.status == 400 and .title == "JSON Validation error"'
+
+api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$dotdot\"]}"
+expect "archiveinfo, path with a .. component" 400 "$invalid_path"
+
+api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$dot\"]}"
+expect "archiveinfo, path with a . component" 400 "$invalid_path"
+
+# The prepare code would only see the part of a path before a NUL character
+api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$dir/in/..\\u0000\"]}"
+expect "archiveinfo, path with a NUL character" 400 "$invalid_path"
+
+api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$dir/in/a..b\"]}"
+expect "archiveinfo, file name with two dots" 200 \
+  'length == 1 and .[0].path == $p and (.[0].error | type == "string" and length > 0)' \
+  --arg p "$dir/in/a..b"
+
+api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$dotdot\"}]}"
+
+if [[ $code == 201 ]]; then
+  requests+=("$(jq -r .requestId "$work/body")")
+fi
+
+expect "stage, path with a .. component" 400 "$invalid_path"
+
+# The paths are checked before the request id
+api POST release/no-such-request "$TOK_STAGE" "{\"paths\":[\"$dotdot\"]}"
+expect "release, path with a .. component" 400 "$invalid_path"
+
+api POST stage/no-such-request/cancel "$TOK_STAGE" "{\"paths\":[\"$dotdot\"]}"
+expect "cancel, path with a .. component" 400 "$invalid_path"
+
 # --- Requests on one connection ----------------------------------------------
 # The MGM keeps the client's identity for the whole connection. Each request
 # must map only with its own credentials, never with the user that a token gave

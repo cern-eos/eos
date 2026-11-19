@@ -26,9 +26,11 @@
 #define EOS_TAPEJSONCPPVALIDATOR_HH
 
 #include "common/Path.hh"
+#include "common/StringSplit.hh"
+#include "common/StringUtils.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/json/builder/jsoncpp/JsonCppValidator.hh"
-#include "common/StringUtils.hh"
+#include <string_view>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -40,6 +42,20 @@ public:
     if (value.empty() || !value.isString() || value.asString().empty() ||
         value.isConvertibleTo(Json::ValueType::intValue)) {
       throw ValidatorException("The value must be a valid non-empty string");
+    }
+
+    const std::string path = value.asString();
+
+    // The prepare code copies paths with c_str(), so it would see only the
+    // part before a NUL
+    if (path.find('\0') != std::string::npos) {
+      throw ValidatorException("The path must not contain a NUL character");
+    }
+
+    for (std::string_view component : eos::common::CharSplitIt(path, '/')) {
+      if (component == "." || component == "..") {
+        throw ValidatorException("The path must not have a \".\" or \"..\" component");
+      }
     }
   }
 };
