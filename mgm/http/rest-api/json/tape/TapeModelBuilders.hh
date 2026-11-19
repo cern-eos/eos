@@ -22,6 +22,28 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+//! Returns the path held by a JSON value
+//! @throws JsonValidationException if the PathValidator refuses it
+inline std::string
+getValidatedPath(JsonCppValidator& pathValidator, const Json::Value& path)
+{
+  try {
+    pathValidator.validate(path);
+  } catch (const ValidatorException& ex) {
+    std::string given;
+
+    if (path.isString()) {
+      // what() ends at the first NUL, so the path is echoed up to it
+      const std::string p = path.asString();
+      given = "\"" + p.substr(0, p.find('\0')) + "\"";
+    }
+
+    throw JsonValidationException("Invalid path " + given + ": " + ex.what());
+  }
+
+  return path.asString();
+}
+
 class PathsModelBuilder : public JsonCppModelBuilder<PathsModel>
 {
 public:
@@ -36,6 +58,7 @@ public:
     const char* pathsKey = "paths";
 
     auto model = std::make_unique<PathsModel>();
+    auto pathValidator = TapeJsonCppValidatorFactory().getPathValidator();
 
     if (root.isMember(pathsKey)) {
       const Json::Value& paths = root[pathsKey];
@@ -47,7 +70,7 @@ public:
         if (!p.isString()) {
           throw JsonValidationException("Each path must be a string");
         }
-        model->addFile(p.asString());
+        model->addFile(getValidatedPath(*pathValidator, p));
       }
       return model;
     }
@@ -61,7 +84,7 @@ public:
         if (!entry.isObject() || !entry.isMember(pathKey) || !entry[pathKey].isString()) {
           throw JsonValidationException("Each file entry must be an object with a string 'path'");
         }
-        model->addFile(entry[pathKey].asString());
+        model->addFile(getValidatedPath(*pathValidator, entry[pathKey]));
       }
       return model;
     }
@@ -95,6 +118,8 @@ public:
     }
 
     auto model = std::make_unique<CreateStageBulkRequestModel>();
+    auto pathValidator = TapeJsonCppValidatorFactory().getPathValidator();
+
     for (const auto& f : files) {
       if (!f.isObject()) {
         throw JsonValidationException("file entry must be an object");
@@ -103,8 +128,9 @@ public:
         throw JsonValidationException("file entry must contain a string 'path'");
       }
 
+      std::string path = getValidatedPath(*pathValidator, f[PATH_KEY_NAME]);
       std::string opaque = buildOpaqueInfo(f);
-      model->addFile(f[PATH_KEY_NAME].asString(), opaque);
+      model->addFile(path, opaque);
     }
 
     return model;
