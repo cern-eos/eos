@@ -2678,6 +2678,18 @@ do
   eos cp /etc/passwd $rmTestDir/$i/passwd$i
 done
 
+# Wildcards select matching children of the parent directory even with -r.
+runtest "### Touch match        " unix SUCCESS "" eos touch "$rmTestDir/1-remove"
+runtest "### Touch nonmatch     " unix SUCCESS "" eos touch "$rmTestDir/keep-1"
+runtest "### Touch hidden       " unix SUCCESS "" eos touch "$rmTestDir/.1-keep"
+runtest "### Rm glob no match  " unix ERROR   "" eos rm -rF "$rmTestDir/no-such-entry-*"
+runtest "### Rm recursive glob " unix ERROR   "" eos rm -rF "$rmTestDir/[.0-9]*"
+runtest "### Stat removed match " unix ERROR   "" eos stat "$rmTestDir/1-remove"
+runtest "### Stat nonmatch      " unix SUCCESS "" eos stat "$rmTestDir/keep-1"
+runtest "### Stat hidden        " unix SUCCESS "" eos stat "$rmTestDir/.1-keep"
+runtest "### Stat matched child " unix SUCCESS "" eos stat "$rmTestDir/1/passwd1"
+runtest "### Stat matched child " unix SUCCESS "" eos stat "$rmTestDir/10/passwd10"
+
 # The deletion with globbing enabled by default should not work as we have non-empty directories
 runtest "### Rm all glob " unix ERROR "" eos rm $rmTestDir/*
 runtest "### Cleanup Fail" unix ERROR "" eos rm -rF $rmTestDir/*
