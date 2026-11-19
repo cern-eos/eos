@@ -25,9 +25,10 @@
 #define __SECURITY_CHECKER__HH__
 
 #include "JailIdentifier.hh"
-#include <mutex>
+#include "ProcLinkReader.hh"
 #include <atomic>
 #include <map>
+#include <mutex>
 #ifdef __APPLE__
 #include <sys/types.h>
 #endif
@@ -68,7 +69,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SecurityChecker(bool ignoreJails);
+  SecurityChecker(bool ignoreJails, ProcLinkReader& plr);
 
   struct Info {
     CredentialState state;
@@ -187,6 +188,7 @@ private:
 
   std::map<std::string, InjectedData> injections;
   bool ignoreJails;
+  ProcLinkReader& procLinkReader;
 };
 
 #endif

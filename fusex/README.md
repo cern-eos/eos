@@ -77,7 +77,8 @@ This
     "ztn" : 1,
     "unix" : 0,
     "unix-root" : 0,
-    "environ-deadlock-timeout" : 100,
+    "environ-deadlock-timeout" : 500,
+    "proclink-deadlock-timeout" : 500,
     "forknoexec-heuristic" : 1
   },
   "inline" : {

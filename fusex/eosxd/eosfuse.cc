@@ -1271,10 +1271,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
     config.auth.environ_deadlock_timeout =
       root["auth"]["environ-deadlock-timeout"].asInt();
+    config.auth.proclink_deadlock_timeout =
+        root["auth"]["proclink-deadlock-timeout"].asInt();
     config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
 
     if (config.auth.environ_deadlock_timeout <= 0) {
       config.auth.environ_deadlock_timeout = 500;
+    }
+    if (config.auth.proclink_deadlock_timeout <= 0) {
+      config.auth.proclink_deadlock_timeout = 500;
     }
 
     config.inliner.max_size = root["inline"]["max-size"].asInt();

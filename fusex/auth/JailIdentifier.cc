@@ -31,7 +31,8 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-JailResolver::JailResolver()
+JailResolver::JailResolver(ProcLinkReader& plr)
+    : procLinkReader(plr)
 {
   myJail = resolve(getpid());
 }
@@ -41,10 +42,15 @@ JailResolver::JailResolver()
 //------------------------------------------------------------------------------
 JailIdentifier JailResolver::resolveIdentifier(pid_t pid)
 {
+  if (pid == 0) {
+    return JailIdentifier::MakeError(EINVAL,
+                                     SSTR("Not trying to resolve jail of pid zero"));
+  }
+
   std::string path = SSTR("/proc/" << pid << "/root");
   struct stat buf;
 
-  if (stat(path.c_str(), &buf) != 0) {
+  if (procLinkReader.stat(path.c_str(), &buf) != 0) {
     int myerrno = errno;
     return JailIdentifier::MakeError(myerrno,
                                      SSTR("Could not resolve jail of " << pid << ": " << strerror(myerrno)));

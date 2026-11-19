@@ -29,7 +29,8 @@ TEST(SecurityChecker, BasicSanity)
   JailInformation localJail;
   localJail.sameJailAsThisPid = true;
 
-  SecurityChecker checker(false);
+  ProcLinkReader procLinkReader(10, 500);
+  SecurityChecker checker(false, procLinkReader);
   checker.inject(localJail.id, "/tmp/ayy/lmao", 1337, 0455, {42, 42} );
   ASSERT_EQ(checker.lookup(localJail, "/tmp/aaa", 1000, 1000),
             SecurityChecker::Info(CredentialState::kCannotStat, {0, 0} ));

@@ -290,12 +290,18 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   }
 
   parseCmdline(cmdline, ret);
-  parseExec(pid, ret);
+  pid_t expid = pid;
+  if (!parseExec(pid, ret) && ret.ppid != 1) {
+    if (parseExec(ret.ppid, ret)) {
+      expid = ret.ppid;
+    }
+  }
   ret.fillRmInfo();
+  ret.exe = ret.executablePath;
   // Read path of /proc/<pid>/exe
-  std::string exePath = SSTR("/proc/" << pid << "/exe");
+  std::string exePath = SSTR("/proc/" << expid << "/exe");
   char buffer[1024];
-  ssize_t outcome = readlink(exePath.c_str(), buffer, 1024);
+  ssize_t outcome = procLinkReader.readlink(exePath.c_str(), buffer, 1024);
 
   if (outcome > 0) {
     ret.exe = std::string(buffer, outcome);
@@ -308,8 +314,8 @@ bool ProcessInfoProvider::parseExec(pid_t pid, ProcessInfo& ret)
 {
   const size_t BUFF_SIZE = 8096;
   char buffer[BUFF_SIZE];
-  ssize_t len = readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer,
-                         BUFF_SIZE - 2);
+  ssize_t len = procLinkReader.readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer,
+                                        BUFF_SIZE - 2);
 
   if (len == -1) {
     return false;

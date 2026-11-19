@@ -24,8 +24,9 @@
 #ifndef EOS_FUSE_JAIL_IDENTIFIER_HH
 #define EOS_FUSE_JAIL_IDENTIFIER_HH
 
-#include <string>
+#include "ProcLinkReader.hh"
 #include <cstdint>
+#include <string>
 
 #ifdef __APPLE__
 typedef uint64_t ino_t;
@@ -126,7 +127,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  JailResolver();
+  JailResolver(ProcLinkReader& plr);
 
   //----------------------------------------------------------------------------
   // Resolve a given pid_t to JailIdentifier
@@ -146,6 +147,7 @@ public:
 
 private:
   JailInformation myJail;
+  ProcLinkReader& procLinkReader;
 };
 
 #endif

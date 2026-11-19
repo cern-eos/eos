@@ -77,7 +77,8 @@ BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider()
 ProcessInfoProvider* AuthenticationGroup::processInfoProvider()
 {
   if (!processInfoProviderPtr) {
-    processInfoProviderPtr.reset(new ProcessInfoProvider());
+    auto plr = procLinkReader();
+    processInfoProviderPtr.reset(new ProcessInfoProvider(*plr));
   }
 
   return processInfoProviderPtr.get();
@@ -89,7 +90,8 @@ ProcessInfoProvider* AuthenticationGroup::processInfoProvider()
 JailResolver* AuthenticationGroup::jailResolver()
 {
   if (!jailResolverPtr) {
-    jailResolverPtr.reset(new JailResolver());
+    auto plr = procLinkReader();
+    jailResolverPtr.reset(new JailResolver(*plr));
   }
 
   return jailResolverPtr.get();
@@ -101,8 +103,8 @@ JailResolver* AuthenticationGroup::jailResolver()
 SecurityChecker* AuthenticationGroup::securityChecker()
 {
   if (!securityCheckerPtr) {
-    securityCheckerPtr.reset(new SecurityChecker(
-                               config.ignore_containerization));
+    auto plr = procLinkReader();
+    securityCheckerPtr.reset(new SecurityChecker(config.ignore_containerization, *plr));
   }
 
   return securityCheckerPtr.get();
@@ -118,6 +120,19 @@ EnvironmentReader* AuthenticationGroup::environmentReader()
   }
 
   return environmentReaderPtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve proc link reader, lazy initialize
+//------------------------------------------------------------------------------
+ProcLinkReader*
+AuthenticationGroup::procLinkReader()
+{
+  if (!procLinkReaderPtr) {
+    procLinkReaderPtr.reset(new ProcLinkReader(10, config.proclink_deadlock_timeout));
+  }
+
+  return procLinkReaderPtr.get();
 }
 
 //------------------------------------------------------------------------------
@@ -156,4 +171,3 @@ UserCredentialFactory* AuthenticationGroup::userCredentialFactory()
 
   return userCredentialFactoryPtr.get();
 }
-

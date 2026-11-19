@@ -42,15 +42,22 @@
 class CredentialConfig
 {
 public:
-
-  CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), use_user_ztn(false),
-    tryKrb5First(false),
-    use_user_unix(false),
-    use_root_unix(false),
-    fuse_shared(false),
-    environ_deadlock_timeout(500), forknoexec_heuristic(true),
-    ignore_containerization(false) { }
+  CredentialConfig()
+      : use_user_krb5cc(false)
+      , use_user_gsiproxy(false)
+      , use_user_sss(false)
+      , use_user_oauth2(false)
+      , use_user_ztn(false)
+      , tryKrb5First(false)
+      , use_user_unix(false)
+      , use_root_unix(false)
+      , fuse_shared(false)
+      , environ_deadlock_timeout(500)
+      , proclink_deadlock_timeout(500)
+      , forknoexec_heuristic(true)
+      , ignore_containerization(false)
+  {
+  }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -72,6 +79,9 @@ public:
   bool fuse_shared;
   //! How long to wait before declaring a kernel deadlock when reading /proc/environ
   unsigned environ_deadlock_timeout;
+  //! How long to wait before declaring a kernel deadlock when accessing links under
+  //! /proc/<pid>
+  unsigned proclink_deadlock_timeout;
   //! Use PF_FORKNOEXEC as a heuristic to decide if the process is doing an execve.
   bool forknoexec_heuristic;
   //! Credential store

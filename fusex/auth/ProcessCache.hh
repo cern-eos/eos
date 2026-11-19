@@ -190,8 +190,6 @@ private:
   BoundIdentityProvider& boundIdentityProvider;
   ProcessInfoProvider& processInfoProvider;
   JailResolver& jailResolver;
-
-  JailInformation myJail;
 };
 
 #endif

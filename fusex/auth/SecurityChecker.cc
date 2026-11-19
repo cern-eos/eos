@@ -45,7 +45,11 @@ struct timespec extractTimespec(const struct stat& st)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
+SecurityChecker::SecurityChecker(bool ij, ProcLinkReader& plr)
+    : ignoreJails(ij)
+    , procLinkReader(plr)
+{
+}
 
 //------------------------------------------------------------------------------
 // Inject the given fake data. Once an injection is active, _all_ returned
@@ -146,7 +150,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   // First, let's open the jail as root.
   //----------------------------------------------------------------------------
   std::string jailPath = SSTR("/proc/" << jail.pid << "/root");
-  FileDescriptor jailfd(open(jailPath.c_str(), O_DIRECTORY | O_RDONLY));
+  FileDescriptor jailfd(procLinkReader.open(jailPath.c_str(), O_DIRECTORY | O_RDONLY));
 
   if (!jailfd.ok()) {
     eos_static_alert("Opening jail '%s' failed", jailPath.c_str());
@@ -191,11 +195,12 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
       return Info(CredentialState::kCannotStat, {0, 0});
     }
 
-    FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
-                               O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
+    FileDescriptor next(procLinkReader.openat(current.getFD(), splitPath[i].c_str(),
+                                              O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if (!next.ok()) {
-      eos_static_alert("Failed to openat next child");
+      eos_static_alert("Failed to openat next child %d %s", current.getFD(),
+                       splitPath[i].c_str());
       return Info(CredentialState::kCannotStat, {0, 0});
     }
 
@@ -205,11 +210,12 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   // We survived, up to the last chunk. Now try to read file contents.
   //----------------------------------------------------------------------------
-  FileDescriptor fileFd(openat(current.getFD(), splitPath.back().c_str(),
-                               O_NOFOLLOW | O_RDONLY));
+  FileDescriptor fileFd(procLinkReader.openat(current.getFD(), splitPath.back().c_str(),
+                                              O_NOFOLLOW | O_RDONLY));
 
   if (!fileFd.ok()) {
-    eos_static_alert("Failed to openat file");
+    eos_static_alert("Failed to openat file %d %s", current.getFD(),
+                     splitPath.back().c_str());
     return Info(CredentialState::kCannotStat, {0, 0});
   }
 
@@ -218,7 +224,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   struct stat filestat;
 
-  if (::fstat(fileFd.getFD(), &filestat) != 0) {
+  if (procLinkReader.fstat(fileFd.getFD(), &filestat) != 0) {
     eos_static_alert("failed to stat by fd");
     return Info(CredentialState::kCannotStat, {0, 0});
   }
@@ -233,7 +239,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   std::string contents;
 
-  if (!readFile(fileFd.getFD(), contents)) {
+  if (!procLinkReader.readFile(fileFd.getFD(), contents)) {
     eos_static_alert("failed to read file");
     return Info::CannotStat();
   }
@@ -260,7 +266,7 @@ SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Nope, real thing.
   //----------------------------------------------------------------------------
-  if (path.empty()) {
+  if (path.empty() || !jail.id.ok()) {
     return {};
   }
 

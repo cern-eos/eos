@@ -57,7 +57,8 @@ TEST(FileReadWrite, BasicSanity)
 
 TEST(JailIdentifier, IdentifyMyself)
 {
-  JailResolver jr;
+  ProcLinkReader procLinkReader(10, 500);
+  JailResolver jr(procLinkReader);
   JailIdentifier id = jr.resolveIdentifier(getpid());
   std::cout << id.describe() << std::endl;
   ASSERT_TRUE(id.ok());

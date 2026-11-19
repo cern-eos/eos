@@ -49,18 +49,18 @@ ProcessCache::ProcessCache(const CredentialConfig& conf,
     processInfoProvider(pip),
     jailResolver(jr)
 {
-  myJail = jailResolver.resolve(getpid());
 }
 
 //------------------------------------------------------------------------------
 // Discover some bound identity to use matching the given arguments.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-ProcessCache::discoverBoundIdentity(const JailInformation& jail,
-                                    const ProcessInfo& processInfo, uid_t uid, gid_t gid, bool reconnect,
-                                    Logbook& logbook)
+ProcessCache::discoverBoundIdentity(const JailInformation& jailin,
+                                    const ProcessInfo& processInfo, uid_t uid, gid_t gid,
+                                    bool reconnect, Logbook& logbook)
 {
   std::shared_ptr<const BoundIdentity> output;
+  bool skippid = false;
 
   //----------------------------------------------------------------------------
   // Shortcut: If the situation implies that only unix is available
@@ -82,6 +82,8 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
                                           reconnect, scope, env);
   }
 
+  JailInformation jail = jailin;
+
   //----------------------------------------------------------------------------
   // First thing to consider: Should we check the credentials of the process
   // itself first, or that of the parent?
@@ -94,6 +96,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     // Nope, we're certainly in execve, don't check the process itself at all.
     //--------------------------------------------------------------------------
     checkParentFirst = true;
+    skippid = true;
   }
 
   if (credConfig.forknoexec_heuristic &&
@@ -107,6 +110,18 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     // we have to pay the deadlock timeout penalty.
     //--------------------------------------------------------------------------
     checkParentFirst = true;
+  }
+
+  if (!jail.id.ok()) {
+    // if jail of pid could not be resolved, reading env or reading
+    // files from within the jail will fail. Try to get jail of
+    // parent and try parent.
+    skippid = true;
+    if (processInfo.getParentId() != 1) {
+      jail = jailResolver.resolve(processInfo.getParentId());
+      checkParentFirst = true;
+      // if jail failed again we'll still fail to lookup in parent
+    }
   }
 
   LOGBOOK_INSERT(logbook, "execveAlarm = " << execveAlarm <<
@@ -132,12 +147,12 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Check process itself?
   //
   // Don't even attempt to read /proc/pid/environ if we _know_ we're doing an
-  // execve. If execveAlarm is off, there's still the possibility we're doing
-  // an execve due to uncached lookups sent by the kernel before the actual
-  // open! In that case, we'll simply have to pay the deadlock timeout penalty,
-  // but we'll still recover.
+  // execve or jail failure. If skippid is off, there's still the possibility
+  // we're doing an execve due to uncached lookups sent by the kernel before
+  // the actual open! In that case, we'll simply have to pay the deadlock
+  // timeout penalty, but we'll still recover.
   //----------------------------------------------------------------------------
-  if (!execveAlarm) {
+  if (!skippid) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
              processInfo.getPid(), uid, gid, reconnect, scope, pidEnv);
 
@@ -224,24 +239,13 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   // jail can cause deadlock, e.g. if the jail itself is the eos filesystem we
   // are providing. If we are sure we'll only be needed unix auth skip resolve.
   //----------------------------------------------------------------------------
-  JailInformation jailInfo = myJail;
+  JailInformation jailInfo;
   if (onlyUnix(uid)) {
-    LOGBOOK_INSERT(scope, "Not attempting to retrieve jail information for pid="
-                   << pid << ", as we will only need unix auth, subsituting "
-                   "with my jail");
+    auto id = JailIdentifier::MakeError(
+        ENOENT, SSTR("Not fetching jail information as unix only auth does not need it"));
+    jailInfo = {id, pid, false};
   } else {
     jailInfo = jailResolver.resolve(pid);
-  }
-
-  if (!jailInfo.id.ok()) {
-    //--------------------------------------------------------------------------
-    // Couldn't retrieve jail of this pid.. bad. Assume our jail.
-    //--------------------------------------------------------------------------
-    eos_static_notice("Could not retrieve jail information for pid=%d: %s", pid,
-                      jailInfo.id.describe().c_str());
-    jailInfo = myJail;
-    LOGBOOK_INSERT(scope, "WARNING: Could not retrieve jail information for pid=" <<
-                   pid << ", subsituting with my jail");
   }
 
   LOGBOOK_INSERT(scope, jailInfo.describe());
@@ -280,6 +284,16 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
       // Yep, that's a cache hit.. but credentials could have been invalidated
       // in the meantime, check.
       //------------------------------------------------------------------------
+
+      //------------------------------------------------------------------------
+      // If jail is not available we won't be able to check the validity, as
+      // that needs acessing the cred file inside the jail, even if we use the
+      // cached copy of the jail information. So return the entry we have.
+      //------------------------------------------------------------------------
+      if (!jailInfo.id.ok() && !onlyUnix(uid)) {
+        return entry;
+      }
+
       if (boundIdentityProvider.checkValidity(jailInfo,
                                               *entry->getBoundIdentity())) {
         return entry;

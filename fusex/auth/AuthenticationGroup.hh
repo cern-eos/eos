@@ -32,6 +32,7 @@ class ProcessInfoProvider;
 class JailResolver;
 class SecurityChecker;
 class EnvironmentReader;
+class ProcLinkReader;
 class CredentialValidator;
 class UuidStore;
 class UserCredentialFactory;
@@ -85,6 +86,11 @@ public:
   EnvironmentReader* environmentReader();
 
   //----------------------------------------------------------------------------
+  // Retrieve proc link reader, lazy initialize
+  //----------------------------------------------------------------------------
+  ProcLinkReader* procLinkReader();
+
+  //----------------------------------------------------------------------------
   // Retrieve credential validator, lazy initialize
   //----------------------------------------------------------------------------
   CredentialValidator* credentialValidator();
@@ -111,6 +117,7 @@ private:
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
   std::unique_ptr<UserCredentialFactory> userCredentialFactoryPtr;
+  std::unique_ptr<ProcLinkReader> procLinkReaderPtr;
 };
 
 

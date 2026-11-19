@@ -102,7 +102,8 @@ TEST(ProcessInfoProvider, ParseCmdline)
 
 TEST(ProcessInfoProvider, GetMyProcessInfo)
 {
-  ProcessInfoProvider processInfoProvider;
+  ProcLinkReader procLinkReader(10, 500);
+  ProcessInfoProvider processInfoProvider(procLinkReader);
   ProcessInfo myself;
   ASSERT_TRUE(processInfoProvider.retrieveFull(getpid(), myself));
   ASSERT_FALSE(myself.isEmpty());
@@ -118,7 +119,8 @@ TEST(ProcessInfoProvider, GetMyProcessInfo)
 
 TEST(ProcessInfoProvider, BasicSanity3)
 {
-  ProcessInfoProvider processInfoProvider;
+  ProcLinkReader procLinkReader(10, 500);
+  ProcessInfoProvider processInfoProvider(procLinkReader);
   ProcessInfo info;
   info.fillStat(123, 234, 345, 456, 11111, 0);
   info.fillCmdline({"/bin/bash", "some-script.sh"});
