@@ -1130,8 +1130,14 @@ QuarkHierarchicalView::removeQuotaNode(IContainerMD* container)
     throw ex;
   }
 
-  // Get the quota node and meld it with the parent node if present
-  IQuotaNode* node = getQuotaNode(container);
+  // Get the quota node and meld it with the parent node if present. Look it
+  // up by id: the container may already be removed from the container service
+  IQuotaNode* node = pQuotaStats->getQuotaNode(container->getId());
+
+  if (node == nullptr) {
+    node = pQuotaStats->registerNewNode(container->getId());
+  }
+
   IQuotaNode* parent = nullptr;
 
   if (container->getId() != 1) {
