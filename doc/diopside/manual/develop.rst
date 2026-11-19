@@ -376,6 +376,92 @@ The manual CI jobs :code:`build_el9_ubsan`,
 and run the existing test suite with UBSan, using the regular EL9 dependencies.
 
 
+CI job sets and merge request labels
+""""""""""""""""""""""""""""""""""""
+
+Each pipeline runs one job set. The pipeline name starts with the set, for
+example :code:`[full]`.
+
+.. list-table:: Job sets
+   :header-rows: 1
+
+   * - Pipeline
+     - Job set
+   * - Merge request
+     - :code:`unit + k8s_system`: the builds, :code:`unit_test`,
+       :code:`pre_commit` and :code:`k8s_system`
+   * - Merge request with the :code:`run-full-ci` label
+     - :code:`full`: all automatic jobs
+   * - :code:`master`, tags, schedules, manual runs
+     - :code:`full`
+
+A push to a branch other than :code:`master` does not start a pipeline. To
+test a branch, open a draft merge request or start the pipeline manually.
+
+To run the full set on a merge request:
+
+#. Add the :code:`run-full-ci` label.
+#. Click "Run pipeline" on the merge request.
+
+GitLab reads the labels only when a pipeline starts. While the label is on the
+merge request, each push runs the full set.
+
+To create the merge request with labels, use push options. Add one
+:code:`-o merge_request.label=` for each label, for example
+:code:`-o merge_request.label=run-full-ci`:
+
+.. code-block:: bash
+
+   git push -o merge_request.create -o merge_request.target=master \
+            -o merge_request.label=<label> \
+            -o merge_request.label=<other label> origin <branch>
+
+If you set :code:`run-full-ci` and the pipeline name starts with
+:code:`[unit + k8s_system]`, click "Run pipeline" on the merge request.
+
+The project labels are at
+`dss/eos labels <https://gitlab.cern.ch/dss/eos/-/labels>`_.
+
+Only the workflow rules in :code:`.gitlab-ci.yml` read the labels. They set
+:code:`PIPELINE_SCOPE`. The job rules and the pipeline name use only
+:code:`PIPELINE_SCOPE`. Outside merge requests, its value is :code:`full`.
+
+To add a label, for example :code:`run-fusex`:
+
+#. In the workflow rules, add this rule before the plain merge request rule:
+
+   .. code-block:: yaml
+
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)run-fusex(,|$)/'
+        variables:
+          KOJI_SCRATCH: "--scratch"
+          PIPELINE_SCOPE: "fusex"
+
+#. Add a rule fragment for the new scope and the full set:
+
+   .. code-block:: yaml
+
+      .rules-fusex:
+        rules:
+          - if: '$PIPELINE_SCOPE =~ /^(full|fusex)$/'
+
+#. In each job of the set, use :code:`rules: !reference [.rules-fusex, rules]`.
+
+If a merge request has more than one label, the first matching workflow rule
+sets :code:`PIPELINE_SCOPE`. Put the rule of the larger set first.
+
+To combine two sets, add one rule that matches both labels. Put it before the
+two single-label rules. Then add the combined scope to the regex of both
+fragments, for example :code:`/^(full|fusex|fusex\+reva)$/`:
+
+.. code-block:: yaml
+
+   - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)run-fusex(,|$)/ && $CI_MERGE_REQUEST_LABELS =~ /(^|,)run-reva(,|$)/'
+     variables:
+       KOJI_SCRATCH: "--scratch"
+       PIPELINE_SCOPE: "fusex+reva"
+
+
 Kubernetes CI concurrency
 """""""""""""""""""""""""
 

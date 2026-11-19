@@ -32,6 +32,9 @@ stages:
 
 variables:
   CODENAME: "diopside"
+  # Job set named in the pipeline title; MR pipelines without the
+  # run-full-ci label override it in the workflow rules
+  PIPELINE_SCOPE: "full"
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 1
   GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8
@@ -67,6 +70,8 @@ default:
       - stuck_or_timeout_failure
 
 workflow:
+  # Show in the pipeline list which job set runs (see .rules-full-ci)
+  name: '[$PIPELINE_SCOPE] $CI_COMMIT_TITLE'
   auto_cancel:
     on_new_commit: interruptible
 
@@ -81,30 +86,27 @@ workflow:
         KOJI_SCRATCH: ""
         CCACHE_POLICY: push
         RPM_BINARY_PAYLOAD: ""
-    # Merge request pipelines
+    # Merge request pipelines. MR labels map to a job set here, and only here:
+    # jobs test $PIPELINE_SCOPE, never the labels. To add a label, or combine
+    # labels, see "CI job sets and merge request labels" in
+    # doc/diopside/manual/develop.rst.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS =~ /(^|,)run-full-ci(,|$)/'
+      variables:
+        KOJI_SCRATCH: "--scratch"
+        PIPELINE_SCOPE: "full"
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       variables:
         KOJI_SCRATCH: "--scratch"
-    # Avoid duplicate pipelines: if an MR is open for this branch the MR
-    # pipeline (rule above) already covers it, so skip the branch pipeline.
-    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
-      when: never
-    # Master branch: always run. We can't use `changes: compare_to: master` here
-    # because comparing master against itself produces an empty diff that never
-    # matches, so no rule would apply and GitLab would refuse to create the
-    # pipeline.
+        PIPELINE_SCOPE: "unit + k8s_system"
     - if: '$CI_COMMIT_BRANCH == "master"'
       variables:
         KOJI_SCRATCH: "--scratch"
-    # Other branches: skip if only docs/ changed compared to master
-    - if: '$CI_COMMIT_BRANCH'
-      changes:
-        compare_to: 'refs/heads/master'
-        paths:
-          - '**/*'
-          - '!docs/**/*'
+    # A push to any other branch creates no pipeline: it would duplicate the MR
+    # pipeline, and is usually pushed before the MR exists, so
+    # $CI_OPEN_MERGE_REQUESTS cannot catch it. Open a (draft) MR, or start the
+    # pipeline by hand ("Run pipeline"), which runs every job.
+    - if: '$CI_PIPELINE_SOURCE =~ /^(web|api|trigger|pipeline)$/'
       variables:
-        #KOJI_SCRATCH: "--scratch --skip-tag"
         KOJI_SCRATCH: "--scratch"
 
 #-------------------------------------------------------------------------------
@@ -168,6 +170,14 @@ workflow:
     - if: '$CI_COMMIT_TAG'
       when: manual
       allow_failure: true
+
+# Jobs of the full test set. PIPELINE_SCOPE is "full" on master, tags,
+# schedules, manual pipelines and MRs with the run-full-ci label (see the
+# workflow rules); other MR pipelines run the builds, unit tests, pre_commit
+# and k8s_system.
+.rules-full-ci:
+  rules:
+    - if: '$PIPELINE_SCOPE == "full"'
 
 #-------------------------------------------------------------------------------
 # Concrete jobs are split by topic. Hidden templates (.foo) and rule fragments
