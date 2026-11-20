@@ -127,6 +127,94 @@ TEST_F(TapeRestHandlerTest, handleRequestReturns405ForUnsupportedMethod)
   ASSERT_EQ(eos::common::HttpResponse::METHOD_NOT_ALLOWED, response->GetResponseCode());
 }
 
+namespace {
+struct TapeRoute {
+  std::string method;
+  std::string url;
+  std::string body;
+};
+
+//! The six routes of the tape REST API, each with a body it accepts
+const std::vector<TapeRoute> kTapeRoutes = {
+    {"POST", "/api/v1/stage/", R"({"files":[{"path":"/eos/user/file.txt"}]})"},
+    {"GET", "/api/v1/stage/req-id", ""},
+    {"DELETE", "/api/v1/stage/req-id", ""},
+    {"POST", "/api/v1/stage/req-id/cancel", R"({"paths":["/eos/user/file.txt"]})"},
+    {"POST", "/api/v1/archiveinfo/", R"({"paths":["/eos/user/file.txt"]})"},
+    {"POST", "/api/v1/release/req-id", R"({"paths":["/eos/user/file.txt"]})"},
+};
+
+//! Expect no call to the business layer. A call returns valid objects anyway,
+//! so that the test fails on the expectation instead of crashing.
+void
+expectNoBusinessCall(MockTapeRestApiBusiness& business,
+                     const eos::common::VirtualIdentity& issuer)
+{
+  ON_CALL(business, createStageBulkRequest(_, _))
+      .WillByDefault(
+          Return(std::make_shared<eos::mgm::bulk::StageBulkRequest>("req-id", issuer)));
+  ON_CALL(business, getStageBulkRequest(_, _))
+      .WillByDefault(Return(std::make_shared<GetStageBulkRequestResponseModel>()));
+  ON_CALL(business, getFileInfo(_, _))
+      .WillByDefault(Return(std::make_shared<eos::mgm::bulk::QueryPrepareResponse>()));
+  EXPECT_CALL(business, createStageBulkRequest(_, _)).Times(0);
+  EXPECT_CALL(business, getStageBulkRequest(_, _)).Times(0);
+  EXPECT_CALL(business, deleteStageBulkRequest(_, _)).Times(0);
+  EXPECT_CALL(business, cancelStageBulkRequest(_, _, _)).Times(0);
+  EXPECT_CALL(business, getFileInfo(_, _)).Times(0);
+  EXPECT_CALL(business, releasePaths(_, _)).Times(0);
+}
+} // namespace
+
+TEST_F(TapeRestHandlerTest, handleRequestAnswers401WithoutCredentials)
+{
+  expectNoBusinessCall(*mMockBusiness, mVid);
+  const eos::common::VirtualIdentity nobody;
+
+  for (const auto& route : kTapeRoutes) {
+    SCOPED_TRACE(route.method + " " + route.url);
+    auto request = createHttpRequest(route.method, route.url, route.body);
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &nobody));
+    ASSERT_NE(nullptr, response);
+    EXPECT_EQ(eos::common::HttpResponse::UNAUTHORIZED, response->GetResponseCode());
+    const auto& headers = response->GetHeaders();
+    const auto challenge = headers.find("WWW-Authenticate");
+    ASSERT_NE(headers.end(), challenge);
+    EXPECT_EQ("Bearer", challenge->second);
+    EXPECT_EQ("Unauthorized", parseResponseJson(response.get())["title"].asString());
+    EXPECT_NE(std::string::npos,
+              parseResponseJson(response.get())["detail"].asString().find("nobody"));
+  }
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestChecksCredentialsBeforeTheBody)
+{
+  expectNoBusinessCall(*mMockBusiness, mVid);
+  const eos::common::VirtualIdentity nobody;
+  auto request = createHttpRequest("POST", "/api/v1/stage/", "{ not json");
+  std::unique_ptr<eos::common::HttpResponse> response(
+      mHandler->handleRequest(request.get(), &nobody));
+  ASSERT_EQ(eos::common::HttpResponse::UNAUTHORIZED, response->GetResponseCode());
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestDispatchesNobodyWithADeferredToken)
+{
+  auto responseModel = std::make_shared<GetStageBulkRequestResponseModel>();
+  responseModel->setId("req-id");
+  responseModel->setCreatedAt(1646305430);
+  responseModel->setStartedAt(1646305456);
+  EXPECT_CALL(*mMockBusiness, getStageBulkRequest("req-id", _))
+      .WillOnce(Return(responseModel));
+  // A WLCG token is checked file by file later, so the client is still nobody
+  eos::common::VirtualIdentity vid;
+  vid.deferredAuth = "Bearer header.payload.signature";
+  auto request = createHttpRequest("GET", "/api/v1/stage/req-id");
+  std::unique_ptr<eos::common::HttpResponse> response(
+      mHandler->handleRequest(request.get(), &vid));
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
+}
+
 TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage200)
 {
   auto responseModel = std::make_shared<GetStageBulkRequestResponseModel>();

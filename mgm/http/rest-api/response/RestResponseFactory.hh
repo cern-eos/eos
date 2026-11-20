@@ -70,6 +70,7 @@ public:
   RestApiResponse<ErrorModel> BadRequest(const std::string& detail) const;
   RestApiResponse<ErrorModel> BadRequest(const JsonValidationException& ex) const;
   RestApiResponse<ErrorModel> FileMissingFromStageRequest(const std::string& detail) const;
+  RestApiResponse<ErrorModel> Unauthorized(const std::string& detail) const;
   RestApiResponse<ErrorModel> NotFound() const;
   RestApiResponse<ErrorModel> MethodNotAllowed(const std::string& detail) const;
   RestApiResponse<ErrorModel> Forbidden(const std::string& detail) const;
@@ -77,9 +78,10 @@ public:
   RestApiResponse<ErrorModel> InternalError(const std::string& detail) const;
 
 private:
-  RestApiResponse<ErrorModel> makeError(const common::HttpResponse::ResponseCodes code,
-                                        const std::string& title,
-                                        const std::optional<std::string>& detail) const;
+  RestApiResponse<ErrorModel>
+  makeError(const common::HttpResponse::ResponseCodes code, const std::string& title,
+            const std::optional<std::string>& detail,
+            const common::HttpResponse::HeaderMap& headers = {}) const;
 };
 
 EOSMGMRESTNAMESPACE_END
