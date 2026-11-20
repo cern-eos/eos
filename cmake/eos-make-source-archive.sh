@@ -42,7 +42,8 @@ git archive --worktree-attributes \
 
 # Submodules (recursive). Each produces its own tar which is then
 # concatenated into the main archive. $displaypath is the submodule
-# path relative to the superproject root.
+# path relative to the superproject root. The spec files of the submodules
+# stay out: rpmbuild -ts/-tb needs eos.spec as the only spec file.
 export EOS_ARCHIVE_TMP="$TMP"
 export EOS_ARCHIVE_PREFIX="$PREFIX"
 
@@ -50,7 +51,7 @@ git submodule foreach --recursive --quiet '
   safe=$(echo "$displaypath" | tr "/" "_")
   git archive --format=tar \
     --prefix="${EOS_ARCHIVE_PREFIX}/${displaypath}/" \
-    -o "${EOS_ARCHIVE_TMP}/sub-${safe}.tar" HEAD
+    -o "${EOS_ARCHIVE_TMP}/sub-${safe}.tar" HEAD -- . ":(exclude)*.spec"
 '
 
 shopt -s nullglob
