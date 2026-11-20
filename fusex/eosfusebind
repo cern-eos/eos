@@ -150,7 +150,7 @@ function GetAutoKrb5CredFile
   UpdateCredIsFile
   if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  GetDefaultKrb5CredFile; fi
   UpdateCredIsFile
-  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"; exit 8; fi
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"; exit 0; fi
   #echo "using krb5 cache credential file $CREDTAG"
 }
 
