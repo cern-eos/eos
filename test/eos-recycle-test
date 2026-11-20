@@ -22,6 +22,7 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 source ${SCRIPTPATH}/eos-test-utils
 EOS_ROOT=/eos/dockertest
 EOS_RECYCLE="${EOS_ROOT}/proc/recycle/uid:0"
+EOS_RACE_DIR="${EOS_ROOT}/recycle_race"
 CURRENT_YEAR=$(date +%Y)
 PREVIOUS_YEAR=$(($CURRENT_YEAR - 1))
 CURRENT_MONTH=$(date +%m)
@@ -118,6 +119,34 @@ function scenario_1_check_expectations() {
 }
 
 #-------------------------------------------------------------------------------
+# Scenario 2: rm files into the recycle bin while a purge removes the empty
+# date directories at the same time. No rm may fail.
+#-------------------------------------------------------------------------------
+function scenario_2_rm_during_purge() {
+  echo "info: rm during recycle purge"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RACE_DIR} && eos -r 0 0 recycle config --add-bin ${EOS_RACE_DIR}"
+  local out=$(exec_cmd eos-mgm1 "
+    for w in \$(seq 4); do
+      (for i in \$(seq 50); do
+         eos -r 0 0 file touch ${EOS_RACE_DIR}/f.\$w.\$i >/dev/null &&
+         eos -r 0 0 rm ${EOS_RACE_DIR}/f.\$w.\$i >/dev/null || echo \"error: rm f.\$w.\$i\"
+       done) &
+    done
+    while [ -n \"\$(jobs -rp)\" ]; do
+      eos -r 0 0 recycle purge ${CURRENT_YEAR} >/dev/null 2>&1
+    done")
+
+  # A failed rm can still report success, so also check that no file is left
+  local left=$(exec_cmd eos-mgm1 "eos -r 0 0 ls ${EOS_RACE_DIR} | wc -l")
+
+  if [[ "${out}" == *"error: rm"* || "${left}" != "0" ]]; then
+    echo "${out}"
+    echo "error: rm failed while a purge ran, files left: ${left}"
+    exit 1
+  fi
+}
+
+#-------------------------------------------------------------------------------
 # Perform cleanup of used files and revert the recycler configuration to the
 # default values.
 #-------------------------------------------------------------------------------
@@ -128,6 +157,8 @@ function cleanup() {
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --remove-interval 3600"
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --size 100G"
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --ratio 0.95"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --remove-bin ${EOS_RACE_DIR} || true"
+  exec_cmd eos-mgm1 "eos -r 0 0 rm -rF --no-confirmation ${EOS_RACE_DIR} || true"
   exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${CURRENT_YEAR}/ || true"
   exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${PREVIOUS_YEAR}/ || true"
 }
@@ -145,6 +176,7 @@ fi
 if [[ "$1" == "--root" ]]; then
     EOS_ROOT=$2
     EOS_RECYCLE=${EOS_ROOT}/proc/recycle/uid:0
+    EOS_RACE_DIR=${EOS_ROOT}/recycle_race
     shift # past argument
     shift # past value
 fi
@@ -203,6 +235,9 @@ date
 
 # Check that the expectation are met
 scenario_1_check_expectations
+
+# Race of rm and purge on the date directories
+scenario_2_rm_during_purge
 
 echo "info: all expectations matched"
 exit 0
