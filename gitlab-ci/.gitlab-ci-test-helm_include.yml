@@ -334,20 +334,45 @@ helm_system:
       artifacts: false
   rules: !reference [.rules-manual, rules]
 
-.helm_contention_test_template:
+# A BATS suite of test/<suite>, see test/bats/README.md. A job sets
+# BATS_SUITE, BATS_ENV for the settings of the suite, and BATS_ARGS for bats
+# options (--filter-tags !slow skips the slow checks). A job with its own
+# script puts !reference [.helm_bats_run, script] in it.
+.helm_bats_run:
+  script:
+    # Copy the JUnit report and the suite logs out also after a failure, then
+    # fail with the exit code of the test
+    - kubectl exec eos-mgm-0 -- env $BATS_ENV eos-bats-test $BATS_SUITE /eos/dockertest $BATS_ARGS || rc=$?
+    - kubectl cp eos-mgm-0:/tmp/eos-bats-reports/$BATS_SUITE/report.xml bats-junit.xml
+    - kubectl cp eos-mgm-0:/tmp/eos-$BATS_SUITE bats-logs || true
+    - '[ -z "$rc" ] || exit $rc'
+
+.helm_bats_template:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: [*helm_before_script_template, *helm_after_script_template]
+  variables:
+    BATS_ENV: ""
+    BATS_ARGS: ""
   script:
-    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
-    # rm does not recycle without a quota on the recycle bin
-    - kubectl exec eos-mgm-0 -- eos -r 0 0 recycle config --size 100G
-    - kubectl exec eos-mgm-0 -- eos-contention-test /eos/dockertest 60
+    - !reference [.helm_bats_run, script]
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+      - bats-logs/
+    reports:
+      junit: bats-junit.xml
+
+.helm_contention_test_template:
+  extends: .helm_bats_template
+  variables:
+    BATS_SUITE: contention
+    BATS_ENV: CONTENTION_DURATION=60
+  script:
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - !reference [.helm_bats_run, script]
 
 helm_contention:
   extends: .helm_contention_test_template

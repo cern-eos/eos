@@ -75,19 +75,42 @@
     - date
 
 
-.dock8s_contention_test_template:
+# A BATS suite of test/<suite>, see test/bats/README.md. A job sets
+# BATS_SUITE, BATS_ENV for the settings of the suite, and BATS_ARGS for bats
+# options (--filter-tags !slow skips the slow checks). A job with its own
+# script puts !reference [.dock8s_bats_run, script] in it.
+.dock8s_bats_run:
+  script:
+    # Copy the JUnit report and the suite logs out also after a failure, then
+    # fail with the exit code of the test
+    - exec_cmd eos-mgm1 "$BATS_ENV eos-bats-test $BATS_SUITE /eos/dockertest $BATS_ARGS" || rc=$?
+    - cp_to_local_cmd eos-mgm1:/tmp/eos-bats-reports/$BATS_SUITE/report.xml bats-junit.xml
+    - cp_to_local_cmd eos-mgm1:/tmp/eos-$BATS_SUITE bats-logs || true
+    - '[ -z "$rc" ] || exit $rc'
+
+.dock8s_bats_template:
   extends: .dock8s_base
   variables:
-    # eos-contention-test runs REST workers next to the other ones
-    EOS_MGM_ENABLE_REST_API: "1"
+    BATS_ENV: ""
+    BATS_ARGS: ""
   script:
-    - date
-    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    # rm does not recycle without a quota on the recycle bin
-    - exec_cmd eos-mgm1 'eos -r 0 0 recycle config --size 100G'
-    - exec_cmd eos-mgm1 'eos-contention-test /eos/dockertest 60'
-    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
-    - date
+    - !reference [.dock8s_bats_run, script]
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+      - bats-logs/
+    reports:
+      junit: bats-junit.xml
+
+.dock8s_contention_test_template:
+  extends: .dock8s_bats_template
+  variables:
+    BATS_SUITE: contention
+    BATS_ENV: CONTENTION_DURATION=60
+    # The contention test runs REST workers next to the other ones
+    EOS_MGM_ENABLE_REST_API: "1"
 
 
 .dock8s_convert_fsck_recycle_template:
