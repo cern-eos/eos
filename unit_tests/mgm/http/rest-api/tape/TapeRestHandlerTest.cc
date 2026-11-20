@@ -32,6 +32,7 @@
 
 using namespace eos::mgm::rest;
 using eos::mgm::rest::test::assertEmptyOkResponse;
+using eos::mgm::rest::test::createAuthenticatedVid;
 using eos::mgm::rest::test::createHttpRequest;
 using eos::mgm::rest::test::createTapeRestApiConfig;
 using eos::mgm::rest::test::parseResponseJson;
@@ -47,7 +48,7 @@ protected:
     mConfig = createTapeRestApiConfig();
     mMockBusiness = std::make_shared<MockTapeRestApiBusiness>();
     mHandler = std::make_unique<TapeRestHandler>(mConfig.get(), mMockBusiness);
-    mVid = eos::common::VirtualIdentity();
+    mVid = createAuthenticatedVid();
   }
 
   std::unique_ptr<TapeRestApiConfig> mConfig;

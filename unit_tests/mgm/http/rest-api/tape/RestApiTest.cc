@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "RestApiTest.hh"
+#include "RestApiTestSupport.hh"
 #include "common/http/HttpResponse.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/exception/RestException.hh"
@@ -39,6 +40,8 @@
 #include <optional>
 #include <sstream>
 #include <string>
+
+using eos::mgm::rest::test::createAuthenticatedVid;
 
 namespace {
 
@@ -87,7 +90,7 @@ TEST_F(RestApiTest, RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL)
 
 TEST_F(RestApiTest, RestHandlerHandleRequestNoResource)
 {
-  eos::common::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid = createAuthenticatedVid();
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler(
                       createConfig("/rest-api-entry-point/").get()));
@@ -105,7 +108,7 @@ TEST_F(RestApiTest, RestHandlerHandleRequestNoResource)
 
 TEST_F(RestApiTest, RestHandlerHandleRequestResourceButNoVersion)
 {
-  eos::common::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid = createAuthenticatedVid();
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler(
                       createConfig("/rest-api-entry-point/").get()));
@@ -119,7 +122,7 @@ TEST_F(RestApiTest, RestHandlerHandleRequestResourceButNoVersion)
 
 TEST_F(RestApiTest, RestHandlerHandleRequestResourceDoesNotExist)
 {
-  eos::common::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid = createAuthenticatedVid();
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler(
                       createConfig("/rest-api-entry-point/").get()));
@@ -133,7 +136,7 @@ TEST_F(RestApiTest, RestHandlerHandleRequestResourceDoesNotExist)
 
 TEST_F(RestApiTest, RestHandlerHandleRequestResourceAndVersionExist)
 {
-  eos::common::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid = createAuthenticatedVid();
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler(
                       createConfig("/rest-api-entry-point/").get()));
