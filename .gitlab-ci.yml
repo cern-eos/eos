@@ -42,7 +42,7 @@ variables:
   FF_USE_FASTZIP: "true"
   CACHE_COMPRESSION_LEVEL: fastest
   ARTIFACT_COMPRESSION_LEVEL: fastest
-  # Eight configurable instance queues share four resource groups by default.
+  # Eight general instance queues share four resource groups by default.
   EOS_K8S_QUEUE_1: "eos-ci-k8s-1"
   EOS_K8S_QUEUE_2: "eos-ci-k8s-2"
   EOS_K8S_QUEUE_3: "eos-ci-k8s-3"
@@ -51,6 +51,9 @@ variables:
   EOS_K8S_QUEUE_6: "eos-ci-k8s-4"
   EOS_K8S_QUEUE_7: "eos-ci-k8s-4"
   EOS_K8S_QUEUE_8: "eos-ci-k8s-2"
+  # MR system tests use two additional groups by MR IID parity.
+  EOS_K8S_MR_QUEUE_1: "eos-ci-k8s-mr-1"
+  EOS_K8S_MR_QUEUE_2: "eos-ci-k8s-mr-2"
   # RPM payload codec for dev builds: zstd-3 is much faster than the default xz
   # for a marginally larger package. Cleared for tag builds (see workflow rules)
   # so published release RPMs keep the smaller default compression.

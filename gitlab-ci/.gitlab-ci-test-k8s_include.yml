@@ -18,6 +18,9 @@
 
 k8s_system:
   extends: .dock8s_system_test_template
+  resource_group: $EOS_K8S_SYSTEM_QUEUE
+  variables:
+    EOS_K8S_SYSTEM_QUEUE: $EOS_K8S_QUEUE_1
   image: alpine/k8s:1.18.2
   needs:
     - job: el9_docker_image
@@ -27,6 +30,14 @@ k8s_system:
     - docker_node
     - k8s
   allow_failure: true
+  rules:
+    - if: '$CI_MERGE_REQUEST_IID =~ /[02468]$/'
+      variables:
+        EOS_K8S_SYSTEM_QUEUE: $EOS_K8S_MR_QUEUE_1
+    - if: '$CI_MERGE_REQUEST_IID =~ /[13579]$/'
+      variables:
+        EOS_K8S_SYSTEM_QUEUE: $EOS_K8S_MR_QUEUE_2
+    - when: on_success
 
 
 k8s_contention:
