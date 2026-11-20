@@ -22,14 +22,6 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# Disable -Wsign-compare warnings due to
-# grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
-# integer expressions of different signedness: ‘uint64_t’ {aka ‘long
-# unsigned int’} and ‘int’ [-Wsign-compare]
-#-------------------------------------------------------------------------------
-add_compile_options(-Wno-sign-compare)
-
-#-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(EosGrpcClient-Objects OBJECT
@@ -53,6 +45,14 @@ add_executable(eos-grpc-find grpc/Find.cc)
 add_executable(eos-grpc-ns grpc/Ns.cc)
 add_executable(eos-grpc-insert grpc/Insert.cc)
 add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
+
+set(EOS_GRPC_CLIENT_TOOLS eos-grpc-ping eos-grpc-md eos-grpc-insert
+  eos-grpc-ns eos-grpc-find eos-grpc-ns-stat)
+
+# gRPC headers can trigger signedness warnings in the tools and client library.
+foreach(tool IN LISTS EOS_GRPC_CLIENT_TOOLS)
+  target_compile_options(${tool} PRIVATE -Wno-sign-compare)
+endforeach()
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
@@ -89,8 +89,7 @@ target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcClient-Objects
   EosCommon)
 
-install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert
-  eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
+install(TARGETS ${EOS_GRPC_CLIENT_TOOLS}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
