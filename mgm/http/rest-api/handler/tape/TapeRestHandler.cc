@@ -227,6 +227,15 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
     return mTapeRestApiResponseFactory.InternalError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
   }
 
+  // A WLCG token is checked file by file later (deferredAuth). Any other client
+  // must have mapped to a user: nobody means no usable credentials.
+  if (vid == nullptr || (vid->deferredAuth.empty() && vid->IsNobody())) {
+    return mTapeRestApiResponseFactory
+        .Unauthorized(
+            "The tape REST API needs credentials: a client certificate or a bearer token")
+        .getHttpResponse();
+  }
+
   return HandleWithErrors(mTapeRestApiResponseFactory, [this, request, vid]() {
     return mRouter.dispatch(request, vid);
   });

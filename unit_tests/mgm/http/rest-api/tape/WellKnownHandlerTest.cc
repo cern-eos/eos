@@ -68,6 +68,17 @@ TEST_F(WellKnownHandlerTest, getWellKnownTapeRestApiReturnsDiscoveryDocument)
   ASSERT_EQ("v1", root["endpoints"][0]["version"].asString());
 }
 
+TEST_F(WellKnownHandlerTest, getWellKnownWithoutCredentialsReturnsDiscoveryDocument)
+{
+  // Clients read the discovery document before they have any credentials
+  const eos::common::VirtualIdentity nobody;
+  ASSERT_TRUE(nobody.IsNobody());
+  auto request = createHttpRequest("GET", "/.well-known/wlcg-tape-rest-api");
+  std::unique_ptr<eos::common::HttpResponse> response(
+      mHandler->handleRequest(request.get(), &nobody));
+  ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
+}
+
 TEST_F(WellKnownHandlerTest, postWellKnownTapeRestApiReturns405)
 {
   auto request = createHttpRequest("POST", "/.well-known/wlcg-tape-rest-api");

@@ -16,14 +16,15 @@ EOSMGMRESTNAMESPACE_BEGIN
 RestApiResponse<ErrorModel>
 RestResponseFactory::makeError(const common::HttpResponse::ResponseCodes code,
                                const std::string& title,
-                               const std::optional<std::string>& detail) const
+                               const std::optional<std::string>& detail,
+                               const common::HttpResponse::HeaderMap& headers) const
 {
   std::shared_ptr<ErrorModel> errorModel = std::make_shared<ErrorModel>(title,
       static_cast<uint32_t>(code), detail);
   std::shared_ptr<ErrorModelJsonifier> jsonObject =
     std::make_shared<ErrorModelJsonifier>();
   errorModel->setJsonifier(jsonObject);
-  return createResponse(errorModel, code);
+  return createResponse(errorModel, code, headers);
 }
 
 RestApiResponse<ErrorModel> RestResponseFactory::BadRequest(const std::string& detail) const
@@ -49,6 +50,14 @@ RestResponseFactory::FileMissingFromStageRequest(const std::string& detail) cons
 {
   return makeError(common::HttpResponse::BAD_REQUEST,
                    "File missing from stage request", detail);
+}
+
+RestApiResponse<ErrorModel>
+RestResponseFactory::Unauthorized(const std::string& detail) const
+{
+  // RFC 6750: no error code in the challenge when the request has no credentials
+  return makeError(common::HttpResponse::UNAUTHORIZED, "Unauthorized", detail,
+                   {{"WWW-Authenticate", "Bearer"}});
 }
 
 RestApiResponse<ErrorModel> RestResponseFactory::NotFound() const
