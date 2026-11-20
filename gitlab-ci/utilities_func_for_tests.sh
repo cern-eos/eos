@@ -21,17 +21,21 @@ function exec_cmd() {
 # Execute command in Docker setup where the first argument is the name of the container
 # and the rest is the command to be executed
 function exec_cmd_docker() {
+  local rc=0
   set -o xtrace
-  docker exec -i $1 /bin/bash -lic "${@:2}"
+  docker exec -i $1 /bin/bash -lic "${@:2}" || rc=$?
   set +o xtrace
+  return $rc
 }
 
 # Execute command in Kubernetes setup where the first argument is the name of the Pod
 # and the rest is the command to be executed
 function exec_cmd_k8s() {
+  local rc=0
   set -o xtrace
-  kubectl exec --namespace=${K8S_NAMESPACE} $(get_podname ${1}) -- /bin/bash -lc "${@:2}"
+  kubectl exec --namespace=${K8S_NAMESPACE} $(get_podname ${1}) -- /bin/bash -lc "${@:2}" || rc=$?
   set +o xtrace
+  return $rc
 }
 
 function cp_to_local_cmd() {

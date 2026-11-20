@@ -168,7 +168,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test
   eos-http-upload-test eos-http-range-test eos-https-functional-test eos-token-test eos-traffic-shaping-test
   eos-jwk-https-test
-  eos-fst-close-test eos-rename-test eos-contention-test eos-contention-test-utils eos-grpc-test eos-grpc-file-test eos-grpc-gateway-test
+  eos-fst-close-test eos-rename-test eos-bats-test eos-grpc-test eos-grpc-file-test eos-grpc-gateway-test
   eos-file-dual-protocol-test eos-fsck-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
   eos-convert-test eos-balance-test eos-timestamp-test
@@ -182,3 +182,30 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE)
+
+# The BATS suites, see bats/README.md. eos-bats-test runs them. A suite is
+# each directory here with .bats files: a new one needs no edit here.
+file(GLOB bats_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_SOURCE_DIR}/*/*.bats)
+set(bats_suites)
+foreach(file ${bats_files})
+  get_filename_component(dir ${file} DIRECTORY)
+  list(APPEND bats_suites ${dir})
+endforeach()
+list(REMOVE_DUPLICATES bats_suites)
+install(DIRECTORY bats ${bats_suites}
+  DESTINATION ${CMAKE_INSTALL_FULL_DATADIR}/eos/test
+  USE_SOURCE_PERMISSIONS
+  PATTERN vendor EXCLUDE)
+# Only the parts of the bats submodules that run, and their licenses
+set(bats_vendor ${CMAKE_CURRENT_SOURCE_DIR}/bats/vendor)
+set(bats_dest ${CMAKE_INSTALL_FULL_DATADIR}/eos/test/bats/vendor)
+install(DIRECTORY ${bats_vendor}/bats-core/bin ${bats_vendor}/bats-core/libexec
+  ${bats_vendor}/bats-core/lib
+  DESTINATION ${bats_dest}/bats-core USE_SOURCE_PERMISSIONS)
+install(FILES ${bats_vendor}/bats-core/LICENSE.md DESTINATION ${bats_dest}/bats-core)
+foreach(lib bats-support bats-assert)
+  install(DIRECTORY ${bats_vendor}/${lib}/src DESTINATION ${bats_dest}/${lib})
+  install(FILES ${bats_vendor}/${lib}/load.bash ${bats_vendor}/${lib}/LICENSE
+    DESTINATION ${bats_dest}/${lib})
+endforeach()

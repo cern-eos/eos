@@ -935,8 +935,9 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rain-pio-write-test
 %{_sbindir}/eos-fst-close-test
 %{_sbindir}/eos-rename-test
-%{_sbindir}/eos-contention-test
-%{_sbindir}/eos-contention-test-utils
+%{_sbindir}/eos-bats-test
+%dir %{_datadir}/eos
+%{_datadir}/eos/test/
 %{_sbindir}/eos-acl-concurrent
 %{_sbindir}/eos-grpc-test
 %{_sbindir}/eos-grpc-file-test
@@ -977,6 +978,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/xrdcpbackward
 %{_sbindir}/xrdcpdownloadrandom
 %{_sbindir}/xrdcprandom
+%{_sbindir}/xrdcppgread
 %{_sbindir}/xrdcpshrink
 %{_sbindir}/xrdcptruncate
 %{_sbindir}/xrdcppartial
