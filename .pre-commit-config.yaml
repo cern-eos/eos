@@ -1,4 +1,6 @@
 fail_fast: false
+# Unchanged copies of upstream code
+exclude: ^test/bats/vendor/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -39,3 +41,19 @@ repos:
         language: system
         types_or: [ c, c++ ]
         pass_filenames: false
+      # The tests of the BATS helpers, no EOS instance needed (about 5 s)
+      - id: bats-selftest
+        name: bats-selftest
+        entry: bash -c '[ -x test/bats/vendor/bats-core/bin/bats ] || { echo "no bats, run git submodule update --init test/bats/vendor"; exit 1; }; test/bats/vendor/bats-core/bin/bats test/bats/selftest.bats'
+        language: system
+        files: ^test/bats/(eos|runtest)\.bash$|^test/bats/selftest\.bats$
+        pass_filenames: false
+      # shellcheck for the BATS framework and suites only, not for the old
+      # test scripts. Skipped when shellcheck is not installed (EPEL: ShellCheck).
+      # Excluded: variables of other loaded files (SC2154, SC2034), and the word
+      # splitting that the suites use on purpose (SC2046, SC2048, SC2068).
+      - id: shellcheck
+        name: shellcheck
+        entry: bash -c 'command -v shellcheck >/dev/null || { echo "shellcheck is not installed, skipped"; exit 0; }; shellcheck --shell=bash --severity=warning --exclude=SC2154,SC2034,SC2046,SC2048,SC2068 "$@"' --
+        language: system
+        files: ^test/(bats/[^/]+|[^/]+/[^/]+)\.(bash|bats)$|^test/eos-bats-test$

@@ -38,3 +38,12 @@
 [submodule "console/parser"]
 	path = common/parser
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "test/bats/vendor/bats-core"]
+	path = test/bats/vendor/bats-core
+	url = https://github.com/bats-core/bats-core
+[submodule "test/bats/vendor/bats-support"]
+	path = test/bats/vendor/bats-support
+	url = https://github.com/bats-core/bats-support
+[submodule "test/bats/vendor/bats-assert"]
+	path = test/bats/vendor/bats-assert
+	url = https://github.com/bats-core/bats-assert
