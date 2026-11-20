@@ -287,5 +287,45 @@ sys.exit(int(os.environ.get('FIXTURE_TEST_EXIT', '0')))
                 self.assertIn(["delete-after"], self.calls())
 
 
+class CMakeCodeQualityTest(unittest.TestCase):
+    def report(self, log):
+        with tempfile.TemporaryDirectory() as temp:
+            log_path = Path(temp) / "rpmbuild.log"
+            report_path = Path(temp) / "codequality.json"
+            log_path.write_text(log)
+            subprocess.run(
+                ["python3", str(SOURCE / "cmake_code_quality.py"), str(log_path), str(report_path)],
+                check=True, capture_output=True,
+            )
+            return json.loads(report_path.read_text())
+
+    def test_cmake_warning_fingerprints_ignore_line_moves_and_count_new_warnings(self):
+        warning = (
+            "CMake Warning (dev) at cmake/Findabsl.cmake:23 (find_library):\n"
+            "  Dependency discovery generated\n"
+            "  a warning.\n\n"
+            "    /opt/eos/grpc\n"
+        )
+        build_output = (
+            "Call Stack (most recent call first):\n"
+            "  CMakeLists.txt:106 (include)\n"
+            "CMake Deprecation Warning:\n  Compatibility is deprecated.\n"
+            "source.cc:17: warning: compiler output\n"
+        )
+        before, deprecation = self.report(warning + build_output)
+        moved = warning.replace(
+            "cmake/Findabsl.cmake:23", "/build/BUILD/eos-5.5/cmake/Findabsl.cmake:48"
+        )
+        after, duplicate, still_deprecated = self.report(moved + warning + build_output)
+        self.assertEqual(
+            before["description"], "find_library: Dependency discovery generated a warning. /opt/eos/grpc"
+        )
+        self.assertEqual(after["location"], {"path": "cmake/Findabsl.cmake", "lines": {"begin": 48}})
+        self.assertEqual(before["fingerprint"], after["fingerprint"])
+        self.assertNotEqual(after["fingerprint"], duplicate["fingerprint"])
+        self.assertEqual(deprecation, still_deprecated)
+        self.assertEqual(deprecation["check_name"], "cmake-deprecated")
+
+
 if __name__ == "__main__":
     unittest.main()
