@@ -47,7 +47,13 @@
       if [[ -n "$RPM_BINARY_PAYLOAD" ]]; then
         rpm_options+=(--define "_binary_payload $RPM_BINARY_PAYLOAD")
       fi
-      rpmbuild "${rpm_options[@]}" build/SRPMS/* | (ts 2> /dev/null || true; tee)
+      if [[ "${REPORT_CMAKE_WARNINGS:-}" == 1 ]]; then
+        set -o pipefail
+        rpmbuild "${rpm_options[@]}" build/SRPMS/* 2>&1 |
+          tee build/rpmbuild.log | (ts 2> /dev/null || true; tee)
+      else
+        rpmbuild "${rpm_options[@]}" build/SRPMS/* | (ts 2> /dev/null || true; tee)
+      fi
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}-artifacts; cp -rv build/*RPMS/ build/eos-*.tar.gz ${BUILD_NAME}-artifacts
@@ -79,8 +85,17 @@ build_el9:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
     BUILD_NAME: el-9
+    REPORT_CMAKE_WARNINGS: "1"
   extends: .build-template
   rules: !reference [.rules-build-el9, rules]
+  after_script:
+    - |
+      if [[ -f build/rpmbuild.log ]]; then
+        python3 gitlab-ci/cmake_code_quality.py build/rpmbuild.log build/cmake-codequality.json
+      fi
+  artifacts:
+    reports:
+      codequality: build/cmake-codequality.json
 
 
 build_el10:
