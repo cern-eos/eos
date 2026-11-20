@@ -39,17 +39,3 @@ P0-P5 scale of "Debug And Ticket Priorities" there.
 - Severity: P4 (wrong error output: the plugin reports the wrong reason; the
   fallback works and nothing persists).
 - Blocks the task: no (follow-up of MR !522, EOS-6676).
-
-## Configuring with an install prefix of `/` can fail to find Abseil
-
-- File: `cmake/Findabsl.cmake` (the library search suffix).
-- Symptom: a full configuration with `-DCMAKE_INSTALL_PREFIX=/` on AlmaLinux
-  fails at the Abseil check when the dependencies are under `/opt/eos/grpc`.
-- Evidence: CMake 4.5 found `/opt/eos/grpc/include` but reported
-  `ABSL_absl_base_LIBRARY-NOTFOUND`, with the library present in
-  `/opt/eos/grpc/lib64`. GNUInstallDirs adds `usr/` to the relative library
-  directory for this prefix, and the finder uses that directory as a search
-  suffix under `/opt/eos/grpc`.
-- Severity: P4 (configuration fails with an explicit error).
-- Blocks the task: no (the standard prefix and package-only root-prefix
-  configurations cover the install rules independently).
