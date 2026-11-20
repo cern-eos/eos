@@ -1,0 +1,61 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# Run one BATS suite of the EOS tests.
+#
+# Usage: eos-bats-test <suite> <prefix> [<bats options>]
+#        eos-bats-test                   list the suites
+#        eos-bats-test <suite> --list    list the tests of a suite
+#        eos-bats-test --new <suite>     a new suite from bats/template
+#   eos-bats-test contention /eos/dockertest
+#   eos-bats-test contention /eos/dockertest --filter "rm of one file"
+#
+# The suite is the directory <suite>/ next to this script (the source tree),
+# or in ../share/eos/test from it (/usr/share/eos/test of the eos-test
+# package), with bats/ next to it.
+# The tests work under <prefix>/<suite>. A JUnit report goes to $EOS_TEST_REPORT_DIR/report.xml,
+# default /tmp/eos-bats-reports/<suite>. Suite settings come from the
+# environment, see the helper file of the suite.
+# ------------------------------------------------------------------------------
+
+here=$(dirname "$(readlink -f "$0")")
+
+# A suite is a directory with .bats files
+if [ $# = 0 ]; then
+  for dir in "$here" "$here/../share/eos/test"; do
+    for f in "$dir"/*/*.bats; do [ -e "$f" ] && basename "$(dirname "$f")"; done
+  done | grep -vx bats | sort -u
+  exit 0
+fi
+
+# A new suite in the source tree, from the template
+if [ "$1" = --new ]; then
+  new=$here/${2-}
+  [ -n "${2-}" ] && [ ! -e "$new" ] || { echo "usage: $0 --new <suite>, a new name"; exit 2; }
+  cp -r "$here/bats/template" "$new"
+  mv "$new/template.bash" "$new/$2.bash"
+  sed -i "s/^load template$/load $2/" "$new"/*
+  echo "new suite in $new, see $here/bats/README.md"
+  exit 0
+fi
+
+suite=$1
+
+for dir in "$here" "$here/../share/eos/test"; do
+  [ -d "$dir/$suite" ] && break
+done
+
+[ -d "$dir/$suite" ] || { echo "no suite $suite, see: $0"; exit 2; }
+
+# The names for --filter
+if [ "${2-}" = --list ]; then
+  sed -n 's/^@test "\(.*\)" {$/\1/p' "$dir/$suite"/*.bats
+  exit 0
+fi
+
+[ $# -ge 2 ] || { echo "usage: $0 <suite> <prefix> [<bats options>]"; exit 2; }
+export EOS_TEST_PREFIX=$2
+shift 2
+report=${EOS_TEST_REPORT_DIR:-/tmp/eos-bats-reports/$suite}
+mkdir -p "$report"
+# The bats of the submodule bats/vendor/bats-core, the same on each platform
+exec "$dir/bats/vendor/bats-core/bin/bats" --timing --report-formatter junit --output "$report" "$@" "$dir/$suite"
