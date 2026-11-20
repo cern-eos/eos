@@ -24,11 +24,12 @@
 #ifndef EOS_RESTAPITESTSUPPORT_HH
 #define EOS_RESTAPITESTSUPPORT_HH
 
-#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "common/VirtualIdentity.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
-#include <json/json.h>
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 #include <gtest/gtest.h>
+#include <json/json.h>
 #include <memory>
 #include <string>
 
@@ -42,6 +43,17 @@ inline std::unique_ptr<eos::common::HttpRequest> createHttpRequest(
   eos::common::HttpRequest::HeaderMap cookies;
   return std::make_unique<eos::common::HttpRequest>(headers, method, url, "", body,
       &dataSize, cookies);
+}
+
+//! Identity of a client whose credentials mapped to a user, not to nobody
+inline eos::common::VirtualIdentity
+createAuthenticatedVid()
+{
+  eos::common::VirtualIdentity vid;
+  vid.uid = 1000;
+  vid.gid = 1000;
+  vid.name = "tape-user";
+  return vid;
 }
 
 inline Json::Value parseResponseJson(eos::common::HttpResponse* response)
