@@ -404,6 +404,87 @@ code=$(curl -s -o "$work/body" -w '%{http_code}' "$mgm/.well-known/wlcg-tape-res
 expect "well-known, no credentials" 200 \
   '.endpoints | any(.version == "v1" and (.uri | endswith("/api/v1")))'
 
+# --- Requests without credentials --------------------------------------------
+# A tape REST request without credentials, or with a bearer token that is not a
+# JWT, maps to nobody: it gets 401 with a bearer challenge and changes nothing.
+
+# unauthenticated <method> <path below /api/v1/> <token or ""> [JSON body]
+# Like api, without a client certificate; keeps the response headers.
+unauthenticated() {
+  : > "$work/headers"
+  api "$1" "$2" "$3" "${4:-}" -D "$work/headers"
+}
+
+# expect_401 <case>
+expect_401() {
+  if [[ $code == 401 ]] && ! grep -qiE '^www-authenticate:[[:space:]]*bearer' "$work/headers"; then
+    fail "$1: HTTP 401 without a WWW-Authenticate: Bearer header"
+    return 1
+  fi
+
+  expect "$1" 401
+}
+
+instance=$(eos -b "$rooturl" version 2> /dev/null | sed -n 's/^EOS_INSTANCE=//p')
+stagedir="/eos/${instance#eos}/proc/tape-rest-api/bulkrequests/stage"
+
+# Number of stage requests that the MGM keeps in its proc directory; fails if
+# the directory cannot be listed
+stage_requests() {
+  local listing
+
+  listing=$(eos -b "$rooturl" ls "$stagedir") || return 1
+  grep -c . <<< "$listing" || true
+}
+
+if [[ -z $instance ]]; then
+  fail "stage without credentials: no EOS_INSTANCE in the output of eos version"
+elif ! before=$(stage_requests); then
+  fail "stage without credentials: cannot list $stagedir"
+else
+  unauthenticated POST stage/ "" "{\"files\":[{\"path\":\"$in\"}]}"
+  expect_401 "stage, no credentials"
+
+  unauthenticated POST stage/ "not-a-jwt" "{\"files\":[{\"path\":\"$in\"}]}"
+  expect_401 "stage, bearer token that is not a JWT"
+
+  if ! after=$(stage_requests); then
+    fail "stage without credentials: cannot list $stagedir after the requests"
+  elif [[ $after != "$before" ]]; then
+    fail "stage without credentials: $stagedir went from $before to $after stage requests"
+  else
+    pass "stage without credentials: no new stage request in $stagedir"
+  fi
+fi
+
+unauthenticated POST archiveinfo/ "" "{\"paths\":[\"$in\"]}"
+expect_401 "archiveinfo, no credentials"
+
+api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$in\"}]}"
+
+if expect "stage, in-scope token, for the cases without credentials" 201 \
+     '.requestId | type == "string" and length > 0'; then
+  id=$(jq -r .requestId "$work/body")
+  requests+=("$id")
+
+  unauthenticated GET "stage/$id" ""
+  expect_401 "stage status, no credentials"
+
+  unauthenticated POST "stage/$id/cancel" "" "{\"paths\":[\"$in\"]}"
+  expect_401 "cancel, no credentials"
+
+  unauthenticated POST "release/$id" "" "{\"paths\":[\"$in\"]}"
+  expect_401 "release, no credentials"
+
+  unauthenticated DELETE "stage/$id" ""
+  expect_401 "delete, no credentials"
+
+  api GET "stage/$id" "$TOK_STAGE"
+  expect "stage status after a delete without credentials" 200 '.id == $id' --arg id "$id"
+else
+  fail "stage status, cancel, release and delete without credentials not run: no stage request"
+fi
+
 api POST archiveinfo/ "$TOK_STAGE" "{\"paths\":[\"$in\"]}"
 expect "archiveinfo, in-scope token" 200 \
   'length == 1 and .[0].path == $p and .[0].locality == "DISK" and (.[0].error // "") == ""' \
