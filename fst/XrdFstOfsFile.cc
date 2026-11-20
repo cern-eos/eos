@@ -1796,8 +1796,10 @@ XrdFstOfsFile::_close()
   // Enter close logic only once, as we can get an explicit close or a close
   // via the destructor
   if (!mOpened || mClosed) {
-    eos_info("msg=\"close already done\" fxid=%08llx close_rc=%i",
-             mFileId, mCloseRc);
+    if (mClosed) {
+      eos_info("msg=\"close already done\" fxid=%08llx close_rc=%i",
+               mFileId, mCloseRc);
+    }
     mClosed = true;
     return mCloseRc;
   }
