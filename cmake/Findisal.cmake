@@ -33,7 +33,6 @@ if (ISAL_FOUND AND NOT TARGET ISAL::ISAL)
     INTERFACE_INCLUDE_DIRECTORIES "${ISAL_INCLUDE_DIR}")
   target_compile_definitions(ISAL::ISAL INTERFACE ISAL_FOUND)
 else()
-  message(WARNING "Notice: ISAL not found, no ISAL support")
   add_library(ISAL::ISAL INTERFACE IMPORTED)
 endif()
 

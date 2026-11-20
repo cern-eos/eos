@@ -21,6 +21,20 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+function(EOS_AddSubmodule directory)
+  # GoogleTest and QuarkDB's bundled backward-cpp declare older policy versions.
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0 AND NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+  endif()
+
+  # Let submodules use the same uppercase dependency roots as EOS.
+  if(POLICY CMP0144 AND NOT DEFINED CMAKE_POLICY_DEFAULT_CMP0144)
+    set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
+  endif()
+
+  add_subdirectory("${directory}" ${ARGN})
+endfunction()
+
 #-------------------------------------------------------------------------------
 # Get UID/GID for an account
 #-------------------------------------------------------------------------------
@@ -63,16 +77,14 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
       if(NOT VERSION_INFO_RESULT EQUAL 0)
           set(VERSION_ERR_MSG "Error getting EOS version info using `${CMAKE_SOURCE_DIR}/genversion.sh`")
           if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-              # for debug builds we take version from cache if available otherwise use a dummy version
-              message(WARNING "${VERSION_ERR_MSG}")
-              if(NOT DEFINED VERSION_INFO_FROM_CACHE)
+              if(DEFINED VERSION_INFO_FROM_CACHE)
+                  set(VERSION_INFO "${VERSION_INFO_FROM_CACHE}")
+                  message(WARNING "${VERSION_ERR_MSG}\nUsing cached EOS version ${VERSION_INFO} for debug build")
+              else()
                   # use a placeholder version (might need to be updated in the future)
                   set(VERSION_INFO "5.3.27-unknown")
-              else()
-                  message(WARNING "Using cached EOS version info for debug build: ${VERSION_INFO_FROM_CACHE}")
-                  set(VERSION_INFO "${VERSION_INFO_FROM_CACHE}")
+                  message(WARNING "${VERSION_ERR_MSG}\nUsing placeholder EOS version ${VERSION_INFO} for debug build")
               endif()
-              message(WARNING "Setting EOS version to ${VERSION_INFO} for debug build")
           else()
               message(FATAL_ERROR "${VERSION_ERR_MSG}")
           endif()

@@ -21,8 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_BINARY_DIR})
-
 #-------------------------------------------------------------------------------
 # Disable -Wsign-compare warnings due to
 # grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
@@ -91,7 +89,7 @@ target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcClient-Objects
   EosCommon)
 
-install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert 
+install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert
   eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}

@@ -39,3 +39,18 @@ P0-P5 scale of "Debug And Ticket Priorities" there.
 - Severity: P4 (wrong error output: the plugin reports the wrong reason; the
   fallback works and nothing persists).
 - Blocks the task: no (follow-up of MR !522, EOS-6676).
+
+## Google Benchmark enables a server-only target in client builds
+
+- File: `test/microbenchmarks/CMakeLists.txt` (creation and linking of
+  `eos-nslocking-microbenchmark`).
+- Symptom: a client-only configuration with Google Benchmark available fails
+  during generation because the namespace-locking benchmark links to targets
+  from the server build.
+- Evidence: on macOS, `cmake -S . -B <build> -DUSE_SYSTEM_GBENCH=OFF` reaches
+  generation with the bundled benchmark and reports a missing `FOLLY::FOLLY`
+  target for `eos-nslocking-microbenchmark`. Client builds also skip
+  `namespace/CMakeLists.txt`, which defines `EosNsCommon-Static`.
+- Severity: P4 (the optional benchmark prevents generation of the client build).
+- Blocks the task: no (the default client profile and the Linux server profile
+  can still be used to verify the warning fixes).

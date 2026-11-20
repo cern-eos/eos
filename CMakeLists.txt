@@ -120,7 +120,7 @@ option(USE_SYSTEM_GTEST "Use GoogleTest installed in the system if found" OFF)
 if(USE_SYSTEM_GTEST)
   find_package(GTest REQUIRED)
 else()
-  add_subdirectory(unit_tests/googletest EXCLUDE_FROM_ALL)
+  EOS_AddSubmodule(unit_tests/googletest EXCLUDE_FROM_ALL)
 
   # Add alias libraries to emulate same behavior as external GoogleTest
   add_library(GTest::GTest ALIAS gtest)
@@ -155,7 +155,7 @@ add_subdirectory(console)
 add_subdirectory(fusex)
 add_subdirectory(misc)
 add_subdirectory(test)
-add_subdirectory(namespace/ns_quarkdb/qclient)
+EOS_AddSubmodule(namespace/ns_quarkdb/qclient)
 
 if (GRPC_FOUND)
   add_subdirectory(client)
@@ -168,7 +168,7 @@ if (NOT CLIENT)
   add_subdirectory(archive)
   add_subdirectory(auth_plugin)
   add_subdirectory(unit_tests)
-  add_subdirectory(quarkdb)
+  EOS_AddSubmodule(quarkdb)
 endif ()
 
 #-------------------------------------------------------------------------------

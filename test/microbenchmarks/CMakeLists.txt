@@ -24,7 +24,10 @@
 option(USE_SYSTEM_GBENCH "Use Google benchmark installed in the system if found" ON)
 
 if(USE_SYSTEM_GBENCH)
-  find_package(benchmark)
+  find_package(benchmark QUIET)
+  if(NOT benchmark_FOUND)
+    message(STATUS "Google Benchmark not found; skipping EOS microbenchmarks")
+  endif()
 else()
   if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
     set(BENCHMARK_FOUND TRUE)

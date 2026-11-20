@@ -30,7 +30,6 @@ if (nfs_FOUND AND NOT TARGET NFS::NFS)
     INTERFACE_INCLUDE_DIRECTORIES "${NFS_INCLUDE_DIR}"
     INTERFACE_COMPILE_DEFINITIONS HAVE_NFS)
 else()
-  message(WARNING "Notice: libnfs not found, no NFS support")
   add_library(NFS::NFS INTERFACE IMPORTED)
 endif()
 
