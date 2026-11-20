@@ -32,6 +32,10 @@ function(EOS_AddSubmodule directory)
     set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
   endif()
 
+  if(POLICY CMP0177 AND NOT DEFINED CMAKE_POLICY_DEFAULT_CMP0177)
+    set(CMAKE_POLICY_DEFAULT_CMP0177 NEW)
+  endif()
+
   add_subdirectory("${directory}" ${ARGN})
 endfunction()
 

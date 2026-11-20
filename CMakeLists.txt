@@ -23,6 +23,10 @@
 
 cmake_minimum_required (VERSION 3.16...3.30 FATAL_ERROR)
 
+if(POLICY CMP0177)
+  cmake_policy(SET CMP0177 NEW)
+endif()
+
 # Set default build type if not set. This must be done before calling project()
 if(NOT CMAKE_BUILD_TYPE AND NOT GENERATOR_IS_MULTI_CONFIG)
   if(NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
