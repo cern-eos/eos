@@ -22,21 +22,22 @@
 
 #include "EosMgmHttpHandler.hh"
 #include "common/Logging.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm//http/HttpServer.hh"
-#include "common/http/ProtocolHandler.hh"
+#include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
-#include "common/Path.hh"
+#include "common/http/ProtocolHandler.hh"
+#include "common/token/EosTok.hh"
+#include "mgm//http/HttpServer.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
+#include <XrdOuc/XrdOucPinPath.hh>
 #include <XrdSec/XrdSecEntityAttr.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <XrdSys/XrdSysPlugin.hh>
-#include <XrdAcc/XrdAccAuthorize.hh>
-#include <XrdOuc/XrdOucPinPath.hh>
 #include <stdio.h>
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 #include <set>
 
@@ -197,7 +198,8 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
 bool
 EosMgmHttpHandler::MatchesPath(const char* verb, const char* path)
 {
-  eos_static_info("verb=%s path=%s", verb, path);
+  eos_static_info("verb=%s path=%s", verb,
+                  eos::common::EosTok::IsEosTokenPath(path) ? "[EOS token]" : path);
 
   // Leave the XrdHttpTPC plugin deal with COPY/OPTIONS verbs
   if ((strcmp(verb, "COPY") == 0) || (strcmp(verb, "OPTIONS") == 0)) {
@@ -263,17 +265,15 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   // Normalize the input headers to lower-case
   std::map<std::string, std::string> normalized_headers;
+  const bool token_path = eos::common::EosTok::IsEosTokenPath(req.resource.c_str());
 
   for (const auto& hdr : req.headers) {
-    eos_static_debug("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
-                     hdr.first.c_str(), hdr.second.c_str());
-    std::string lc_string = LC_STRING(hdr.first);
-    normalized_headers[lc_string] = hdr.second;
-
-    if (lc_string == "authorization") {
+    if (!token_path) {
       eos_static_debug("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
                        hdr.first.c_str(), hdr.second.c_str());
     }
+    std::string lc_string = LC_STRING(hdr.first);
+    normalized_headers[lc_string] = hdr.second;
   }
 
   if (IsMacaroonRequest(req)) {
@@ -341,14 +341,15 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   std::string err_msg;
+  int err_status = 500;
   std::map<std::string, std::string> cookies;
   std::unique_ptr<eos::common::ProtocolHandler> handler =
-      mMgmOfsHandler->mHttpd->XrdHttpHandler(req.verb, req.resource, normalized_headers,
-                                             cookies, body, req.GetSecEntity(),
-                                             mTokenAuthzHandler, err_msg, req);
+      mMgmOfsHandler->mHttpd->XrdHttpHandler(
+          req.verb, req.resource, normalized_headers, cookies, body, req.GetSecEntity(),
+          mTokenAuthzHandler, err_msg, err_status, req);
 
   if (handler == nullptr) {
-    return req.SendSimpleResp(500, err_msg.c_str(), "", err_msg.c_str(),
+    return req.SendSimpleResp(err_status, err_msg.c_str(), "", err_msg.c_str(),
                               err_msg.length());
   }
 

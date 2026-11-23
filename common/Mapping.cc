@@ -936,8 +936,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if ((rc = vid.token->Read(authz, key, eos::common::EosTok::sTokenGeneration,
                                 false))) {
         vid.token->Reset();
-        eos_static_err("msg=\"failed to decode token\" tident=\"%s\" token=\"%s\" errno=%d",
-                       tident, authz.c_str(), -rc);
+        eos_static_err("msg=\"failed to decode token\" tident=\"%s\" errno=%d", tident,
+                       -rc);
       } else {
         bool validated = true;
 

@@ -340,6 +340,37 @@ tcp() {
     return $((2#$tpcpushcode$tpcpullcode))
 }
 
+# The token alone identifies and authorizes this one file. Keep the signed URL
+# out of verbose output and do not supply a client certificate or bearer header.
+eostoken_path() (
+    set +x
+    local token url body result
+    token=$(XrdSecPROTOCOL=gsi X509_USER_PROXY="$proxy" eos "root://${host}/" token \
+        --path "${testdir}/helloworld-eostoken.txt" --permission r --expires "$LATER") || return 1
+    [[ "$token" == zteos64:* && "$token" != *[[:space:]]* ]] || return 1
+    url="https://${host}:${port}/$token"
+    body=$(mktemp) || return 1
+    trap 'rm -f -- "$body"' EXIT
+    local opts=(-q --silent --max-time 60 --cacert "$cacert" --capath "$capath")
+
+    result=$(curl "${opts[@]}" -L -o "$body" -w '%{http_code} %{num_redirects}' "$url") || return 1
+    echo "    token path GET -> $result (status and redirects)"
+    [[ "$result" =~ ^200\ [1-9][0-9]*$ ]] && cmp -s "$body" <(printf 'ola-token\n') || return 1
+
+    result=$(curl "${opts[@]}" -L --range 0-2 -o "$body" -w '%{http_code}' "$url") || return 1
+    echo "    token path Range -> $result"
+    [[ "$result" == 206 ]] && cmp -s "$body" <(printf 'ola') || return 1
+
+    result=$(curl "${opts[@]}" -I -o /dev/null -w '%{http_code}' "$url") || return 1
+    echo "    token path HEAD -> $result"
+    [[ "$result" == 200 ]] || return 1
+
+    result=$(curl "${opts[@]}" -o /dev/null -w '%{http_code}' \
+        "https://${host}:${port}/zteos64:invalid") || return 1
+    echo "    invalid token path GET -> $result"
+    [[ "$result" == 403 ]]
+)
+
 # EOS token
 eostoken() {
     echo "info: enable token generation"
@@ -380,6 +411,10 @@ eostoken() {
     [[ $respEosTokenRoDownload == "HTTP/1.1 200 OK" ]]
     eostoken_ro_down=$?
 
+    local eostoken_path_code
+    eostoken_path
+    eostoken_path_code=$?
+
     # Make destination directory read-only and try to upload with RO token
     eos chmod 500 ${testdir}
     respEosTokenRoUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${EOS_RO_TOKEN}" https://${host}:${port}${testdir}/helloworld-eostoken-ro.txt --upload-file <(echo ola-token) | grep HTTP | tr -d '\r' | paste -sd'+')"
@@ -388,7 +423,7 @@ eostoken() {
     eostoken_ro_up=$?
 
     eos chmod 750 ${testdir}
-    return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up))
+    return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up$eostoken_path_code))
 }
 
 ### "authz=" opaque information

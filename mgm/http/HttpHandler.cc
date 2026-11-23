@@ -352,8 +352,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                             response->FORBIDDEN);
     return response;
   } else {
-    eos_static_info("method=GET file=%s tident=%s query=%s",
-                    url.c_str(), client.tident, query.c_str());
+    XrdOucString log_query(query.c_str());
+    eos_static_info("method=GET file=%s tident=%s query=%s", url.c_str(), client.tident,
+                    eos::common::StringConversion::MaskSecretTags(log_query));
 
     if (statOK && (buf.st_rdev & XRDSFS_HASBKUP) &&
         (buf.st_rdev & XRDSFS_OFFLINE)) {
