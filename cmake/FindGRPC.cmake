@@ -91,12 +91,14 @@ find_path(GRPC_INCLUDE_DIR
 
 mark_as_advanced(GRPC_INCLUDE_DIR)
 
+set(_grpc_library_suffixes ${CMAKE_INSTALL_LIBDIR} lib64 lib)
+
 # Find GRPC library
 find_library(GRPC_LIBRARY
   NAMES grpc
   HINTS ${GRPC_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
 
 # Find GRPC C++ library
@@ -104,7 +106,7 @@ find_library(GRPC_GRPC++_LIBRARY
   NAMES grpc++
   HINTS ${GRPC_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
 
 # Find GRPC libgpr
@@ -112,7 +114,7 @@ find_library(GRPC_LIBGPR_LIBRARY
   NAMES gpr
   HINTS ${GRPC_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
 
 # Find GRPC C++ reflection library
@@ -120,7 +122,7 @@ find_library(GRPC_GRPC++_REFLECTION_LIBRARY
   NAMES grpc++_reflection
   HINTS ${GRPC_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
 
 # Find GRPC CPP generator
@@ -136,7 +138,7 @@ find_library(ABSL_SYNCHRONIZATION_LIBRARY
   NAMES absl_synchronization
   HINTS ${GRPC_ROOT} ${ABSL_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
 
 # Find libabsl_base
@@ -144,8 +146,10 @@ find_library(ABSL_BASE_LIBRARY
   NAMES absl_base
   HINTS ${GRPC_ROOT} ${ABSL_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${_grpc_library_suffixes}
   NO_DEFAULT_PATH)
+
+unset(_grpc_library_suffixes)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GRPC
