@@ -118,6 +118,11 @@ TEST(Recycle, IsSafeRecyclePath)
   auto vid = eos::common::VirtualIdentity::Root();
   EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "", "2026", "rid",
                                    "../../../eos/project"));
+  // Project paths must be absolute and never combine with a recycle key
+  EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "", "2026", "uid", "",
+                                   "relative/project"));
+  EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "fxid:1", "", "uid", "",
+                                   "/eos/test/project"));
   Recycle::gRecyclingPrefix = old_prefix;
   Recycle::gRecyclingBinLevel = old_bin_level;
 }

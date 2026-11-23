@@ -208,7 +208,7 @@ const CLI::Validator RecycleSubtree{
     },
     "ABSOLUTE_PATH_OR_IDENTIFIER"};
 
-void
+CLI::Option_group*
 AddSelection(CLI::App& app, bool& all, bool& uid, std::string& rid)
 {
   auto* selection = app.add_option_group("Selection");
@@ -216,6 +216,7 @@ AddSelection(CLI::App& app, bool& all, bool& uid, std::string& rid)
   selection->add_flag("--all", all, "entries for all users");
   selection->add_flag("--uid", uid, "entries for the current user");
   selection->add_option("--rid", rid, "recycle project id")->check(UnsignedDecimal());
+  return selection;
 }
 } // namespace
 
@@ -269,9 +270,14 @@ RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
 
   auto* purge = app.add_subcommand("purge", "Permanently remove recycled entries");
   bool purge_all = false, purge_uid = false;
-  std::string purge_rid, purge_date, purge_key;
+  std::string purge_rid, purge_path, purge_date, purge_key;
   purge->excludes(status_option);
-  AddSelection(*purge, purge_all, purge_uid, purge_rid);
+  // The project path is an alternative selector, so it shares the group with
+  // --all/--uid/--rid and is mutually exclusive with them.
+  auto* purge_project_option =
+      AddSelection(*purge, purge_all, purge_uid, purge_rid)
+          ->add_option("--project", purge_path, "path belonging to a recycle project")
+          ->check(AbsolutePath);
   auto* purge_entry = purge->add_option_group("Entry");
   purge_entry->require_option(1, 1);
   auto* purge_date_option = purge_entry->add_option("date", purge_date, "recycle date")
@@ -279,6 +285,7 @@ RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
   auto* purge_key_option = purge_entry->add_option("-k", purge_key, "recycle key")
                                ->check(eos::console::NonEmptyArgument);
   purge_date_option->excludes(purge_key_option);
+  purge_project_option->excludes(purge_key_option);
 
   auto* restore = app.add_subcommand("restore", "Restore a recycled entry");
   bool force_original = false, restore_versions = false, make_path = false;
@@ -373,6 +380,7 @@ RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
          {enable_option, {"on", "off"}},
          {enforce_option, {"on", "off"}}},
         {{list->get_option("--project"), CompletionPath::EosDirectory},
+         {purge_project_option, CompletionPath::EosDirectory},
          {project->get_option("--path"), CompletionPath::EosDirectory},
          {add_bin_option, CompletionPath::EosDirectory},
          {remove_bin_option, CompletionPath::EosDirectory}});
@@ -423,6 +431,7 @@ RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
                      : !purge_rid.empty() ? eos::console::RecycleProto::RID
                                           : eos::console::RecycleProto::UID);
     result->set_recycleid(purge_rid);
+    result->set_path(purge_path);
     result->set_date(purge_date);
     result->set_key(purge_key);
   } else if (*restore) {

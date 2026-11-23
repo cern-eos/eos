@@ -467,6 +467,39 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
+// Resolve the recycle id of the recycle project a path belongs to
+//------------------------------------------------------------------------------
+int
+Recycle::GetProjectRecycleId(std::string_view project_path, std::string& recycle_id,
+                             std::string& std_err)
+{
+  XrdOucErrInfo lerror;
+  std::string lpath(project_path);
+  recycle_id.clear();
+
+  if (gOFS->_attr_get(lpath.c_str(), lerror, mRootVid, "",
+                      Recycle::gRecycleIdXattrKey.c_str(), recycle_id) ||
+      recycle_id.empty()) {
+    std_err = SSTR("error: path \"" << lpath
+                                    << "\" is not part of a "
+                                       "recycle project (missing "
+                                    << Recycle::gRecycleIdXattrKey << " xattr)");
+    return EINVAL;
+  }
+
+  // The recycle id is the container id of the project top directory and is
+  // used as a path component, so never accept anything but digits
+  if (recycle_id.find_first_not_of("0123456789") != std::string::npos) {
+    std_err = SSTR("error: path \"" << lpath << "\" carries an invalid "
+                                    << Recycle::gRecycleIdXattrKey << " value \""
+                                    << recycle_id << "\"");
+    return EINVAL;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Print the recycle bin contents
 //------------------------------------------------------------------------------
 int
@@ -498,17 +531,9 @@ Recycle::Print(std::string& std_out, std::string& std_err,
     // sys.forced.recycleid xattr) for both regular and admin users; otherwise
     // an error is returned to the client.
     std::string rid_val;
-    XrdOucErrInfo lerror;
-    std::string lpath(project_path);
 
-    if (gOFS->_attr_get(lpath.c_str(), lerror, mRootVid, "",
-                        Recycle::gRecycleIdXattrKey.c_str(), rid_val) ||
-        rid_val.empty()) {
-      std_err = SSTR("error: path \"" << lpath
-                                      << "\" is not part of a "
-                                         "recycle project (missing "
-                                      << Recycle::gRecycleIdXattrKey << " xattr)");
-      return EINVAL;
+    if (int retc = GetProjectRecycleId(project_path, rid_val, std_err)) {
+      return retc;
     }
 
     printmap[SSTR("rid:" << rid_val)] = true;
@@ -1110,9 +1135,9 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 //------------------------------------------------------------------------------
 int
 Recycle::Purge(std::string& std_out, std::string& std_err,
-               eos::common::VirtualIdentity& vid,
-               std::string key, std::string_view date,
-               std::string_view type, std::string_view recycle_id)
+               eos::common::VirtualIdentity& vid, std::string key, std::string_view date,
+               std::string_view type, std::string_view recycle_id,
+               std::string_view project_path)
 {
   // Basic permission checks
   if (vid.uid && !vid.sudoer && !(vid.HasUid(eos::common::ADM_UID)) &&
@@ -1143,6 +1168,19 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     return EINVAL;
   }
 
+  // A project path selects the recycle id to purge for the given date
+  if (!project_path.empty()) {
+    if (project_path.front() != '/') {
+      std_err = "error: project path must be absolute";
+      return EINVAL;
+    }
+
+    if (!key.empty()) {
+      std_err = "error: recycle key and project path can not be used together";
+      return EINVAL;
+    }
+  }
+
   // Path that needs to be purged
   std::string recycle_path;
 
@@ -1155,7 +1193,17 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   } else if (!date.empty()) {
     char sdir[4096];
 
-    if ((type == "all") && (vid.uid == 0)) {
+    if (!project_path.empty()) {
+      // An explicit project path takes precedence over the selection type
+      std::string rid_val;
+
+      if (int retc = GetProjectRecycleId(project_path, rid_val, std_err)) {
+        return retc;
+      }
+
+      snprintf(sdir, sizeof(sdir) - 1, "%srid:%s/%s", Recycle::gRecyclingPrefix.c_str(),
+               rid_val.c_str(), date.data());
+    } else if ((type == "all") && (vid.uid == 0)) {
       snprintf(sdir, sizeof(sdir) - 1, "%s", Recycle::gRecyclingPrefix.c_str());
     } else if ((type == "rid") && !recycle_id.empty()) {
       snprintf(sdir, sizeof(sdir) - 1, "%srid:%s/%s", Recycle::gRecyclingPrefix.c_str(),

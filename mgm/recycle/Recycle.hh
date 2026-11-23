@@ -105,6 +105,18 @@ public:
                             std::string& std_err);
 
   //----------------------------------------------------------------------------
+  //! Resolve the recycle id of the recycle project a path belongs to
+  //!
+  //! @param project_path absolute path carrying the sys.forced.recycleid xattr
+  //! @param recycle_id output recycle id value
+  //! @param std_err output string holding any potential error message
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int GetProjectRecycleId(std::string_view project_path, std::string& recycle_id,
+                                 std::string& std_err);
+
+  //----------------------------------------------------------------------------
   //! Print the recycle bin contents
   //!
   //! @param std_out where to print
@@ -207,14 +219,15 @@ public:
   //! @param date can be empty, <year>, <year>/<month> or <year>/<month>/<day>
   //! @param type glocal, user or request id type of operation
   //! @param recycle_id recycle project identifier for scoping this request
+  //! @param project_path path belonging to a recycle project (carrying the
+  //!        sys.forced.recycleid xattr); takes precedence over type/recycle_id
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int Purge(std::string& std_out, std::string& std_err,
-                   eos::common::VirtualIdentity& vid,
-                   std::string key, std::string_view date,
-                   std::string_view type = "",
-                   std::string_view recycle_id = "");
+                   eos::common::VirtualIdentity& vid, std::string key,
+                   std::string_view date, std::string_view type = "",
+                   std::string_view recycle_id = "", std::string_view project_path = "");
 
   //----------------------------------------------------------------------------
   //! Check if given path is inside the recycle bin

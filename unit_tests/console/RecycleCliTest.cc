@@ -39,6 +39,12 @@ TEST_F(RecycleCliTest, PreservesPathsKeysAndAclsFromArgv)
 {
   run("recycle", {"ls", "--project", "/eos/project with spaces&x=y"});
   EXPECT_EQ(protobuf(false).recycle().ls().path(), "/eos/project with spaces&x=y");
+  run("recycle", {"purge", "--project", "/eos/project with spaces&x=y", "2026"});
+  const auto purge = protobuf(false).recycle().purge();
+  EXPECT_EQ(purge.path(), "/eos/project with spaces&x=y");
+  EXPECT_EQ(purge.date(), "2026");
+  EXPECT_EQ(purge.type(), eos::console::RecycleProto::UID);
+  EXPECT_TRUE(purge.recycleid().empty());
   run("recycle", {"project", "--acl", "u:123=rx, g:456=rx", "--path", "/eos/a b&c=d"});
   const auto project = protobuf(false).recycle().project();
   EXPECT_EQ(project.path(), "/eos/a b&c=d");
@@ -125,6 +131,7 @@ TEST_F(RecycleCliTest, ProjectPathsStillRequireAbsolutePaths)
        {"cid:42", "cxid:2a", "pid:42", "pxid:2a", "fid:42", "fxid:2a"}) {
     SCOPED_TRACE(operand);
     expectRejected("recycle", {"ls", "--project", operand});
+    expectRejected("recycle", {"purge", "--project", operand, "2026"});
     expectRejected("recycle", {"project", "--path", operand});
   }
 }
@@ -228,6 +235,8 @@ TEST_F(RecycleCliTest, HelpTextInsidePathAndAclRemainsLiteral)
 {
   run("recycle", {"ls", "--project", "/eos/a --help b"});
   EXPECT_EQ(protobuf(false).recycle().ls().path(), "/eos/a --help b");
+  run("recycle", {"purge", "--project", "/eos/a --help b", "2026"});
+  EXPECT_EQ(protobuf(false).recycle().purge().path(), "/eos/a --help b");
   run("recycle",
       {"project", "--path", "/eos/a --help b", "--acl", "u:123=rx --help g:456=rx"});
   const auto result = protobuf(false).recycle().project();
@@ -253,6 +262,11 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidRecycleArguments{"ConflictingIdSelector",
                                 {"purge", "--all", "--rid", "1", "2026"}},
         InvalidRecycleArguments{"MissingPurgeEntry", {"purge", "--all"}},
+        InvalidRecycleArguments{"ConflictingProjectSelector",
+                                {"purge", "--project", "/eos/a", "--uid", "2026"}},
+        InvalidRecycleArguments{"EmptyPurgeProject", {"purge", "--project", "", "2026"}},
+        InvalidRecycleArguments{"PurgeProjectShard",
+                                {"purge", "--project", "/eos/a", "2026/01/01/0"}},
         InvalidRecycleArguments{"EmptyPurgeKey", {"purge", "-k", ""}},
         InvalidRecycleArguments{"PurgeTrailing", {"purge", "2026", "extra"}},
         InvalidRecycleArguments{"RestoreTrailing", {"restore", "key", "ignored"}},
