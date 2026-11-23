@@ -16,6 +16,24 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.6 Diopside``
+===================
+
+2026-11-23
+
+Bug
+----
+
+* [EOS-6666] - CONSOLE: Restore protobuf dispatch for evict and register
+* [EOS-6728] - MGM/FST: Do not log the JWT sent to the CTA frontend
+* [EOS-6727] - MGM/FST: Retry a WFE gRPC call at once on a new channel
+
+Improvement
+------------
+
+* MGM/FST: Retry a WFE gRPC call at once on a new channel
+
+
 ``v5.5.5 Diopside``
 ===================
 
