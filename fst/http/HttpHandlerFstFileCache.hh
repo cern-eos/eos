@@ -23,7 +23,7 @@
 #pragma once
 
 #include "common/AssistedThread.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <sys/time.h>
@@ -35,18 +35,18 @@
 EOSFSTNAMESPACE_BEGIN
 
 /**
- * Class responsible for caching XrdFstOfsFile* of open files.
+ * Class responsible for caching EosFstOfsFile* of open files.
  * The HttpHandler uses this when handling read requests for byte
  * ranges. It is assumed that another request will shortly
  * arrive for the same file for a different byte range and it is less
  * costly to keep the file open than to re-open it for each request.
  * HttpHandler uses one instance of this class.
  *
- * This cache may contain multiple open XrdFstOfsFile* for the same file
+ * This cache may contain multiple open EosFstOfsFile* for the same file
  * because there could be concurrent requests for a given file and
  * it is not safe to issue read on the same object concurrently.
  * For this reason entries are removed from the cache while being used.
- * After use each of these XrdFstOfsFile* may be added or re-added
+ * After use each of these EosFstOfsFile* may be added or re-added
  * (still open) to the cache.
  *
  * Both the filename and the query portion of the url are a
@@ -58,7 +58,7 @@ EOSFSTNAMESPACE_BEGIN
  * the cached file open longer than the cap validity time, as the cap
  * only needs to be valid at the time the file was opened.
  *
- * XrdFstOfsFile* are inserted in the cache while not being used, and removed
+ * EosFstOfsFile* are inserted in the cache while not being used, and removed
  * from the cache to be used. For Keys with multiple Entries the
  * most recetntly inserted is removed and returned.
  *
@@ -163,7 +163,7 @@ public:
   struct Entry {
     Entry() : itime_(0), fp_(0) { }
 
-    void set(const Key& k, XrdFstOfsFile* const v)
+    void set(const Key& k, EosFstOfsFile* const v)
     {
       key_ = k;
       fp_ = v;
@@ -177,7 +177,7 @@ public:
       fp_ = 0;
     }
 
-    XrdFstOfsFile* getfp()
+    EosFstOfsFile* getfp()
     {
       return fp_;
     }
@@ -189,13 +189,13 @@ public:
 
     Key key_;
     uint64_t itime_;
-    XrdFstOfsFile* fp_;
+    EosFstOfsFile* fp_;
     std::multimap<Key, std::list<EntryGuard>::iterator>::iterator mapitr_;
   };
 
   /**
    * Object that is inserted into the cache. This contains an Entry and acts as
-   * an lifetime guared for the XrdFstOfsFile* part of the entry while it is cached.
+   * an lifetime guared for the EosFstOfsFile* part of the entry while it is cached.
    */
   struct EntryGuard {
     EntryGuard(const Entry& e):

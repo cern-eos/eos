@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/storage/FileSystem.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/ScanDir.hh"
 #include "fst/Config.hh"
 #include "fst/utils/DiskMeasurements.hh"

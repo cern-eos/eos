@@ -31,13 +31,17 @@
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/Deletion.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/checksum/ChecksumGroup.hh"
 #include "fst/compress/BlockCompress.hh"
 #include "fst/compress/Entropy.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/filemd/FmdMgm.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
@@ -246,6 +250,54 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 namespace
 {
 
+bool
+XioReady(const char* port_env)
+{
+#if defined(EOS_HAVE_XIO)
+  const char* port = std::getenv(port_env);
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  return port && port[0] && std::atoi(port) > 0 && token && token[0];
+#else
+  (void)port_env;
+  return false;
+#endif
+}
+
+// hostport is "host:xrootport". The HTTP/2 listener is the given env port.
+std::string
+XioDataUrl(const std::string& hostport, const char* port_env,
+           const std::string& path)
+{
+#if defined(EOS_HAVE_XIO)
+  const char* port = std::getenv(port_env);
+  if (!port || !port[0]) {
+    return {};
+  }
+  std::string url = "xiohttp://" + eos::common::XioHostOf(hostport) + ":" +
+                    port + "/";
+  if (!path.empty() && path.front() != '/' && path.front() != '?') {
+    url.push_back('/');
+  }
+  url += path;
+  return url;
+#else
+  (void)hostport;
+  (void)port_env;
+  (void)path;
+  return {};
+#endif
+}
+
+std::unique_ptr<FileIo>
+TryXioOpen(const std::string& url, const std::string& opaque)
+{
+  std::unique_ptr<FileIo> io(FileIoPlugin::GetIoObject(url));
+  if (!io || io->fileOpen(SFS_O_RDONLY, 0, opaque)) {
+    return nullptr;
+  }
+  return io;
+}
+
 // Sets on the Fmd the altxs config stored in the container.
 // In memory only.
 void SetAltXsConfigFromNS(const eos::ns::ContainerMdProto& container,
@@ -413,9 +465,54 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       xs->AddAlternative(static_cast<eos::common::LayoutId::eChecksum>(m));
     }
 
-    std::string fullpath = SSTR("root://" << gConfig.GetManager() <<
-                                "//?eos.lfn=fxid:" << eos::common::FileId::Fid2Hex(
-                                  fid) << "&xrd.wantprot=sss");
+    const std::string cgi =
+        SSTR("eos.lfn=fxid:" << eos::common::FileId::Fid2Hex(fid)
+             << "&xrd.wantprot=sss");
+#if defined(EOS_HAVE_XIO)
+    std::string fullpath = XioDataUrl(gConfig.GetManager(), "EOS_MGM_XIO_PORT",
+                                      "?" + cgi);
+#else
+    std::string fullpath = SSTR("root://" << gConfig.GetManager() << "//?"
+                                << cgi);
+#endif
+    std::unique_ptr<FileIo> xio;
+    if (XioReady("EOS_MGM_XIO_PORT")) {
+      xio = TryXioOpen(XioDataUrl(gConfig.GetManager(), "EOS_MGM_XIO_PORT",
+                                  "?" + cgi),
+                       "");
+    }
+
+    uint64_t offset = 0;
+    static eos::common::BufferManager sBuffMgr(8 * eos::common::GB);
+    constexpr size_t buff_size = 256 * 1024;
+    eos::common::ManagedBuffer managed_buf(sBuffMgr, buff_size);
+    auto buffer = managed_buf.GetBuffer();
+    uint32_t nread = 0;
+
+    if (xio) {
+      while (true) {
+        int64_t got = xio->fileRead(static_cast<XrdSfsFileOffset>(offset),
+                                    buffer->GetDataPtr(),
+                                    static_cast<XrdSfsXferSize>(buff_size));
+        if (got < 0) {
+          eos_err("msg=\"error reading file\" fullpath='%s' fsid=%d error='%s'",
+                  fullpath.c_str(), mFsId, xio->GetLastErrMsg().c_str());
+          xio->fileClose();
+          return;
+        }
+        if (got == 0) {
+          break;
+        }
+        xs->Add(buffer->GetDataPtr(), static_cast<uint32_t>(got), offset);
+        offset += static_cast<uint64_t>(got);
+      }
+      xio->fileClose();
+    } else {
+#if defined(EOS_HAVE_XIO)
+      eos_err("msg=\"HTTP/2 open failed\" fullpath='%s' fsid=%d",
+              fullpath.c_str(), mFsId);
+      return;
+#else
     auto f = std::make_unique<XrdCl::File>();
     auto status = f->Open(fullpath, XrdCl::OpenFlags::Read);
 
@@ -425,13 +522,6 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
               mFsId, status.GetErrorMessage().c_str());
       return;
     }
-
-    uint64_t offset = 0;
-    static eos::common::BufferManager sBuffMgr(8 * eos::common::GB);
-    constexpr size_t buff_size = 256 * 1024;
-    eos::common::ManagedBuffer managed_buf(sBuffMgr, buff_size);
-    auto buffer = managed_buf.GetBuffer();
-    uint32_t nread = 0;
 
     while (true) {
       status = f->Read(offset, buff_size, buffer->GetDataPtr(), nread);
@@ -450,6 +540,8 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 
       xs->Add(buffer->GetDataPtr(), nread, offset);
       offset += nread;
+    }
+#endif
     }
 
     xs->Finalize();
@@ -1710,6 +1802,7 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
     return false;
   }
 
+#if !defined(EOS_HAVE_XIO)
   const std::string address = SSTR("root://" << mgr << "/");
   const XrdCl::URL url(address.c_str());
 
@@ -1717,18 +1810,46 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
     eos_static_err("msg=\"invalid url\" url=\"%s\"", address.c_str());
     return false;
   }
+#endif
 
   // Query MGM for list of stripes to open
+  const std::string query_path = SSTR("/.fxid:" << std::hex << fid << std::dec);
+  const std::string query =
+      SSTR("mgm.pcmd=open"
+           << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
+           << "&xrd.wantprot=sss"
+           << "&eos.app="
+           << eos::common::InternalAppTag(eos::common::EOS_APP_FSCK_SCAN) << "&"
+           << eos::common::kSchedClassKey << "="
+           << eos::common::kSchedClassInternal);
+  const std::string opaque = query_path + "?" + query;
+  std::string response;
+  bool have_response = false;
+#if defined(EOS_HAVE_XIO)
+  if (XioReady("EOS_MGM_XIO_PORT")) {
+    int http = 0;
+    std::string err;
+    const int qrc = eos::common::XioOpaqueQuery(
+                      eos::common::XioHostOf(mgr),
+                      std::atoi(std::getenv("EOS_MGM_XIO_PORT")), query, response,
+                      err, 10000, &http, query_path);
+    if (http != 0) {
+      if (qrc != 0) {
+        eos_static_err("msg=\"MGM HTTP/2 query failed\" opaque=\"%s\" err=\"%s\"",
+                       opaque.c_str(), err.c_str());
+        return false;
+      }
+      have_response = true;
+    }
+  }
+#endif
+  if (!have_response) {
+#if defined(EOS_HAVE_XIO)
+    eos_static_err("msg=\"MGM HTTP/2 open failed\" opaque=\"%s\"", opaque.c_str());
+    return false;
+#else
   XrdCl::Buffer arg;
   XrdCl::Buffer* resp_raw = nullptr;
-  const std::string opaque =
-      SSTR("/.fxid:" << std::hex << fid << std::dec << "?mgm.pcmd=open"
-                     << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
-                     << "&xrd.wantprot=sss"
-                     << "&eos.app="
-                     << eos::common::InternalAppTag(eos::common::EOS_APP_FSCK_SCAN) << "&"
-                     << eos::common::kSchedClassKey << "="
-                     << eos::common::kSchedClassInternal);
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
   const XrdCl::XRootDStatus status =
@@ -1741,8 +1862,10 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  const std::string response(resp_raw->GetBuffer(), resp_raw->GetSize());
+  response.assign(resp_raw->GetBuffer(), resp_raw->GetSize());
   delete resp_raw;
+#endif
+  }
   // @note: fragile design as it depends on the location of mgm.logid!
   const char* ptr = strstr(response.c_str(), "&mgm.logid");
 
@@ -1779,7 +1902,23 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
     }
 
     pio = openOpaque->Get(tag.c_str());
-    stripeUrl = SSTR("root://" << pio << "/" << ns_path);
+    if (pio.compare(0, 10, "xiohttp://") == 0 ||
+        pio.compare(0, 11, "xiohttps://") == 0) {
+      stripeUrl = pio;
+      if (stripeUrl.empty() || stripeUrl.back() != '/') {
+        stripeUrl.push_back('/');
+      }
+      stripeUrl += ns_path.empty() || ns_path.front() != '/' ? ns_path
+                                                             : ns_path.substr(1);
+    } else {
+#if defined(EOS_HAVE_XIO)
+      eos_static_err("msg=\"stripe has no HTTP/2 endpoint\" pio=\"%s\"",
+                     pio.c_str());
+      return false;
+#else
+      stripeUrl = SSTR("root://" << pio << "/" << ns_path);
+#endif
+    }
     stripeFsId = capOpaque->GetInt(SSTR("mgm.fsid" << i).c_str());
     // Start by marking all stripes invalid. Mark them unknown once we
     // have successfully read their headers.
@@ -1852,12 +1991,19 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   std::map<unsigned int, std::set<unsigned long>> mapPL;
 
   for (unsigned long i = 0; i < stripes.size(); ++i) {
-    std::unique_ptr<FileIo> file{FileIoPlugin::GetIoObject(stripes[i].url)};
+    const std::string new_opaque =
+        SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
+    std::unique_ptr<FileIo> file;
+#if defined(EOS_HAVE_XIO)
+    file = TryXioOpen(stripes[i].url, new_opaque);
+#else
+    file.reset(FileIoPlugin::GetIoObject(stripes[i].url));
+    if (file) {
+      file->fileOpen(SFS_O_RDONLY, 0, new_opaque);
+    }
+#endif
 
     if (file) {
-      const std::string new_opaque =
-        SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
-      file->fileOpen(SFS_O_RDONLY, 0, new_opaque);
       hd->ReadFromFile(file.get(), 0);
       file->fileClose();
 
@@ -1887,7 +2033,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   std::vector<bool> combinations(num_locations, false);
   std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
   std::vector<std::pair<int, std::string>>
-                                        stripeCombination(nParityStripes, std::make_pair(0, "root://__offline_"));
+                                        stripeCombination(nParityStripes, std::make_pair(0, "offline://__offline_"));
   stripeCombination.reserve(nStripes);
 
   // Try to find a valid stripe combination

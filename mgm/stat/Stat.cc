@@ -26,7 +26,7 @@
 #include "common/Statistics.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/quota/Quota.hh"
 #include "namespace/interface/LockableNSObject.hh"
 #include <XrdOuc/XrdOucString.hh>

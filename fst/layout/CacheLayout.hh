@@ -21,7 +21,7 @@ class SparseJournal;
 class CacheLayout : public Layout
 {
 public:
-  CacheLayout(XrdFstOfsFile* file, unsigned long lid,
+  CacheLayout(EosFstOfsFile* file, unsigned long lid,
               const XrdSecEntity* client, XrdOucErrInfo* outError,
               const char* path, eos::fst::FmdHandler* fmdHandler,
               uint16_t timeout = 0);

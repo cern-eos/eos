@@ -29,7 +29,7 @@
 #include "common/utils/RandUtils.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"

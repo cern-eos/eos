@@ -29,7 +29,7 @@
 #include "common/Statfs.hh"
 #include "common/BufferManager.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include <string>
 #include <list>
 #include <future>

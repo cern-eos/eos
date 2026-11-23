@@ -28,8 +28,8 @@ def test_parseThreadStack():
       'Thread 76 (Thread 0x7f7f0a6c1700 (LWP 118449)):\n',
       '#0  0x00007f80596242ae in pthread_rwlock_wrlock () from /lib64/libpthread.so.0\n',
       '#1  0x00007f805161ef85 in eos::common::RWMutex::LockWrite (this=0x7f8051ffacd8 <XrdSfsGetFileSystem::myFS+6200>) at ../../common/RWMutex.cc:339\n',
-      '#2  0x00007f8051b2075a in XrdMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
-      '    client=0x7f7faad8f488) at ../../mgm/XrdMgmOfs/fsctl/Drop.cc:47\n',
+      '#2  0x00007f8051b2075a in EosMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
+      '    client=0x7f7faad8f488) at ../../mgm/EosMgmOfs/fsctl/Drop.cc:47\n',
       '#3  0x00007f8059d27344 in XrdXrootdProtocol::do_Qopaque (this=0x7f7fc18b2e80, qopt=<optimized out>)\n', '    at /usr/src/debug/xrootd/xrootd/src/XrdXrootd/XrdXrootdXeq.cc:1779\n',
       '#4  0x00007f8059aa1149 in XrdLink::DoIt (this=0x7f7faf3ea2d8) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdLink.cc:435\n',
       '#5  0x00007f8059aa453f in XrdScheduler::Run (this=0x610e78 <XrdMain::Config+440>) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:357\n',
@@ -46,7 +46,7 @@ def test_parseThreadStack():
     print(stack.getFrame(0))
     assert stack.getFrame(0) == "#0  0x00007f80596242ae in pthread_rwlock_wrlock () from /lib64/libpthread.so.0"
     assert stack.getFrame(1) == "#1  0x00007f805161ef85 in eos::common::RWMutex::LockWrite (this=0x7f8051ffacd8 <XrdSfsGetFileSystem::myFS+6200>) at ../../common/RWMutex.cc:339"
-    assert stack.getFrame(2) == "#2  0x00007f8051b2075a in XrdMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., client=0x7f7faad8f488) at ../../mgm/XrdMgmOfs/fsctl/Drop.cc:47"
+    assert stack.getFrame(2) == "#2  0x00007f8051b2075a in EosMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., client=0x7f7faad8f488) at ../../mgm/EosMgmOfs/fsctl/Drop.cc:47"
     assert stack.getFrame(3) == "#3  0x00007f8059d27344 in XrdXrootdProtocol::do_Qopaque (this=0x7f7fc18b2e80, qopt=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdXrootd/XrdXrootdXeq.cc:1779"
     assert stack.getFrame(4) == "#4  0x00007f8059aa1149 in XrdLink::DoIt (this=0x7f7faf3ea2d8) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdLink.cc:435"
     assert stack.getFrame(5) == "#5  0x00007f8059aa453f in XrdScheduler::Run (this=0x610e78 <XrdMain::Config+440>) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:357"
@@ -89,8 +89,8 @@ def test_parseStackTrace():
       'Thread 99 (Thread 0x7f7f0bdd8700 (LWP 118421)):\n',
       '#0  0x00007f8059624094 in pthread_rwlock_rdlock () from /lib64/libpthread.so.0\n',
       '#1  0x00007f805161e82e in eos::common::RWMutex::LockRead (this=0x7f8051ffacd8 <XrdSfsGetFileSystem::myFS+6200>) at ../../common/RWMutex.cc:258\n',
-      '#2  0x00007f8051b30742 in XrdMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
-      '    client=<optimized out>) at ../../mgm/XrdMgmOfs/fsctl/Schedule2Delete.cc:67\n',
+      '#2  0x00007f8051b30742 in EosMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
+      '    client=<optimized out>) at ../../mgm/EosMgmOfs/fsctl/Schedule2Delete.cc:67\n',
       '#3  0x00007f8059d27344 in XrdXrootdProtocol::do_Qopaque (this=0x7f7fb2b4f600, qopt=<optimized out>)\n',
       '    at /usr/src/debug/xrootd/xrootd/src/XrdXrootd/XrdXrootdXeq.cc:1779\n',
       '#4  0x00007f8059aa1149 in XrdLink::DoIt (this=0x7f7f8c17dac8) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdLink.cc:435\n',
@@ -102,8 +102,8 @@ def test_parseStackTrace():
       'Thread 98 (Thread 0x7f7f0bcd7700 (LWP 118422)):\n',
       '#0  0x00007f80596242ae in pthread_rwlock_wrlock () from /lib64/libpthread.so.0\n',
       '#1  0x00007f805161ef85 in eos::common::RWMutex::LockWrite (this=0x7f8051ffacd8 <XrdSfsGetFileSystem::myFS+6200>) at ../../common/RWMutex.cc:339\n',
-      '#2  0x00007f8051b2075a in XrdMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
-      '    client=0x7f7fb2b77148) at ../../mgm/XrdMgmOfs/fsctl/Drop.cc:47\n',
+      '#2  0x00007f8051b2075a in EosMgmOfs::FSctl (this=0x7f8051ff94a0 <XrdSfsGetFileSystem::myFS>, cmd=<optimized out>, args=..., error=..., \n',
+      '    client=0x7f7fb2b77148) at ../../mgm/EosMgmOfs/fsctl/Drop.cc:47\n',
       '#3  0x00007f8059d27344 in XrdXrootdProtocol::do_Qopaque (this=0x7f7fb26dd600, qopt=<optimized out>)\n',
       '    at /usr/src/debug/xrootd/xrootd/src/XrdXrootd/XrdXrootdXeq.cc:1779\n',
       '#4  0x00007f8059aa1149 in XrdLink::DoIt (this=0x7f7f8c17dd78) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdLink.cc:435\n',

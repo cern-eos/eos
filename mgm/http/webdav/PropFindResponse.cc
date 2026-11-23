@@ -22,11 +22,11 @@
  ************************************************************************/
 
 #include "mgm/http/webdav/PropFindResponse.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/access/Access.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
@@ -163,7 +163,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
     }
   } else if (depth == "1") {
     // Stat the resource and all child resources
-    XrdMgmOfsDirectory directory;
+    EosMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
     responseNode = BuildResponseNode(request->GetUrl().c_str(),

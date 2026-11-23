@@ -57,7 +57,7 @@ public:
   int Init(const char* cfgfile);
 
 private:
-  eos::fst::XrdFstOfs* OFS;
+  eos::fst::EosFstOfs* OFS;
 
   //----------------------------------------------------------------------------
   //! Handle chunk upload operation

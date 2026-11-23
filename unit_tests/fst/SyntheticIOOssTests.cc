@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #define IN_TEST_HARNESS
-#include "fst/XrdFstOss.hh"
-#include "fst/XrdFstOssFile.hh"
+#include "fst/EosFstOss.hh"
+#include "fst/EosFstOssFile.hh"
 #undef IN_TEST_HARNESS
 
 #include "common/LayoutId.hh"
@@ -40,16 +40,16 @@
 #include <string>
 #include <vector>
 
-using eos::fst::XrdFstOss;
-using eos::fst::XrdFstOssFile;
+using eos::fst::EosFstOss;
+using eos::fst::EosFstOssFile;
 
 namespace {
 
-XrdFstOss& GetTestOss()
+EosFstOss& GetTestOss()
 {
   static XrdSysLogger logger(fileno(stderr), 0);
-  static XrdFstOss* oss = []() {
-    auto* instance = new XrdFstOss();
+  static EosFstOss* oss = []() {
+    auto* instance = new EosFstOss();
     instance->Init(&logger, nullptr);
     return instance;
   }();
@@ -89,7 +89,7 @@ protected:
       delete mOss;
       mOss = nullptr;
     }
-    mOss = new XrdFstOssFile("syntheticio-test");
+    mOss = new EosFstOssFile("syntheticio-test");
     // An omitted layout id is plain with block-checksum nibble 0. kNone is 1,
     // so Open tries to build a blockxs object and returns -EIO.
     const unsigned long lid =
@@ -104,13 +104,13 @@ protected:
 
   std::string mPath;
   int mFd = -1;
-  XrdFstOssFile* mOss = nullptr;
+  EosFstOssFile* mOss = nullptr;
 };
 
 } // namespace
 
 TEST_F(SyntheticIOOssTest, RejectsInvalidSyntheticIOValue) {
-  mOss = new XrdFstOssFile("syntheticio-test");
+  mOss = new EosFstOssFile("syntheticio-test");
   XrdOucEnv env("&eos.syntheticio=not-a-syntheticio");
   EXPECT_LT(mOss->Open(mPath.c_str(), O_RDWR | O_CREAT, 0644, env), 0);
 }

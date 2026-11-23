@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "common/Constants.hh"
 

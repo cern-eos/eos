@@ -23,14 +23,14 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/XattrCompat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -42,7 +42,7 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_touch(const char* path,
+EosMgmOfs::_touch(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   const char* ininfo,
@@ -214,7 +214,7 @@ XrdMgmOfs::_touch(const char* path,
   try {
     if (!fmd) {
       if (useLayout) {
-        XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(vid.tident.c_str()));
+        EosMgmOfsFile* file = new EosMgmOfsFile(const_cast<char*>(vid.tident.c_str()));
         XrdOucString opaque = ininfo;
 
         if (file) {

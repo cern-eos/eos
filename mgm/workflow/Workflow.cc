@@ -27,7 +27,7 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/wfe/WFE.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/Prefetcher.hh"

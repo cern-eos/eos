@@ -26,7 +26,7 @@
 #include "common/SymKeys.hh"
 #include "common/mq/SharedHashWrapper.hh"
 #include "fst/Config.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/shared/SharedHashSubscription.hh"

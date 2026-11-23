@@ -24,7 +24,7 @@
 #include "FmdAttr.hh"
 #include "FmdHandler.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "fst/utils/TransformAttr.hh"

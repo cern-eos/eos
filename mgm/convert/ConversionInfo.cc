@@ -23,7 +23,7 @@
 
 #include "mgm/convert/ConversionInfo.hh"
 #include "common/Logging.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

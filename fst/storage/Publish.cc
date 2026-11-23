@@ -32,7 +32,8 @@
 #include "common/Timing.hh"
 #include "common/Utils.hh"
 #include "fst/Config.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
+#include "fst/xio/EosXioFstServer.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/storage/TrafficShaping.hh"
@@ -470,6 +471,7 @@ std::map<std::string, std::string> Storage::GetFstStatistics(const std::string& 
   output["stat.geotag"] = gOFS.GetGeoTag();
   // http port
   output["http.port"] = SSTR(gOFS.mHttpdPort);
+  output["xio.port"] = SSTR(XioPort());
   // debug level
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   output["debug.state"] =

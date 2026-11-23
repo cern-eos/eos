@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -62,7 +62,7 @@ Storage::MgmSyncer()
       if (cnt > 20) {
         eos_static_alert("didn't receive manager name, aborting");
         std::this_thread::sleep_for(std::chrono::seconds(10));
-        XrdFstOfs::xrdfstofs_shutdown(1);
+        EosFstOfs::xrdfstofs_shutdown(1);
       }
     } while (1);
 

@@ -94,7 +94,7 @@ TEST_F(AuthFsTest_F, : StatFailTest)
 }
 
 //------------------------------------------------------------------------------
-// StatVFS test - this request goes to the XrdMgmOfs::fsctl with command id
+// StatVFS test - this request goes to the EosMgmOfs::fsctl with command id
 // SFS_FSCTL_STATFS = 2 and is not supported by EOS i.e. returns an error
 //------------------------------------------------------------------------------
 TEST_F(AuthFsTest_F, StatVFSTest)

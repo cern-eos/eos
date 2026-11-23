@@ -32,6 +32,11 @@
 #include "misc/fusexrdlogin.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClURL.hh>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#include "fusex/auth/XioLogin.hh"
+#include <cstdlib>
+#endif
 
 /* -------------------------------------------------------------------------- */
 backend::backend()
@@ -321,6 +326,105 @@ backend::fetchQueryResponse(uint64_t inode,
   return EIO;
 }
 
+#if defined(EOS_HAVE_XIO)
+namespace {
+
+using eos::fusex::FillXioCall;
+
+int TryFuseUserGet(fuse_req_t req, const std::string& root_url, std::string& body,
+                   int& http)
+{
+  http = 0;
+  body.clear();
+  if (!req || root_url.compare(0, 7, "root://") != 0) {
+    return 0;
+  }
+  fuse_id id(req);
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const int port = port_env ? std::atoi(port_env) : 0;
+  if (port <= 0) {
+    return 0;
+  }
+  eos::common::XioCall call;
+  std::string scheme;
+  if (!FillXioCall(id.uid, id.gid, id.pid, call, scheme)) {
+    return 0;
+  }
+  std::string rest = root_url.substr(7);
+  const auto slash = rest.find('/');
+  const auto at = rest.find('@');
+  if (at != std::string::npos && (slash == std::string::npos || at < slash)) {
+    rest.erase(0, at + 1);
+  }
+  const auto host_end = rest.find('/');
+  std::string host = host_end == std::string::npos ? rest : rest.substr(0, host_end);
+  std::string path = host_end == std::string::npos ? "/" : rest.substr(host_end);
+  const auto colon = host.rfind(':');
+  if (colon != std::string::npos) {
+    host.erase(colon);
+  }
+  while (path.size() > 1 && path[0] == '/' && path[1] == '/') {
+    path.erase(0, 1);
+  }
+  const std::string http_url = scheme + "://" + host + ":" + std::to_string(port) + path;
+  std::string err;
+  const int rc = eos::common::XioUserExchange("GET", http_url, call, body, err,
+                                              &http);
+  if (http == 0) {
+    return 0;
+  }
+  return rc == 0 ? 0 : rc;
+}
+
+int TryFuseUserPost(const XrdCl::URL& url, const XrdCl::Buffer& arg,
+                    std::string& body, int& http)
+{
+  http = 0;
+  body.clear();
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const int port = port_env ? std::atoi(port_env) : 0;
+  if (port <= 0 || url.GetHostName().empty()) {
+    return 0;
+  }
+  const auto params = url.GetParams();
+  auto pick = [&params](const char* a, const char* b) -> std::string {
+    auto it = params.find(a);
+    if (it == params.end() && b) {
+      it = params.find(b);
+    }
+    return it == params.end() ? std::string() : it->second;
+  };
+  const std::string uid_s = pick("fuse.uid", "xrdcl.secuid");
+  if (uid_s.empty()) {
+    return 0;
+  }
+  const uid_t uid = static_cast<uid_t>(std::atoi(uid_s.c_str()));
+  const std::string gid_s = pick("fuse.gid", "xrdcl.secgid");
+  const std::string pid_s = pick("fuse.pid", nullptr);
+  const gid_t gid = gid_s.empty() ? 0 : static_cast<gid_t>(std::atoi(gid_s.c_str()));
+  const pid_t pid = pid_s.empty() ? 0 : static_cast<pid_t>(std::atoi(pid_s.c_str()));
+  eos::common::XioCall call;
+  std::string scheme;
+  if (!FillXioCall(uid, gid, pid, call, scheme)) {
+    return 0;
+  }
+  if (arg.GetBuffer() && arg.GetSize()) {
+    call.upload.assign(arg.GetBuffer(), arg.GetSize());
+  }
+  const std::string http_url = scheme + "://" + url.GetHostName() + ":" +
+                               std::to_string(port) + "/";
+  std::string err;
+  const int rc = eos::common::XioUserExchange("POST", http_url, call, body, err,
+                                              &http);
+  if (http == 0) {
+    return 0;
+  }
+  return rc == 0 ? 0 : rc;
+}
+
+} // namespace
+#endif
+
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
@@ -341,7 +445,25 @@ backend::fetchResponse(fuse_req_t req,
   const int kPAGE = 512 * 1024;
   std::vector<char> rbuff(kPAGE);
   uint32_t bytesread = 0;
-
+#if defined(EOS_HAVE_XIO)
+  {
+    std::string http_body;
+    int http = 0;
+    const int src = TryFuseUserGet(req, requestURL, http_body, http);
+    if (http != 0) {
+      if (src == 0) {
+        response = std::move(http_body);
+        goto has_response;
+      }
+      errno = src;
+      EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
+      return src;
+    }
+    errno = EIO;
+    EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
+    return EIO;
+  }
+#else
   do {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
@@ -518,6 +640,7 @@ backend::fetchResponse(fuse_req_t req,
 
     eos_static_debug("rbytes=%lu offset=%llu", bytesread, offset);
   } while (bytesread);
+#endif
 
 has_response:
   EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
@@ -607,12 +730,23 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
   query["eos.app"] = get_appname();
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
 
+  url.SetParams(query);
+#if defined(EOS_HAVE_XIO)
+  {
+    std::string body;
+    int http = 0;
+    const int src = TryFuseUserGet(req, url.GetURL(), body, http);
+    if (http != 0) {
+      return src;
+    }
+    return EIO;
+  }
+#else
   if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
+    url.SetParams(query);
   }
-
-  url.SetParams(query);
-  std::unique_ptr <XrdCl::File> file(new XrdCl::File());
+  std::unique_ptr<XrdCl::File> file(new XrdCl::File());
   XrdCl::XRootDStatus status = file->Open(url.GetURL().c_str(),
                                           XrdCl::OpenFlags::Flags::Read);
 
@@ -627,6 +761,7 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
       return retc;
     }
   }
+#endif
 }
 
 int
@@ -647,11 +782,22 @@ backend::procCommand(fuse_req_t req, const XrdCl::URL::ParamsMap& params)
   query["eos.app"] = get_appname();
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
 
+  url.SetParams(query);
+#if defined(EOS_HAVE_XIO)
+  {
+    std::string body;
+    int http = 0;
+    const int src = TryFuseUserGet(req, url.GetURL(), body, http);
+    if (http != 0) {
+      return src;
+    }
+    return EIO;
+  }
+#else
   if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
+    url.SetParams(query);
   }
-
-  url.SetParams(query);
   std::unique_ptr<XrdCl::File> file(new XrdCl::File());
   XrdCl::XRootDStatus status =
       file->Open(url.GetURL().c_str(), XrdCl::OpenFlags::Flags::Read);
@@ -665,6 +811,7 @@ backend::procCommand(fuse_req_t req, const XrdCl::URL::ParamsMap& params)
   }
 
   return EREMOTEIO;
+#endif
 }
 
 int
@@ -1391,6 +1538,26 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
   // this function retries queries until the given timeout period has been reached
   // it does not proceed if there is an authentication failure
   double total_exec_time_sec = 0;
+#if defined(EOS_HAVE_XIO)
+  {
+    std::string body;
+    int http = 0;
+    const int src = TryFuseUserPost(url, arg, body, http);
+    if (http != 0) {
+      if (src) {
+        return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse, src,
+                                   "HTTP/2 query failed");
+      }
+      response = new XrdCl::Buffer();
+      if (!body.empty()) {
+        response->Append(body.data(), body.size());
+      }
+      return XrdCl::XRootDStatus();
+    }
+    return XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse, EIO,
+                               "HTTP/2 listener is not reachable");
+  }
+#else
   std::unique_ptr <XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
 
   do {
@@ -1434,6 +1601,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     total_exec_time_sec += 5;
     fs.reset(new XrdCl::FileSystem(url));
   } while (1);
+#endif
 }
 
 /* -------------------------------------------------------------------------- */

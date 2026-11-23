@@ -30,6 +30,14 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <sstream>
 #include <zmq.hpp>
+#if defined(EOS_HAVE_XIO)
+#include "XioHttp2.hh"
+#include "XioUrl.hh"
+#include "common/xio/XioUser.hh"
+#include <cstdlib>
+#include <cstring>
+#include <pwd.h>
+#endif
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
@@ -131,6 +139,71 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
   return RawExecute(oss.str());
 }
 
+#if defined(EOS_HAVE_XIO)
+namespace {
+
+int ReadXioProc(const std::string& full_url, const eos::common::XioCall& call,
+              std::string& body, std::string& err, int* http_status)
+{
+  if (http_status) {
+    *http_status = 0;
+  }
+  std::string http = full_url;
+  if (http.compare(0, 3, "xio") == 0) {
+    http.erase(0, 3);
+  }
+  XioFS::Url url;
+  if (!XioFS::parseUrl(http, url, err)) {
+    return EINVAL;
+  }
+  std::string path = url.path.empty() ? "/" : url.path;
+  while (path.size() > 1 && path[0] == '/' && path[1] == '/') {
+    path.erase(0, 1);
+  }
+  url.path = "/";
+  XioFS::Http2Session::Options opt;
+  opt.verify_peer = call.verify_peer;
+  opt.cacert = call.cacert;
+  opt.timeout_ms = 30000;
+  opt.bearer = call.bearer;
+  opt.krb5 = call.krb5;
+  opt.krb5cc = call.krb5cc;
+  opt.cert = call.cert;
+  opt.key = call.key;
+  XioFS::Http2Session session;
+  int rc = session.connect(url, opt, err);
+  if (rc) {
+    return rc < 0 ? -rc : rc;
+  }
+  XioFS::HttpRequest req;
+  req.method = "GET";
+  req.path = path;
+  if (!call.sss.empty()) {
+    req.headers.emplace_back("authorization", "SSS " + call.sss);
+  }
+  if (call.unix_id) {
+    req.headers.emplace_back("x-eos-uid", std::to_string(call.uid));
+    req.headers.emplace_back("x-eos-gid", std::to_string(call.gid));
+  }
+  XioFS::HttpResponse resp;
+  rc = session.request(req, resp, err);
+  if (rc) {
+    return rc < 0 ? -rc : rc;
+  }
+  if (http_status) {
+    *http_status = resp.status;
+  }
+  if (resp.status != 200 && resp.status != 204) {
+    err = resp.body.empty() ? ("HTTP " + std::to_string(resp.status)) : resp.body;
+    return EIO;
+  }
+  body = std::move(resp.body);
+  return 0;
+}
+
+} // namespace
+#endif
+
 //------------------------------------------------------------------------------
 // Execute command using the xrootd client
 //------------------------------------------------------------------------------
@@ -171,8 +244,76 @@ ICmdHelper::RawExecute(const std::string& full_url)
       sout.assign((char*)response.data(), response.size());
       oss << sout;
     }
+#if defined(EOS_HAVE_XIO)
+  } else if (mGlobalOpts.mMgmUri.compare(0, 10, "xiohttp://") == 0 ||
+             mGlobalOpts.mMgmUri.compare(0, 11, "xiohttps://") == 0 ||
+             mGlobalOpts.mMgmUri.compare(0, 7, "root://") == 0) {
+    eos::common::XioCall call;
+    std::string scheme = "http";
+    bool have = false;
+    if (mGlobalOpts.mForceSss) {
+      struct passwd* pw = getpwuid(geteuid());
+      if (pw && pw->pw_name && std::strcmp(pw->pw_name, "daemon") != 0) {
+        call.sss = pw->pw_name;
+        scheme = "https";
+        have = true;
+      }
+    } else {
+      have = eos::common::XioProcessCall(call, scheme);
+    }
+    std::string http_url = full_url;
+    bool use_http = mGlobalOpts.mMgmUri.compare(0, 4, "xioh") == 0;
+    if (!use_http && have) {
+      if (const char* port_env = std::getenv("EOS_MGM_XIO_PORT")) {
+        const int port = std::atoi(port_env);
+        if (port > 0 && http_url.compare(0, 7, "root://") == 0) {
+          std::string rest = http_url.substr(7);
+          const auto slash = rest.find('/');
+          std::string host = slash == std::string::npos ? rest : rest.substr(0, slash);
+          std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
+          const auto at = host.find('@');
+          if (at != std::string::npos) {
+            host.erase(0, at + 1);
+          }
+          const auto colon = host.rfind(':');
+          if (colon != std::string::npos) {
+            host.erase(colon);
+          }
+          while (path.size() > 1 && path[0] == '/' && path[1] == '/') {
+            path.erase(0, 1);
+          }
+          http_url = scheme + "://" + host + ":" + std::to_string(port) + path;
+          use_http = true;
+        }
+      }
+    }
+    if (!use_http) {
+      oss << "mgm.proc.stdout="
+          << "&mgm.proc.stderr=" << "error: errc=" << EIO
+          << " msg=\"HTTP/2 listener is not configured\""
+          << "&mgm.proc.retc=" << EIO;
+    } else {
+    std::string body;
+    std::string err;
+    int http = 0;
+    int rc = ReadXioProc(http_url, call, body, err, &http);
+    if (rc && http == 0) {
+      oss << "mgm.proc.stdout="
+          << "&mgm.proc.stderr=" << "error: errc=" << EIO
+          << " msg=\"HTTP/2 listener is not reachable\""
+          << "&mgm.proc.retc=" << EIO;
+    } else if (rc) {
+      oss << "mgm.proc.stdout="
+          << "&mgm.proc.stderr=" << "error: errc=" << rc
+          << " msg=\"" << err << "\""
+          << "&mgm.proc.retc=" << rc;
+    } else {
+      oss << body;
+    }
+    }
+#endif
   } else {
-    // XRootD connection
+#if !defined(EOS_HAVE_XIO)
     std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
     XrdCl::XRootDStatus status = client->Open(full_url.c_str(),
                                  XrdCl::OpenFlags::Read);
@@ -203,6 +344,7 @@ ICmdHelper::RawExecute(const std::string& full_url)
           << " msg=\"" << status.ToString() << "\""
           << "&mgm.proc.retc=" << retc;
     }
+#endif
   }
 
   return ProcessResponse(oss.str());

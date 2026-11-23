@@ -39,7 +39,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
+ReedSLayout::ReedSLayout(EosFstOfsFile* file,
                          unsigned long lid,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,

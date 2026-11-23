@@ -28,7 +28,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "namespace/Prefetcher.hh"
 #include <XrdOuc/XrdOucEnv.hh>
@@ -37,7 +37,7 @@
 // Return metadata in env representation
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Getfmd(const char* path,
+EosMgmOfs::Getfmd(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,

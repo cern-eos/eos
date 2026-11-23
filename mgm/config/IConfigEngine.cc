@@ -34,7 +34,7 @@
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "mgm/iostat/Iostat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/pathrouting/PathRouting.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/quota/Quota.hh"

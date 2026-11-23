@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <cstring>
 #include <set>
 #include <string>
 #include <algorithm>
@@ -55,6 +56,9 @@
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/io/xrd/XrdIo.hh"
+#if defined(EOS_HAVE_XIO)
+#include "fst/io/xio/XioIo.hh"
+#endif
 #include "fst/io/FileIo.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -793,6 +797,7 @@ struct CompareCksumResult {
   std::string errMsg = "";
 };
 
+#if !defined(EOS_HAVE_XIO)
 CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
                                    const std::string& destFilePath, std::string srcCksumType,
                                    const std::string& srcCksumValue)
@@ -858,6 +863,7 @@ CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
 
   return result;
 }
+#endif
 
 
 //------------------------------------------------------------------------------
@@ -1413,7 +1419,9 @@ main(int argc, char* argv[])
             exit(-1);
           }
 
+#if !defined(EOS_HAVE_XIO)
           XrdCl::FileSystem fs(url);
+#endif
 
           if (spos != std::string::npos) {
             file_path.erase(0, spos + 1);
@@ -1432,7 +1440,28 @@ main(int argc, char* argv[])
           st[0].st_mode = 0;
 
           if (doPIO) {
-            status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+#if defined(EOS_HAVE_XIO)
+            std::string body;
+            int http = 0;
+            const int qrc = eos::fst::XioIo::UserOpaque(address, request, body, http);
+            if (http != 0) {
+              if (qrc) {
+                fprintf(stderr, "error: PIO open failed: %s\n", body.c_str());
+                exit(-qrc);
+              }
+              response = new XrdCl::Buffer();
+              response->FromString(body);
+              status = XrdCl::XRootDStatus();
+            }
+#endif
+            if (!response) {
+#if defined(EOS_HAVE_XIO)
+              fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+              exit(-EIO);
+#else
+              status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+#endif
+            }
           }
 
           if (doPIO && status.IsOK()) {
@@ -1445,17 +1474,41 @@ main(int argc, char* argv[])
             }
 
             XrdCl::StatInfo* statresponse = 0;
-            status = fs.Stat(file_path.c_str(), statresponse);
-
-            if (status.IsOK()) {
-              st[0].st_size = statresponse->GetSize();
-              st[0].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-
-              if (statresponse->TestFlags(XrdCl::StatInfo::IsWritable)) {
-                st[0].st_mode |= S_IWGRP;
+            bool http_stat = false;
+#if defined(EOS_HAVE_XIO)
+            {
+              struct stat sb;
+              int sthttp = 0;
+              const std::string stat_url = address + file_path;
+              const int src = eos::fst::XioIo::UserStat(stat_url, &sb, sthttp);
+              if (sthttp != 0) {
+                http_stat = true;
+                if (src == 0) {
+                  st[0].st_size = sb.st_size;
+                  st[0].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+                  status = XrdCl::XRootDStatus();
+                } else {
+                  status = XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errErrorResponse,
+                                               src, "HTTP/2 stat failed");
+                }
               }
             }
-
+#endif
+            if (!http_stat) {
+#if defined(EOS_HAVE_XIO)
+              fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+              exit(-EIO);
+#else
+              status = fs.Stat(file_path.c_str(), statresponse);
+              if (status.IsOK() && statresponse) {
+                st[0].st_size = statresponse->GetSize();
+                st[0].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+                if (statresponse->TestFlags(XrdCl::StatInfo::IsWritable)) {
+                  st[0].st_mode |= S_IWGRP;
+                }
+              }
+#endif
+            }
             delete statresponse;
 
             //..................................................................
@@ -1531,8 +1584,27 @@ main(int argc, char* argv[])
                 for (int j = 0; j < nsrc; j++) {
                   tag = "pio.";
                   tag += j;
-                  stripe_path = (is_roots ? "roots://" : "root://");
-                  stripe_path += openOpaque->Get(tag.c_str());
+                  const char* pio_loc = openOpaque->Get(tag.c_str());
+                  if (pio_loc && (!strncmp(pio_loc, "xiohttp://", 10) ||
+                                  !strncmp(pio_loc, "xiohttps://", 11))) {
+                    stripe_path = pio_loc;
+                  } else if (is_roots) {
+#if defined(EOS_HAVE_XIO)
+                    fprintf(stderr, "error: stripe has no HTTP/2 endpoint\n");
+                    exit(-EIO);
+#else
+                    stripe_path = "roots://";
+                    stripe_path += pio_loc;
+#endif
+                  } else {
+#if defined(EOS_HAVE_XIO)
+                    fprintf(stderr, "error: stripe has no HTTP/2 endpoint\n");
+                    exit(-EIO);
+#else
+                    stripe_path = "root://";
+                    stripe_path += pio_loc;
+#endif
+                  }
                   stripe_path += "/";
                   stripe_path += orig_file.c_str();
                   int pos = stripe_path.rfind("//");
@@ -1730,6 +1802,32 @@ main(int argc, char* argv[])
             continue;
           }
 
+          bool http_stat = false;
+#if defined(EOS_HAVE_XIO)
+          {
+            struct stat sb;
+            int sthttp = 0;
+            const std::string stat_url = src_location[i].first + src_location[i].second;
+            const int src = eos::fst::XioIo::UserStat(stat_url, &sb, sthttp);
+            if (sthttp != 0) {
+              http_stat = true;
+              if (src) {
+                stat_failed = 1;
+              } else {
+                stat_failed = 0;
+                st[i].st_size = sb.st_size;
+                st[i].st_mode = sb.st_mode ? sb.st_mode
+                                : (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                got_rain_flags = true;
+              }
+            }
+          }
+#endif
+          if (!http_stat) {
+#if defined(EOS_HAVE_XIO)
+          fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+          exit(-EIO);
+#else
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
           status = fs.Stat(src_location[i].second, response);
@@ -1746,6 +1844,9 @@ main(int argc, char* argv[])
             }
 
             got_rain_flags = true;
+          }
+          delete response;
+#endif
           }
 
           if (got_rain_flags) {
@@ -1774,6 +1875,31 @@ main(int argc, char* argv[])
           exit(-EPERM);
         }
 
+        bool http_stat = false;
+#if defined(EOS_HAVE_XIO)
+        {
+          struct stat sb;
+          int sthttp = 0;
+          const std::string stat_url = src_location[i].first + src_location[i].second;
+          const int src = eos::fst::XioIo::UserStat(stat_url, &sb, sthttp);
+          if (sthttp != 0) {
+            http_stat = true;
+            if (src) {
+              stat_failed = 1;
+            } else {
+              stat_failed = 0;
+              st[i].st_size = sb.st_size;
+              st[i].st_mode = sb.st_mode ? sb.st_mode
+                              : (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            }
+          }
+        }
+#endif
+        if (!http_stat) {
+#if defined(EOS_HAVE_XIO)
+        fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+        exit(-EIO);
+#else
         XrdCl::FileSystem fs(url);
         XrdCl::StatInfo* response = 0;
         status = fs.Stat(src_location[i].second, response);
@@ -1791,6 +1917,8 @@ main(int argc, char* argv[])
         }
 
         delete response;
+#endif
+        }
       }
       break;
 
@@ -2031,6 +2159,28 @@ main(int argc, char* argv[])
           }
 
           subpath += opaque.c_str();
+#if defined(EOS_HAVE_XIO)
+          {
+            const std::string full = dst_location[i].first + subpath.c_str();
+            struct stat sb;
+            int http = 0;
+            const int src = eos::fst::XioIo::UserStat(full, &sb, http);
+            if (http == 0) {
+              fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+              exit(-EIO);
+            }
+            if (src) {
+              if (debug) {
+                fprintf(stdout, "[eoscp]: doing HTTP mkdir on %s\n", subpath.c_str());
+              }
+              std::string body;
+              const int mrc = eos::fst::XioIo::UserExchange("mkcol", full, body, http);
+              if (http == 0 || mrc) {
+                mkdir_failed = 1;
+              }
+            }
+          }
+#else
           XrdCl::URL url(dst_location[i].first.c_str());
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
@@ -2050,6 +2200,7 @@ main(int argc, char* argv[])
           }
 
           delete response;
+#endif
           // Chown not supported by the standard xroot
         }
         break;
@@ -2175,6 +2326,36 @@ main(int argc, char* argv[])
         location += getenv("EOS_FUSE_SECRET");
       }
 
+#if defined(EOS_HAVE_XIO)
+      {
+        const std::string xu = eos::fst::XioIo::UserUrl(location);
+        if (!xu.empty()) {
+          auto* xio = new eos::fst::XioIo(xu);
+          xio->useProcessAuth();
+          const int oflags = doStoreRecovery ? SFS_O_RDWR : SFS_O_RDONLY;
+          const int rc = xio->fileOpen(static_cast<XrdSfsFileOpenMode>(oflags));
+          if (!rc) {
+            src_lasturl = xio->GetLastUrl();
+            src_handler.push_back(std::make_pair(0, static_cast<void*>(xio)));
+            src_type[i] = RIO_ACCESS;
+            break;
+          }
+          const std::string msg = xio->GetLastErrMsg();
+          const int answered = xio->lastHttpStatus();
+          const int err = xio->GetLastErrNo();
+          delete xio;
+          if (answered) {
+            fprintf(stderr, "error: source file open failed - errno=%d : %s\n",
+                    err, msg.c_str());
+            exit(-err);
+          }
+          fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+          exit(-EIO);
+        }
+        fprintf(stderr, "error: HTTP/2 listener is not configured\n");
+        exit(-EIO);
+      }
+#else
       XrdCl::File* file = new XrdCl::File();
       status = file->Open(location, xrdcl_flags, xrdcl_mode);
 
@@ -2188,6 +2369,7 @@ main(int argc, char* argv[])
       }
 
       src_handler.push_back(std::make_pair(0, (void*)file));
+#endif
     }
     break;
 
@@ -2203,8 +2385,21 @@ main(int argc, char* argv[])
         location.replace(0, 3, "root");
       }
 
-      eos::fst::FileIo* file = eos::fst::FileIoPluginHelper::GetIoObject(
-                                 location.c_str());
+      eos::fst::FileIo* file = nullptr;
+#if defined(EOS_HAVE_XIO)
+      if (location.compare(0, 7, "root://") == 0 ||
+          location.compare(0, 8, "roots://") == 0) {
+        const std::string xu = eos::fst::XioIo::UserUrl(location);
+        if (xu.empty()) {
+          fprintf(stderr, "error: HTTP/2 listener is not configured\n");
+          exit(-EIO);
+        }
+        auto* xio = new eos::fst::XioIo(xu);
+        xio->useProcessAuth();
+        file = xio;
+      } else
+#endif
+      file = eos::fst::FileIoPluginHelper::GetIoObject(location.c_str());
 
       if (!file) {
         fprintf(stderr, "error: failed to get IO object for %s\n", location.c_str());
@@ -2435,6 +2630,59 @@ main(int argc, char* argv[])
       }
 
       location += opaque.str();
+#if defined(EOS_HAVE_XIO)
+      {
+        const std::string xu = eos::fst::XioIo::UserUrl(location);
+        if (!xu.empty()) {
+          auto* xio = new eos::fst::XioIo(xu);
+          xio->useProcessAuth();
+          int oflags = SFS_O_CREAT | SFS_O_RDWR;
+          if (appendmode || nooverwrite) {
+            struct stat sb;
+            int sthttp = 0;
+            const int src = eos::fst::XioIo::UserStat(location, &sb, sthttp);
+            if (sthttp == 0) {
+              delete xio;
+              xio = nullptr;
+            } else if (src == 0) {
+              if (nooverwrite) {
+                fprintf(stderr, "error: target file exists already!\n");
+                exit(-EEXIST);
+              }
+              if (!startwritebyte) {
+                startwritebyte = sb.st_size;
+              }
+              oflags = SFS_O_RDWR;
+            } else if (src != ENOENT) {
+              fprintf(stderr, "error: target stat failed - errno=%d\n", src);
+              exit(-src);
+            }
+          }
+          if (xio) {
+            const int rc = xio->fileOpen(static_cast<XrdSfsFileOpenMode>(oflags),
+                                         S_IRUSR | S_IWUSR | S_IRGRP, "");
+            if (!rc) {
+              dst_lasturl = xio->GetLastUrl();
+              dst_handler.push_back(std::make_pair(0, xio));
+              break;
+            }
+            const std::string msg = xio->GetLastErrMsg();
+            const int answered = xio->lastHttpStatus();
+            const int err = xio->GetLastErrNo();
+            delete xio;
+            if (answered) {
+              fprintf(stderr, "error: target file open failed - errno=%d : %s\n",
+                      err, msg.c_str());
+              exit(-err);
+            }
+            fprintf(stderr, "error: HTTP/2 listener is not reachable\n");
+            exit(-EIO);
+          }
+        }
+        fprintf(stderr, "error: HTTP/2 listener is not configured\n");
+        exit(-EIO);
+      }
+#else
       eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str(), false);
 
       if (appendmode || nooverwrite) {
@@ -2483,6 +2731,7 @@ main(int argc, char* argv[])
       }
 
       dst_handler.push_back(std::make_pair(0, file));
+#endif
     }
     break;
 
@@ -2498,9 +2747,27 @@ main(int argc, char* argv[])
         location.replace(0, 3, "root");
       }
 
-      eos::fst::FileIo* file = eos::fst::FileIoPluginHelper::GetIoObject(
-                                 location.c_str());
+      eos::fst::FileIo* file = nullptr;
+#if defined(EOS_HAVE_XIO)
+      if (location.compare(0, 7, "root://") == 0 ||
+          location.compare(0, 8, "roots://") == 0) {
+        const std::string xu = eos::fst::XioIo::UserUrl(location);
+        if (xu.empty()) {
+          fprintf(stderr, "error: HTTP/2 listener is not configured\n");
+          exit(-EIO);
+        }
+        auto* xio = new eos::fst::XioIo(xu);
+        xio->useProcessAuth();
+        file = xio;
+      } else
+#endif
+      file = eos::fst::FileIoPluginHelper::GetIoObject(location.c_str());
       location = src_location[i].first + src_location[i].second;
+
+      if (!file) {
+        fprintf(stderr, "error: failed to get IO object for %s\n", location.c_str());
+        exit(-1);
+      }
 
       if (!file->fileExists()) {
         if (nooverwrite) {
@@ -3100,10 +3367,44 @@ main(int argc, char* argv[])
     // The client asked for some checksum comparison between the source and the destination
     std::string destServer = dst_location[0].first;
     std::string destFilePath = dst_location[0].second;
+#if defined(EOS_HAVE_XIO)
+    CompareCksumResult res;
+    {
+      std::string body;
+      int http = 0;
+      const std::string full = destServer + destFilePath;
+      const int crc = eos::fst::XioIo::UserExchange("GET", full, body, http,
+                                                    "x-xio-chksum", "1");
+      if (http == 0) {
+        res.errMsg = "error: HTTP/2 listener is not reachable";
+        res.xrdErrno = EIO;
+      } else if (crc) {
+        res.errMsg = body.empty() ? "error: checksum query failed" : body;
+        res.xrdErrno = crc;
+      } else {
+        if (body.compare(0, 4, "eos ") == 0) {
+          body.erase(0, 4);
+        }
+        auto splittedResp = eos::common::StringSplit(body, " ");
+        std::string want = xsString;
+        if (want == "adler") {
+          want = "adler32";
+        }
+        if (splittedResp.size() == 2 && splittedResp[0] == want &&
+            splittedResp[1] == xsValue) {
+          res.cksumMismatch = false;
+        } else {
+          res.errMsg = "error: checksum mismatch";
+          res.xrdErrno = EIO;
+        }
+      }
+    }
+#else
     XrdCl::URL url(destServer);
     // No need to check the URL consistency as the transfer already happened
     XrdCl::FileSystem fs(url);
     CompareCksumResult res = compareChecksum(fs, destFilePath, xsString, xsValue);
+#endif
 
     if (res.cksumMismatch) {
       // Checksum mismatch, print related error
@@ -3113,6 +3414,20 @@ main(int argc, char* argv[])
         // The user wants to delete the file if the checksum mismatch between source and destination
         fprintf(stderr, "Deleting the file from the destination %s%s\n",
                 destServer.c_str(), destFilePath.c_str());
+#if defined(EOS_HAVE_XIO)
+        {
+          std::string body;
+          int http = 0;
+          const int drc = eos::fst::XioIo::UserExchange(
+                            "delete", destServer + destFilePath, body, http);
+          if (http == 0 || drc) {
+            fprintf(stderr,
+                    "error while trying to delete the file from the destination (%s): %s\n",
+                    destFilePath.c_str(), body.c_str());
+            exit(drc ? -drc : -EIO);
+          }
+        }
+#else
         status = fs.Rm(destFilePath);
 
         if (!status.IsOK()) {
@@ -3121,6 +3436,7 @@ main(int argc, char* argv[])
                   destFilePath.c_str(), status.ToStr().c_str());
           exit(-status.errNo ? -status.errNo : -1);
         }
+#endif
       }
 
       // Just return the error code set during the checksum checking

@@ -27,9 +27,304 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include <XrdCl/XrdClXRootDResponses.hh>
+#include <XrdCl/XrdClAnyObject.hh>
+#if defined(EOS_HAVE_XIO)
+#include "XioClient.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "fusex/auth/XioLogin.hh"
+#include <cstdlib>
+#include <cstring>
+#include <utility>
+#include <vector>
+#endif
 
 using namespace XrdCl;
 
+
+#if defined(EOS_HAVE_XIO)
+struct XrdCl::Proxy::XioFile {
+  XioFS::Client client;
+  std::string rel;
+  std::string handle;
+  bool open{false};
+
+  void authHeaders(const eos::common::XioCall& call,
+                   std::vector<std::pair<std::string, std::string>>& hdrs) const
+  {
+    if (!call.sss.empty()) {
+      hdrs.emplace_back("authorization", "SSS " + call.sss);
+    }
+    if (call.unix_id) {
+      hdrs.emplace_back("x-eos-uid", std::to_string(call.uid));
+      hdrs.emplace_back("x-eos-gid", std::to_string(call.gid));
+    }
+  }
+
+  int read(uint64_t offset, uint32_t size, void* buffer, uint32_t& nread,
+           std::string& err)
+  {
+    nread = 0;
+    if (!open || !buffer) {
+      err = "xio read";
+      return EINVAL;
+    }
+    if (size == 0) {
+      return 0;
+    }
+    const std::string range =
+      "bytes=" + std::to_string(offset) + "-" +
+      std::to_string(offset + static_cast<uint64_t>(size) - 1);
+    XioFS::HttpResponse resp;
+    const int rc = client.exchange(
+                     "GET", rel,
+                     {{"x-xio-handle", handle}, {"range", range}}, "", resp, err);
+    if (rc) {
+      err = err.empty() ? "xio read" : err;
+      return rc < 0 ? -rc : rc;
+    }
+    if (resp.status == 416) {
+      return 0;
+    }
+    if (resp.status != 206 && resp.status != 200) {
+      err = resp.body.empty() ? "xio read" : resp.body;
+      return EIO;
+    }
+    uint32_t n = static_cast<uint32_t>(resp.body.size());
+    if (n > size) {
+      n = size;
+    }
+    if (n) {
+      memcpy(buffer, resp.body.data(), n);
+    }
+    nread = n;
+    return 0;
+  }
+
+  int write(uint64_t offset, uint32_t size, const void* buffer, std::string& err)
+  {
+    if (!open || (!buffer && size)) {
+      err = "xio write";
+      return EINVAL;
+    }
+    if (size == 0) {
+      return 0;
+    }
+    const std::string cr = "bytes " + std::to_string(offset) + "-" +
+                           std::to_string(offset + static_cast<uint64_t>(size) - 1) +
+                           "/*";
+    XioFS::HttpResponse resp;
+    const std::string upload(static_cast<const char*>(buffer), size);
+    const int rc = client.exchange(
+                     "PATCH", rel,
+                     {{"x-xio-handle", handle}, {"content-range", cr}}, upload, resp,
+                     err);
+    if (rc) {
+      return rc < 0 ? -rc : rc;
+    }
+    if (resp.status != 204 && resp.status != 200 && resp.status != 201) {
+      err = resp.body.empty() ? "xio write" : resp.body;
+      return EIO;
+    }
+    return 0;
+  }
+
+  int statSize(uint64_t& size, std::string& err)
+  {
+    size = 0;
+    XioFS::HttpResponse resp;
+    const int rc = client.exchange(
+                     "POST", rel, {{"x-xio-handle", handle}, {"x-xio-stat", "1"}},
+                     "", resp, err);
+    if (rc) {
+      return rc < 0 ? -rc : rc;
+    }
+    if (resp.status != 200) {
+      err = resp.body.empty() ? "xio stat" : resp.body;
+      return EIO;
+    }
+    size = std::strtoull(resp.header("content-length").c_str(), nullptr, 10);
+    return 0;
+  }
+
+  int truncate(uint64_t size, std::string& err)
+  {
+    XioFS::HttpResponse resp;
+    const int rc = client.exchange(
+                     "POST", rel,
+                     {{"x-xio-handle", handle}, {"x-xio-trunc", std::to_string(size)}},
+                     "", resp, err);
+    if (rc) {
+      return rc < 0 ? -rc : rc;
+    }
+    if (resp.status != 200 && resp.status != 204) {
+      err = resp.body.empty() ? "xio truncate" : resp.body;
+      return EIO;
+    }
+    return 0;
+  }
+
+  void closeRemote()
+  {
+    if (!open) {
+      client.close();
+      return;
+    }
+    open = false;
+    std::string err;
+    XioFS::HttpResponse resp;
+    client.exchange("POST", rel,
+                    {{"x-xio-handle", handle}, {"x-xio-close", "1"}}, "", resp, err);
+    handle.clear();
+    client.close();
+  }
+};
+
+namespace {
+
+int sfsOpenFlags(XrdCl::OpenFlags::Flags flags)
+{
+  int mode = SFS_O_RDONLY;
+  if (flags & XrdCl::OpenFlags::Update) {
+    mode = SFS_O_RDWR;
+  } else if (flags & XrdCl::OpenFlags::Write) {
+    mode = SFS_O_WRONLY;
+  }
+  if (flags & XrdCl::OpenFlags::Delete) {
+    mode |= SFS_O_CREAT | SFS_O_TRUNC;
+  }
+  if (flags & XrdCl::OpenFlags::New) {
+    mode |= SFS_O_CREAT;
+  }
+  return mode;
+}
+
+void finishRead(XrdCl::ResponseHandler* handler, uint64_t offset, void* buffer,
+                uint32_t nread, const XrdCl::XRootDStatus& st)
+{
+  if (!handler) {
+    return;
+  }
+  XrdCl::AnyObject* obj = nullptr;
+  if (st.IsOK()) {
+    obj = new XrdCl::AnyObject();
+    obj->Set(new XrdCl::ChunkInfo(offset, nread, buffer));
+  }
+  handler->HandleResponse(new XrdCl::XRootDStatus(st), obj);
+}
+
+} // namespace
+
+int XrdCl::Proxy::tryXioOpen(const std::string& url, OpenFlags::Flags flags,
+                             std::string& err)
+{
+  releaseXio();
+  err.clear();
+  if (url.compare(0, 7, "root://") != 0) {
+    return 0;
+  }
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const int port = port_env ? std::atoi(port_env) : 0;
+  if (port <= 0) {
+    err = "HTTP/2 listener is not configured";
+    return -1;
+  }
+  XrdCl::URL parsed(url);
+  if (!parsed.IsValid() || parsed.GetHostName().empty()) {
+    err = "HTTP/2 listener is not configured";
+    return -1;
+  }
+  const auto params = parsed.GetParams();
+  auto pick = [&params](const char* a) -> std::string {
+    auto it = params.find(a);
+    return it == params.end() ? std::string() : it->second;
+  };
+  const std::string uid_s = pick("fuse.uid");
+  const std::string gid_s = pick("fuse.gid");
+  const std::string pid_s = pick("fuse.pid");
+  const uid_t uid = uid_s.empty() ? mId.uid
+                    : static_cast<uid_t>(std::atoi(uid_s.c_str()));
+  const gid_t gid = gid_s.empty() ? mId.gid
+                    : static_cast<gid_t>(std::atoi(gid_s.c_str()));
+  const pid_t pid = pid_s.empty() ? mId.pid
+                    : static_cast<pid_t>(std::atoi(pid_s.c_str()));
+  eos::common::XioCall call;
+  std::string scheme;
+  if (!eos::fusex::FillXioCall(uid, gid, pid, call, scheme)) {
+    err = "HTTP/2 credentials are not available";
+    return -1;
+  }
+  auto* file = new XioFile();
+  XioFS::Http2Session::Options opt;
+  opt.verify_peer = call.verify_peer;
+  opt.cacert = call.cacert;
+  opt.timeout_ms = 30000;
+  opt.bearer = call.bearer;
+  opt.krb5 = call.krb5;
+  opt.krb5cc = call.krb5cc;
+  opt.cert = call.cert;
+  opt.key = call.key;
+  const std::string base = scheme + "://" + parsed.GetHostName() + ":" +
+                           std::to_string(port) + "/";
+  int rc = file->client.open(base, opt, err);
+  if (rc) {
+    delete file;
+    err = err.empty() ? "HTTP/2 listener is not reachable" : err;
+    return -1;
+  }
+  file->rel = parsed.GetPathWithParams();
+  if (file->rel.empty() || file->rel[0] != '/') {
+    file->rel.insert(file->rel.begin(), '/');
+  }
+  std::vector<std::pair<std::string, std::string>> hdrs{
+    {"x-xio-open", "1"},
+    {"x-xio-flags", std::to_string(sfsOpenFlags(flags))}};
+  file->authHeaders(call, hdrs);
+  XioFS::HttpResponse resp;
+  rc = file->client.exchange("POST", file->rel, hdrs, "", resp, err);
+  if (rc) {
+    file->client.close();
+    delete file;
+    err = err.empty() ? "HTTP/2 listener is not reachable" : err;
+    return -1;
+  }
+  if (resp.status != 200 && resp.status != 204) {
+    err = resp.body.empty() ? "xio open failed" : resp.body;
+    file->client.close();
+    delete file;
+    return -1;
+  }
+  file->handle = resp.header("x-xio-handle");
+  if (file->handle.empty()) {
+    err = "xio open missing handle";
+    file->client.close();
+    delete file;
+    return -1;
+  }
+  file->open = true;
+  mXio = file;
+  return 1;
+}
+#endif
+
+void XrdCl::Proxy::releaseXio()
+{
+#if defined(EOS_HAVE_XIO)
+  if (mXio) {
+    mXio->closeRemote();
+    delete mXio;
+    mXio = nullptr;
+  }
+#endif
+}
+
+bool XrdCl::Proxy::usingXio() const
+{
+#if defined(EOS_HAVE_XIO)
+  return mXio && mXio->open;
+#else
+  return false;
+#endif
+}
 
 ssize_t XrdCl::Proxy::sChunkTimeout = 300;
 
@@ -138,6 +433,18 @@ XrdCl::Proxy::Write(uint64_t offset,
     return status;
   }
 
+#if defined(EOS_HAVE_XIO)
+  if (usingXio()) {
+    std::string err;
+    const int rc = mXio->write(offset, size, buffer, err);
+    XRootDStatus st = rc ? XRootDStatus(stError, errErrorResponse, rc, err.c_str())
+                       : XRootDStatus();
+    if (handler) {
+      handler->HandleResponse(new XRootDStatus(st), nullptr);
+    }
+    return st;
+  }
+#endif
   return File::Write(offset, size, buffer, handler, timeout);
 }
 
@@ -472,6 +779,15 @@ XrdCl::Proxy::Read(XrdCl::shared_proxy proxy,
   if (current_size) {
     // do a synchronous read for missing pieces
     uint32_t rbytes_read = 0;
+#if defined(EOS_HAVE_XIO)
+    if (usingXio()) {
+      std::string err;
+      const int rc = mXio->read(current_offset, current_size, buffer, rbytes_read,
+                                err);
+      status = rc ? XRootDStatus(stError, errErrorResponse, rc, err.c_str())
+               : XRootDStatus();
+    } else
+#endif
     status = File::Read(current_offset,
                         current_size,
                         buffer, rbytes_read, timeout);
@@ -565,12 +881,28 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
 
   if (!status.IsOK()) {
   } else {
+#if defined(EOS_HAVE_XIO)
+    std::string xerr;
+    const int xrc = tryXioOpen(mUrl, flags, xerr);
+    if (xrc < 0) {
+      status = XRootDStatus(stError, errErrorResponse, EIO, xerr.c_str());
+    } else if (xrc > 0) {
+      SetProperty("LastURL", mUrl);
+      status = XRootDStatus();
+      set_state(OPENED, &status);
+      set_lasturl();
+      OpenCondVar().Signal();
+      return status;
+    } else
+#endif
+    {
     XOpenAsyncHandler.SetProxy(proxy);
     status = Open(mUrl.c_str(),
                   flags,
                   mode,
                   &XOpenAsyncHandler,
                   timeout);
+    }
   }
 
   if (status.IsOK()) {
@@ -703,6 +1035,15 @@ XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
   // only an opened file requires a close, otherwise we return the last known state
   if ((state() == OPENED) ||
       (state() == WAITWRITE)) {
+#if defined(EOS_HAVE_XIO)
+    if (usingXio()) {
+      releaseXio();
+      XRootDStatus ok;
+      set_state(CLOSED, &ok);
+      OpenCondVar().Signal();
+      return ok;
+    }
+#endif
     XCloseAsyncHandler.SetProxy(proxy);
     XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
                                  timeout);
@@ -799,6 +1140,14 @@ XrdCl::Proxy::Close(uint16_t timeout)
 
   DropReadAhead();
   XrdSysCondVarHelper lLock(OpenCondVar());
+#if defined(EOS_HAVE_XIO)
+  if (usingXio()) {
+    releaseXio();
+    XRootDStatus ok;
+    set_state(CLOSED, &ok);
+    return ok;
+  }
+#endif
   XrdCl::XRootDStatus status = XrdCl::File::Close(timeout);
   set_state(CLOSED, &status);
   return status;
@@ -1406,6 +1755,21 @@ XrdCl::Proxy::PreReadAsync(uint64_t offset,
     return status;
   }
 
+#if defined(EOS_HAVE_XIO)
+  if (usingXio()) {
+    uint32_t nread = 0;
+    std::string err;
+    const int rc = mXio->read(offset, size, handler->buffer(), nread, err);
+    if (rc) {
+      XrdSysCondVarHelper lLock(ReadCondVar());
+      ChunkRMap().erase(offset);
+      dec_read_chunks_in_flight();
+      return XRootDStatus(stError, errErrorResponse, rc, err.c_str());
+    }
+    finishRead(handler.get(), offset, handler->buffer(), nread, XRootDStatus());
+    return XRootDStatus();
+  }
+#endif
   XRootDStatus rstatus = File::Read(static_cast<uint64_t>(offset),
                                     static_cast<uint32_t>(size),
                                     (void*) handler->buffer(), handler.get(), timeout);
@@ -1498,7 +1862,57 @@ XRootDStatus
 XrdCl::Proxy::Sync(uint16_t timeout)
 {
   eos_debug("");
+  if (usingXio()) {
+    return XRootDStatus();
+  }
   return File::Sync(timeout);
+}
+
+/* -------------------------------------------------------------------------- */
+XRootDStatus
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::Truncate(uint64_t size, time_t timeout)
+{
+  eos_debug("");
+  XRootDStatus st = WaitOpen();
+  if (!st.IsOK()) {
+    return st;
+  }
+#if defined(EOS_HAVE_XIO)
+  if (usingXio()) {
+    std::string err;
+    const int rc = mXio->truncate(size, err);
+    return rc ? XRootDStatus(stError, errErrorResponse, rc, err.c_str())
+           : XRootDStatus();
+  }
+#endif
+  return File::Truncate(size, timeout);
+}
+
+/* -------------------------------------------------------------------------- */
+XRootDStatus
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::Stat(bool force, StatInfo*& response, time_t timeout)
+{
+  eos_debug("");
+  XRootDStatus st = WaitOpen();
+  if (!st.IsOK()) {
+    return st;
+  }
+#if defined(EOS_HAVE_XIO)
+  if (usingXio()) {
+    uint64_t sz = 0;
+    std::string err;
+    const int rc = mXio->statSize(sz, err);
+    if (rc) {
+      return XRootDStatus(stError, errErrorResponse, rc, err.c_str());
+    }
+    response = new StatInfo("", sz,
+                            StatInfo::IsReadable | StatInfo::IsWritable, 0);
+    return XRootDStatus();
+  }
+#endif
+  return File::Stat(force, response, timeout);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -27,7 +27,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/workflow/Workflow.hh"
 #include "mgm/fsview/FsView.hh"
@@ -39,7 +39,7 @@
 // Trigger an event
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Event(const char* path,
+EosMgmOfs::Event(const char* path,
                  const char* ininfo,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,

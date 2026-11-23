@@ -26,6 +26,10 @@ add_library(EosRainClient MODULE
   RainFile.cc   RainFile.hh)
 
 target_link_libraries(EosRainClient PUBLIC EosFstIo)
+if(EOS_HAVE_XIO)
+  target_compile_definitions(EosRainClient PRIVATE EOS_HAVE_XIO=1)
+  target_include_directories(EosRainClient PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+endif()
 
 set_target_properties(EosRainClient PROPERTIES
   VERSION ${VERSION}

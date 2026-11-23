@@ -32,12 +32,16 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/lru/LRU.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/wfe/WFE.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -95,7 +99,7 @@ QdbMaster::BootNamespace()
   // Load the namepace implementation from external library
   PluginManager& pm = PluginManager::GetInstance();
   PF_PlatformServices& pm_svc = pm.GetPlatformServices();
-  pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
+  pm_svc.invokeService = &EosMgmOfs::DiscoverPlatformServices;
   gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
                              (pm.CreateObject("NamespaceGroup")));
   // Collect namespace options, and initialize namespace group
@@ -708,6 +712,22 @@ QdbMaster::IsRemoteMasterOk() const
     return false;
   }
 
+#if defined(EOS_HAVE_XIO)
+  if (const char* port_env = std::getenv("EOS_MGM_XIO_PORT")) {
+    const int xio_port = std::atoi(port_env);
+    if (xio_port > 0) {
+      int http = 0;
+      std::string body;
+      std::string err;
+      eos::common::XioOpaqueQuery(eos::common::XioHostOf(master_id), xio_port,
+                                  "mgm.pcmd=version", body, err, 1000, &http);
+      if (http != 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+#else
   std::ostringstream oss;
   oss << "root://" << master_id << "//dummy?xrd.wantprot=sss,unix";
   XrdCl::URL url(oss.str());
@@ -727,6 +747,7 @@ QdbMaster::IsRemoteMasterOk() const
   }
 
   return true;
+#endif
 }
 
 //------------------------------------------------------------------------------

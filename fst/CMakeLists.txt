@@ -123,6 +123,13 @@ set_target_properties(Jerasure-Objects PROPERTIES
 #-------------------------------------------------------------------------------
 # EosFstIo-Objects library
 #-------------------------------------------------------------------------------
+# xiohttp:// / xiohttps:// use XioFS when the sibling XRootD build provides it.
+# root:// stays on XrdCl.
+set(EOS_XIO_IO_SRC io/xio/XioIoStub.cc)
+if(EOS_HAVE_XIO)
+  set(EOS_XIO_IO_SRC io/xio/XioIo.cc)
+endif()
+
 add_library(EosFstIo-Objects OBJECT
   # File IO interface
   io/FileIo.cc                   io/FileIo.hh
@@ -130,6 +137,7 @@ add_library(EosFstIo-Objects OBJECT
   io/davix/DavixIo.cc            io/davix/DavixIo.hh
   io/nfs/NfsIo.cc                io/nfs/NfsIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
+  ${EOS_XIO_IO_SRC}              io/xio/XioIo.hh
   io/xrd/ResponseCollector.cc    io/xrd/ResponseCollector.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -174,6 +182,11 @@ target_compile_definitions(EosFstIo-Objects PRIVATE
 target_include_directories(EosFstIo-Objects PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 
+if(EOS_HAVE_XIO)
+  target_include_directories(EosFstIo-Objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_compile_definitions(EosFstIo-Objects PRIVATE EOS_HAVE_XIO=1)
+endif()
+
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -188,6 +201,10 @@ target_link_libraries(EosFstIo PUBLIC
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH
   NFS::NFS)
+
+if(EOS_HAVE_XIO)
+  target_link_libraries(EosFstIo PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -214,6 +231,10 @@ target_link_libraries(EosFstIo-Static PUBLIC
   XXHASH::XXHASH
   NFS::NFS)
 
+if(EOS_HAVE_XIO)
+  target_link_libraries(EosFstIo-Static PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
+
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
@@ -229,6 +250,9 @@ target_link_libraries(eoscp PRIVATE EosFstIo-Static)
 
 target_compile_definitions(eoscp PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+if(EOS_HAVE_XIO)
+  target_compile_definitions(eoscp PRIVATE EOS_HAVE_XIO=1)
+endif()
 
 set_target_properties(
   eoscp PROPERTIES
@@ -248,8 +272,8 @@ if(NOT CLIENT)
 # EosFstOss library
 #-------------------------------------------------------------------------------
 add_library(EosFstOss MODULE
-  XrdFstOss.cc XrdFstOss.hh
-  XrdFstOssFile.cc XrdFstOssFile.hh
+  EosFstOss.cc EosFstOss.hh
+  EosFstOssFile.cc EosFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   compress/BlockCompress.cc compress/BlockCompress.hh
@@ -264,8 +288,8 @@ target_link_libraries(EosFstOss PRIVATE
   ZSTD::ZSTD)
 
 add_library(EosFstOss-Static STATIC
-  XrdFstOss.cc XrdFstOss.hh
-  XrdFstOssFile.cc XrdFstOssFile.hh
+  EosFstOss.cc EosFstOss.hh
+  EosFstOssFile.cc EosFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   compress/BlockCompress.cc compress/BlockCompress.hh
@@ -295,8 +319,8 @@ set(XRDEOSFST_SRCS
   bench/SyntheticIOBench.cc      bench/SyntheticIOBench.hh
   io/FileIoPlugin-Server.cc
   # OFS layer implementation
-  XrdFstOfs.cc                   XrdFstOfs.hh
-  XrdFstOfsFile.cc               XrdFstOfsFile.hh
+  EosFstOfs.cc                   EosFstOfs.hh
+  EosFstOfsFile.cc               EosFstOfsFile.hh
   # Storage interface
   storage/Communicator.cc
   storage/ErrorReport.cc
@@ -314,6 +338,7 @@ set(XRDEOSFST_SRCS
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
+  xio/EosXioFstServer.cc xio/EosXioFstServer.hh
   http/HttpHandlerFstFileCache.cc   http/HttpHandlerFstFileCache.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
   # EosFstIo interface
@@ -323,7 +348,20 @@ set(XRDEOSFST_SRCS
   storage/TrafficShaping.hh storage/TrafficShaping.cc
 )
 
+if(EOS_HAVE_XIO)
+  list(APPEND XRDEOSFST_SRCS
+    xio/EosXioFstFs.cc xio/EosXioFstFs.hh
+    ${CMAKE_SOURCE_DIR}/common/xio/XioQuery.cc
+    ${CMAKE_SOURCE_DIR}/common/xio/XioQuery.hh)
+endif()
+
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
+
+if(EOS_HAVE_XIO)
+  target_include_directories(XrdEosFst-Objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_compile_definitions(XrdEosFst-Objects PRIVATE EOS_HAVE_XIO=1)
+  target_link_libraries(XrdEosFst-Objects PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
 
 #-------------------------------------------------------------------------------
 # Disable -Wsign-compare warnings due to
@@ -425,6 +463,9 @@ add_executable(eos-rain-check tools/RainCheck.cc)
 target_link_libraries(eos-rain-check PRIVATE EosFstIo-Static)
 target_compile_definitions(eos-rain-check PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+if(EOS_HAVE_XIO)
+  target_compile_definitions(eos-rain-check PRIVATE EOS_HAVE_XIO=1)
+endif()
 
 add_executable(eos-rain-hd-dump  tools/RainHdrDump.cc)
 target_link_libraries(eos-rain-hd-dump PRIVATE EosFstIo XROOTD::SERVER)
@@ -466,6 +507,10 @@ add_executable(eos-readv-pattern
   utils/CheckFileReadWithPattern.cc)
 
 target_link_libraries(eos-readv-pattern PRIVATE XROOTD::CL CLI11::CLI11)
+if(EOS_HAVE_XIO)
+  target_compile_definitions(eos-readv-pattern PRIVATE EOS_HAVE_XIO=1)
+  target_link_libraries(eos-readv-pattern PRIVATE EosFstIo)
+endif()
 
 add_executable(eos-fmd-tool
   tools/ConvertFileMD.cc

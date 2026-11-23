@@ -24,7 +24,7 @@
 #include "common/SymKeys.hh"
 #include "fst/Config.hh"
 #include "fst/Deletion.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/storage/Storage.hh"
 #include <algorithm>
 

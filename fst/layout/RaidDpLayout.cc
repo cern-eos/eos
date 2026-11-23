@@ -34,7 +34,7 @@ typedef long v2do __attribute__((vector_size(VECTOR_SIZE)));
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RaidDpLayout::RaidDpLayout(XrdFstOfsFile* file,
+RaidDpLayout::RaidDpLayout(EosFstOfsFile* file,
                            unsigned long lid,
                            const XrdSecEntity* client,
                            XrdOucErrInfo* outError,

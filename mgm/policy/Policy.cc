@@ -30,7 +30,7 @@
 #include "common/utils/ContainerUtils.hh"
 #include "common/utils/XrdUtils.hh"
 #include "mgm/misc/Constants.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/

@@ -25,8 +25,12 @@
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/layout/ClayLayout.hh"
+#include "fst/io/xio/XioIo.hh"
 #include <stdexcept>
 #include <string>
+#if defined(EOS_HAVE_XIO)
+#include <cstdlib>
+#endif
 
 #define DEFAULTBUFFERSIZE (4 * 1024 * 1024)
 
@@ -49,7 +53,6 @@ parseLocation(std::string& location)
 std::string
 openOpaque(XrdCl::URL& url, std::string& filePath)
 {
-  XrdCl::FileSystem fs(url);
   std::string request = filePath;
 
   if (request.find('?') == std::string::npos) {
@@ -58,6 +61,21 @@ openOpaque(XrdCl::URL& url, std::string& filePath)
     request += "&mgm.pcmd=open";
   }
 
+#if defined(EOS_HAVE_XIO)
+  std::string body;
+  int http = 0;
+  const int rc = eos::fst::XioIo::UserOpaque(url.GetURL(), request, body, http);
+  if (http == 0) {
+    fprintf(stderr, "HTTP/2 listener is not reachable\n");
+    exit(-EIO);
+  }
+  if (rc) {
+    fprintf(stderr, "Could not open file %s: %s\n", filePath.c_str(), body.c_str());
+    exit(-rc);
+  }
+  return body;
+#else
+  XrdCl::FileSystem fs(url);
   XrdCl::Buffer arg;
   arg.FromString(request);
   XrdCl::Buffer* response = nullptr;
@@ -73,11 +91,87 @@ openOpaque(XrdCl::URL& url, std::string& filePath)
   std::string res(response->GetBuffer(), response->GetSize());
   delete response;
   return res;
+#endif
+}
+
+std::string
+stripeUrl(const std::string& pio, const std::string& filePath)
+{
+  if (pio.compare(0, 10, "xiohttp://") == 0 ||
+      pio.compare(0, 11, "xiohttps://") == 0) {
+    std::string url = pio;
+    if (url.empty() || url.back() != '/') {
+      url.push_back('/');
+    }
+    url += filePath.empty() || filePath.front() != '/' ? filePath
+                                                       : filePath.substr(1);
+    return url;
+  }
+#if defined(EOS_HAVE_XIO)
+  const char* port_env = std::getenv("EOS_FST_XIO_PORT");
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+
+  if (port_env && port_env[0] && std::atoi(port_env) > 0 && token && token[0]) {
+    std::string host = pio;
+
+    if (!host.empty() && host.front() == '[') {
+      const auto end = host.find(']');
+
+      if (end != std::string::npos) {
+        host.resize(end + 1);
+      }
+    } else {
+      const auto colon = host.rfind(':');
+
+      if (colon != std::string::npos) {
+        host.resize(colon);
+      }
+    }
+
+    return std::string("xiohttp://") + host + ":" + port_env + "/" + filePath;
+  }
+
+#endif
+#if defined(EOS_HAVE_XIO)
+  fprintf(stderr, "stripe has no HTTP/2 endpoint: %s\n", pio.c_str());
+  exit(-EIO);
+#else
+  return std::string("root://") + pio + "/" + filePath;
+#endif
 }
 
 std::string
 getCheckSum(XrdCl::URL& url, std::string& filePath)
 {
+#if defined(EOS_HAVE_XIO)
+  std::string full = url.GetURL();
+  if (!full.empty() && full.back() != '/' &&
+      (filePath.empty() || filePath.front() != '/')) {
+    full.push_back('/');
+  }
+  full += filePath;
+  std::string body;
+  int http = 0;
+  const int rc = eos::fst::XioIo::UserExchange("GET", full, body, http,
+                                               "x-xio-chksum", "1");
+  if (http == 0) {
+    fprintf(stderr, "HTTP/2 listener is not reachable\n");
+    exit(-EIO);
+  }
+  if (rc) {
+    fprintf(stderr, "Could not open file %s: %s\n", filePath.c_str(), body.c_str());
+    exit(-rc);
+  }
+  if (body.compare(0, 4, "eos ") == 0) {
+    body.erase(0, 4);
+  }
+  auto checksum = eos::common::StringSplit(body, " ");
+  if (checksum.size() != 2) {
+    fprintf(stderr, "Could not get checksum of file\n");
+    exit(-1);
+  }
+  return std::string(checksum[1]);
+#else
   XrdCl::FileSystem fs(url);
   XrdCl::Buffer arg;
   arg.FromString(filePath);
@@ -101,6 +195,7 @@ getCheckSum(XrdCl::URL& url, std::string& filePath)
   }
 
   return std::string(checksum[1]);
+#endif
 }
 
 bool
@@ -253,7 +348,7 @@ main(int argc, char* argv[])
     }
 
     pio = opaqueEnv->Get(tag.c_str());
-    stripeUrls.emplace_back(SSTR("root://" << pio << "/" << filePath));
+    stripeUrls.emplace_back(stripeUrl(pio, filePath));
   }
 
   delete opaqueEnv;

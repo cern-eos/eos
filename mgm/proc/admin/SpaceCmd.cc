@@ -39,7 +39,7 @@
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/lru/LRU.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"

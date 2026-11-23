@@ -27,7 +27,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(XrdMgmOfs* fileSystem,
+ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(EosMgmOfs* fileSystem,
     const ProcDirectoryBulkRequestLocations& bulkReqProcDirLocations): mFileSystem(
         fileSystem), mBulkReqLocations(bulkReqProcDirLocations)
 {

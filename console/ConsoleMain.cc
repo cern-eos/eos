@@ -36,6 +36,13 @@
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
 #include "common/mq/XrdMqTiming.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#include "common/xio/XioQuery.hh"
+#include <cerrno>
+#include <cstdlib>
+#include <sys/stat.h>
+#endif
 #include "console/commands/helpers/PathIdentifier.hh"
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClFile.hh>
@@ -488,7 +495,72 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
       reply->assign(out.c_str());
     }
   } else {
-    // xrootd based connection
+#if defined(EOS_HAVE_XIO)
+    eos::common::XioCall call;
+    std::string scheme = "http";
+    eos::common::XioProcessCall(call, scheme);
+    std::string http_url = path.c_str();
+    bool reached = false;
+    if (http_url.compare(0, 7, "root://") == 0) {
+      const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+      const int port = port_env ? std::atoi(port_env) : 0;
+      if (port > 0) {
+        std::string rest = http_url.substr(7);
+        const auto slash = rest.find('/');
+        std::string host = slash == std::string::npos ? rest : rest.substr(0, slash);
+        std::string req = slash == std::string::npos ? "/" : rest.substr(slash);
+        const auto at = host.find('@');
+        if (at != std::string::npos) {
+          host.erase(0, at + 1);
+        }
+        const auto colon = host.rfind(':');
+        if (colon != std::string::npos) {
+          host.erase(colon);
+        }
+        while (req.size() > 1 && req[0] == '/' && req[1] == '/') {
+          req.erase(0, 1);
+        }
+        http_url = scheme + "://" + host + ":" + std::to_string(port) + req;
+        reached = true;
+      }
+    } else if (http_url.compare(0, 10, "xiohttp://") == 0 ||
+               http_url.compare(0, 11, "xiohttps://") == 0) {
+      http_url.erase(0, 3);
+      reached = true;
+    }
+    std::string body;
+    std::string err;
+    int http = 0;
+    int rc = reached ? eos::common::XioUserExchange("GET", http_url, call, body,
+                                                    err, &http)
+                     : EIO;
+    if (!reached || http == 0 || rc) {
+      std::ostringstream oss;
+      const int retc = rc ? rc : EIO;
+      oss << "mgm.proc.stdout=&"
+          << "mgm.proc.stderr=" << "error: errc=" << retc
+          << " msg=\"" << (err.empty() ? "HTTP/2 listener is not reachable" : err)
+          << "\"&"
+          << "mgm.proc.retc=" << retc;
+      CommandEnv = new XrdOucEnv(oss.str().c_str());
+      if (reply) {
+        reply->assign(oss.str());
+      }
+    } else {
+      out = body.c_str();
+      TIMING("stop", &mytiming);
+      if (timing) {
+        mytiming.Print();
+      }
+      if (global_debug) {
+        printf("> %s\n", out.c_str());
+      }
+      CommandEnv = new XrdOucEnv(out.c_str());
+      if (reply) {
+        reply->assign(out.c_str());
+      }
+    }
+#else
     XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
     std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
     XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
@@ -543,6 +615,7 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
         reply->assign(oss.str());
       }
     }
+#endif
   }
 
   return CommandEnv;
@@ -1250,6 +1323,39 @@ bool CheckMgmOnline(const std::string& uri)
     return true;
   }
 
+#if defined(EOS_HAVE_XIO)
+  eos::common::XioCall call;
+  std::string scheme;
+  eos::common::XioProcessCall(call, scheme);
+  std::string body;
+  std::string err;
+  int http = 0;
+  std::string http_url = uri;
+  if (http_url.compare(0, 7, "root://") == 0 ||
+      http_url.compare(0, 8, "roots://") == 0) {
+    const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+    const int port = port_env ? std::atoi(port_env) : 0;
+    if (port <= 0) {
+      return false;
+    }
+    std::string rest = http_url.compare(0, 8, "roots://") == 0 ? http_url.substr(8)
+                                                               : http_url.substr(7);
+    const auto slash = rest.find('/');
+    std::string host = slash == std::string::npos ? rest : rest.substr(0, slash);
+    std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
+    const auto at = host.find('@');
+    if (at != std::string::npos) {
+      host.erase(0, at + 1);
+    }
+    const auto colon = host.rfind(':');
+    if (colon != std::string::npos) {
+      host.erase(colon);
+    }
+    http_url = scheme + "://" + host + ":" + std::to_string(port) + path;
+  }
+  eos::common::XioUserExchange("HEAD", http_url, call, body, err, &http);
+  return http != 0;
+#else
   uint16_t timeout = 10;
   XrdCl::URL url(uri);
 
@@ -1263,6 +1369,7 @@ bool CheckMgmOnline(const std::string& uri)
   XrdCl::FileSystem fs(url);
   XrdCl::XRootDStatus status = fs.Ping(timeout);
   return status.IsOK();
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1366,6 +1473,9 @@ int filesystems::Load(bool verbose)
 
 int filesystems::Connect()
 {
+#if defined(EOS_HAVE_XIO)
+  return 0;
+#else
   for (auto it = fsmap.begin(); it != fsmap.end() ; ++it) {
     if (!clientmap.count(it->first)) {
       XrdCl::URL url(std::string("root://") + it->second["id"] + "@" +
@@ -1376,6 +1486,7 @@ int filesystems::Connect()
   }
 
   return 0;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1526,6 +1637,29 @@ int files::Lookup(filesystems& fsmap, bool verbose)
         //  fprintf(stderr,"waiting 2 %lu\n", callbacks.size());
       }
 
+#if defined(EOS_HAVE_XIO)
+      const char* port_env = std::getenv("EOS_FST_XIO_PORT");
+      const int port = port_env ? std::atoi(port_env) : 0;
+      const std::string host = eos::common::XioHostOf(fsmap.fs()[*loc]["hostport"]);
+      struct stat st;
+      std::string err;
+      int http = 0;
+      int rc = EINVAL;
+      if (port > 0 && !host.empty()) {
+        rc = eos::common::XioStat(host, port, fullpath, &st, err,
+                                  static_cast<int>(stat_timeout) * 1000, &http);
+      }
+      if (http == 0) {
+        n_other++;
+      } else if (rc == ENOENT) {
+        it->second.missing_locations.insert(*loc);
+        n_missing++;
+      } else if (rc != 0) {
+        n_other++;
+      } else if (static_cast<uint64_t>(st.st_size) != it->second.size) {
+        it->second.wrongsize_locations.insert(*loc);
+      }
+#else
       SyncResponseHandler* cb = new SyncResponseHandler(it->first.c_str(), *loc);
       callback_queue.push_back(cb);
       callbacks[(uint64_t)cb] = cb;
@@ -1548,6 +1682,7 @@ int files::Lookup(filesystems& fsmap, bool verbose)
         callback_queue.pop_back();
         callbacks.erase((uint64_t)cb);
       }
+#endif
     }
   }
 

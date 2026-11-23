@@ -33,7 +33,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs* fileSystem,
+ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(EosMgmOfs* fileSystem,
     const ProcDirectoryBulkRequestLocations& procDirectoryBulkRequestLocations):
   mFileSystem(fileSystem),
   mProcDirectoryBulkRequestLocations(procDirectoryBulkRequestLocations),

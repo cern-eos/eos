@@ -24,7 +24,7 @@
 #include "NodeCmd.hh"
 #include "common/Constants.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IFsView.hh"

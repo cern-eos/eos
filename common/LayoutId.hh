@@ -101,7 +101,8 @@ public:
     kLocal = 0x0,
     kXrdCl = 0x1,
     kNfs = 0x2,
-    kDavix = 0x4
+    kDavix = 0x4,
+    kXio = 0x8
   };
 
 
@@ -115,6 +116,11 @@ public:
 
     if (spath.beginswith("root:")) {
       return kXrdCl;
+    }
+
+    // HTTP/2 via XioFS::Client. root:// stays on XrdCl.
+    if (spath.beginswith("xiohttp:") || spath.beginswith("xiohttps:")) {
+      return kXio;
     }
 
     // Definition of predefined block sizes

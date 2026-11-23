@@ -31,8 +31,8 @@
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/misc/AuditHelpers.hh"
 #include "mgm/misc/Constants.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
@@ -600,10 +600,10 @@ Server::FillContainerCAP(uint64_t id,
   // Honor sys.owner.auth BEFORE the cap mode/ACLs are computed so that a
   // client authenticated as the directory owner (keyed 'prot:key' form)
   // inherits the owner's permissions — same semantics as
-  // attr::checkDirOwner() used in XrdMgmOfsFile::open.
+  // attr::checkDirOwner() used in EosMgmOfsFile::open.
   //
   // Note: the sticky '*' form intentionally does NOT rewrite eff_vid here.
-  // Mirroring XrdMgmOfsFile::open and _mkdir, '*' only affects the
+  // Mirroring EosMgmOfsFile::open and _mkdir, '*' only affects the
   // ownership stamp of new entries (cap.uid/gid below), never the
   // permission decision (cap mode / ACL evaluation).
   //
@@ -2099,9 +2099,9 @@ RemoveReplacedFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
                    eos::common::VirtualIdentity& vid)
 {
   eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-  XrdMgmOfsFile::CowDirs cow;
+  EosMgmOfsFile::CowDirs cow;
   XrdOucErrInfo error;
-  int cow_rc = XrdMgmOfsFile::prepare_cow(pcmd, ofmd, cow, error);
+  int cow_rc = EosMgmOfsFile::prepare_cow(pcmd, ofmd, cow, error);
   bool cloned = false;
   {
     eos::MDLocking::BulkMDWriteLock md_locker;
@@ -2119,7 +2119,7 @@ RemoveReplacedFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
     }
 
     if (cow_rc == 0) {
-      cow_rc = XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, cow, vid);
+      cow_rc = EosMgmOfsFile::apply_cow(EosMgmOfsFile::cowDelete, pcmd, ofmd, cow, vid);
       cloned = (cow_rc == 0);
     }
 
@@ -2139,7 +2139,7 @@ RemoveReplacedFile(const std::shared_ptr<eos::IContainerMD>& pcmd,
   }
 
   if (cloned) {
-    XrdMgmOfsFile::notify_cow(cow);
+    EosMgmOfsFile::notify_cow(cow);
   }
 }
 
@@ -2453,7 +2453,7 @@ Server::OpSetFile(const std::string& id,
                   // Versioning moves the target into the version folder,
                   // away from the directory of its links
                   std::shared_ptr<eos::IContainerMD> gcmd;
-                  XrdMgmOfsFile::CowDirs gmd_cow;
+                  EosMgmOfsFile::CowDirs gmd_cow;
                   int gmd_cow_rc = -1;
                   bool gmd_cloned = false;
 
@@ -2475,7 +2475,7 @@ Server::OpSetFile(const std::string& id,
                     }
 
                     XrdOucErrInfo error;
-                    gmd_cow_rc = XrdMgmOfsFile::prepare_cow(gcmd, gmd, gmd_cow, error);
+                    gmd_cow_rc = EosMgmOfsFile::prepare_cow(gcmd, gmd, gmd_cow, error);
                   }
 
                   {
@@ -2526,8 +2526,8 @@ Server::OpSetFile(const std::string& id,
                               !gcmd && gmd->getCloneId() && gmd->getCloneFST().empty();
 
                           if (gmd_cow_rc == 0) {
-                            gmd_cow_rc = XrdMgmOfsFile::apply_cow(
-                                XrdMgmOfsFile::cowDelete, gcmd, gmd, gmd_cow, vid);
+                            gmd_cow_rc = EosMgmOfsFile::apply_cow(
+                                EosMgmOfsFile::cowDelete, gcmd, gmd, gmd_cow, vid);
                             gmd_cloned = (gmd_cow_rc == 0);
                           }
 
@@ -2569,7 +2569,7 @@ Server::OpSetFile(const std::string& id,
                   }
 
                   if (gmd_cloned) {
-                    XrdMgmOfsFile::notify_cow(gmd_cow);
+                    EosMgmOfsFile::notify_cow(gmd_cow);
                   }
 
                   if (doDelete) {
@@ -2915,7 +2915,7 @@ Server::OpSetFile(const std::string& id,
       // For RAIN/EC files remember the creating client so that the MGM can
       // block other clients from writing into the same inode in parallel
       // while the file is still being created (size 0) - see the 0-size RAIN
-      // guard in XrdMgmOfsFile::open.
+      // guard in EosMgmOfsFile::open.
       if (eos::common::LayoutId::IsRain(layoutId) && md.clientuuid().length()) {
         fmd->setAttribute("sys.fusex.creator", md.clientuuid());
       }
@@ -3026,7 +3026,7 @@ Server::OpSetFile(const std::string& id,
     }
 
     // Once the EC/RAIN file carries data the parallel-write creator marker is
-    // no longer needed - the guard in XrdMgmOfsFile::open only protects a still
+    // no longer needed - the guard in EosMgmOfsFile::open only protects a still
     // 0-size file being created. Drop it as soon as a non-zero size is flushed.
     if ((md.size() > 0) && fmd->hasAttribute("sys.fusex.creator")) {
       fmd->removeAttribute("sys.fusex.creator");
@@ -3854,7 +3854,7 @@ Server::OpDeleteFile(const std::string& id,
     // Versioning moves the target into the version folder, away from the
     // directory of its links
     std::shared_ptr<eos::IContainerMD> gcmd;
-    XrdMgmOfsFile::CowDirs fmd_cow, gmd_cow;
+    EosMgmOfsFile::CowDirs fmd_cow, gmd_cow;
     int fmd_cow_rc = -1;
     int gmd_cow_rc = -1;
     bool gmd_cloned = false;
@@ -3883,10 +3883,10 @@ Server::OpDeleteFile(const std::string& id,
                   gmd->getName().c_str(), e.getMessage().str().c_str());
         }
 
-        gmd_cow_rc = XrdMgmOfsFile::prepare_cow(gcmd, gmd, gmd_cow, cow_error);
+        gmd_cow_rc = EosMgmOfsFile::prepare_cow(gcmd, gmd, gmd_cow, cow_error);
       }
 
-      fmd_cow_rc = XrdMgmOfsFile::prepare_cow(pcmd, fmd, fmd_cow, cow_error);
+      fmd_cow_rc = EosMgmOfsFile::prepare_cow(pcmd, fmd, fmd_cow, cow_error);
     }
 
     eos::MDLocking::BulkMDWriteLock md_locker;
@@ -3978,7 +3978,7 @@ Server::OpDeleteFile(const std::string& id,
                 !gcmd && gmd->getCloneId() && gmd->getCloneFST().empty();
 
             if (gmd_cow_rc == 0) {
-              gmd_cow_rc = XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowDelete, gcmd, gmd,
+              gmd_cow_rc = EosMgmOfsFile::apply_cow(EosMgmOfsFile::cowDelete, gcmd, gmd,
                                                     gmd_cow, vid);
               gmd_cloned = (gmd_cow_rc == 0);
             }
@@ -4020,7 +4020,7 @@ Server::OpDeleteFile(const std::string& id,
       if (doDelete) {       /* delete, but clone first if needed */
         if (fmd_cow_rc == 0) {
           fmd_cow_rc =
-              XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowDelete, pcmd, fmd, fmd_cow, vid);
+              EosMgmOfsFile::apply_cow(EosMgmOfsFile::cowDelete, pcmd, fmd, fmd_cow, vid);
         }
 
         if (fmd_cow_rc == -1) { /* usual outcome: no cloning */
@@ -4038,11 +4038,11 @@ Server::OpDeleteFile(const std::string& id,
       md_locks.reset();
 
       if (gmd_cloned) {
-        XrdMgmOfsFile::notify_cow(gmd_cow);
+        EosMgmOfsFile::notify_cow(gmd_cow);
       }
 
       if (doDelete && (fmd_cow_rc == 0)) {
-        XrdMgmOfsFile::notify_cow(fmd_cow);
+        EosMgmOfsFile::notify_cow(fmd_cow);
       }
 
       if (doDelete) {

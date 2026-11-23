@@ -8,6 +8,9 @@
 #include "console/ConsoleColor.hh"
 #include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#endif
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <dirent.h>
@@ -355,6 +358,48 @@ native_com_old_find(char* arg1)
     found_dirs[0].resize(1);
     found_dirs[0][0] = Path.c_str();
     int deepness = 0;
+#if defined(EOS_HAVE_XIO)
+    if (XRootD) {
+      do {
+        struct stat buf;
+        found_dirs.resize(deepness + 2);
+        for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
+          Path = found_dirs[deepness][i].c_str();
+          XrdOucString url = "";
+          eos::common::StringConversion::CreateUrl(
+              protocol.c_str(), hostport.c_str(), Path.c_str(), url);
+          std::string err;
+          int http = 0;
+          const int rstat =
+              eos::common::XioUserStatUrl(url.c_str(), &buf, err, &http);
+          if (rstat || http == 0 || !S_ISDIR(buf.st_mode)) {
+            continue;
+          }
+          std::vector<eos::common::XioListEnt> ents;
+          if (eos::common::XioUserList(url.c_str(), ents, err, &http) ||
+              http == 0) {
+            continue;
+          }
+          for (const auto& ent : ents) {
+            XrdOucString cpath = Path.c_str();
+            cpath += ent.name.c_str();
+            XrdOucString curl = "";
+            eos::common::StringConversion::CreateUrl(
+                protocol.c_str(), hostport.c_str(), cpath.c_str(), curl);
+            if (S_ISDIR(ent.mode)) {
+              curl += "/";
+              cpath += "/";
+              found_dirs[deepness + 1].push_back(cpath.c_str());
+              (void)found[curl.c_str()].size();
+            } else {
+              found[url.c_str()].insert(ent.name);
+            }
+          }
+        }
+        deepness++;
+      } while (found_dirs[deepness].size());
+    } else
+#endif
     do {
       struct stat buf;
       found_dirs.resize(deepness + 2);
@@ -363,16 +408,28 @@ native_com_old_find(char* arg1)
         XrdOucString url = "";
         eos::common::StringConversion::CreateUrl(
             protocol.c_str(), hostport.c_str(), Path.c_str(), url);
+#if defined(EOS_HAVE_XIO)
+        int rstat = stat(url.c_str(), &buf);
+#else
         int rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf)
                              : stat(url.c_str(), &buf);
+#endif
         if (!rstat) {
           if (S_ISDIR(buf.st_mode)) {
+#if defined(EOS_HAVE_XIO)
+            DIR* dir = opendir(url.c_str());
+#else
             DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str())
                                 : opendir(url.c_str());
+#endif
             if (dir) {
               struct dirent* entry;
+#if defined(EOS_HAVE_XIO)
+              while ((entry = readdir(dir))) {
+#else
               while ((entry = (XRootD) ? XrdPosixXrootd::Readdir(dir)
                                        : readdir(dir))) {
+#endif
                 XrdOucString curl = "";
                 XrdOucString cpath = Path.c_str();
                 cpath += entry->d_name;
@@ -382,8 +439,12 @@ native_com_old_find(char* arg1)
                 }
                 eos::common::StringConversion::CreateUrl(
                     protocol.c_str(), hostport.c_str(), cpath.c_str(), curl);
+#if defined(EOS_HAVE_XIO)
+                if (!stat(curl.c_str(), &buf)) {
+#else
                 if (!((XRootD) ? XrdPosixXrootd::Stat(curl.c_str(), &buf)
                                : stat(curl.c_str(), &buf))) {
+#endif
                   if (S_ISDIR(buf.st_mode)) {
                     curl += "/";
                     cpath += "/";
@@ -394,7 +455,11 @@ native_com_old_find(char* arg1)
                   }
                 }
               }
+#if defined(EOS_HAVE_XIO)
+              closedir(dir);
+#else
               (XRootD) ? XrdPosixXrootd::Closedir(dir) : closedir(dir);
+#endif
             }
           }
         }

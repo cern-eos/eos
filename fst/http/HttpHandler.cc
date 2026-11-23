@@ -30,8 +30,8 @@
 #include "common/http/MimeTypes.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfs.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "fst/checksum/Adler.hh"
 #include "fst/http/HttpServer.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
@@ -96,7 +96,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     XrdOucString query = request->GetQuery().c_str();
 
     if (request->GetHeaders().count("x-upload-range")) {
-      // we need to indicate to XrdFstOfsFile that this is a partial upload
+      // we need to indicate to EosFstOfsFile that this is a partial upload
       query += "&x-upload-range=";
       query += request->GetHeaders()["x-upload-range"].c_str();
     }
@@ -163,7 +163,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
           }
         }
       }
-      mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
+      mFile = (EosFstOfsFile*) gOFS.newFile(mClient.name);
       {
         XrdSysMutexHelper oLock(*hMutex);
         mRc = mFile->open(openUrl.c_str(),

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/layout/Layout.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "common/Strerror_r_wrapper.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -30,7 +30,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout(XrdFstOfsFile* file, eos::fst::FmdHandler* fmdHandler) :
+Layout::Layout(EosFstOfsFile* file, eos::fst::FmdHandler* fmdHandler) :
   mIsEntryServer(false), mLayoutId(0), mName(""),
   mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
   mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(nullptr),
@@ -40,7 +40,7 @@ Layout::Layout(XrdFstOfsFile* file, eos::fst::FmdHandler* fmdHandler) :
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout(XrdFstOfsFile* file,
+Layout::Layout(EosFstOfsFile* file,
                unsigned long lid,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,

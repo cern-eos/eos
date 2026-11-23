@@ -23,13 +23,13 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::ResetPathMap()
+EosMgmOfs::ResetPathMap()
 /*----------------------------------------------------------------------------*/
 /*
  * Reset all the stored entries in the path remapping table
@@ -45,7 +45,7 @@ XrdMgmOfs::ResetPathMap()
 //------------------------------------------------------------------------------
 // @todo (esindril) drop the stop config and store the config when necessary
 bool
-XrdMgmOfs::AddPathMap(const char* source, const char* target,
+EosMgmOfs::AddPathMap(const char* source, const char* target,
                       bool store_config)
 {
   eos::common::RWMutexWriteLock lock(PathMapMutex);
@@ -65,7 +65,7 @@ XrdMgmOfs::AddPathMap(const char* source, const char* target,
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::PathRemap(const char* inpath,
+EosMgmOfs::PathRemap(const char* inpath,
                      XrdOucString& outpath)
 /*----------------------------------------------------------------------------*/
 /*

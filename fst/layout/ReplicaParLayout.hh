@@ -47,7 +47,7 @@ public:
   //! @param io io access type ( ofs/xrd )
   //! @param timeout timeout value
   //----------------------------------------------------------------------------
-  ReplicaParLayout(XrdFstOfsFile* file,
+  ReplicaParLayout(EosFstOfsFile* file,
                    unsigned long lid,
                    const XrdSecEntity* client,
                    XrdOucErrInfo* outError,

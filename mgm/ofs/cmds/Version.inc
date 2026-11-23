@@ -22,7 +22,7 @@
  ************************************************************************/
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
@@ -42,7 +42,7 @@
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
+EosMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
                               const std::string& inpath, XrdOucErrInfo& error,
                               const eos::common::VirtualIdentity& vid, std::string& path,
                               std::string& vdir, eos::common::VirtualIdentity& fidvid,
@@ -113,7 +113,7 @@ XrdMgmOfs::ResolveVersionInfo(eos::common::FileId::fileid_t fid,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error,
+EosMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error,
                                    eos::common::VirtualIdentity& fidvid)
 {
   static const char* epname = "createversiondirectory";
@@ -161,7 +161,7 @@ XrdMgmOfs::_createVersionDirectory(const std::string& vdir, XrdOucErrInfo& error
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid,
+EosMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid,
                                   const std::string& inpath, XrdOucErrInfo& error,
                                   eos::common::VirtualIdentity& vid, std::string* vdir)
 {
@@ -211,7 +211,7 @@ XrdMgmOfs::CreateVersionDirectory(eos::common::FileId::fileid_t fid,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Version(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
+EosMgmOfs::Version(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid, int max_versions,
                    XrdOucString* versionedpath, bool simulate)
 {
@@ -295,7 +295,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid, XrdOucErrInfo& error,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::PurgeVersion(const char* versiondir,
+EosMgmOfs::PurgeVersion(const char* versiondir,
                         XrdOucErrInfo& error,
                         int max_versions)
 {
@@ -327,7 +327,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
     }
   }
 
-  XrdMgmOfsDirectory directory;
+  EosMgmOfsDirectory directory;
   int listrc = directory.open(versiondir, rootvid, (const char*) 0);
   eos_info("listrc=%d max-version=%d", listrc, max_versions);
 

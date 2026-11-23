@@ -34,12 +34,12 @@
 #define __EOSMGM_MACROS__HH__
 
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "common/token/EosTok.hh"
 
 USE_EOSMGMNAMESPACE
 
-extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
+extern EosMgmOfs* gOFS; //< global handle to EosMgmOfs object
 
 //------------------------------------------------------------------------------
 // Macro definitions

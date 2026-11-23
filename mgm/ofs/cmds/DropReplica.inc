@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 // file system id
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::DropReplica(eos::IFileMD::id_t fid,
+EosMgmOfs::DropReplica(eos::IFileMD::id_t fid,
                        eos::common::FileSystem::fsid_t fsid) const
 {
   bool retc = true;

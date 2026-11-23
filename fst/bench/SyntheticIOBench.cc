@@ -29,6 +29,14 @@
 #include <algorithm>
 #include <future>
 #include <sstream>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include "fst/io/FileIo.hh"
+#include "fst/io/FileIoPlugin.hh"
+#include <cstdlib>
+#include <memory>
+#include <sys/stat.h>
+#endif
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -41,6 +49,21 @@ BuildUrl(const SyntheticIOBench::Config& cfg, const std::string& relpath,
          bool with_cgi)
 {
   std::ostringstream oss;
+#if defined(EOS_HAVE_XIO)
+  const char* xport = std::getenv("EOS_MGM_XIO_PORT");
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  if (xport && xport[0] && std::atoi(xport) > 0 && token && token[0]) {
+    // The bearer is the SSS identity. The xroot port in cfg.mgm is not the
+    // HTTP listener.
+    oss << "xiohttp://" << eos::common::XioHostOf(cfg.mgm) << ":" << xport
+        << "/" << relpath;
+    if (with_cgi) {
+      oss << "?eos.syntheticio=algorithm:deterministic";
+    }
+    return oss.str();
+  }
+  return {};
+#else
   // FST→MGM client traffic must request SSS (same pattern as FmdMgm).
   oss << "root://" << cfg.mgm << "/" << relpath << "?xrd.wantprot=sss";
 
@@ -49,7 +72,85 @@ BuildUrl(const SyntheticIOBench::Config& cfg, const std::string& relpath,
   }
 
   return oss.str();
+#endif
 }
+
+#if defined(EOS_HAVE_XIO)
+bool
+TransferXio(const std::string& url, uint64_t size, bool writing,
+            uint64_t& bytes_ok, std::atomic<bool>& stop)
+{
+  bytes_ok = 0;
+  std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPlugin::GetIoObject(url));
+
+  if (!io) {
+    eos_static_err("msg=\"bench open failed\" url=\"%s\" err=\"no io object\"",
+                   url.c_str());
+    return false;
+  }
+
+  const XrdSfsFileOpenMode flags =
+    writing ? (SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC) : SFS_O_RDONLY;
+
+  if (io->fileOpen(flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+    eos_static_err("msg=\"bench open failed\" url=\"%s\" err=\"%s\"",
+                   url.c_str(), io->GetLastErrMsg().c_str());
+    return false;
+  }
+
+  auto spec = eos::common::parse_syntheticio("algorithm:deterministic");
+
+  if (!spec) {
+    io->fileClose();
+    return false;
+  }
+
+  std::vector<char> buf(kChunkBytes);
+  uint64_t off = 0;
+
+  while (off < size && !stop) {
+    const uint64_t chunk = std::min<uint64_t>(kChunkBytes, size - off);
+
+    if (writing) {
+      eos::common::syntheticio_fill(*spec, off, buf.data(), chunk);
+      const int64_t n =
+        io->fileWrite(static_cast<XrdSfsFileOffset>(off), buf.data(),
+                      static_cast<XrdSfsXferSize>(chunk));
+
+      if (n != static_cast<int64_t>(chunk)) {
+        eos_static_err("msg=\"bench write failed\" url=\"%s\" off=%llu err=\"%s\"",
+                       url.c_str(), static_cast<unsigned long long>(off),
+                       io->GetLastErrMsg().c_str());
+        io->fileClose();
+        return false;
+      }
+    } else {
+      const int64_t n =
+        io->fileRead(static_cast<XrdSfsFileOffset>(off), buf.data(),
+                     static_cast<XrdSfsXferSize>(chunk));
+
+      if (n != static_cast<int64_t>(chunk)) {
+        eos_static_err("msg=\"bench read failed\" url=\"%s\" off=%llu err=\"%s\"",
+                       url.c_str(), static_cast<unsigned long long>(off),
+                       io->GetLastErrMsg().c_str());
+        io->fileClose();
+        return false;
+      }
+    }
+
+    off += chunk;
+    bytes_ok = off;
+  }
+
+  if (io->fileClose()) {
+    eos_static_err("msg=\"bench close failed\" url=\"%s\" err=\"%s\"",
+                   url.c_str(), io->GetLastErrMsg().c_str());
+    return false;
+  }
+
+  return bytes_ok == size;
+}
+#endif
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -292,6 +393,18 @@ SyntheticIOBench::TransferOne(const std::string& url, uint64_t size,
                               bool writing, uint64_t& bytes_ok)
 {
   bytes_ok = 0;
+  if (url.empty()) {
+    eos_static_err("%s", "msg=\"bench open failed\" err=\"HTTP/2 listener is not configured\"");
+    return false;
+  }
+#if defined(EOS_HAVE_XIO)
+  if (url.compare(0, 10, "xiohttp://") == 0 ||
+      url.compare(0, 11, "xiohttps://") == 0) {
+    return TransferXio(url, size, writing, bytes_ok, mStop);
+  }
+  eos_static_err("%s", "msg=\"bench open failed\" err=\"HTTP/2 listener is not configured\"");
+  return false;
+#else
   XrdCl::File file;
   XrdCl::XRootDStatus st;
 
@@ -361,6 +474,7 @@ SyntheticIOBench::TransferOne(const std::string& url, uint64_t size,
 
   // Only count complete objects; partial files from stop are discarded.
   return bytes_ok == size;
+#endif
 }
 
 EOSFSTNAMESPACE_END

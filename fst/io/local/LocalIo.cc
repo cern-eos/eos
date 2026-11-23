@@ -21,8 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
+#include "fst/EosFstOssFile.hh"
 #include "fst/io/local/LocalIo.hh"
+#include <XrdOuc/XrdOucIOVec.hh>
 #include "fst/io/local/FsIo.hh"
 #include "common/XattrCompat.hh"
 
@@ -35,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LocalIo::LocalIo(std::string path, XrdFstOfsFile* file,
+LocalIo::LocalIo(std::string path, EosFstOfsFile* file,
                  const XrdSecEntity* client):
   FsIo(path, "LocalIo"),
   mLogicalFile(file),
@@ -245,9 +247,8 @@ int
 LocalIo::fileFallocate(XrdSfsFileOffset length)
 {
   eos_debug("msg=\"fallocate\" length=%lli", length);
-  XrdOucErrInfo error;
 
-  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {
+  if (!mLogicalFile || mLogicalFile->OssFd() < 0) {
     return SFS_ERROR;
   }
 
@@ -255,7 +256,7 @@ LocalIo::fileFallocate(XrdSfsFileOffset length)
   // no pre-allocation
   return 0;
 #else
-  int fd = error.getErrInfo();
+  int fd = mLogicalFile->OssFd();
 
 #ifdef EOS_HAVE_XFS
 
@@ -290,9 +291,8 @@ LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
                          XrdSfsFileOffset toOffset)
 {
   eos_debug("msg=\"fdeallocate\" from=%lli to=%lli", fromOffset, toOffset);
-  XrdOucErrInfo error;
 
-  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {
+  if (!mLogicalFile || mLogicalFile->OssFd() < 0) {
     return SFS_ERROR;
   }
 
@@ -300,7 +300,7 @@ LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
   // no de-allocation
   return 0;
 #else
-  int fd = error.getErrInfo();
+  int fd = mLogicalFile->OssFd();
 
   if (fd > 0) {
 #ifdef EOS_HAVE_XFS
@@ -340,13 +340,14 @@ LocalIo::fileSync(uint16_t timeout)
 int
 LocalIo::fileStat(struct stat* buf, uint16_t timeout)
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
+  (void)timeout;
 
-  if (pOfsFile && mIsOpen) {
-    return pOfsFile->XrdOfsFile::stat(buf);
-  } else {
-    return ::stat(mFilePath.c_str(), buf);
+  if (mLogicalFile && mIsOpen && mLogicalFile->mOssFile) {
+    const int rc = mLogicalFile->mOssFile->Fstat(buf);
+    return rc ? SFS_ERROR : SFS_OK;
   }
+
+  return ::stat(mFilePath.c_str(), buf);
 }
 
 //------------------------------------------------------------------------------

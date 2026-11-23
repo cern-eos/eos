@@ -38,6 +38,12 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
+if(EOS_HAVE_XIO)
+  target_include_directories(EosConsoleHelpers-Objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_compile_definitions(EosConsoleHelpers-Objects PRIVATE EOS_HAVE_XIO=1)
+  target_link_libraries(EosConsoleHelpers-Objects PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
+
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   CLI11::CLI11
   NCURSES::NCURSES
@@ -169,6 +175,18 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
 )
+
+if(EOS_HAVE_XIO)
+  target_sources(EosConsoleCommands-Objects PRIVATE
+    ${CMAKE_SOURCE_DIR}/common/xio/XioQuery.cc)
+  target_include_directories(EosConsoleCommands-Objects PRIVATE
+    ${EOS_XIO_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include
+    ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+    ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+  target_compile_definitions(EosConsoleCommands-Objects PRIVATE EOS_HAVE_XIO=1)
+endif()
 
 target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects

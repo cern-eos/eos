@@ -190,10 +190,10 @@ add_library(
   cache/ReadThroughCache.cc
   vid/Vid.cc
   fsview/FsView.cc
-  ofs/XrdMgmOfsConfigure.cc
-  ofs/XrdMgmOfsFile.cc
-  ofs/XrdMgmOfsDirectory.cc
-  ofs/XrdMgmOfs.cc
+  ofs/EosMgmOfsConfigure.cc
+  ofs/EosMgmOfsFile.cc
+  ofs/EosMgmOfsDirectory.cc
+  ofs/EosMgmOfs.cc
   authz/XrdMgmAuthz.cc
   ofs/fsctl/Access.cc
   ofs/fsctl/AdjustReplica.cc
@@ -288,6 +288,7 @@ add_library(
   monitoring/PrometheusExporter.hh
   http/HttpServer.cc
   http/HttpHandler.cc
+  xio/EosXioMgmServer.cc xio/EosXioMgmServer.hh
   http/webdav/WebDAVHandler.cc
   http/webdav/WebDAVResponse.cc
   http/webdav/PropFindResponse.cc
@@ -368,6 +369,15 @@ add_library(
   placement/WeightedRandomStrategy.cc
   shaping/TrafficShaping.cc
   ${FUSEX_SRCS})
+
+if(EOS_HAVE_XIO)
+  target_sources(XrdEosMgm-Objects PRIVATE
+    xio/EosXioMgmFs.cc
+    xio/EosXioMgmFs.hh)
+  target_include_directories(XrdEosMgm-Objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_compile_definitions(XrdEosMgm-Objects PRIVATE EOS_HAVE_XIO=1)
+  target_link_libraries(XrdEosMgm-Objects PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
 
 target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)
 

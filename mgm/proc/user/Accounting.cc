@@ -25,7 +25,7 @@
 #include "common/ExpiryCache.hh"
 #include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/quota/Quota.hh"

@@ -31,8 +31,8 @@
 #include "common/utils/BackOffInvoker.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/qdbmaster/QdbMaster.hh"
 #include "mgm/quota/Quota.hh"
@@ -517,7 +517,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               (vid.HasGid(eos::common::ADM_GID)))) {
     // Add everything found in the recycle directory structure to the printmap
     std::string subdirs;
-    XrdMgmOfsDirectory dirl;
+    EosMgmOfsDirectory dirl;
     int listrc = dirl.open(Recycle::gRecyclingPrefix.c_str(), mRootVid,
                            (const char*) 0);
 

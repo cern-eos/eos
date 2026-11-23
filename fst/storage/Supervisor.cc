@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 
 EOSFSTNAMESPACE_BEGIN

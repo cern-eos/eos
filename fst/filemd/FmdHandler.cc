@@ -31,7 +31,7 @@
 #include "qclient/structures/QSet.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/filemd/FmdMgm.hh"

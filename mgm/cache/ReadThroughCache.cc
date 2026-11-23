@@ -10,7 +10,7 @@
 #include "common/SymKeys.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/misc/Constants.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/MDException.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"

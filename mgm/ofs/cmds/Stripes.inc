@@ -22,7 +22,7 @@
  ************************************************************************/
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
@@ -30,7 +30,7 @@
 // Send verify stripe request to a certain file system for file path
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_verifystripe(const char* path,
+EosMgmOfs::_verifystripe(const char* path,
                          XrdOucErrInfo& error,
                          eos::common::VirtualIdentity& vid,
                          unsigned long fsid,
@@ -57,7 +57,7 @@ XrdMgmOfs::_verifystripe(const char* path,
 // Send verify stripe request to a certain file system for file identifier
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
+EosMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
                          XrdOucErrInfo& error,
                          eos::common::VirtualIdentity& vid,
                          unsigned long fsid,
@@ -213,7 +213,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_dropstripe(const char* path,
+EosMgmOfs::_dropstripe(const char* path,
                        eos::common::FileId::fileid_t fid,
                        XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
@@ -342,7 +342,7 @@ XrdMgmOfs::_dropstripe(const char* path,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_dropallstripes(const char* path,
+EosMgmOfs::_dropallstripes(const char* path,
                            XrdOucErrInfo& error,
                            eos::common::VirtualIdentity& vid,
                            bool forceRemove)
@@ -414,7 +414,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
 // Move file replica/stripe from source to target file system
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_movestripe(const char* path,
+EosMgmOfs::_movestripe(const char* path,
                        XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
@@ -430,7 +430,7 @@ XrdMgmOfs::_movestripe(const char* path,
 // Copy file replica/stripe from source to target file system
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_copystripe(const char* path,
+EosMgmOfs::_copystripe(const char* path,
                        XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
@@ -446,7 +446,7 @@ XrdMgmOfs::_copystripe(const char* path,
 // Copy file replica/stripe from source to target file system - by path
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_replicatestripe(const char* path,
+EosMgmOfs::_replicatestripe(const char* path,
                             XrdOucErrInfo& error,
                             eos::common::VirtualIdentity& vid,
                             unsigned long sourcefsid,
@@ -520,7 +520,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
 // Copy file replica/stripe from source to target file system - by FileMD
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
+EosMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                             const char* path,
                             XrdOucErrInfo& error,
                             eos::common::VirtualIdentity& vid,

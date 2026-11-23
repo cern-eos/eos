@@ -24,7 +24,7 @@
 #include "fst/compress/CompressPool.hh"
 #include "common/Constants.hh"
 #include "common/Logging.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/compress/BlockCompress.hh"
 #include "fst/utils/IoPriority.hh"
 #include <sys/stat.h>

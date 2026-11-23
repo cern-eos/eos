@@ -31,7 +31,7 @@
 #include "common/StringTokenizer.hh"
 #include "mgm/FuseServer/Clients.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/zmq/ZMQ.hh"
 

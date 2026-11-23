@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "RmCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "mgm/quota/Quota.hh"
@@ -156,7 +156,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
       // List the path and match against filter
-      XrdMgmOfsDirectory dir;
+      EosMgmOfsDirectory dir;
       int listrc = dir.open(spath.c_str(), mVid, nullptr);
 
       if (!listrc) {

@@ -6,7 +6,7 @@
 
 #include "mgm/fsview/FsView.hh"
 #include "mgm/monitoring/MonitoringConfig.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 
 #include <cerrno>
 #include <string>

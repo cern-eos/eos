@@ -24,7 +24,7 @@
 #include "mgm/filesystem/FileSystem.hh"
 #include "common/Constants.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mq/FsChangeListener.hh"
 #include "mq/MessagingRealm.hh"
 #include "qclient/shared/SharedHashSubscription.hh"

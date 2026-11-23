@@ -51,7 +51,7 @@ public:
   //! @param timeout timeout value
   //!
   //----------------------------------------------------------------------------
-  PlainLayout(XrdFstOfsFile* file, unsigned long lid, const XrdSecEntity* client,
+  PlainLayout(EosFstOfsFile* file, unsigned long lid, const XrdSecEntity* client,
               XrdOucErrInfo* outError, const char* path, eos::fst::FmdHandler* fmdHandler,
               uint16_t timeout = 0);
 

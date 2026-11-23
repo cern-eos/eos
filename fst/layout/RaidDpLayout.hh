@@ -51,7 +51,7 @@ public:
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
   //----------------------------------------------------------------------------
-  RaidDpLayout(XrdFstOfsFile* file,
+  RaidDpLayout(EosFstOfsFile* file,
                unsigned long lid,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,

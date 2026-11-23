@@ -16,7 +16,7 @@ as usual. See [Fallback summary](#fallback-summary).
 
 The plugin reuses the FST RAIN layout implementation
 (`fst/layout/RainMetaLayout`, `RaidDpLayout`, `ReedSLayout`), the same code a
-gateway FST runs in `XrdFstOfsFile`.
+gateway FST runs in `EosFstOfsFile`.
 
 ## Files
 
@@ -75,8 +75,8 @@ query to the MGM.
 <path>?mgm.pcmd=open[&<write options>]
 ```
 
-The MGM handles it in `XrdMgmOfs::OpenPio` (`mgm/ofs/fsctl/OpenPio.cc`). That call
-runs a normal `XrdMgmOfsFile::open` with `eos.cli.access=pio` and returns the
+The MGM handles it in `EosMgmOfs::OpenPio` (`mgm/ofs/fsctl/OpenPio.cc`). That call
+runs a normal `EosMgmOfsFile::open` with `eos.cli.access=pio` and returns the
 redirection info as the query response instead of redirecting the client. The
 response looks like this:
 
@@ -153,7 +153,7 @@ to a normal gateway write. No namespace entry is left behind.
 
 The plugin extends the PIO open request with the open flags and mode. These
 are the same tags that `mgm.pcmd=redirect` accepts, parsed by
-`XrdMgmOfsFile::GetClientOpenFlags`:
+`EosMgmOfsFile::GetClientOpenFlags`:
 
 | Opaque key | Meaning |
 |------------|---------|
@@ -175,7 +175,7 @@ For a write, two things differ from a read:
 - The stripes keep the **RAIN layout** in the capability, not a plain one.
 - The capability carries the signed flag **`mgm.pio.write=1`**.
 
-On the FST side (`XrdFstOfsFile`, `RainMetaLayout`), a stripe opened with
+On the FST side (`EosFstOfsFile`, `RainMetaLayout`), a stripe opened with
 `mgm.pio.write=1`:
 
 - is never an entry server, so it only handles its local stripe exactly like a
@@ -215,7 +215,7 @@ no longer covers the whole file.
 
 ### Close and commit
 
-The sequence mirrors a gateway close (`XrdFstOfsFile::_close_wr`):
+The sequence mirrors a gateway close (`EosFstOfsFile::_close_wr`):
 
 1. **Checksum.** The checksum is finalized. If it does not cover the whole
    file (non-sequential writes, or a truncate that extended the file), it is

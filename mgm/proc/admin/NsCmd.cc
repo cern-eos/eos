@@ -34,8 +34,8 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/monitoring/MonitoringConfig.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -181,7 +181,7 @@ ParseRaftInfoReply(qclient::redisReplyPtr reply, HaClusterStatus& status,
 }
 
 HaClusterStatus
-CollectQdbHaStatus(XrdMgmOfs* ofs, std::string& err)
+CollectQdbHaStatus(EosMgmOfs* ofs, std::string& err)
 {
   HaClusterStatus status;
 
@@ -1655,7 +1655,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
           for (size_t f = 0 ; f < n_subfiles ; f++) {
             std::string fname = sdir + std::string("f.") + std::to_string(f);
             XrdOucEnv env;
-            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+            EosMgmOfsFile* file = new EosMgmOfsFile((char*)"bench");
 
             if (file) {
               file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0,
@@ -1704,7 +1704,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
           for (size_t f = 0 ; f < n_subfiles ; f++) {
             std::string fname = sdir + std::string("f.") + std::to_string(f);
             XrdOucEnv env;
-            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+            EosMgmOfsFile* file = new EosMgmOfsFile((char*)"bench");
 
             if (file) {
               file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0, 0);
@@ -1750,7 +1750,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
           for (size_t f = 0 ; f < n_subfiles ; f++) {
             std::string fname = sdir + std::string("f.") + std::to_string(f);
             XrdOucEnv env;
-            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+            EosMgmOfsFile* file = new EosMgmOfsFile((char*)"bench");
 
             if (file) {
               file->open(&vid, fname.c_str(), 0, 0, 0, "eos.app=fuse");
@@ -1795,7 +1795,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
           for (size_t f = 0 ; f < n_subfiles ; f++) {
             std::string fname = sdir + std::string("f.") + std::to_string(f);
             XrdOucEnv env;
-            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+            EosMgmOfsFile* file = new EosMgmOfsFile((char*)"bench");
 
             if (file) {
               file->open(&vid, fname.c_str(), SFS_O_RDWR, 0777, 0,

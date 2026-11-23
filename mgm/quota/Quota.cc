@@ -25,7 +25,7 @@
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/policy/Policy.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"

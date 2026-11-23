@@ -14,7 +14,12 @@
 #include "mgm/acl/Acl.hh"
 #include "mgm/egroup/Egroup.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include "mgm/fsview/FsView.hh"
+#include <cstdlib>
+#endif
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
@@ -46,6 +51,43 @@
 //-----------------------------------------------------------------------------
 
 EOSMGMNAMESPACE_BEGIN
+
+#if defined(EOS_HAVE_XIO)
+static int
+PublishedXioPort(const char* manager, std::string& host)
+{
+  host.clear();
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  if (!manager || !token || !token[0]) {
+    return 0;
+  }
+  const std::string mgr = manager;
+  host = eos::common::XioHostOf(mgr);
+  int xrd_port = 0;
+  const auto colon = mgr.rfind(':');
+  if (colon != std::string::npos) {
+    xrd_port = std::atoi(mgr.c_str() + colon + 1);
+  }
+  int xio_port = 0;
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    for (const auto& elem : FsView::gFsView.mIdView) {
+      auto* fs = elem.second;
+      if (!fs || fs->GetString("host") != host) {
+        continue;
+      }
+      if (std::atoi(fs->GetString("port").c_str()) != xrd_port) {
+        continue;
+      }
+      xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
+      if (xio_port > 0) {
+        break;
+      }
+    }
+  }
+  return xio_port;
+}
+#endif
 
 grpc::Status GrpcRestGwInterface::AclCall(VirtualIdentity& vid,
     const AclProto* aclRequest, ReplyProto* reply)
@@ -493,19 +535,38 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
 
   switch (req.cp().subcmd_case()) {
   case eos::console::CpProto::kCksum: {
+    std::string path = req.cp().cksum().path();
+    size_t pos = path.rfind("//");
+
+    if (pos != std::string::npos) {
+      path.erase(0, pos + 1);
+    }
+
+#if defined(EOS_HAVE_XIO)
+    const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+    const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+    if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+      std::string body;
+      std::string err;
+      int http = 0;
+      const int qrc = eos::common::XioChecksum("localhost", std::atoi(port_env),
+                                               path, body, err, 10000, &http);
+      if (http != 0 && qrc == 0) {
+        XrdOucString xsum = body.c_str();
+        xsum.replace("eos ", "");
+        reply->set_std_out(std::string("checksum=") + xsum.c_str());
+        break;
+      }
+    }
+    reply->set_std_err("Warning: failed getting checksum for " + path);
+    break;
+#else
     XrdCl::URL url("root://localhost//dummy");
     auto* fs = new XrdCl::FileSystem(url);
 
     if (!fs) {
       reply->set_std_err("Warning: failed to get new FS object [attempting checksum]\n");
       return grpc::Status::OK;
-    }
-
-    std::string path = req.cp().cksum().path();
-    size_t pos = path.rfind("//");
-
-    if (pos != std::string::npos) {
-      path.erase(0, pos + 1);
     }
 
     XrdCl::Buffer arg;
@@ -529,6 +590,7 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
     delete response;
     delete fs;
     break;
+#endif
   }
 
   case eos::console::CpProto::kKeeptime: {
@@ -546,6 +608,46 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
       XrdOucString query = "root://localhost/";
       query += path.c_str();
       query += update;
+#if defined(EOS_HAVE_XIO)
+      const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+      const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+      if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+        std::string cgi = update;
+        if (!cgi.empty() && cgi[0] == '?') {
+          cgi.erase(0, 1);
+        }
+        std::string body;
+        std::string err;
+        int http = 0;
+        const int qrc = eos::common::XioOpaqueQuery(
+                            "localhost", std::atoi(port_env), cgi, body, err, 10000,
+                            &http, path);
+        if (http != 0) {
+          bool updateok = qrc == 0;
+          if (updateok) {
+            char tag[1024];
+            int tmp_retc = 0;
+            const int items = sscanf(body.c_str(), "%1023s retc=%d", tag, &tmp_retc);
+            updateok = (items == 2) && (strcmp(tag, "utimes:") == 0) && tmp_retc == 0;
+          }
+          if (!updateok) {
+            reply->set_std_err(
+                "Warning: access and modification time could not be preserved for " +
+                path + "\nQuery: " + query.c_str());
+          }
+          break;
+        }
+      }
+#endif
+#if defined(EOS_HAVE_XIO)
+      {
+        std::string msg;
+        msg += "Warning: access and modification time could not be preserved for ";
+        msg += path;
+        msg += "\nHTTP/2 listener is not reachable";
+        reply->set_std_err(msg);
+      }
+#else
       char value[4096];
       value[0] = 0;
       long long update_rc = XrdPosixXrootd::QueryOpaque(query.c_str(),
@@ -568,13 +670,37 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
         msg += query.c_str();
         reply->set_std_err(msg);
       }
+#endif
     } else {
       // Get atime and mtime
       std::string path = req.cp().keeptime().path();
       XrdOucString url = "root://localhost/";
       url += path.c_str();
       struct stat buf;
+#if defined(EOS_HAVE_XIO)
+      const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+      const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+      if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+        std::string err;
+        int http = 0;
+        const int src = eos::common::XioStat("localhost", std::atoi(port_env),
+                                             path, &buf, err, 10000, &http);
+        if (http != 0) {
+          if (src == 0) {
+            reply->set_std_out("atime:" + std::to_string(buf.st_atime) +
+                               "mtime:" + std::to_string(buf.st_mtime));
+          } else {
+            reply->set_std_err("Warning: failed getting stat information for " + path);
+          }
+          break;
+        }
+      }
+#endif
 
+#if defined(EOS_HAVE_XIO)
+      reply->set_std_err("Warning: failed getting stat information for " + path +
+                         "\nHTTP/2 listener is not reachable");
+#else
       if (XrdPosixXrootd::Stat(url.c_str(), &buf) == 0) {
         std::string msg;
         msg += "atime:";
@@ -587,6 +713,7 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
         msg += path;
         reply->set_std_err(msg);
       }
+#endif
     }
 
     break;
@@ -779,15 +906,6 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
             return grpc::Status::OK;
           }
 
-          // Get XrdCl::FileSystem object
-          std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
-
-          if (!fs) {
-            reply->set_std_err("error=failed to get new FS object");
-            reply->set_retc(ECOMM);
-            return grpc::Status::OK;
-          }
-
           XrdOucString bs = newresult->Get(repbootstat.c_str());
           bool down = (bs != "booted");
           int retc = 0;
@@ -841,6 +959,37 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
               statpath += statpath64;
             }
 
+#if defined(EOS_HAVE_XIO)
+            bool stat_done = false;
+            {
+              std::string xhost;
+              const int xport = PublishedXioPort(newresult->Get(repurl.c_str()), xhost);
+              if (xport > 0) {
+                struct stat st;
+                std::string err;
+                int http = 0;
+                const int src = eos::common::XioStat(xhost, xport, statpath.c_str(),
+                                                     &st, err, 10000, &http);
+                if (http != 0) {
+                  stat_done = true;
+                  if (src == 0) {
+                    rsize = static_cast<uint64_t>(st.st_size);
+                  } else {
+                    consistencyerror = true;
+                    inconsistencylable = "STATFAILED";
+                    rsize = static_cast<uint64_t>(-1);
+                  }
+                }
+              }
+            }
+            if (!stat_done) {
+              consistencyerror = true;
+              inconsistencylable = "STATFAILED";
+              rsize = static_cast<uint64_t>(-1);
+            }
+#else
+            {
+            std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
             status = fs->Stat(statpath.c_str(), stat_info);
 
             if (!status.IsOK()) {
@@ -850,6 +999,8 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
             } else {
               rsize = stat_info->GetSize();
             }
+            }
+#endif
 
             // Free memory
             delete stat_info;
@@ -1989,8 +2140,39 @@ grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
   struct stat buf;
   std::string path = req.stat().path();
   std::string url = "root://localhost/" + path;
+#if defined(EOS_HAVE_XIO)
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+    std::string err;
+    int http = 0;
+    const int src = eos::common::XioStat("localhost", std::atoi(port_env), path,
+                                         &buf, err, 10000, &http);
+    if (http != 0) {
+      if (src != 0) {
+        reply->set_std_err("error: failed to stat " + path);
+        reply->set_retc(EFAULT);
+        return grpc::Status::OK;
+      }
+      url.clear();
+    }
+  }
+#endif
 
-  if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
+#if defined(EOS_HAVE_XIO)
+  if (!url.empty()) {
+    reply->set_std_err("error: HTTP/2 listener is not reachable");
+    reply->set_retc(EFAULT);
+    return grpc::Status::OK;
+  }
+#endif
+  if (url.empty() ||
+#if !defined(EOS_HAVE_XIO)
+      !XrdPosixXrootd::Stat(url.c_str(), &buf)
+#else
+      true
+#endif
+     ) {
     if (req.stat().file()) {
       if (S_ISREG(buf.st_mode)) {
         reply->set_retc(0);
@@ -2640,6 +2822,34 @@ FileHelper_EnvFstToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
   return true;
 }
 
+#if defined(EOS_HAVE_XIO)
+// 1 when an HTTP response arrived. rc is 0 and body is the reply, or rc is EIO.
+// 0 when the caller should keep the root:// query.
+static int
+TryXioFstQuery(const char* manager, const std::string& request, std::string& body,
+               int& rc)
+{
+  rc = 0;
+  body.clear();
+  std::string host;
+  const int xio_port = PublishedXioPort(manager, host);
+  if (xio_port <= 0) {
+    return 0;
+  }
+  int http = 0;
+  std::string err;
+  const int qrc = eos::common::XioOpaqueQuery(host, xio_port, request, body, err,
+                                               10000, &http);
+  if (http == 0) {
+    return 0;
+  }
+  if (qrc != 0) {
+    rc = EIO;
+  }
+  return 1;
+}
+#endif
+
 //-----------------------------------------------------------------------------
 //! Return a remote file attribute
 //! (Specific for 'eos file check' command)
@@ -2665,6 +2875,25 @@ FileHelper_GetRemoteAttribute(const char* manager, const char* key,
   fmdquery += key;
   fmdquery += "&fst.getxattr.path=";
   fmdquery += path;
+#if defined(EOS_HAVE_XIO)
+  std::string http_body;
+  int http_rc = 0;
+  if (TryXioFstQuery(manager, fmdquery.c_str(), http_body, http_rc)) {
+    if (http_rc) {
+      return http_rc;
+    }
+    if (http_body.compare(0, 5, "ERROR") == 0) {
+      return ENODATA;
+    }
+    attribute = http_body.c_str();
+    return 0;
+  }
+  (void)rc;
+  (void)arg;
+  (void)response;
+  (void)status;
+  return EIO;
+#else
   XrdOucString address = "root://";
   address += manager;
   address += "//dummy";
@@ -2711,6 +2940,7 @@ FileHelper_GetRemoteAttribute(const char* manager, const char* key,
   attribute = response->GetBuffer();
   delete response;
   return 0;
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -2738,6 +2968,31 @@ FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   fmdquery += shexfid;
   fmdquery += "&fst.getfmd.fsid=";
   fmdquery += sfsid;
+#if defined(EOS_HAVE_XIO)
+  std::string http_body;
+  int http_rc = 0;
+  if (TryXioFstQuery(manager, fmdquery.c_str(), http_body, http_rc)) {
+    if (http_rc) {
+      return http_rc;
+    }
+    if (http_body.compare(0, 5, "ERROR") == 0) {
+      return ENODATA;
+    }
+    XrdOucEnv fmdenv(http_body.c_str());
+    if (!FileHelper_EnvFstToFmd(fmdenv, fmd)) {
+      return EIO;
+    }
+    if (fmd.mProtoFmd.fid() != eos::common::FileId::Hex2Fid(shexfid)) {
+      return EIO;
+    }
+    return 0;
+  }
+  (void)rc;
+  (void)arg;
+  (void)response;
+  (void)status;
+  return EIO;
+#else
   XrdOucString address = "root://";
   address += manager;
   address += "//dummy";
@@ -2802,6 +3057,7 @@ FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 
   delete response;
   return 0;
+#endif
 }
 
 EOSMGMNAMESPACE_END

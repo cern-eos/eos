@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
@@ -138,7 +138,7 @@ ProcCommand::Rm()
         return SFS_OK;
       }
 
-      XrdMgmOfsDirectory dir;
+      EosMgmOfsDirectory dir;
       // list the path and match against filter
       int listrc = dir.open(spath.c_str(), *pVid, nullptr);
 

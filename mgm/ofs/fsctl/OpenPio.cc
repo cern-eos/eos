@@ -23,8 +23,8 @@
 
 #include "common/Logging.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
 #include "mgm/macros/Macros.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
@@ -35,7 +35,7 @@
 // client gets back the locations of all the stripes and the capability.
 //
 // The open flags and mode are given as for mgm.pcmd=redirect, see
-// XrdMgmOfsFile::GetClientOpenFlags. Without "eos.client.openflags" the file
+// EosMgmOfsFile::GetClientOpenFlags. Without "eos.client.openflags" the file
 // is opened for reading. For writing, only creation ("cr", exclusive) or
 // overwrite ("tr") of a file is supported. The client is then in charge of
 // writing all the stripes, computing the parity and committing the file to
@@ -43,14 +43,14 @@
 // commit or drop only what the PIO write capability issued to it covers.
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::OpenPio(const char* path, const char* ininfo, XrdOucEnv& env,
+EosMgmOfs::OpenPio(const char* path, const char* ininfo, XrdOucEnv& env,
                    XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   static const char* epname = "OpenPio";
   XrdSfsFileOpenMode open_mode = SFS_O_RDONLY;
   mode_t create_mode = 0;
-  const bool valid_flags = XrdMgmOfsFile::GetClientOpenFlags(env, open_mode, create_mode);
+  const bool valid_flags = EosMgmOfsFile::GetClientOpenFlags(env, open_mode, create_mode);
   const bool is_write =
       (open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC));
   ACCESSMODE_R;
@@ -76,7 +76,7 @@ XrdMgmOfs::OpenPio(const char* path, const char* ininfo, XrdOucEnv& env,
     }
 
     // Note: SFS_O_CREAT means exclusive creation, SFS_O_TRUNC creates or
-    // truncates the file (see XrdMgmOfsFile::GetPosixOpenFlags)
+    // truncates the file (see EosMgmOfsFile::GetPosixOpenFlags)
     open_mode |= SFS_O_RDWR;
 
     if (env.Get("eos.client.openmode") == nullptr) {
@@ -85,7 +85,7 @@ XrdMgmOfs::OpenPio(const char* path, const char* ininfo, XrdOucEnv& env,
   }
 
   gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-  XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
+  EosMgmOfsFile* file = new EosMgmOfsFile(const_cast<char*>(client->tident));
   XrdOucString opaque = ininfo;
   int retc = SFS_ERROR;
 

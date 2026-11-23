@@ -22,7 +22,7 @@
  ************************************************************************/
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
@@ -706,7 +706,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 // Low-level namespace find command
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
+EosMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
@@ -1050,7 +1050,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 // link to <target>, else the full entry.
 //------------------------------------------------------------------------------
 std::string
-XrdMgmOfs::FindEntryName(const std::string& dir, const std::string& entry)
+EosMgmOfs::FindEntryName(const std::string& dir, const std::string& entry)
 {
   static const std::string sep = " -> ";
 

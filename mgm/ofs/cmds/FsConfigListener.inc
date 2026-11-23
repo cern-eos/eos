@@ -23,7 +23,7 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 // Process incoming MGM configuration change
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
+EosMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 {
   std::string value = FsView::gFsView.GetGlobalConfig(key);
 
@@ -79,7 +79,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 // Process geotag change on the specified filesystem
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
+EosMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -186,7 +186,7 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 // Process a change in the space usage published by the given file system
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ProcessFsUsageChange(const std::string& queue)
+EosMgmOfs::ProcessFsUsageChange(const std::string& queue)
 {
   // Keep the scheduler's view of how full a disk is up to date. Only the flat
   // scheduler keeps a copy of these numbers, the geotree engine reads the very
@@ -226,7 +226,7 @@ XrdMgmOfs::ProcessFsUsageChange(const std::string& queue)
 // file system
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ProcessFsStatusChange(const std::string& key, const std::string& queue)
+EosMgmOfs::ProcessFsStatusChange(const std::string& key, const std::string& queue)
 {
   // Each key moves only a part of the state, so nothing is pushed to the
   // scheduler that this event cannot have changed:
@@ -318,7 +318,7 @@ XrdMgmOfs::ProcessFsStatusChange(const std::string& key, const std::string& queu
 //------------------------------------------------------------------------------
 // A thread monitoring for important key-value changes in filesystems
 //------------------------------------------------------------------------------
-void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
+void EosMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
   std::shared_ptr<eos::mq::FsChangeListener> fs_listener =
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
@@ -370,7 +370,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
  */
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
+EosMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
   eos::mq::GlobalConfigChangeListener changeListener(mMessagingRealm.get(),
       "fs-config-listener-thread", MgmConfigQueue.c_str());

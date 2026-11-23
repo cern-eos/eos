@@ -42,7 +42,7 @@ EOSCOMMONNAMESPACE_BEGIN
 class Report
 {
   // ---------------------------------------------------------------------------
-  // the creator of the XrdOucEnv input is defined in XrdFstOfsFile.hh MakeReportEnv
+  // the creator of the XrdOucEnv input is defined in EosFstOfsFile.hh MakeReportEnv
   // ---------------------------------------------------------------------------
 private:
 

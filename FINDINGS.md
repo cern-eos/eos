@@ -6,9 +6,9 @@ P0-P5 scale of "Debug And Ticket Priorities" there.
 
 ## The MGM logs every refused PIO open of an obfuscated or encrypted file at ERROR
 
-- File: `mgm/ofs/XrdMgmOfsFile.cc:1733-1745` (PIO refusal in
-  `XrdMgmOfsFile::open`), `mgm/ofs/XrdMgmOfsFile.cc:4417` (`eos_err` in
-  `XrdMgmOfsFile::Emsg`).
+- File: `mgm/ofs/EosMgmOfsFile.cc:1733-1745` (PIO refusal in
+  `EosMgmOfsFile::open`), `mgm/ofs/EosMgmOfsFile.cc:4417` (`eos_err` in
+  `EosMgmOfsFile::Emsg`).
 - Symptom: every PIO open of an obfuscated or encrypted file, read or write,
   is refused with `ENOTSUP` and logged at ERROR through `Emsg`. The refusal is
   expected: the RAIN plugin always falls back to a gateway access, and the

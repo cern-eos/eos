@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 #include "proto/Audit.pb.h"
@@ -110,7 +110,7 @@ CreateContainerIn(eos::IContainerMD* dir, const std::string& name, int conflict)
  */
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::mkdir(const char* inpath,
+EosMgmOfs::mkdir(const char* inpath,
                  XrdSfsMode Mode,
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client,
@@ -191,7 +191,7 @@ MkdirPermError(eos::IContainerMD* dir, const Acl& acl,
  */
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_mkdir(const char* path,
+EosMgmOfs::_mkdir(const char* path,
                   XrdSfsMode Mode,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
@@ -257,7 +257,7 @@ XrdMgmOfs::_mkdir(const char* path,
       // sys.owner.auth: for a keyed 'prot:key' match checkDirOwner()
       // rewrites vid to (d_uid, d_gid) BEFORE the ACL and POSIX checks so
       // the client can act as the directory owner — same ordering as
-      // XrdMgmOfsFile::open. The sticky '*' case is applied AFTER the
+      // EosMgmOfsFile::open. The sticky '*' case is applied AFTER the
       // perm check (ownership-only semantics).
       bool sticky_owner = false;
       attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
@@ -361,7 +361,7 @@ XrdMgmOfs::_mkdir(const char* path,
       eos::listAttributes(gOFS->eosView, dir.get(), attrmap);
 
       // sys.owner.auth: same ordering as the simple branch (and as
-      // XrdMgmOfsFile::open) — keyed 'prot:key' rewrites vid here so the
+      // EosMgmOfsFile::open) — keyed 'prot:key' rewrites vid here so the
       // ACL/POSIX checks below see the directory owner; sticky '*' is
       // applied after the perm check (ownership-only semantics).
       bool sticky_owner = false;

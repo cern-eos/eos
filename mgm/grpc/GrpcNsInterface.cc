@@ -30,8 +30,8 @@
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
@@ -2125,7 +2125,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
     } else {
       if (request->cmd() == eos::rpc::NSRequest::VersionRequest::LIST) {
         // list versions
-        XrdMgmOfsDirectory directory;
+        EosMgmOfsDirectory directory;
         int listrc = directory.open(vpath.c_str(), vid, (const char*) 0);
 
         if (!listrc) {

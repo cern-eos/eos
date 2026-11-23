@@ -2768,7 +2768,7 @@ metad::check_move_depth(shared_md p2md, shared_md md, const std::string& newname
 /* -------------------------------------------------------------------------- */
 {
   // Matches QuarkHierarchicalView's MAX_CREATE_DEPTH and the server-side move
-  // guards in XrdMgmOfs::_rename and FuseServer::OpSetDirectory.
+  // guards in EosMgmOfs::_rename and FuseServer::OpSetDirectory.
   const size_t max_depth = eos::common::Path::MAX_LEVELS - 2;
   // Mirror namespace/utils/PathDepthCheck.hh: only scan the subtree when the
   // destination is within this many levels of the limit, and bound the scan.

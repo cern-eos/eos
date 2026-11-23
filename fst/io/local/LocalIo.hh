@@ -42,7 +42,7 @@ public:
   //! @param handle to logical file
   //! @param client security entity
   //----------------------------------------------------------------------------
-  LocalIo(std::string path, XrdFstOfsFile* file = 0,
+  LocalIo(std::string path, EosFstOfsFile* file = 0,
           const XrdSecEntity* client = 0);
 
   //----------------------------------------------------------------------------
@@ -270,7 +270,7 @@ public:
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
 private:
-  XrdFstOfsFile* mLogicalFile; ///< handler to logical file
+  EosFstOfsFile* mLogicalFile; ///< handler to logical file
   const XrdSecEntity* mSecEntity; ///< security entity
 
   //----------------------------------------------------------------------------

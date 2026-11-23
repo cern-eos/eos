@@ -22,7 +22,7 @@
  ************************************************************************/
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
@@ -40,7 +40,7 @@
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::fsctl(const int cmd,
+EosMgmOfs::fsctl(const int cmd,
                  const char* args,
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client)
@@ -176,7 +176,7 @@ XrdMgmOfs::fsctl(const int cmd,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::FSctl(const int cmd,
+EosMgmOfs::FSctl(const int cmd,
                  XrdSfsFSctl& args,
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client)
@@ -300,7 +300,7 @@ XrdMgmOfs::FSctl(const int cmd,
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
     vid.app = "fuse"; // tag client as fuse
-    return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, vid, client);
+    return EosMgmOfs::Fusex(path, ininfo, protobuf, env, error, vid, client);
   }
 
   if (scmd) {
@@ -308,83 +308,83 @@ XrdMgmOfs::FSctl(const int cmd,
 
     switch (command) {
     case FsctlCommand::access: {
-      return XrdMgmOfs::Access(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Access(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::adjustreplica: {
-      return XrdMgmOfs::AdjustReplica(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::AdjustReplica(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::checksum: {
-      return XrdMgmOfs::Checksum(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Checksum(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::chmod: {
-      return XrdMgmOfs::Chmod(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Chmod(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::chown: {
-      return XrdMgmOfs::Chown(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Chown(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::commit: {
-      return XrdMgmOfs::Commit(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Commit(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::drop: {
-      return XrdMgmOfs::Drop(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Drop(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::event: {
-      return XrdMgmOfs::Event(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Event(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::getfmd: {
-      return XrdMgmOfs::Getfmd(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Getfmd(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::getfusex: {
-      return XrdMgmOfs::GetFusex(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::GetFusex(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::is_master: {
-      return XrdMgmOfs::IsMaster(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::IsMaster(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::mkdir: {
-      return XrdMgmOfs::Mkdir(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Mkdir(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::open: {
-      return XrdMgmOfs::OpenPio(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::OpenPio(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::readlink: {
-      return XrdMgmOfs::Readlink(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Readlink(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::redirect: {
-      return XrdMgmOfs::Redirect(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Redirect(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::stat: {
-      return XrdMgmOfs::FuseStat(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::FuseStat(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::statvfs: {
-      return XrdMgmOfs::Statvfs(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Statvfs(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::symlink: {
-      return XrdMgmOfs::Symlink(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Symlink(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::utimes: {
-      return XrdMgmOfs::Utimes(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Utimes(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::version: {
-      return XrdMgmOfs::Version(path, ininfo, env, error, vid, client);
+      return EosMgmOfs::Version(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::INVALID:
@@ -403,7 +403,7 @@ XrdMgmOfs::FSctl(const int cmd,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
+EosMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
                                     XrdOucErrInfo& error,
                                     eos::common::VirtualIdentity& vid,
                                     const XrdSecEntity* client)

@@ -27,12 +27,16 @@
 #include "common/StringConversion.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include <cstdlib>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#endif
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <algorithm>
 
@@ -178,16 +182,24 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   }
 
   std::string host_port;
+  std::string fst_host;
   std::string fst_local_path;
+  int xio_port = 0;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (fs) {
       host_port = fs->GetString("hostport");
+      fst_host = fs->GetString("host");
       fst_local_path = fs->GetPath();
+      xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
     }
   }
+#if !defined(EOS_HAVE_XIO)
+  (void)xio_port;
+  (void)fst_host;
+#endif
 
   if (host_port.empty() || fst_local_path.empty()) {
     eos_err("msg=\"missing or misconfigured file system\" fsid=%lu", fsid);
@@ -196,6 +208,45 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     return;
   }
 
+  std::string fpath_local = FileId::FidPrefix2FullPath
+                            (FileId::Fid2Hex(mFid).c_str(), fst_local_path.c_str());
+#if defined(EOS_HAVE_XIO)
+  if (xio_port > 0 && getenv("EOS_XIO_INTERNAL_TOKEN")) {
+    struct stat st;
+    std::string err;
+    int http = 0;
+    const int src = eos::common::XioStat(fst_host, xio_port, fpath_local, &st,
+                                         err, 10000, &http);
+    if (http != 0 && src != 0) {
+      mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>(
+                               "", src == ENOENT ? FstErr::NotOnDisk
+                                                 : FstErr::NoContact));
+      return;
+    }
+    if (src == 0) {
+      auto ret_pair = mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>
+                                           (fpath_local.c_str(), FstErr::None));
+      auto& finfo = ret_pair.first->second;
+      finfo->mDiskSize = static_cast<uint64_t>(st.st_size);
+      std::string body;
+      std::ostringstream q;
+      q << "fst.pcmd=getfmd&fst.getfmd.fsid=" << fsid
+        << "&fst.getfmd.fid=" << std::hex << mFid;
+      if (eos::common::XioOpaqueQuery(fst_host, xio_port, q.str(), body, err) == 0 &&
+          body.compare(0, 5, "ERROR") != 0) {
+        XrdOucEnv fmd_env(body.c_str());
+        if (!eos::common::EnvToFstFmd(fmd_env, finfo->mFstFmd)) {
+          finfo->mFstErr = FstErr::NoFmdInfo;
+        }
+      } else {
+        finfo->mFstErr = FstErr::NoFmdInfo;
+      }
+      return;
+    }
+  }
+  mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("", FstErr::NoContact));
+  return;
+#else
   std::ostringstream oss;
   oss << "root://" << host_port << "//dummy";
   std::string surl = oss.str();
@@ -208,8 +259,6 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     return;
   }
 
-  std::string fpath_local = FileId::FidPrefix2FullPath
-                            (FileId::Fid2Hex(mFid).c_str(), fst_local_path.c_str());
   // Check that the file exists on disk
   XrdCl::StatInfo* stat_info_raw {nullptr};
   std::unique_ptr<XrdCl::StatInfo> stat_info;
@@ -246,6 +295,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   auto& finfo = ret_pair.first->second;
   finfo->mDiskSize = stat_info->GetSize();
   (void) GetFstFmd(finfo, fs, fsid);
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1419,6 +1469,7 @@ FsckEntry::Repair()
   return success;
 }
 
+#if !defined(EOS_HAVE_XIO)
 //------------------------------------------------------------------------------
 // Get file metadata info stored at the FST
 //------------------------------------------------------------------------------
@@ -1472,6 +1523,7 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
 
   return true;
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Update MGM stats and backend depending on the final outcome

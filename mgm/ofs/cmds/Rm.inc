@@ -23,18 +23,18 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 #include "proto/Audit.pb.h"
 #include <time.h>
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/recycle/RecycleEntry.hh"
 #include "mgm/misc/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::rem(const char* inpath,
+EosMgmOfs::rem(const char* inpath,
                XrdOucErrInfo& error,
                const XrdSecEntity* client,
                const char* ininfo)
@@ -76,7 +76,7 @@ XrdMgmOfs::rem(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_rem(const char* path,
+EosMgmOfs::_rem(const char* path,
                 XrdOucErrInfo& error,
                 eos::common::VirtualIdentity& vid,
                 const char* ininfo,
@@ -351,10 +351,10 @@ XrdMgmOfs::_rem(const char* path,
 
         /* create a Copy-on-Write clone if needed. prepare_cow walks paths,
            so it runs before the MD locks */
-        XrdMgmOfsFile::CowDirs cow;
+        EosMgmOfsFile::CowDirs cow;
         bool cow_moved = false;
 
-        if (XrdMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
+        if (EosMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
           bool cloned = false;
           {
             eos::MDLocking::BulkMDWriteLock md_locker;
@@ -367,7 +367,7 @@ XrdMgmOfs::_rem(const char* path,
             // below then fails
             if (!fmd->isDeleted() && (fmd->getContainerId() == container->getId()) &&
                 (fmd->getName() == rm_name)) {
-              cloned = (XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowDelete, container, fmd,
+              cloned = (EosMgmOfsFile::apply_cow(EosMgmOfsFile::cowDelete, container, fmd,
                                                  cow, vid) == 0);
 
               // The clone moved the file out of its directory: it leaves the
@@ -379,7 +379,7 @@ XrdMgmOfs::_rem(const char* path,
           }
 
           if (cloned) {
-            XrdMgmOfsFile::notify_cow(cow);
+            EosMgmOfsFile::notify_cow(cow);
             ns_quota = nullptr;
             cow_moved = true;
           }
@@ -400,7 +400,7 @@ XrdMgmOfs::_rem(const char* path,
           }
           gOFS->FuseXCastDeletion(c_ident, rm_name);
           gOFS->FuseXCastRefresh(c_ident, p_ident);
-        } else if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
+        } else if (!EosMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
           // Lock the parent and the file around the removal, as rename does:
           // writers that use MD locks only must not store the file after it
           // is removed. Unlink by object, because the path walk takes
@@ -522,20 +522,20 @@ XrdMgmOfs::_rem(const char* path,
         } else {
           if (container) {
             // prepare_cow walks paths, so it runs before the MD locks
-            XrdMgmOfsFile::CowDirs cow;
+            EosMgmOfsFile::CowDirs cow;
             bool cloned = false;
 
-            if (XrdMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
+            if (EosMgmOfsFile::prepare_cow(container, fmd, cow, error) == 0) {
               eos::MDLocking::BulkMDWriteLock md_locker;
               md_locker.add(cow.cow_dir.get());
               md_locker.add(fmd.get());
               auto md_locks = md_locker.lockAll();
-              cloned = (XrdMgmOfsFile::apply_cow(XrdMgmOfsFile::cowUnlink, container, fmd,
+              cloned = (EosMgmOfsFile::apply_cow(EosMgmOfsFile::cowUnlink, container, fmd,
                                                  cow, vid) == 0);
             }
 
             if (cloned) {
-              XrdMgmOfsFile::notify_cow(cow);
+              EosMgmOfsFile::notify_cow(cow);
               eos_info("cow for recycled %s (fxid:%lx)", fmd->getName().c_str(),
                        fmd->getId());
             }

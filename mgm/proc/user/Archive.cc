@@ -23,8 +23,8 @@
 
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/acl/Acl.hh"
@@ -34,6 +34,10 @@
 #include "namespace/interface/IView.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include <XrdOuc/XrdOucEnv.hh>
 #include <iomanip>
 
@@ -183,13 +187,53 @@ ProcCommand::Archive()
       std::ostringstream dst_oss;
       dst_oss << gOFS->MgmArchiveDstUrl.c_str() << dir_sha256 << '/';
       std::string surl = dst_oss.str();
-      // Make sure the destination directory does not exist
+#if defined(EOS_HAVE_XIO)
+      struct stat sb;
+      std::string err;
+      int http = 0;
+      bool exists = false;
+      if (surl.compare(0, 7, "root://") != 0 &&
+          surl.compare(0, 8, "roots://") != 0) {
+        stdErr = "error: archive destination is not an HTTP/2 URL";
+        retc = EIO;
+        return SFS_OK;
+      }
+      const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+      const int port = port_env ? std::atoi(port_env) : 0;
+      std::string rest = surl.compare(0, 8, "roots://") == 0 ? surl.substr(8)
+                                                             : surl.substr(7);
+      const auto slash = rest.find('/');
+      std::string host = slash == std::string::npos ? rest : rest.substr(0, slash);
+      std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
+      const auto at = host.find('@');
+      if (at != std::string::npos) {
+        host.erase(0, at + 1);
+      }
+      const auto colon = host.rfind(':');
+      if (colon != std::string::npos) {
+        host.erase(colon);
+      }
+      if (port <= 0 || host.empty()) {
+        stdErr = "error: HTTP/2 listener is not configured";
+        retc = EIO;
+        return SFS_OK;
+      }
+      const int src = eos::common::XioStat(host, port, path, &sb, err, 10000, &http);
+      if (http == 0) {
+        stdErr = "error: HTTP/2 listener is not reachable";
+        retc = EIO;
+        return SFS_OK;
+      }
+      exists = (src == 0);
+      if (exists) {
+#else
       XrdCl::URL url(surl);
       XrdCl::FileSystem fs(url);
       XrdCl::StatInfo* st_info = 0;
       XrdCl::XRootDStatus status = fs.Stat(url.GetPath(), st_info);
 
       if (status.IsOK()) {
+#endif
         stdErr = "error: archive dst=";
         stdErr += surl.c_str();
         stdErr += " already exists";
@@ -632,7 +676,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   std::set<std::string> fids;
   eos::common::VirtualIdentity root_ident = eos::common::VirtualIdentity::Root();
   std::vector<ArchDirStatus> dirs;
-  XrdMgmOfsDirectory proc_dir;
+  EosMgmOfsDirectory proc_dir;
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
                             root_ident, static_cast<const char*>(0));
 
@@ -867,6 +911,31 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   url_dst.SetPath(dst_path);
   properties.Set("source", url_src);
   properties.Set("target", url_dst);
+  bool uploaded = false;
+#if defined(EOS_HAVE_XIO)
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+    const std::string dst = std::string("http://localhost:") + port_env +
+                            dst_path + "?eos.ruid=0&eos.rgid=0";
+    std::string xerr;
+    int http = 0;
+    const int qrc = eos::common::XioStreamPut(arch_fn, dst, xerr, &http);
+    if (http != 0 || qrc == 0) {
+      uploaded = true;
+      if (qrc != 0) {
+        stdErr = "error: failed HTTP/2 upload, msg=";
+        stdErr += xerr.c_str();
+        retc = EIO;
+      }
+    }
+  }
+#endif
+  if (!uploaded) {
+#if defined(EOS_HAVE_XIO)
+    stdErr = "error: HTTP/2 listener is not configured";
+    retc = EIO;
+#else
   XrdCl::CopyProcess copy_proc;
   copy_proc.AddJob(properties, &result);
   XrdCl::XRootDStatus status_prep = copy_proc.Prepare();
@@ -883,6 +952,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
     stdErr = "error: failed prepare for copy process, msg=";
     stdErr += status_prep.ToStr().c_str();
     retc = EIO;
+  }
+#endif
   }
 
   // Remove local archive file

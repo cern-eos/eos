@@ -24,7 +24,7 @@
 
 #include "gtest/gtest.h"
 #include "mgm/FuseServer/Caps.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/zmq/ZMQ.hh"
 
 using namespace eos::mgm::FuseServer;
@@ -37,10 +37,10 @@ public:
   }
 };
 
-class FakeXrdMgmOFS: public XrdMgmOfs
+class FakeXrdMgmOFS: public EosMgmOfs
 {
 public:
-  FakeXrdMgmOFS(XrdSysError* lp) : XrdMgmOfs(lp)
+  FakeXrdMgmOFS(XrdSysError* lp) : EosMgmOfs(lp)
   {
   }
   ~FakeXrdMgmOFS() {
@@ -110,13 +110,13 @@ protected:
   }
 
   static XrdSysError* fake_sys_error;
-  static XrdMgmOfs* fake_ofs;
+  static EosMgmOfs* fake_ofs;
   static EnvMgr* test_env;
   Caps mCaps;
 };
 
 XrdSysError* CapsTest::fake_sys_error = nullptr;
-XrdMgmOfs* CapsTest::fake_ofs = nullptr;
+EosMgmOfs* CapsTest::fake_ofs = nullptr;
 EnvMgr* CapsTest::test_env = nullptr;
 
 

@@ -367,7 +367,8 @@ public:
                      const void* buffer,
                      uint16_t timeout = 0)
   {
-    return File::Write(offset, size, buffer, timeout);
+    return Write(offset, size, buffer, static_cast<ResponseHandler*>(nullptr),
+                 timeout);
   }
 
   // ---------------------------------------------------------------------- //
@@ -394,6 +395,20 @@ public:
 
   // ---------------------------------------------------------------------- //
   XRootDStatus Close(uint16_t timeout = 0);
+
+  XRootDStatus Truncate(uint64_t size, time_t timeout = 0);
+
+  XRootDStatus Stat(bool force, StatInfo*& response, time_t timeout = 0);
+
+  void releaseXio();
+
+  bool usingXio() const;
+
+#if defined(EOS_HAVE_XIO)
+  struct XioFile;
+  XioFile* mXio{nullptr};
+  int tryXioOpen(const std::string& url, OpenFlags::Flags flags, std::string& err);
+#endif
 
   // ---------------------------------------------------------------------- //
   bool HadFailures();
@@ -805,6 +820,7 @@ public:
                get_readahead_volume_efficiency(),
                mTotalReadAheadBytes,
                mTotalReadAheadHitBytes);
+    releaseXio();
   }
 
   // ---------------------------------------------------------------------- //

@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "TokenCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/macros/Macros.hh"

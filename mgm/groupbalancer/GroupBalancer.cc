@@ -32,7 +32,7 @@
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "mgm/groupbalancer/ConverterUtils.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/interface/IFsView.hh"
 
 #define CACHE_LIFE_TIME 60 // seconds

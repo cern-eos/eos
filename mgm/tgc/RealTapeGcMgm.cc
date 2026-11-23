@@ -42,7 +42,7 @@ EOSTGCNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RealTapeGcMgm::RealTapeGcMgm(XrdMgmOfs& ofs): m_ofs(ofs)
+RealTapeGcMgm::RealTapeGcMgm(EosMgmOfs& ofs): m_ofs(ofs)
 {
 }
 

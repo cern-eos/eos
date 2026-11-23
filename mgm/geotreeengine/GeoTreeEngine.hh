@@ -173,7 +173,7 @@
  * It then enforces a strict consitency between the FsGroup s and FileSystem s as viewed and by the FsView and as viewed by the GeoTreeEngine.
  *
  * ## Consistency with the Proxygroups definition
- * "Proxygroups" (the set of proxygroups a node belongs to) are defined as being config attributes of the Nodes. The view of the GeoTreeEngine over proxys is kept up-to-date by the XrdMgmOfs::FsConfigListener() function
+ * "Proxygroups" (the set of proxygroups a node belongs to) are defined as being config attributes of the Nodes. The view of the GeoTreeEngine over proxys is kept up-to-date by the EosMgmOfs::FsConfigListener() function
  * that calls GeoTreeEngine::matchHostPxyGr everytime that a proxygroups value change is notified.
  * Note that "proxygroup" (the one proxygroup in charge of proxying io to a given FileSystem) is defined as a FileSystem config attribute and is as such tracked by the updater.
  *
@@ -185,7 +185,7 @@
  * The geotag mapping for direct access and the entrypoint proxygroups are part of the configuration.
  *
  * ## Boot sequence
- * The GeoTreeEngine is created in the beginning of the configure stage if the XrdMgmOfs plugin.
+ * The GeoTreeEngine is created in the beginning of the configure stage if the EosMgmOfs plugin.
  * At the end of the configure stage, a GeoTreeEngine::forceRefresh() is issued as some changes in the config entries of Nodes might have been missed before the notification listener is properly started.
  * This is especially true when using proxygroups.
  *

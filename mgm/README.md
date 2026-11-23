@@ -4,9 +4,9 @@ This directory contains the EOS MGM (Management) service sources. The code is or
 
 ### OFS (XRootD plugin)
 - `ofs/`: XRootD OFS plugin implementation (entry points and integration).
-  - `ofs/XrdMgmOfs.cc`: main OFS plugin implementation.
-  - `ofs/XrdMgmOfs*.hh`: OFS headers (trace, security, file helpers).
-  - `ofs/cmds/`: high‑level OFS commands (access, metadata ops, routing, etc.), each command implemented as a separate translation unit included by `XrdMgmOfs.cc`.
+  - `ofs/EosMgmOfs.cc`: main OFS plugin implementation.
+  - `ofs/EosMgmOfs*.hh`: OFS headers (trace, security, file helpers).
+  - `ofs/cmds/`: high‑level OFS commands (access, metadata ops, routing, etc.), each command implemented as a separate translation unit included by `EosMgmOfs.cc`.
   - `ofs/fsctl/`: low‑level fsctl handlers (open, readlink, stat, mkdir, utimes, commit helper, …).
 - `authz/`: OFS authorization integration (`XrdMgmAuthz.*`), used by the plugin.
 

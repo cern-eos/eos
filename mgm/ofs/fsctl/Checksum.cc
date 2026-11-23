@@ -24,7 +24,7 @@
 #include "namespace/utils/Checksum.hh"
 #include "common/Logging.hh"
 #include "mgm/macros/Macros.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/Resolver.hh"
@@ -38,7 +38,7 @@
 // Check access rights
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Checksum(const char* path,
+EosMgmOfs::Checksum(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,

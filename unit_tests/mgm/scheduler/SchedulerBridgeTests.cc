@@ -125,7 +125,7 @@ protected:
   }
 
   //----------------------------------------------------------------------------
-  // Build placement arguments the way XrdMgmOfsFile does, everything wired to
+  // Build placement arguments the way EosMgmOfsFile does, everything wired to
   // the members of the fixture
   //----------------------------------------------------------------------------
   Scheduler::PlacementArguments

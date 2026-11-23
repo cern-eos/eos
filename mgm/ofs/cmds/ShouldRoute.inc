@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 // should be re-routed
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
+EosMgmOfs::ShouldRoute(const char* function, int accessmode,
                        eos::common::VirtualIdentity& vid,
                        const char* path, const char* info,
                        std::string& host, int& port, int& stall_timeout)

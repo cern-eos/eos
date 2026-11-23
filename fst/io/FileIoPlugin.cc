@@ -33,7 +33,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileIo*
 FileIoPlugin::GetIoObject(std::string path,
-                          XrdFstOfsFile* file,
+                          EosFstOfsFile* file,
                           const XrdSecEntity* client)
 {
   return FileIoPluginHelper::GetIoObject(path, file, client);

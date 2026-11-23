@@ -25,7 +25,7 @@
 #include "QuotaCmd.hh"
 #include "common/Constants.hh"
 #include "common/Path.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "namespace/Prefetcher.hh"

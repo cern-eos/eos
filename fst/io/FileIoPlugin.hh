@@ -33,7 +33,7 @@ class XrdSecEntity;
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declaration
-class XrdFstOfsFile;
+class EosFstOfsFile;
 class FileIo;
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ public:
   //----------------------------------------------------------------------------
   static FileIo*
   GetIoObject(std::string path,
-              XrdFstOfsFile* file = 0,
+              EosFstOfsFile* file = 0,
               const XrdSecEntity* client = 0);
 };
 

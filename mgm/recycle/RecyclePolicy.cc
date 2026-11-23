@@ -24,7 +24,7 @@
 #include "mgm/recycle/RecyclePolicy.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/quota/Quota.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "common/StringTokenizer.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>

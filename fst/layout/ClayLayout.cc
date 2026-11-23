@@ -52,7 +52,7 @@ ProfileFor(unsigned long lid)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ClayLayout::ClayLayout(XrdFstOfsFile* file, unsigned long lid,
+ClayLayout::ClayLayout(EosFstOfsFile* file, unsigned long lid,
                        const XrdSecEntity* client, XrdOucErrInfo* outError,
                        const char* path, eos::fst::FmdHandler* fmdHandler,
                        uint16_t timeout, bool storeRecovery, off_t targetSize,

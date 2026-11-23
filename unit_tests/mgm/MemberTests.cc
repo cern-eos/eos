@@ -22,7 +22,7 @@
 
 #include "common/Mapping.hh"
 #include "mgm/egroup/Egroup.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "gtest/gtest.h"
@@ -32,10 +32,10 @@ namespace {
 using namespace eos::common;
 using namespace eos::mgm;
 
-class MemberTestOfs : public XrdMgmOfs {
+class MemberTestOfs : public EosMgmOfs {
 public:
   explicit MemberTestOfs(XrdSysError* error)
-      : XrdMgmOfs(error)
+      : EosMgmOfs(error)
   {
   }
 
@@ -101,7 +101,7 @@ protected:
 
   SteadyClock mClock{true};
   XrdSysError mError{nullptr, "member-test"};
-  XrdMgmOfs* mPreviousOfs{nullptr};
+  EosMgmOfs* mPreviousOfs{nullptr};
   std::unique_ptr<MemberTestOfs> mOfs;
   std::map<std::string, std::optional<std::string>> mEnvironment;
 };

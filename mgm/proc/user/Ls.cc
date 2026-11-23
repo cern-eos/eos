@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/stat/Stat.hh"
@@ -113,7 +113,7 @@ ProcCommand::Ls()
     stdErr = "error: you have to give a path name to call 'ls'";
     retc = EINVAL;
   } else {
-    XrdMgmOfsDirectory dir;
+    EosMgmOfsDirectory dir;
     struct stat buf;
     int listrc = 0;
     eos::common::Path cPath(spath.c_str());

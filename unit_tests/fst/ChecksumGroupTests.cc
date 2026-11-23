@@ -53,7 +53,7 @@ TEST(ChecksumGroup, AddValidChunk)
 //------------------------------------------------------------------------------
 // A negative read return value cast to size_t must be rejected rather than
 // making the checksum routines run off the end of the buffer. This is the
-// regression test for the FST crash in XrdFstOfsFile::read where an error
+// regression test for the FST crash in EosFstOfsFile::read where an error
 // return of -1 was stored in an unsigned variable and forwarded as length.
 //------------------------------------------------------------------------------
 TEST(ChecksumGroup, RejectNegativeLength)

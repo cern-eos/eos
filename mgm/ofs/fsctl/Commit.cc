@@ -25,7 +25,7 @@
 #include "common/Logging.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/misc/AuditHelpers.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
@@ -48,7 +48,7 @@
 // Commit a replica
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Commit(const char* path,
+EosMgmOfs::Commit(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,

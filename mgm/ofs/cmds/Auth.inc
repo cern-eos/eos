@@ -28,9 +28,9 @@
 // Authentication master thread startup function
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StartAuthWorkerThread(void* pp)
+EosMgmOfs::StartAuthWorkerThread(void* pp)
 {
-  XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
+  EosMgmOfs* ofs = static_cast<EosMgmOfs*>(pp);
   ofs->AuthWorkerThread();
   return 0;
 }
@@ -40,7 +40,7 @@ XrdMgmOfs::StartAuthWorkerThread(void* pp)
 // plugins which he then forwards to worker threads.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
+EosMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("AuthMaster");
   // Socket facing clients
@@ -88,7 +88,7 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
 // Reconnect zmq::socket object
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::ConnectToBackend(zmq::socket_t*& socket)
+EosMgmOfs::ConnectToBackend(zmq::socket_t*& socket)
 {
   if (socket) {
     delete socket;
@@ -129,7 +129,7 @@ XrdMgmOfs::ConnectToBackend(zmq::socket_t*& socket)
 // executed the proper action and replies with the result.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthWorkerThread()
+EosMgmOfs::AuthWorkerThread()
 {
   using namespace eos::auth;
   int ret;
@@ -318,7 +318,7 @@ XrdMgmOfs::AuthWorkerThread()
         ret = SFS_OK;
       } else {
         mMutexDirs.UnLock();
-        XrdMgmOfsDirectory* dir = static_cast<XrdMgmOfsDirectory*>(
+        EosMgmOfsDirectory* dir = static_cast<EosMgmOfsDirectory*>(
                                     gOFS->newDir((char*)req_proto.diropen().user().c_str(),
                                         req_proto.diropen().monid()));
         client = utils::GetXrdSecEntity(req_proto.diropen().client());
@@ -343,7 +343,7 @@ XrdMgmOfs::AuthWorkerThread()
         ret = SFS_ERROR;
       } else {
         // Fill in particular info for the directory name
-        XrdMgmOfsDirectory* dir = iter->second;
+        EosMgmOfsDirectory* dir = iter->second;
         mMutexDirs.UnLock();
 
         if (dir->FName()) {
@@ -364,7 +364,7 @@ XrdMgmOfs::AuthWorkerThread()
         eos_err("directory not found in map for reading next entry");
         ret = SFS_ERROR;
       } else {
-        XrdMgmOfsDirectory* dir = iter->second;
+        EosMgmOfsDirectory* dir = iter->second;
         mMutexDirs.UnLock();
         const char* entry = dir->nextEntry();
 
@@ -388,7 +388,7 @@ XrdMgmOfs::AuthWorkerThread()
         ret = SFS_ERROR;
       } else {
         // close directory and remove from mapping
-        XrdMgmOfsDirectory* dir = iter->second;
+        EosMgmOfsDirectory* dir = iter->second;
         mMapDirs.erase(iter);
         mMutexDirs.UnLock();
         dir->close();
@@ -405,7 +405,7 @@ XrdMgmOfs::AuthWorkerThread()
       } else {
         // file open request
         mMutexFiles.UnLock();
-        XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
+        EosMgmOfsFile* file = static_cast<EosMgmOfsFile*>(
                                 gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
                                               req_proto.fileopen().monid()));
         client = utils::GetXrdSecEntity(req_proto.fileopen().client());
@@ -438,7 +438,7 @@ XrdMgmOfs::AuthWorkerThread()
         memset(&buf, 0, sizeof(struct stat));
         ret = SFS_ERROR;
       } else {
-        XrdMgmOfsFile* file = iter->second;
+        EosMgmOfsFile* file = iter->second;
         mMutexFiles.UnLock();
         ret = file->stat(&buf);
 
@@ -459,7 +459,7 @@ XrdMgmOfs::AuthWorkerThread()
         eos_err("file not found in map for fname call");
         ret = SFS_ERROR;
       } else {
-        XrdMgmOfsFile* file = iter->second;
+        EosMgmOfsFile* file = iter->second;
         mMutexFiles.UnLock();
 
         if (file->FName()) {
@@ -480,7 +480,7 @@ XrdMgmOfs::AuthWorkerThread()
         eos_err("file not found in map for read");
         ret = SFS_ERROR;
       } else {
-        XrdMgmOfsFile* file = iter->second;
+        EosMgmOfsFile* file = iter->second;
         mMutexFiles.UnLock();
         resp.mutable_message()->resize(req_proto.fileread().length());
         ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
@@ -504,7 +504,7 @@ XrdMgmOfs::AuthWorkerThread()
         eos_err("file not found in map for write");
         ret = SFS_ERROR;
       } else {
-        XrdMgmOfsFile* file = iter->second;
+        EosMgmOfsFile* file = iter->second;
         mMutexFiles.UnLock();
         ret = file->write(req_proto.filewrite().offset(),
                           req_proto.filewrite().buff().c_str(),
@@ -521,7 +521,7 @@ XrdMgmOfs::AuthWorkerThread()
         ret = SFS_ERROR;
       } else {
         // close file and remove from mapping
-        XrdMgmOfsFile* file = iter->second;
+        EosMgmOfsFile* file = iter->second;
         mMapFiles.erase(iter);
         mMutexFiles.UnLock();
         ret = file->close();
@@ -598,7 +598,7 @@ XrdMgmOfs::AuthWorkerThread()
 // Check that the ProtocolBuffers message has not been tampered with
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
+EosMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
 {
   std::string smsg;
   std::string recv_hmac = reqProto->hmac();
@@ -638,7 +638,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
 // Collect statistics for authentication response times
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthCollectInfo(eos::auth::RequestProto_OperationType op,
+EosMgmOfs::AuthCollectInfo(eos::auth::RequestProto_OperationType op,
                            std::int64_t ms_duration)
 {
   auto now = std::chrono::steady_clock::now();
@@ -667,8 +667,8 @@ XrdMgmOfs::AuthCollectInfo(eos::auth::RequestProto_OperationType op,
 //------------------------------------------------------------------------------
 // Compute stats for the provided samples
 //------------------------------------------------------------------------------
-XrdMgmOfs::AuthStats
-XrdMgmOfs::AuthComputeStats(const std::list<std::int64_t>& lst_samples) const
+EosMgmOfs::AuthStats
+EosMgmOfs::AuthComputeStats(const std::list<std::int64_t>& lst_samples) const
 {
   AuthStats stats;
   stats.mNumSamples = 0;
@@ -706,7 +706,7 @@ XrdMgmOfs::AuthComputeStats(const std::list<std::int64_t>& lst_samples) const
 // Update aggregate info with the latest samples
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthUpdateAggregate(AuthStats& stats,
+EosMgmOfs::AuthUpdateAggregate(AuthStats& stats,
                                const std::list<std::int64_t>& lst_samples) const
 {
   if (stats.mNumSamples == 0) {
@@ -739,7 +739,7 @@ XrdMgmOfs::AuthUpdateAggregate(AuthStats& stats,
 // with the mutex locked
 //----------------------------------------------------------------------------
 std::string
-XrdMgmOfs::AuthPrintStatistics() const
+EosMgmOfs::AuthPrintStatistics() const
 {
   std::ostringstream oss;
 

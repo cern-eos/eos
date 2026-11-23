@@ -4,6 +4,9 @@
 
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#endif
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
 #include "console/ConsoleCommandHelp.hh"
@@ -68,7 +71,14 @@ public:
     url += path;
     struct stat buf;
     XrdOucString sizestring;
+#if defined(EOS_HAVE_XIO)
+    std::string xerr;
+    int http = 0;
+    const int src = eos::common::XioUserStatUrl(url.c_str(), &buf, xerr, &http);
+    if (http != 0 && src == 0) {
+#else
     if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
+#endif
       if ((option.find("f") != STR_NPOS)) {
         global_retc = S_ISREG(buf.st_mode) ? 0 : 1;
         return 0;

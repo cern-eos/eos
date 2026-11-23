@@ -26,14 +26,14 @@
 
 #include "IMgmFileSystemInterface.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
 class RealMgmFileSystemInterface : public IMgmFileSystemInterface
 {
 public:
-  RealMgmFileSystemInterface(XrdMgmOfs* mgmOfs);
+  RealMgmFileSystemInterface(EosMgmOfs* mgmOfs);
   ~RealMgmFileSystemInterface() {}
   void addStats(const char* tag, uid_t uid, gid_t gid,
                 unsigned long val) override;
@@ -65,7 +65,7 @@ public:
   void writeEosReportRecord(const std::string& record) override;
 
 private:
-  XrdMgmOfs* mMgmOfs;
+  EosMgmOfs* mMgmOfs;
 };
 
 

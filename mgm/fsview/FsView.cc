@@ -40,7 +40,7 @@
 #include "mgm/groupdrainer/GroupDrainer.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/inspector/FileInspector.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/scheduler/Scheduler.hh"

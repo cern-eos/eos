@@ -25,6 +25,9 @@
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#endif
 #include "console/CommandFramework.hh"
 #include "console/ConsoleColor.hh"
 #include "console/ConsoleCommandHelp.hh"
@@ -1154,6 +1157,9 @@ static int cp_impl(const CpOptions& opts)
               request += update;
               char value[4096];
               value[0] = 0;
+#if defined(EOS_HAVE_XIO)
+              updateok = false;
+#else
               long long update_rc = XrdPosixXrootd::QueryOpaque(request.c_str(),
                                     value, 4096);
               updateok = (update_rc >= 0);
@@ -1165,6 +1171,7 @@ static int cp_impl(const CpOptions& opts)
                 int items = sscanf(value, "%1023s retc=%d", tag, &tmp_retc);
                 updateok = ((items == 2) && (strcmp(tag, "utimes:") == 0));
               }
+#endif
             }
 
             if (!updateok) {
@@ -1187,6 +1194,11 @@ static int cp_impl(const CpOptions& opts)
               return -1;
             }
 
+#if defined(EOS_HAVE_XIO)
+            std::cout << "warning: failed getting checksum for path="
+                      << source.name.c_str() << " size=" << source.size
+                      << std::endl;
+#else
             auto* fs = new XrdCl::FileSystem(url);
 
             if (!fs) {
@@ -1223,6 +1235,7 @@ static int cp_impl(const CpOptions& opts)
 
             delete response;
             delete fs;
+#endif
           }
         } else {
           XrdOucString ssize1, ssize2;
@@ -1553,7 +1566,20 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf)
       url += roles.c_str();
     }
 
+#if defined(EOS_HAVE_XIO)
+    std::string xerr;
+    int http = 0;
+    rc = eos::common::XioUserStatUrl(url.c_str(), &buf, xerr, &http);
+    if (http == 0) {
+      rc = -1;
+      errno = EIO;
+    } else if (rc) {
+      errno = rc;
+      rc = -1;
+    }
+#else
     rc = XrdPosixXrootd::Stat(url.c_str(), &buf);
+#endif
   } else if (protocol == Protocol::LOCAL) {
     // Stat local file
     rc = stat(abs_path, &buf);

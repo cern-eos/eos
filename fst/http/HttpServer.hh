@@ -89,7 +89,7 @@ public:
   /**
    * File Read Callback function
    *
-   * @param cls XrdOfsFile* object
+   * @param cls EosFstOfsFile* object
    * @param pos offset to read from
    * @param buf buffer to write to
    * @param max size to read

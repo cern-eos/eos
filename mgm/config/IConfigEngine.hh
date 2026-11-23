@@ -35,7 +35,7 @@
 //! @brief Interface Class responsible to handle configuration (load, save,
 //! publish)
 //!
-//! The XrdMgmOfs class runs an asynchronous thread which applies configuration
+//! The EosMgmOfs class runs an asynchronous thread which applies configuration
 //! changes from a remote master MGM on the configuration object.
 //------------------------------------------------------------------------------
 

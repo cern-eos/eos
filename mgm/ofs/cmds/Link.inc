@@ -23,16 +23,16 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/misc/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::symlink(const char* source_name,
+EosMgmOfs::symlink(const char* source_name,
                    const char* target_name,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
@@ -106,7 +106,7 @@ XrdMgmOfs::symlink(const char* source_name,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::symlink(const char* source_name,
+EosMgmOfs::symlink(const char* source_name,
                    const char* target_name,
                    XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid,
@@ -161,7 +161,7 @@ XrdMgmOfs::symlink(const char* source_name,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_symlink(const char* source_name,
+EosMgmOfs::_symlink(const char* source_name,
                     const char* target_name,
                     XrdOucErrInfo& error,
                     eos::common::VirtualIdentity& vid,
@@ -308,7 +308,7 @@ XrdMgmOfs::_symlink(const char* source_name,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::readlink(const char* inpath,
+EosMgmOfs::readlink(const char* inpath,
                     XrdOucErrInfo& error,
                     XrdOucString& link,
                     const XrdSecEntity* client,
@@ -353,7 +353,7 @@ XrdMgmOfs::readlink(const char* inpath,
 // read symbolic link
 // ---------------------------------------------------------------------------
 int
-XrdMgmOfs::_readlink(const char* name,
+EosMgmOfs::_readlink(const char* name,
                      XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      XrdOucString& link)

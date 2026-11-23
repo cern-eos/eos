@@ -22,7 +22,12 @@
  ************************************************************************/
 
 #include "FileCmd.hh"
+#include "common/FileId.hh"
 #include "common/LayoutId.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/Utils.hh"
@@ -34,7 +39,7 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/misc/Constants.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/quota/Quota.hh"
@@ -1300,6 +1305,52 @@ FileCmd::CopySubcmd(const eos::console::FileCopyProto& copy, const std::string& 
     properties.Set("sourceLimit", (uint16_t)1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t)1);
+#if defined(EOS_HAVE_XIO)
+    const char* xio_token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+    const char* xio_port = std::getenv("EOS_MGM_XIO_PORT");
+    if (xio_token && xio_token[0] && xio_port && std::atoi(xio_port) > 0) {
+      auto as_xio = [&](const XrdCl::URL& one) {
+        std::string out = std::string("http://localhost:") + xio_port;
+        const std::string path = one.GetPath();
+        if (path.empty() || path.front() != '/') {
+          out.push_back('/');
+        }
+        out += path;
+        std::string query;
+        for (const auto& kv : one.GetParams()) {
+          if (!query.empty()) {
+            query.push_back('&');
+          }
+          query += kv.first;
+          query.push_back('=');
+          query += kv.second;
+        }
+        if (!query.empty()) {
+          out.push_back('?');
+          out += query;
+        }
+        return out;
+      };
+      std::string xerr;
+      const int timeout = eos::common::FileId::EstimateTpcTimeout(
+                              static_cast<uint64_t>(fbuf.st_size)).count();
+      const int trc = eos::common::XioTpcCopy(as_xio(url_src), as_xio(url_trg),
+                                             timeout, xerr);
+      if (trc == 0) {
+        if (!silent) {
+          std_out << "success: copy done '" << source << "'\n";
+        }
+      } else {
+        std_err << "error: copy failed ' " << source << "' - " << xerr << std::endl;
+        retc = trc > 0 ? trc : EIO;
+      }
+      continue;
+    }
+    std_err << "error: copy failed ' " << source
+            << "' - HTTP/2 listener is not configured" << std::endl;
+    retc = EIO;
+    continue;
+#else
     XrdCl::CopyProcess lCopyProcess;
     lCopyProcess.AddJob(properties, &result);
     XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
@@ -1323,6 +1374,7 @@ FileCmd::CopySubcmd(const eos::console::FileCopyProto& copy, const std::string& 
       std_err << "error: copy failed - " << lTpcPrepareStatus.ToStr() << std::endl;
       retc = EIO;
     }
+#endif
   }
 
   reply.set_retc(retc);

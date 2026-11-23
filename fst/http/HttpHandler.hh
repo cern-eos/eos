@@ -32,7 +32,7 @@
 #include "common/http/MimeTypes.hh"
 #include "fst/http/HttpHandlerFstFileCache.hh"
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include <string>
 #include <map>
 
@@ -46,7 +46,7 @@ public:
   int                        mRc;                 //< return code of a file open
   XrdSecEntity
   mClient;             //< the sec entity of the connected client
-  XrdFstOfsFile*             mFile;               //< handle to a file
+  EosFstOfsFile*             mFile;               //< handle to a file
   std::map<off_t, ssize_t>
   mOffsetMap;          //< map with offset+length of range requests
   std::map<int, std::string> mMultipartHeaderMap; //< multipart header map

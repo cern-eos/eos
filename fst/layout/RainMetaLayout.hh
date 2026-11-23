@@ -32,7 +32,7 @@
 #include <string>
 #include <list>
 
-class XrdFstOfsFile;
+class EosFstOfsFile;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -70,7 +70,7 @@ public:
   //! @param computeStripeChecksum true if stripe checksum needs to be computed
   //!                              synchronously (default is false)
   //----------------------------------------------------------------------------
-  RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
+  RainMetaLayout(EosFstOfsFile* file, unsigned long lid,
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
                  const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque,

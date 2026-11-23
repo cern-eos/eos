@@ -21,16 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include <chrono>
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
 bool
-XrdMgmOfs::ShouldStall(const char* function,
+EosMgmOfs::ShouldStall(const char* function,
                        int __AccessMode__,
                        eos::common::VirtualIdentity& vid,
                        int& stalltime, XrdOucString& stallmsg)

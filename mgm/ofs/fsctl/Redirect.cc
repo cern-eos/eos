@@ -23,8 +23,8 @@
 
 #include "common/Logging.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
 #include "mgm/macros/Macros.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
@@ -33,7 +33,7 @@
 // Get open redirect
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Redirect(const char* path,
+EosMgmOfs::Redirect(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
@@ -41,14 +41,14 @@ XrdMgmOfs::Redirect(const char* path,
                     const XrdSecEntity* client)
 {
   gOFS->MgmStats.Add("OpenRedirect", vid.uid, vid.gid, 1);
-  XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
+  EosMgmOfsFile* file = new EosMgmOfsFile(const_cast<char*>(client->tident));
   int retc = SFS_ERROR;
 
   if (file) {
     XrdSfsFileOpenMode oflags = SFS_O_RDONLY;
     mode_t omode = 0;
 
-    if (!XrdMgmOfsFile::GetClientOpenFlags(env, oflags, omode)) {
+    if (!EosMgmOfsFile::GetClientOpenFlags(env, oflags, omode)) {
       delete file;
       const char* emsg = "invalid eos.client.openmode";
       error.setErrInfo(strlen(emsg) + 1, emsg);

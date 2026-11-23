@@ -148,6 +148,49 @@ endif()
 # Build qclient static library
 #-------------------------------------------------------------------------------
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+
+# HTTP/2 filesystem client and server from the sibling XRootD tree.
+# Absent on a normal EOS build; present when ../xrootd has been built
+# with the XrdHttp2 / Xio library.
+set(EOS_XIOFS_ROOT "${CMAKE_SOURCE_DIR}/../xrootd" CACHE PATH
+    "XRootD tree that contains the XioFS HTTP/2 library")
+set(EOS_XIOFS_LIB "${EOS_XIOFS_ROOT}/build/lib/libXrdXioFS.a")
+set(EOS_HAVE_XIO FALSE)
+if(EXISTS "${EOS_XIOFS_ROOT}/src/XrdXioFS/http/XioClient.hh" AND
+   EXISTS "${EOS_XIOFS_LIB}")
+  set(EOS_HAVE_XIO TRUE)
+  find_package(OpenSSL REQUIRED)
+  find_library(EOS_NGHTTP2_LIBRARY nghttp2 REQUIRED)
+  find_library(EOS_ZSTD_LIBRARY zstd)
+  find_library(EOS_PARSOCK_LIBRARY parsock
+    HINTS "${CMAKE_SOURCE_DIR}/../libparsocket/build")
+  find_library(EOS_NGTCP2_LIBRARY ngtcp2)
+  find_library(EOS_NGTCP2_CRYPTO_LIBRARY ngtcp2_crypto_ossl)
+  if(APPLE)
+    set(EOS_XIO_GSS "-framework GSS")
+  else()
+    find_library(EOS_GSSAPI_LIBRARY NAMES gssapi_krb5 gssapi)
+    set(EOS_XIO_GSS "${EOS_GSSAPI_LIBRARY}")
+  endif()
+  set(EOS_XIO_LINK_LIBS
+    "${EOS_XIOFS_LIB}"
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    ${EOS_NGHTTP2_LIBRARY}
+    ${EOS_XIO_GSS})
+  foreach(_xio_opt IN ITEMS EOS_ZSTD_LIBRARY EOS_PARSOCK_LIBRARY
+                            EOS_NGTCP2_LIBRARY EOS_NGTCP2_CRYPTO_LIBRARY)
+    if(${_xio_opt})
+      list(APPEND EOS_XIO_LINK_LIBS ${${_xio_opt}})
+    endif()
+  endforeach()
+  set(EOS_XIO_INCLUDE_DIRS
+    "${EOS_XIOFS_ROOT}/src/XrdXioFS/http"
+    "${EOS_XIOFS_ROOT}/src/XrdXioFS/include"
+    "${EOS_XIOFS_ROOT}/src/XrdXioFS/server")
+  message(STATUS "Xio HTTP/2 library: ${EOS_XIOFS_LIB}")
+endif()
+
 add_subdirectory(common)
 add_subdirectory(proto)
 add_subdirectory(fst)

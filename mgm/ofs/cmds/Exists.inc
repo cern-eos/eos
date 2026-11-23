@@ -23,13 +23,13 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::exists(const char* inpath,
+EosMgmOfs::exists(const char* inpath,
                   XrdSfsFileExistence& file_exists,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client,
@@ -70,7 +70,7 @@ XrdMgmOfs::exists(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_exists(const char* path,
+EosMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
@@ -199,7 +199,7 @@ XrdMgmOfs::_exists(const char* path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_exists(const char* path,
+EosMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid,
@@ -289,7 +289,7 @@ XrdMgmOfs::_exists(const char* path,
  */
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_exists(const char* fileName,
+EosMgmOfs::_exists(const char* fileName,
                    XrdSfsFileExistence& exists_flag,
                    XrdOucErrInfo& out_error,
                    eos::common::VirtualIdentity& vid,

@@ -34,7 +34,7 @@ EOSFSTNAMESPACE_BEGIN
 class ClayLayout : public RainMetaLayout
 {
 public:
-  ClayLayout(XrdFstOfsFile* file, unsigned long lid,
+  ClayLayout(EosFstOfsFile* file, unsigned long lid,
              const XrdSecEntity* client, XrdOucErrInfo* outError,
              const char* path, eos::fst::FmdHandler* fmdHandler,
              uint16_t timeout = 0, bool storeRecovery = false,

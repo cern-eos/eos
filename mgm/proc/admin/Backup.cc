@@ -23,8 +23,12 @@
 
 #include "common/Path.hh"
 #include "mgm/proc/admin/Backup.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include <XrdOuc/XrdOucEnv.hh>
 #include <string>
 #include <iomanip>
@@ -398,41 +402,79 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   dirs_ofs.close();
   backup_ofs.close();
   // Copy local backup file to backup source
-  XrdCl::PropertyList properties;
-  XrdCl::PropertyList result;
-  XrdCl::URL url_src, url_dst;
   XrdCl::URL tmp_url(src_surl);
   std::string dst_path = tmp_url.GetPath();
   dst_path += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
   dst_path += "backup.file";
-  url_src.SetProtocol("file");
-  url_src.SetPath(backup_fn.c_str());
-  url_dst.SetProtocol(tmp_url.GetProtocol());
-  url_dst.SetHostName(tmp_url.GetHostName());
-  url_dst.SetPort(tmp_url.GetPort());
-  url_dst.SetUserName("root");
-  url_dst.SetParams("eos.ruid=0&eos.rgid=0");
-  url_dst.SetPath(dst_path);
-  properties.Set("source", url_src);
-  properties.Set("target", url_dst);
-  XrdCl::CopyProcess copy_proc;
-  copy_proc.AddJob(properties, &result);
-  XrdCl::XRootDStatus status_prep = copy_proc.Prepare();
+  bool uploaded = false;
+#if defined(EOS_HAVE_XIO)
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const std::string dst_host = tmp_url.GetHostName();
+  const std::string local_host = eos::common::XioHostOf(gOFS->ManagerId.c_str());
+  const bool local_mgm = dst_host.empty() || dst_host == "localhost" ||
+                         dst_host == "127.0.0.1" || dst_host == "::1" ||
+                         dst_host == local_host ||
+                         (gOFS->HostName && dst_host == gOFS->HostName) ||
+                         (gOFS->MgmOfsAlias.length() &&
+                          dst_host == gOFS->MgmOfsAlias.c_str());
+  if (token && token[0] && port_env && port_env[0] && std::atoi(port_env) > 0) {
+    const std::string host = (local_mgm || dst_host.empty()) ? "localhost" : dst_host;
+    const std::string dst = std::string("http://") + host + ":" + port_env +
+                            dst_path + "?eos.ruid=0&eos.rgid=0";
+    std::string xerr;
+    int http = 0;
+    const int qrc = eos::common::XioStreamPut(backup_fn, dst, xerr, &http);
+    if (http != 0 || qrc == 0) {
+      uploaded = true;
+      if (qrc != 0) {
+        eos_err("Failed HTTP/2 upload, msg=%s", xerr.c_str());
+        stdErr = "error: failed HTTP/2 upload, msg=";
+        stdErr += xerr.c_str();
+        retc = EIO;
+      }
+    }
+  }
+#endif
+  if (!uploaded) {
+#if defined(EOS_HAVE_XIO)
+    eos_err("%s", "msg=\"HTTP/2 listener is not reachable\"");
+    stdErr = "error: HTTP/2 listener is not configured";
+    retc = EIO;
+#else
+    XrdCl::PropertyList properties;
+    XrdCl::PropertyList result;
+    XrdCl::URL url_src, url_dst;
+    url_src.SetProtocol("file");
+    url_src.SetPath(backup_fn.c_str());
+    url_dst.SetProtocol(tmp_url.GetProtocol());
+    url_dst.SetHostName(tmp_url.GetHostName());
+    url_dst.SetPort(tmp_url.GetPort());
+    url_dst.SetUserName("root");
+    url_dst.SetParams("eos.ruid=0&eos.rgid=0");
+    url_dst.SetPath(dst_path);
+    properties.Set("source", url_src);
+    properties.Set("target", url_dst);
+    XrdCl::CopyProcess copy_proc;
+    copy_proc.AddJob(properties, &result);
+    XrdCl::XRootDStatus status_prep = copy_proc.Prepare();
 
-  if (status_prep.IsOK()) {
-    XrdCl::XRootDStatus status_run = copy_proc.Run(0);
+    if (status_prep.IsOK()) {
+      XrdCl::XRootDStatus status_run = copy_proc.Run(0);
 
-    if (!status_run.IsOK()) {
-      eos_err("Failed run for copy process, msg=%s", status_run.ToStr().c_str());
-      stdErr = "error: failed run for copy process, msg=";
-      stdErr += status_run.ToStr().c_str();
+      if (!status_run.IsOK()) {
+        eos_err("Failed run for copy process, msg=%s", status_run.ToStr().c_str());
+        stdErr = "error: failed run for copy process, msg=";
+        stdErr += status_run.ToStr().c_str();
+        retc = EIO;
+      }
+    } else {
+      eos_err("Failed prepare for copy process, msg=%s", status_prep.ToStr().c_str());
+      stdErr = "error: failed prepare for copy process, msg=";
+      stdErr += status_prep.ToStr().c_str();
       retc = EIO;
     }
-  } else {
-    eos_err("Failed prepare for copy process, msg=%s", status_prep.ToStr().c_str());
-    stdErr = "error: failed prepare for copy process, msg=";
-    stdErr += status_prep.ToStr().c_str();
-    retc = EIO;
+#endif
   }
 
   // Remove local files

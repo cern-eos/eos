@@ -37,12 +37,74 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 
 //------------------------------------------------------------------------------
 // Utility functions to help with file conversion
 //------------------------------------------------------------------------------
 namespace
 {
+#if defined(EOS_HAVE_XIO)
+std::string XioUrlOf(const XrdCl::URL& url, std::string& err)
+{
+  const std::string host = url.GetHostName();
+  const int xrd_port = url.GetPort();
+  int xio_port = 0;
+  const bool mgm = gOFS &&
+                   (host == "localhost" ||
+                    host == gOFS->MgmOfsAlias.c_str() ||
+                    (gOFS->HostName && host == gOFS->HostName));
+  if (mgm && (xrd_port == 0 || xrd_port == gOFS->ManagerPort)) {
+    if (const char* p = std::getenv("EOS_MGM_XIO_PORT")) {
+      xio_port = std::atoi(p);
+    }
+  }
+  if (xio_port <= 0) {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    for (const auto& elem : FsView::gFsView.mIdView) {
+      auto* fs = elem.second;
+      if (!fs || fs->GetString("host") != host) {
+        continue;
+      }
+      if (xrd_port > 0 && std::atoi(fs->GetString("port").c_str()) != xrd_port) {
+        continue;
+      }
+      xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
+      if (xio_port > 0) {
+        break;
+      }
+    }
+  }
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  if (xio_port <= 0 || !token || !token[0]) {
+    err = "xio listener is not published";
+    return {};
+  }
+  std::string out = "http://" + host + ":" + std::to_string(xio_port);
+  const std::string path = url.GetPath();
+  if (path.empty() || path.front() != '/') {
+    out.push_back('/');
+  }
+  out += path;
+  std::string query;
+  for (const auto& kv : url.GetParams()) {
+    if (!query.empty()) {
+      query.push_back('&');
+    }
+    query += kv.first;
+    query.push_back('=');
+    query += kv.second;
+  }
+  if (!query.empty()) {
+    out.push_back('?');
+    out += query;
+  }
+  return out;
+}
+#endif
 //------------------------------------------------------------------------------
 // Generate default MGM URL
 //------------------------------------------------------------------------------
@@ -241,6 +303,29 @@ void ConversionJob::DoIt() noexcept
   XrdCl::URL url_dst = NewUrl();
   url_dst.SetParams(dst_cgi.str());
   url_dst.SetPath(mConversionPath);
+#if defined(EOS_HAVE_XIO)
+  std::string xerr;
+  const std::string xio_src = XioUrlOf(url_src, xerr);
+  const std::string xio_dst = xio_src.empty() ? std::string() : XioUrlOf(url_dst, xerr);
+  if (!xio_src.empty() && !xio_dst.empty()) {
+    const int timeout = eos::common::FileId::EstimateTpcTimeout(source_size).count();
+    const int trc = eos::common::XioTpcCopy(xio_src, xio_dst, timeout, xerr, [&] {
+      return mProgressHandler.ShouldCancel(0);
+    });
+    if (trc) {
+      HandleError(xerr.empty() ? "conversion copy failed" : xerr,
+                  SSTR("tpc_src=" << xio_src << " tpc_dst=" << xio_dst));
+      return;
+    }
+    eos_static_info("[tpc]: %s => %s status=success", xio_src.c_str(),
+                    xio_dst.c_str());
+  } else {
+    HandleError("HTTP/2 endpoint is not configured",
+                xerr.empty() ? "stat.xio.port" : xerr);
+    return;
+  }
+#else
+  {
   eos::common::XrdConnIdHelper src_id_helper(gOFS->mXrdConnPool, url_src);
   eos::common::XrdConnIdHelper dst_id_helper(gOFS->mXrdConnPool, url_dst);
   XrdCl::PropertyList properties = TpcProperties(source_size);
@@ -275,6 +360,8 @@ void ConversionJob::DoIt() noexcept
   eos_static_info("[tpc]: %s => %s status=success tpc_msg=%s",
                   url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
                   tpc_status.ToStr().c_str());
+  }
+#endif
 
   // TPC job succeeded:
   //  - Verify new file has all fragments according to layout
@@ -476,7 +563,11 @@ ConversionJob::Merge()
   // rename from the conv_fmd(fid) to the orig_fmd(fid)
   bool failed_rename = false;
   std::string fst_host;
-  int fst_port;
+  int fst_port = 0;
+  int xio_port = 0;
+#if !defined(EOS_HAVE_XIO)
+  (void)xio_port;
+#endif
 
   for (const auto& loc : conv_locations) {
     {
@@ -495,7 +586,40 @@ ConversionJob::Merge()
 
       fst_host = fs->GetHost();
       fst_port = fs->getCoreParams().getLocator().getPort();
+      xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
     }
+#if defined(EOS_HAVE_XIO)
+    if (xio_port > 0 && getenv("EOS_XIO_INTERNAL_TOKEN")) {
+      std::string query = SSTR("/?fst.pcmd=local_rename"
+                               << "&fst.rename.ofid="
+                               << eos::common::FileId::Fid2Hex(conv_fid)
+                               << "&fst.rename.nfid="
+                               << eos::common::FileId::Fid2Hex(orig_fid)
+                               << "&fst.rename.fsid=" << loc
+                               << "&fst.nspath=" << mSourcePath);
+      std::string body;
+      std::string xerr;
+      int http = 0;
+      int qrc = eos::common::XioOpaqueQuery(fst_host, xio_port, query, body,
+                                            xerr, 10000, &http);
+      if (http) {
+        if (qrc == 0 && body == "OK") {
+          eos_static_debug("msg=\"successful rename on file system\" "
+                           "orig_fxid=%08llx conv_fxid=%08llx fsid=%u",
+                           orig_fid, conv_fid, loc);
+          continue;
+        }
+        eos_static_err("msg=\"failed local rename on file system\" "
+                       "orig_fxid=%08llx conv_fxid=%08llx fsid=%u err=\"%s\"",
+                       orig_fid, conv_fid, loc, xerr.c_str());
+        failed_rename = true;
+        break;
+      }
+    }
+    eos_static_err("msg=\"FST HTTP/2 listener is not reachable\" fsid=%u", loc);
+    failed_rename = true;
+    break;
+#else
     std::ostringstream oss;
     oss << "root://" << fst_host << ":" << fst_port << "/?xrd.wantprot=sss";
     XrdCl::URL url(oss.str());
@@ -538,6 +662,7 @@ ConversionJob::Merge()
     delete response;
     eos_static_debug("msg=\"successful rename on file system\" orig_fxid=%08llx "
                      "conv_fxid=%08llx fsid=%u", orig_fid, conv_fid, loc);
+#endif
   }
 
   // Do cleanup in case of failures

@@ -70,7 +70,7 @@ RainMetaLayout::LegacyCopyDispatch() noexcept
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
+RainMetaLayout::RainMetaLayout(EosFstOfsFile* file, unsigned long lid,
                                const XrdSecEntity* client, XrdOucErrInfo* outError,
                                const char* path, uint16_t timeout, bool force_recovery,
                                off_t targetSize, std::string bookingOpaque,
@@ -240,9 +240,9 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     // @note: for TPC transfers we open the remote stipes only in the
     // kTpcSrcRead or kTpcDstSetup stages.
-    if ((mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
-        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
-        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcNone)) {
+    if ((mOfsFile->mTpcFlag == EosFstOfsFile::kTpcSrcRead) ||
+        (mOfsFile->mTpcFlag == EosFstOfsFile::kTpcDstSetup) ||
+        (mOfsFile->mTpcFlag == EosFstOfsFile::kTpcNone)) {
       // Build stripe urls and check minimal requirements
       for (unsigned int i = 0; i < mNbTotalFiles; i++) {
         if (i != (unsigned int)mPhysicalStripeIndex) {
@@ -398,9 +398,9 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   // Only the head node does the validation of the headers
   if (mIsEntryServer) {
-    if ((mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
-        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
-        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcNone)) {
+    if ((mOfsFile->mTpcFlag == EosFstOfsFile::kTpcSrcRead) ||
+        (mOfsFile->mTpcFlag == EosFstOfsFile::kTpcDstSetup) ||
+        (mOfsFile->mTpcFlag == EosFstOfsFile::kTpcNone)) {
       if (!ValidateHeader()) {
         eos_err("%s", "msg=\"fail open due to invalid headers\"");
         errno = EIO;
@@ -1777,7 +1777,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
 
   COMMONTIMING("end", &tm);
   eos_info("msg=\"done truncate\" %s", tm.Dump().c_str());
-  // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
+  // *!!!* Reset the mMaxOffsetWritten from EosFstOfsFile to logical offset
   mFileSize = offset;
   mStripeSize = truncate_offset;
   mIsTruncated = true;

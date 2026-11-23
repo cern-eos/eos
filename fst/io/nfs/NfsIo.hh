@@ -45,11 +45,11 @@ public:
   //! Constructor
   //!
   //! @param path path to use
-  //! @param file XrdFstOfsFile pointer
+  //! @param file EosFstOfsFile pointer
   //! @param client XrdSecEntity pointer
   //!
   //----------------------------------------------------------------------------
-  NfsIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client);
+  NfsIo(std::string path, EosFstOfsFile* file, const XrdSecEntity* client);
 
 
   //----------------------------------------------------------------------------

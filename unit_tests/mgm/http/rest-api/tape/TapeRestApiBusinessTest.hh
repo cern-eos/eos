@@ -30,7 +30,7 @@
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "common/Mapping.hh"
 #include <gmock/gmock.h>
@@ -84,13 +84,13 @@ public:
   }
 };
 
-class TapeRestApiBusinessTestFakeXrdMgmOfs : public XrdMgmOfs
+class TapeRestApiBusinessTestFakeEosMgmOfs : public EosMgmOfs
 {
 public:
-  explicit TapeRestApiBusinessTestFakeXrdMgmOfs(XrdSysError* lp)
-    : XrdMgmOfs(lp) {}
+  explicit TapeRestApiBusinessTestFakeEosMgmOfs(XrdSysError* lp)
+    : EosMgmOfs(lp) {}
 
-  ~TapeRestApiBusinessTestFakeXrdMgmOfs() override
+  ~TapeRestApiBusinessTestFakeEosMgmOfs() override
   {
     if (mZmqContext) {
       mZmqContext->close();
@@ -198,7 +198,7 @@ protected:
     mEnv = new TapeRestApiBusinessTestEnvMgr(
       {"EOS_MGM_HTTP_PORT", "EOS_MGM_GRPC_PORT"});
     mSysErr = new XrdSysError(nullptr, "tape-rest-api-business-test");
-    mOfs = new TapeRestApiBusinessTestFakeXrdMgmOfs(mSysErr);
+    mOfs = new TapeRestApiBusinessTestFakeEosMgmOfs(mSysErr);
     gOFS = mOfs;
   }
 
@@ -337,7 +337,7 @@ protected:
   }
 
   static XrdSysError* mSysErr;
-  static TapeRestApiBusinessTestFakeXrdMgmOfs* mOfs;
+  static TapeRestApiBusinessTestFakeEosMgmOfs* mOfs;
   static TapeRestApiBusinessTestEnvMgr* mEnv;
   std::shared_ptr<bulk::InMemoryBulkRequestDAO::StageStore> mStore;
   std::unique_ptr<bulk::InMemoryDAOFactory> mDaoFactory;
@@ -348,7 +348,7 @@ protected:
 };
 
 XrdSysError* TapeRestApiBusinessTest::mSysErr = nullptr;
-TapeRestApiBusinessTestFakeXrdMgmOfs* TapeRestApiBusinessTest::mOfs = nullptr;
+TapeRestApiBusinessTestFakeEosMgmOfs* TapeRestApiBusinessTest::mOfs = nullptr;
 TapeRestApiBusinessTestEnvMgr* TapeRestApiBusinessTest::mEnv = nullptr;
 
 #endif // EOS_TAPERESTAPIBUSINESSTEST_HH

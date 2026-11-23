@@ -6,7 +6,7 @@
 #include "fst/cache/CacheLru.hh"
 #include "fst/cache/SparseJournal.hh"
 #include "fst/io/FileIoPlugin.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "common/Constants.hh"
 #include "common/FileId.hh"
 #include "common/Logging.hh"
@@ -41,7 +41,7 @@ ParseWatermark(const char* value, unsigned fallback)
 }
 }
 
-CacheLayout::CacheLayout(XrdFstOfsFile* file, unsigned long lid,
+CacheLayout::CacheLayout(EosFstOfsFile* file, unsigned long lid,
                          const XrdSecEntity* client, XrdOucErrInfo* outError,
                          const char* path, eos::fst::FmdHandler* fmdHandler,
                          uint16_t timeout)
@@ -166,25 +166,44 @@ CacheLayout::OpenBackend(const char* /*opaque*/)
   int envlen = 0;
   const char* open_env = mOfsFile->mOpenOpaque ?
                          mOfsFile->mOpenOpaque->Env(envlen) : "";
-  std::string url = "root://";
-  url += host;
-  url += ":";
-  url += sport;
-  url += "/";
-  url += path;
-  url += "?";
-  url += open_env;
+  std::string query = open_env ? open_env : "";
   // Mark this open as the bridge fetch so that an FST hosting both the cache
   // and the backend filesystem serves it as a normal (non-cache) open instead
   // of recursing into CacheLayout again.
-  url += "&eos.cache.bridge=1";
+  query += "&eos.cache.bridge=1";
+  std::string url;
+#if defined(EOS_HAVE_XIO)
+  const char* xio_port = std::getenv("EOS_FST_XIO_PORT");
+  const char* xio_token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  if (xio_port && xio_port[0] && std::atoi(xio_port) > 0 && xio_token &&
+      xio_token[0]) {
+    url = std::string("xiohttp://") + host + ":" + xio_port + "/" + path + "?" +
+          query;
+  }
+#endif
+  if (url.empty()) {
+#if defined(EOS_HAVE_XIO)
+    eos_err("%s", "msg=\"cache backend HTTP/2 listener is not configured\"");
+    return -1;
+#else
+    url = "root://";
+    url += host;
+    url += ":";
+    url += sport;
+    url += "/";
+    url += path;
+    url += "?";
+    url += query;
+#endif
+  }
   mBackendIo.reset(FileIoPlugin::GetIoObject(url, mOfsFile, mSecEntity));
 
   if (!mBackendIo) {
     return -1;
   }
 
-  const int rc = mBackendIo->fileOpen(0, 0, open_env, mTimeout);
+  // The capability is already on the URL. Passing it again would duplicate it.
+  const int rc = mBackendIo->fileOpen(0, 0, "", mTimeout);
   mLastUrl = mBackendIo->GetLastUrl();
   mLastTriedUrl = mBackendIo->GetLastTriedUrl();
   mLastErrCode = mBackendIo->GetLastErrCode();

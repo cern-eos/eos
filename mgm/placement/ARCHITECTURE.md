@@ -279,7 +279,7 @@ cost the `FsView` dependency the tests avoid.)
 ## 3. Layered architecture
 
 ```
-XrdMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-space
+EosMgmOfs::mFsScheduler  (FsScheduler)          ── MGM-facing facade, per-space
       │
       ├── per-space ClusterMgr → ClusterData     ── RCU copy-on-write snapshot
       │        ├── SnapshotBuilder                ── build transaction: Commit/Abandon
@@ -876,9 +876,9 @@ one definition.
 
 ## 10. Integration points
 
-**Startup.** Member `XrdMgmOfs::mFsScheduler` is constructed in `XrdMgmOfs.cc`
+**Startup.** Member `EosMgmOfs::mFsScheduler` is constructed in `EosMgmOfs.cc`
 (1024 initial buckets + `EosClusterMgrHandler`). The topology is built during
-configure (`XrdMgmOfsConfigure.cc` → `FsScheduler::UpdateClusterData`, then
+configure (`EosMgmOfsConfigure.cc` → `FsScheduler::UpdateClusterData`, then
 `FsScheduler::LoadConfig` for the persisted per-space configuration):
 `EosClusterMgrHandler::MakeClusterMgr` reads
 `FsView::gFsView.mSpaceGroupView` under the view lock into a

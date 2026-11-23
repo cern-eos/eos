@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #ifdef HAVE_DAVIX
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "fst/io/davix/DavixIo.hh"
 #include "common/Path.hh"
 

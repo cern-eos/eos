@@ -29,7 +29,7 @@
 #include "common/utils/XrdUtils.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/utils/AttrHelper.hh"
 #include "namespace/Prefetcher.hh"
@@ -736,7 +736,7 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     fmd->setSize(size);
 
     // Once the EC/RAIN file carries data, the parallel-write creator marker is
-    // no longer needed - the guard in XrdMgmOfsFile::open only protects a still
+    // no longer needed - the guard in EosMgmOfsFile::open only protects a still
     // 0-size file being created. Drop it on the first commit with real data.
     if ((size > 0) && fmd->hasAttribute("sys.fusex.creator")) {
       fmd->removeAttribute("sys.fusex.creator");

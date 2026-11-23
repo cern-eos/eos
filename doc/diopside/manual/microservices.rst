@@ -2544,7 +2544,7 @@ Example JSON record:
 Log Files and Location
 ^^^^^^^^^^^^^^^^^^^^^^
 
-**Location**: ``<logdir>/audit/`` where ``logdir`` is derived from ``XRDLOGDIR`` (see ``mgm/XrdMgmOfsConfigure.cc``).
+**Location**: ``<logdir>/audit/`` where ``logdir`` is derived from ``XRDLOGDIR`` (see ``mgm/EosMgmOfsConfigure.cc``).
 
 - Directory is created on startup if missing; mode 0755; owned appropriately by the service user.
 - **Active segment symlink**: ``<logdir>/audit/audit.zstd`` points to the current segment file.
@@ -2590,12 +2590,12 @@ Implementation Details
 
 - **Core components**: ``common/Audit.{hh,cc}`` - thread-safe ZSTD writer with rotation
 - **Protobuf schema**: ``proto/Audit.proto``
-- **MGM integration**: ``XrdMgmOfs`` class with ``mAudit`` member; initialized in ``XrdMgmOfsConfigure.cc``
+- **MGM integration**: ``EosMgmOfs`` class with ``mAudit`` member; initialized in ``EosMgmOfsConfigure.cc``
 - **FUSE integration**: ``mgm/FuseServer/Server.cc`` for additional file operations
 
 **Integration points:**
 
-- **Core MGM operations**: Rm, Mkdir, Chmod, Chown, Attr, Link, Rename, XrdMgmOfsFile
+- **Core MGM operations**: Rm, Mkdir, Chmod, Chown, Attr, Link, Rename, EosMgmOfsFile
 - **FUSE server operations**: OpSetFile, OpSetDirectory, OpDeleteFile, OpDeleteDirectory, OpSetLink
 
 .. index::

@@ -24,24 +24,24 @@
 namespace eos::fst
 {
 
-class XrdFstOfs;
+class EosFstOfs;
 
 class XrdOfsPathHandler final: public FSPathHandler
 {
 public:
-  XrdOfsPathHandler(XrdFstOfs const* pOFS):
+  XrdOfsPathHandler(EosFstOfs const* pOFS):
     FSPathHandler(), mOFS(pOFS)
   {}
 
   std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) override;
 
 private:
-  XrdFstOfs const* mOFS;
+  EosFstOfs const* mOFS;
 };
 
 
 inline std::unique_ptr<FSPathHandler>
-makeFSPathHandler(XrdFstOfs* pOFS)
+makeFSPathHandler(EosFstOfs* pOFS)
 {
   return std::make_unique<XrdOfsPathHandler>(pOFS);
 }

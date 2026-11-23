@@ -24,7 +24,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "fst/io/xrd/XrdIo.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-PlainLayout::PlainLayout(XrdFstOfsFile* file,
+PlainLayout::PlainLayout(EosFstOfsFile* file,
                          unsigned long lid,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,

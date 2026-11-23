@@ -4,7 +4,7 @@
 #include "common/RWMutex.hh"
 #include "common/mq/SharedHashWrapper.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "prometheus/client_metric.h"
 #include "prometheus/metric_type.h"
 

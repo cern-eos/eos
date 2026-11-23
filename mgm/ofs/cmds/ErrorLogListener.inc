@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ bool CheckFileExistanceAndPerm(const std::string& log_file, std::string& err)
 // Start thread listening for error messages and log them
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
+EosMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("ErrorLogListener");
   static std::string channel = "/eos/*/errorreport";

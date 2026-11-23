@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::remdir(const char* inpath,
+EosMgmOfs::remdir(const char* inpath,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client,
                   const char* ininfo)
@@ -63,7 +63,7 @@ XrdMgmOfs::remdir(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_remdir(const char* path,
+EosMgmOfs::_remdir(const char* path,
                    XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid,
                    const char* ininfo,

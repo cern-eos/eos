@@ -27,7 +27,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-RealMgmFileSystemInterface::RealMgmFileSystemInterface(XrdMgmOfs* mgmOfs):
+RealMgmFileSystemInterface::RealMgmFileSystemInterface(EosMgmOfs* mgmOfs):
   mMgmOfs(mgmOfs) {}
 
 void RealMgmFileSystemInterface::addStats(const char* tag, uid_t uid, gid_t gid,

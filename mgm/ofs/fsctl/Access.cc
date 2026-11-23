@@ -23,7 +23,7 @@
 
 #include "common/Logging.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
@@ -32,7 +32,7 @@
 // Check access rights
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Access(const char* path,
+EosMgmOfs::Access(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,

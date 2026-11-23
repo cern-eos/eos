@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 #include <common/Logging.hh>
-#include <mgm/ofs/XrdMgmOfs.hh>
+#include <mgm/ofs/EosMgmOfs.hh>
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirBulkRequestFile.hh"
 #include "mgm/bulk-request/prepare/CancellationBulkRequest.hh"
@@ -43,7 +43,7 @@ class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO,
   public eos::common::LogId
 {
 public:
-  ProcDirectoryBulkRequestDAO(XrdMgmOfs* fileSystem,
+  ProcDirectoryBulkRequestDAO(EosMgmOfs* fileSystem,
                               const ProcDirectoryBulkRequestLocations& mBulkRequestDirSchema);
 
   /**
@@ -104,7 +104,7 @@ public:
 
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
-  XrdMgmOfs* mFileSystem;
+  EosMgmOfs* mFileSystem;
   const ProcDirectoryBulkRequestLocations& mProcDirectoryBulkRequestLocations;
   eos::common::VirtualIdentity mVid;
 

@@ -34,8 +34,8 @@
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/CtaUtils.hh"
 #include "mgm/EosCtaReporter.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"
@@ -294,7 +294,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
         (!cleanuptime || (cleanuptime < time(NULL)))) {
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
-      XrdMgmOfsDirectory dir;
+      EosMgmOfsDirectory dir;
 
       if (dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "") != SFS_OK) {
         eos_static_err("msg=\"failed to open proc workflow directory\"");
@@ -3293,7 +3293,7 @@ WFE::LoadPending()
   }
   std::vector<std::string> days;
   {
-    XrdMgmOfsDirectory dir;
+    EosMgmOfsDirectory dir;
 
     if (dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid, "") != SFS_OK) {
       eos_static_err("msg=\"failed to open proc workflow directory\"");

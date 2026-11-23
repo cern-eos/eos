@@ -20,6 +20,9 @@
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "console/commands/helpers/PathIdentifier.hh"
 #include <XrdCl/XrdClFileSystem.hh>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#endif
 #include <XrdCl/XrdClURL.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucString.hh>
@@ -204,6 +207,42 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   fmdquery += shexfid;
   fmdquery += "&fst.getfmd.fsid=";
   fmdquery += sfsid;
+#if defined(EOS_HAVE_XIO)
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  const char* port_env = std::getenv("EOS_FST_XIO_PORT");
+  if (token && token[0] && port_env && port_env[0]) {
+    const int xio_port = std::atoi(port_env);
+    if (xio_port > 0) {
+      int http = 0;
+      std::string body;
+      std::string err;
+      const std::string host = eos::common::XioHostOf(manager);
+      const int qrc = eos::common::XioOpaqueQuery(host, xio_port, fmdquery.c_str(),
+                                                   body, err, 10000, &http);
+      if (http != 0) {
+        if (qrc != 0) {
+          return EIO;
+        }
+        if (body.compare(0, 5, "ERROR") == 0) {
+          return ENODATA;
+        }
+        XrdOucEnv fmdenv(body.c_str());
+        if (!eos::common::EnvToFstFmd(fmdenv, fmd)) {
+          return EIO;
+        }
+        if (fmd.mProtoFmd.fid() != eos::common::FileId::Hex2Fid(shexfid)) {
+          return EIO;
+        }
+        return 0;
+      }
+    }
+  }
+  (void)rc;
+  (void)arg;
+  (void)response;
+  (void)status;
+  return EIO;
+#else
   XrdOucString address = "root://";
   address += manager;
   address += "//dummy";
@@ -272,6 +311,7 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 
   delete response;
   return 0;
+#endif
 }
 
 int
@@ -382,15 +422,6 @@ RunFileCheck(XrdOucString path, const std::string& option, CommandContext& ctx)
       return 0;
     }
 
-    // Get XrdCl::FileSystem object
-    std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
-
-    if (!fs) {
-      fprintf(stderr, "error: failed to get new FS object");
-      global_retc = ECOMM;
-      return 0;
-    }
-
     XrdOucString bs = newresult->Get(repbootstat.c_str());
     bool down = (bs != "booted");
 
@@ -420,6 +451,37 @@ RunFileCheck(XrdOucString path, const std::string& option, CommandContext& ctx)
       statpath += statpath64;
     }
 
+#if defined(EOS_HAVE_XIO)
+    bool stat_done = false;
+    const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+    const char* port_env = std::getenv("EOS_FST_XIO_PORT");
+    if (token && token[0] && port_env && port_env[0]) {
+      const int xio_port = std::atoi(port_env);
+      if (xio_port > 0) {
+        struct stat st;
+        std::string err;
+        int http = 0;
+        const std::string host = eos::common::XioHostOf(newresult->Get(repurl.c_str()));
+        const int src = eos::common::XioStat(host, xio_port, statpath.c_str(), &st,
+                                             err, 10000, &http);
+        if (http != 0) {
+          stat_done = true;
+          if (src == 0) {
+            stat_size = static_cast<uint64_t>(st.st_size);
+          } else {
+            err_label = "STATFAILED";
+            set_errors.insert(err_label);
+          }
+        }
+      }
+    }
+    if (!stat_done) {
+      err_label = "STATFAILED";
+      set_errors.insert(err_label);
+    }
+#else
+    {
+    std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
     status = fs->Stat(statpath.c_str(), stat_info);
 
     if (!status.IsOK()) {
@@ -428,6 +490,8 @@ RunFileCheck(XrdOucString path, const std::string& option, CommandContext& ctx)
     } else {
       stat_size = stat_info->GetSize();
     }
+    }
+#endif
 
     // Free memory
     delete stat_info;

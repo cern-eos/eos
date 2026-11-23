@@ -26,6 +26,10 @@
 #include <XrdCl/XrdClURL.hh>
 #include <XrdCl/XrdClFileSystem.hh>
 #include <sstream>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -88,6 +92,27 @@ RouteEndpoint::ToString() const
 void
 RouteEndpoint::UpdateStatus()
 {
+#if defined(EOS_HAVE_XIO)
+  if (const char* xio = getenv("EOS_MGM_XIO_PORT")) {
+    int port = std::atoi(xio);
+    if (port > 0) {
+      std::string body;
+      std::string err;
+      int rc = eos::common::XioOpaqueQuery(mFqdn, port, "mgm.pcmd=is_master",
+                                           body, err, 1000);
+      if (rc == 0) {
+        mIsOnline.store(true);
+        mIsMaster = true;
+        eos_static_debug("host='%s' HTTP/2 is_master", mFqdn.c_str());
+        return;
+      }
+    }
+  }
+  mIsOnline = false;
+  mIsMaster = false;
+  eos_static_debug("HTTP/2 master check failed host='%s'", mFqdn.c_str());
+  return;
+#else
   std::ostringstream oss;
   oss << "root://" << mFqdn << ":" << mXrdPort << "//dummy?xrd.wantprot=sss,unix";
   XrdCl::URL url(oss.str());
@@ -135,6 +160,7 @@ RouteEndpoint::UpdateStatus()
   }
 
   delete response;
+#endif
 }
 
 EOSMGMNAMESPACE_END

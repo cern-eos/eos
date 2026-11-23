@@ -1,0 +1,4715 @@
+// ----------------------------------------------------------------------
+// File: EosMgmOfs.cc
+// Author: Andreas-Joachim Peters - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include "common/Mapping.hh"
+#include "common/FileId.hh"
+#include "common/LayoutId.hh"
+#include "common/Path.hh"
+#include "common/SecEntity.hh"
+#include "common/StackTrace.hh"
+#include "common/ParseUtils.hh"
+#include "common/StringTokenizer.hh"
+#include "common/Strerror_r_wrapper.hh"
+#include "common/BehaviourConfig.hh"
+#include "common/SyntheticIO.hh"
+#include "common/Utils.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/convert/ConversionTag.hh"
+#include "mgm/filesystem/FileSystem.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsFile.hh"
+#include "mgm/ofs/EosMgmOfsSecurity.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/workflow/Workflow.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/recycle/Recycle.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/utils/AttrHelper.hh"
+#include "mgm/xattr/XattrLock.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/cache/ReadThroughCache.hh"
+#include "namespace/utils/Attributes.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/Resolver.hh"
+#include <XrdOss/XrdOss.hh>
+#include <XrdSec/XrdSecInterface.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
+#include <XrdSfs/XrdSfsAio.hh>
+#include "common/Constants.hh"
+#include <XrdOuc/XrdOucPgrwUtils.hh>
+#include "mgm/ofs/EosMgmOfsTrace.hh"
+#include "utils/XrdUtils.hh"
+#include "mgm/misc/AuditHelpers.hh"
+
+#ifdef __APPLE__
+#define ECOMM 70
+#endif
+
+#ifndef S_IAMB
+#define S_IAMB  0x1FF
+#endif
+
+namespace
+{
+//----------------------------------------------------------------------------
+//! Thrown if a disk location could not be found
+//----------------------------------------------------------------------------
+struct DiskLocationNotFound: public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+
+//----------------------------------------------------------------------------
+//! @param locations locations to be searched
+//! @return first location that is a disk as opposed to tape
+//! @throw DiskLocationNotFound if a disk location could not be found
+//----------------------------------------------------------------------------
+eos::IFileMD::location_t
+getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
+{
+  if (locations.empty()) {
+    throw DiskLocationNotFound("Failed to find disk location");
+  }
+
+  if (EOS_TAPE_FSID != locations.at(0)) {
+    return locations.at(0);
+  }
+
+  if (2 > locations.size()) {
+    throw DiskLocationNotFound("Failed to find disk location");
+  }
+
+  return locations.at(1);
+}
+
+//----------------------------------------------------------------------------
+//! Persist the file unless a parallel truncation or rm removed it after the
+//! namespace lock was released: the update would bring the record back as an
+//! orphan. _rem removes the file under its MD write lock.
+//----------------------------------------------------------------------------
+void
+updateFileStoreIfNotDeleted(eos::IFileMD* fmd)
+{
+  eos::MDLocking::FileWriteLock fmd_lock(fmd);
+
+  if (!fmd->isDeleted()) {
+    gOFS->eosView->updateFileStore(fmd);
+  }
+}
+
+//----------------------------------------------------------------------------
+//! Enforce the RainMinFsidEntry behaviour by returning the index in the
+//! given input vector corresponding to the smallest fsid.
+//!
+//! @param input_fsids vector for fsids
+//!
+//! @return index pointing to the smallest fsid
+//----------------------------------------------------------------------------
+size_t
+EnforceRainMinFsidEntry(const std::vector<unsigned int>& input_fsids)
+{
+  unsigned int min_fsid = UINT_MAX;
+  size_t index = 0;
+
+  for (int i = 0; i < input_fsids.size(); ++i) {
+    if (input_fsids[i] < min_fsid) {
+      index = i;
+      min_fsid = input_fsids[i];
+    }
+  }
+
+  return index;
+}
+}
+
+/******************************************************************************/
+/* MGM File Interface                                                         */
+/******************************************************************************/
+
+/* copied for "eos_static_..." */
+static int
+emsg(XrdOucErrInfo& error, int ec, const char* txt, const char* txt2)
+{
+  // Get the reason for the error
+  if (ec < 0) {
+    ec = -ec;
+  }
+
+  char* etext = strerror(ec);
+  char sbuff[1024];
+  char ebuff[64];
+
+  if (etext == NULL) {
+    etext = ebuff;
+    snprintf(ebuff, sizeof(ebuff), "error code %d", ec);
+  }
+
+  snprintf(sbuff, sizeof(sbuff), "cow: unable to %s %s: %s", txt, txt2, etext);
+  eos_static_err(sbuff);
+  error.setErrInfo(ec, sbuff);
+  return SFS_ERROR;
+}
+
+/*
+ * Copy-on-write clone (prepare_cow, apply_cow, notify_cow), cowType:
+ *      0 = copy                (for file updates, two files exist)
+ *      1 = rename              (for a "deletes", clone's contents survive under different
+ * name) 2 = hardlink            (file untouched but a new name is created, e.g. for
+ * recycle)
+ *
+ * returns:
+ *      - error code if the clone could not be created
+ *      - -1 if the file is not to be cloned
+ */
+
+//------------------------------------------------------------------------------
+// Find or create the clone directory of dmd: walks paths, so before MD locks
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::prepare_cow(std::shared_ptr<eos::IContainerMD> dmd,
+                           std::shared_ptr<eos::IFileMD> fmd, CowDirs& dirs,
+                           XrdOucErrInfo& error)
+{
+  char sbuff[1024];
+  uint64_t cloneId = fmd->getCloneId();
+
+  if (cloneId == 0 or not fmd->getCloneFST().empty()) {
+    return -1;
+  }
+
+  eos_static_info("Creating cow clone for %s fxid:%lx cloneId %lld",
+                  fmd->getName().c_str(), fmd->getId(), cloneId);
+  snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(),
+           cloneId);
+
+  try {
+    dirs.clone_root = gOFS->eosView->getContainer(sbuff);
+  } catch (eos::MDException& e) {
+    eos_static_debug("caught exception %d %s path %s\n", e.getErrno(),
+                     e.getMessage().str().c_str(), sbuff);
+    return emsg(error, ENOENT /*EEXIST*/, "open file ()", sbuff);
+  }
+
+  if (!dmd) {
+    return emsg(error, ENOENT, "determine parent", fmd->getName().c_str());
+  }
+
+  /* set up directory for clone */
+  int tlen = strlen(sbuff);
+  snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", dmd->getId());
+
+  try {
+    dirs.cow_dir = gOFS->eosView->getContainer(sbuff);
+  } catch (eos::MDException& e) {
+    dirs.cow_dir = gOFS->eosView->createContainer(sbuff, true);
+    dirs.cow_dir->setMode(dmd->getMode());
+    eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
+
+    for (const auto& a : xattrs) {
+      if (a.first == "sys.acl" || a.first == "user.acl" ||
+          a.first == "sys.eval.useracl") {
+        dirs.cow_dir->setAttribute(a.first, a.second);
+      }
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Create the clone in dirs.cow_dir, under the MD write locks of dmd,
+// dirs.cow_dir and fmd
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::apply_cow(int cowType, std::shared_ptr<eos::IContainerMD> dmd,
+                         std::shared_ptr<eos::IFileMD> fmd, const CowDirs& dirs,
+                         eos::common::VirtualIdentity& vid)
+{
+  // A parallel writer can have cloned the file since prepare_cow
+  if (fmd->getCloneId() == 0 or not fmd->getCloneFST().empty()) {
+    return -1;
+  }
+
+  char sbuff[64];
+  const auto& dirMd = dirs.cow_dir;
+
+  /* create the clone */
+  if (cowType ==
+      EosMgmOfsFile::cowDelete) {                   /* basically a "mv" */
+    dmd->removeFile(fmd->getName());
+    snprintf(sbuff, sizeof(sbuff), "%lx", fmd->getId());
+    fmd->setName(sbuff);
+    fmd->setCloneId(0); /* don't ever cow this again! */
+    dirMd->addFile(fmd.get());
+    gOFS->eosFileService->updateStore(fmd.get());
+  } else {                              /* cowType == cowUpdate or cowType == cowUnlink */
+    eos::IFileMD::ctime_t ttime;
+    snprintf(sbuff, sizeof(sbuff), "%lx", fmd->getId());
+    // Create the clone in the locked directory: a path walk would lock it
+    // again
+    eos::FileOrContainerMD conflict = dirMd->findItem(sbuff).get();
+
+    if (conflict.file || conflict.container) {
+      throw_mdexception(EEXIST, "File exists");
+    }
+
+    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
+
+    if (!gmd) {
+      throw_mdexception(EIO, "File creation failed");
+    }
+
+    gmd->setName(sbuff);
+    gmd->setCUid(vid.uid);
+    gmd->setCGid(vid.gid);
+    gmd->setCTimeNow();
+    gmd->setATimeNow(0);
+    gmd->setMTimeNow();
+    gmd->clearChecksum(0);
+    dirMd->addFile(gmd.get());
+    gmd->setAttribute("sys.clone.targetFid", sbuff);
+    gmd->setSize(fmd->getSize());
+
+    if (cowType ==
+        EosMgmOfsFile::cowUpdate) {  /* prepare a "cp --reflink" (to be performed on the FSTs) */
+      fmd->getCTime(ttime);
+      gmd->setCTime(ttime);
+      fmd->getMTime(ttime);
+      gmd->setMTime(ttime);
+      gmd->setCUid(fmd->getCUid());
+      gmd->setCGid(fmd->getCGid());
+      gmd->setFlags(fmd->getFlags());
+      gmd->setLayoutId(fmd->getLayoutId());
+      gmd->setChecksum(fmd->getChecksum());
+      gmd->setContainerId(dirMd->getId());
+
+      for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
+        gmd->addLocation(fmd->getLocation(i));
+      }
+    } else if (cowType == cowUnlink) {
+      int nlink = (fmd->hasAttribute(SYS_NUM_LINK)) ?
+                  std::stoi(fmd->getAttribute(SYS_NUM_LINK)) + 1 : 1;
+      fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
+      gOFS->eosFileService->updateStore(fmd.get());
+      uint64_t hlTarget = eos::common::FileId::FidToInode(fmd->getId());
+      gmd->setAttribute(SYS_HARD_LINK, std::to_string(hlTarget));
+      eos_static_debug("cow Unlink %s (%ld) -> %s (%ld)", gmd->getName().c_str(),
+                       gmd->getSize(), fmd->getName().c_str(), fmd->getSize());
+    }
+
+    gOFS->eosFileService->updateStore(gmd.get());
+    fmd->setCloneFST(eos::common::FileId::Fid2Hex(gmd->getId()));
+    gOFS->eosFileService->updateStore(fmd.get());
+  }
+
+  gOFS->eosDirectoryService->updateStore(dirMd.get());
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Refresh the clone directories, after the release of the MD locks
+//------------------------------------------------------------------------------
+void
+EosMgmOfsFile::notify_cow(const CowDirs& dirs)
+{
+  gOFS->FuseXCastRefresh(dirs.cow_dir->getIdentifier(),
+                         dirs.cow_dir->getParentIdentifier());
+  gOFS->FuseXCastRefresh(dirs.clone_root->getIdentifier(),
+                         dirs.clone_root->getParentIdentifier());
+}
+
+/*----------------------------------------------------------------------------*
+ * special handling of hard links
+ * returns:
+ *      0 = continue deleting fmd
+ *      1 = do nothing
+ *
+ *----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
+                                    std::shared_ptr<eos::IFileMD> fmd,
+                                    eos::common::VirtualIdentity& vid)
+{
+  if (!cmd) {
+    return 0;
+  }
+
+  long nlink =
+    -2;                /* assume this has nothing to do with hard links */
+  int retc = 0;
+  // The lookups and prepare_cow walk the tree, so they run before the MD
+  // locks of cmd, fmd and the hard link target
+  std::shared_ptr<eos::IFileMD> gmd;
+  std::shared_ptr<eos::IContainerMD> dmd;
+  CowDirs cow;
+  int cow_rc = -1;
+  bool cloned = false;
+
+  if (fmd->hasAttribute(SYS_HARD_LINK)) {
+    uint64_t hlTgt = std::stoull(fmd->getAttribute(SYS_HARD_LINK));
+    uint64_t clock;
+    /* gmd = the hard link target */
+    gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(hlTgt), &clock);
+
+    // Versioning moves the target into the version folder, away from
+    // the directory of its links
+    try {
+      dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+    } catch (eos::MDException& e) {
+    }
+
+    if (gmd->getCloneId() != 0 and gmd->getCloneFST().empty()) {
+      XrdOucErrInfo error;
+      cow_rc = prepare_cow(dmd, gmd, cow, error);
+    }
+  }
+
+  {
+    eos::MDLocking::BulkMDWriteLock md_locker;
+    md_locker.add(cmd.get());
+    md_locker.add(fmd.get());
+
+    if (gmd) {
+      md_locker.add(gmd.get());
+    }
+
+    if (dmd) {
+      md_locker.add(dmd.get());
+    }
+
+    if (cow.cow_dir) {
+      md_locker.add(cow.cow_dir.get());
+    }
+
+    auto md_locks = md_locker.lockAll();
+
+    // A parallel rename or rm changed the file meanwhile: the caller checks
+    // it again under its own locks
+    if (fmd->isDeleted() || (fmd->getContainerId() != cmd->getId())) {
+      return 0;
+    }
+
+    if (gmd) {
+      /* this is a hard link, decrease reference count on underlying file */
+      nlink = std::stol(gmd->getAttribute(SYS_NUM_LINK)) - 1;
+
+      if (nlink > 0) {
+        gmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
+      } else {
+        gmd->removeAttribute(SYS_NUM_LINK);
+      }
+
+      gOFS->eosFileService->updateStore(gmd.get());
+      eos_static_info("hlnk update target %s for %s nlink %ld", gmd->getName().c_str(),
+                      fmd->getName().c_str(), nlink);
+
+      if (nlink <= 0) {
+        if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+          eos_static_info("hlnk unlink target %s for %s nlink %ld",
+                          gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+
+          if (gmd->getCloneId() != 0 and
+              gmd->getCloneFST().empty()) { /* this file needs to be cloned */
+            if (cow_rc == 0) {
+              cloned = (apply_cow(EosMgmOfsFile::cowDelete, dmd, gmd, cow, vid) == 0);
+            }
+
+            retc = 1;
+          } else { /* delete hard link target */
+            if (dmd) {
+              dmd->removeFile(gmd->getName());
+            }
+
+            gmd->unlinkAllLocations();
+            gmd->setContainerId(0);
+            gOFS->eosFileService->updateStore(gmd.get());
+          }
+        }
+      }
+    } else if (fmd->hasAttribute(SYS_NUM_LINK)) {
+      // a hard link target
+      nlink = std::stol(fmd->getAttribute(SYS_NUM_LINK));
+      eos_static_info("hlnk rm target nlink %ld", nlink);
+
+      if (nlink > 0) {
+        // hard links exist, just rename the file so the inode does not disappear
+        char nameBuf[1024];
+        uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
+        snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
+        std::string nameBufs(nameBuf);
+        fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
+        eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(),
+                        nameBufs.c_str(), nlink);
+        cmd->removeFile(nameBufs); // if the target exists, remove it!
+        gOFS->eosView->renameFile(fmd.get(), nameBufs);
+        retc = 1;
+      }
+
+      /* no other links exist, continue deleting the target like a simple file */
+    }
+  }
+
+  if (cloned) {
+    notify_cow(cow);
+  }
+
+  if (!retc) {
+    eos_static_debug("hard link nlink %ld, delete %s", nlink, fmd->getName().c_str());
+  }
+
+  return retc;
+}
+
+//------------------------------------------------------------------------------
+// Get the application name if specified
+//------------------------------------------------------------------------------
+const std::string
+EosMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
+                                        const XrdSecEntity* client,
+                                        const eos::common::VirtualIdentity& vid)
+{
+  // Application name derived from the following in order of priority:
+  // 1. eos.app=<tag>
+  // 2. XRD_APPNAME=<tag> env variable or -DSAppName for xrdcp commands
+  const std::string eos_tag = "eos.app";
+  const std::string xrd_tag = "xrd.appname";
+  std::string app_name;
+  const char* val = nullptr;
+
+  if (open_opaque && (val = open_opaque->Get(eos_tag.c_str()))) {
+    app_name = val;
+  } else {
+    if (client) {
+      if (!client->eaAPI->Get(xrd_tag, app_name)) {
+        app_name.clear();
+      }
+    }
+  }
+
+  // Both sources are the client's to choose, so neither may claim the name of
+  // EOS's own traffic. A client that does keeps the name without the prefix -
+  // the request is served, only its label is corrected.
+  if (eos::common::IsInternalApp(app_name) && !vid.IsInternalEngine()) {
+    const std::string stripped = eos::common::StripInternalAppPrefix(app_name);
+    eos_static_info("msg=\"application name may not claim the internal traffic "
+                    "prefix\" app=\"%s\" used=\"%s\" prot=\"%s\" uid=%u",
+                    app_name.c_str(), stripped.c_str(), vid.prot.c_str(), vid.uid);
+    app_name = stripped;
+  }
+
+  return app_name;
+}
+
+//------------------------------------------------------------------------------
+// Get the open flags and mode requested by a client through the opaque info
+//------------------------------------------------------------------------------
+bool
+EosMgmOfsFile::GetClientOpenFlags(XrdOucEnv& env, XrdSfsFileOpenMode& oflags,
+                                  mode_t& omode)
+{
+  oflags = SFS_O_RDONLY;
+  omode = 0;
+
+  if (const char* val = env.Get("eos.client.openflags")) {
+    const std::string openflags = val;
+
+    if (openflags.find("wo") != std::string::npos) {
+      oflags |= SFS_O_WRONLY;
+    }
+
+    if (openflags.find("rw") != std::string::npos) {
+      oflags |= SFS_O_RDWR;
+    }
+
+    if (openflags.find("cr") != std::string::npos) {
+      oflags |= SFS_O_CREAT;
+    }
+
+    if (openflags.find("tr") != std::string::npos) {
+      oflags |= SFS_O_TRUNC;
+    }
+  }
+
+  if (const char* val = env.Get("eos.client.openmode")) {
+    char* end = nullptr;
+    errno = 0;
+    const unsigned long mode = strtoul(val, &end, 8);
+
+    if (errno || (end == val) || (*end != '\0')) {
+      eos_static_err("msg=\"invalid eos.client.openmode\" val=\"%s\"", val);
+      return false;
+    }
+
+    // Only permission bits, flags like SFS_O_MKPTH have their own tag
+    omode = mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+  }
+
+  if (const char* val = env.Get("eos.client.mkpath")) {
+    if (strcmp(val, "1") == 0) {
+      omode |= SFS_O_MKPTH;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get POSIX open flags from the given XRootD open mode
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::GetPosixOpenFlags(XrdSfsFileOpenMode open_mode)
+{
+  int open_flags = 0;
+
+  if (open_mode & SFS_O_CREAT) {
+    open_mode = SFS_O_CREAT;
+  } else if (open_mode & SFS_O_TRUNC) {
+    open_mode = SFS_O_TRUNC;
+  }
+
+  switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
+                       SFS_O_CREAT | SFS_O_TRUNC)) {
+  case SFS_O_CREAT:
+    open_flags = O_CREAT | O_EXCL | O_RDWR;
+    break;
+
+  case SFS_O_TRUNC:
+    open_flags = O_CREAT | O_TRUNC | O_RDWR;
+    break;
+
+  case SFS_O_RDONLY:
+    open_flags = O_RDONLY;
+    break;
+
+  case SFS_O_WRONLY:
+    open_flags = O_WRONLY;
+    break;
+
+  case SFS_O_RDWR:
+    open_flags = O_RDWR;
+    break;
+
+  default:
+    open_flags = O_RDONLY;
+    break;
+  }
+
+  return open_flags;
+}
+
+//------------------------------------------------------------------------------
+// Get XRootD acceess operation bases on the given open flags
+//------------------------------------------------------------------------------
+Access_Operation
+EosMgmOfsFile::GetXrdAccessOperation(int open_flags)
+{
+  Access_Operation op;
+
+  if (open_flags & O_CREAT) {
+    op = AOP_Create;
+  } else {
+    if (open_flags == O_RDONLY) {
+      op = AOP_Read;
+    } else {
+      op = AOP_Update;
+    }
+  }
+
+  return op;
+}
+
+
+
+//------------------------------------------------------------------------------
+// Get checksum from opaque
+//------------------------------------------------------------------------------
+void
+EosMgmOfsFile::getCksumFromOpaque(std::string& cksumType, std::string& cksumValue)
+{
+  cksumType.clear();
+  cksumValue.clear();
+
+  auto getFirst = [this](std::initializer_list<const char*> keys) -> const char* {
+    for (const auto& k : keys) {
+      if (char* value = openOpaque->Get(k)) {
+        return value;
+      }
+    }
+    return nullptr;
+  };
+
+  if (const char* cksumtype = getFirst({"eos.checksumtype", "cks.type"})) {
+    cksumType = cksumtype;
+  }
+  if (const char* cksumvalue = getFirst({"eos.checksum", "cks.value"})) {
+    cksumValue = cksumvalue;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get the encryption key configured for a given space
+//------------------------------------------------------------------------------
+std::string
+EosMgmOfsFile::GetSpaceEncryptionKey(const std::string& space)
+{
+  if (space.empty()) {
+    return std::string();
+  }
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  auto it = FsView::gFsView.mSpaceView.find(space);
+
+  if ((it == FsView::gFsView.mSpaceView.end()) || (it->second == nullptr)) {
+    return std::string();
+  }
+
+  const std::string key =
+      it->second->GetConfigMember(eos::common::SPACE_ENCRYPTION_KEY_NAME);
+
+  // Refuse a key which would break the opaque info of the capability, also in
+  // its sealed form - this can only happen if it was injected bypassing
+  // 'space config', e.g. by editing the configuration by hand
+  if (!key.empty() && !eos::common::SymKey::IsValidEncryptionKey(
+                          eos::common::StringConversion::UnsealXrdPath(key))) {
+    eos_static_err("msg=\"ignoring malformed space encryption key\" space=\"%s\"",
+                   space.c_str());
+    return std::string();
+  }
+
+  return key;
+}
+
+//------------------------------------------------------------------------------
+// Tell whether a file created by this open gets obfuscated
+//------------------------------------------------------------------------------
+bool
+EosMgmOfsFile::ObfuscatesNewFile(const eos::IContainerMD::XAttrMap& attrmap) const
+{
+  if (mEosObfuscate > 0) {
+    return true;
+  }
+
+  auto it = attrmap.find(eos::kAttrFileObfuscate);
+  return (it != attrmap.end()) && (it->second == "1");
+}
+
+//------------------------------------------------------------------------------
+// Apply the instance encryption key of a space to the file being opened
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::ApplySpaceEncryption(const char* path,
+                                    eos::IContainerMD::XAttrMap& attrmap,
+                                    eos::IFileMD::XAttrMap& attrmapF, bool isRW,
+                                    bool isCreation)
+{
+  static const char* epname = "open";
+
+  if (!isCreation) {
+    // An existing file records the space owning the key it was encrypted with.
+    // Reads and updates have to use that very key, no matter where the file
+    // is located today and no matter which key the client provided.
+    auto it = attrmapF.find(eos::kAttrEncryptSpace);
+
+    if (it == attrmapF.end()) {
+      return SFS_OK;
+    }
+
+    const std::string enc_space = it->second;
+    const std::string space_key = GetSpaceEncryptionKey(enc_space);
+
+    if (space_key.empty()) {
+      eos_err("msg=\"space encryption key is not configured anymore\" "
+              "path=\"%s\" space=\"%s\"",
+              path, enc_space.c_str());
+      return Emsg(epname, error, ENOKEY,
+                  "open file - the encryption key of "
+                  "the space holding this file is not configured anymore ",
+                  path);
+    }
+
+    // The fingerprint is always written together with the space marker. It is
+    // a user.* attribute, so a missing one is treated as a mismatch - otherwise
+    // removing it would turn the ENOKEY into decoded garbage.
+    auto fp = attrmapF.find(eos::kAttrEncryptedFp);
+    const std::string cipher = attrmapF.count(eos::kAttrObfuscateKey)
+                                   ? attrmapF[eos::kAttrObfuscateKey]
+                                   : std::string();
+
+    if ((fp == attrmapF.end()) ||
+        (fp->second != eos::common::SymKey::KeyPrint16(space_key, cipher))) {
+      eos_err("msg=\"space encryption key does not match - contents are lost\" "
+              "path=\"%s\" space=\"%s\"",
+              path, enc_space.c_str());
+      return Emsg(epname, error, ENOKEY,
+                  "open file - the encryption key of "
+                  "the space holding this file does not match ",
+                  path);
+    }
+
+    mEosKey = space_key;
+    mEncryptionSpace = enc_space;
+
+    // 'eos.obfuscate=0' is an explicit request for the raw stored bytes, as
+    // used by the converter to copy a file without decoding it - only the
+    // default (unspecified) case is turned into decoding here
+    if (mEosObfuscate < 0) {
+      mEosObfuscate = 1;
+    }
+
+    return SFS_OK;
+  }
+
+  // A new file starts from scratch - a key inherited from a previous
+  // incarnation of the same path (e.g. an open with O_TRUNC) does not apply
+  if (!mEncryptionSpace.empty()) {
+    mEosKey.clear();
+    mEncryptionSpace.clear();
+  }
+
+  // A key given by the client via 'eos.key' always wins
+  if (!mEosKey.empty()) {
+    return SFS_OK;
+  }
+
+  // Encryption requires obfuscation to be enabled for this file
+  if (!ObfuscatesNewFile(attrmap)) {
+    return SFS_OK;
+  }
+
+  // Dry-run the placement policy to learn in which space the new file lands.
+  // The result is discarded, the effective layout is computed later on at the
+  // usual place.
+  std::string enc_space = "default";
+  unsigned long tmp_lid = 0;
+  unsigned long tmp_fsid = 0;
+  long tmp_group = -1;
+  std::string tmp_bw, tmp_ioprio, tmp_iotype;
+  bool tmp_sched = false;
+  Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, enc_space, *openOpaque, tmp_fsid,
+                            tmp_group, tmp_bw, tmp_sched, tmp_ioprio, tmp_iotype, isRW,
+                            true);
+  const std::string space_key = GetSpaceEncryptionKey(enc_space);
+
+  if (space_key.empty()) {
+    return SFS_OK;
+  }
+
+  mEosKey = space_key;
+  mEncryptionSpace = enc_space;
+  eos_info("msg=\"encrypting new file with the key of its space\" path=\"%s\" "
+           "space=\"%s\"",
+           path, enc_space.c_str());
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+#include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
+/*
+ * @brief open a given file with the indicated mode
+ *
+ * @param inpath path to open
+ * @param open_mode SFS_O_RDONLY,SFS_O_WRONLY,SFS_O_RDWR,SFS_O_CREAT,SFS_TRUNC
+ * @param Mode posix access mode bits to be assigned
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @return SFS_OK on succes, otherwise SFS_ERROR on error or redirection
+ *
+ * Mode may also contain SFS_O_MKPATH if one desires to automatically create
+ * all missing directories for a file (if possible).
+ *
+ */
+/*----------------------------------------------------------------------------*/
+using eos::common::XrdUtils;
+int
+EosMgmOfsFile::open(eos::common::VirtualIdentity* invid,
+                    const char* inpath,
+                    XrdSfsFileOpenMode open_mode,
+                    mode_t Mode,
+                    const XrdSecEntity* client,
+                    const char* ininfo)
+{
+  // For audit of truncation: capture before/after
+  bool auditTruncate = false;
+  eos::audit::Stat truncBefore;
+  std::string truncPath;
+  using eos::common::LayoutId;
+  static const char* epname = "open";
+  const char* tident = error.getErrUser();
+  eos::IFileMD::XAttrMap attrmapF;
+  // xattrs stored on a file replaced by a truncating open, unlike attrmapF
+  // they are not merged with the space attributes
+  eos::IFileMD::XAttrMap attrmapOverwritten;
+  errno = 0;
+  eos::common::Timing tm("Open");
+  COMMONTIMING("begin", &tm);
+  EXEC_TIMING_BEGIN("Open");
+  XrdOucString spath = inpath;
+  XrdOucString sinfo = ininfo;
+  SetLogId(logId, tident);
+  int open_flags = GetPosixOpenFlags(open_mode);
+  bool isRW = ((open_flags == O_RDONLY) ? false : true);
+  bool isRewrite = ((open_flags & O_CREAT) ? false : true);
+  Access_Operation acc_op = GetXrdAccessOperation(open_flags);
+  {
+    EXEC_TIMING_BEGIN("IdMap");
+    std::string validation_path = spath.c_str();
+
+    if (eos::common::EosTok::IsEosTokenPath(spath.c_str())) {
+      sinfo += "&authz=";
+      sinfo += spath.c_str() + 1;
+      ininfo = sinfo.c_str();
+      validation_path = "";
+    }
+
+    if (ProcInterface::IsProcAccess(spath.c_str())) {
+      validation_path = "";
+    }
+
+    if (spath == "/fusex-open") {
+      validation_path = "";
+    }
+
+    if (!invid) {
+      eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+                                  gOFS->mTokenAuthz, acc_op,  validation_path.c_str());
+    } else {
+      vid = *invid;
+    }
+
+    EXEC_TIMING_END("IdMap");
+  }
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  COMMONTIMING("IdMap", &tm);
+  SetLogId(logId, vid, tident);
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  BOUNCE_NOT_ALLOWED;
+  spath = path;
+  COMMONTIMING("Bounce", &tm);
+
+  if (!spath.beginswith("/proc/") && spath.endswith("/")) {
+    return Emsg(epname, error, EISDIR,
+                "open - you specified a directory as target file name", path);
+  }
+
+  bool isCreation = false;
+  // flag indicating parallel IO access
+  bool isPio = false;
+  // flag indicating access with reconstruction
+  bool isPioReconstruct = false;
+  // flag indicating FUSE file access
+  bool isFuse = false;
+  // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
+  bool isAtomicUpload = false;
+  // flag indicating an atomic file name
+  bool isAtomicName = false;
+  // flag indicating that the path is a hard link switched to its target file
+  bool isHardLink = false;
+  // flag indicating a new injection - upload of a file into a stub without physical location
+  bool isInjection = false;
+  // flag indicating to drop the current disk replica in the policy space
+  bool isRepair = false;
+  // flag indicating a read for repair (meaningfull only on the FST)
+  bool isRepairRead = false;
+  // flag indicationg a TPC action
+  bool isTpc = false;
+  // flag indicating a file touch
+  bool isTouch = false;
+  // flag indicating to keep the xattrs of an overwritten file
+  bool isXattrPreserve = false;
+  // chunk upload ID
+  XrdOucString ocUploadUuid = "";
+  // Set of filesystem IDs to reconstruct
+  std::set<unsigned int> pio_reconstruct_fs;
+  // list of filesystem IDs usable for replacement of RAIN file
+  std::vector<unsigned int> pio_replacement_fs;
+  // tried hosts CGI
+  std::string tried_cgi;
+  // versioning CGI
+  std::string versioning_cgi;
+  // file size
+  uint64_t fmdsize = 0;
+  // io priority string
+  std::string ioPriority;
+  XrdOucString log_info = (ininfo ? ininfo : "");
+  eos::common::StringConversion::MaskSecretTags(log_info);
+
+  if (isRW) {
+    eos_info("op=write trunc=%d path=%s info=%s", open_mode & SFS_O_TRUNC, path,
+             log_info.c_str());
+  } else {
+    eos_info("op=read path=%s info=%s", path, log_info.c_str());
+  }
+
+  ACCESSMODE_R;
+
+  if (isRW) {
+    SET_ACCESSMODE_W;
+  }
+
+  if (ProcInterface::IsProcAccess(path)) {
+    if (ProcInterface::IsWriteAccess(path, ininfo)) {
+      SET_ACCESSMODE_W;
+    }
+  } else {
+    if (getenv("EOS_HA_REDIRECT_READS")) {
+      SET_ACCESSMODE_R_MASTER;
+    }
+  }
+
+  MAYSTALL;
+  MAYREDIRECT;
+  std::string currentWorkflow = "default";
+  unsigned long long byfid = 0;
+  unsigned long long bypid = 0;
+  COMMONTIMING("fid::fetch", &tm);
+
+  /* check paths starting with fid: fxid: ino: ... */
+  if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
+      spath.beginswith("ino:")) {
+    WAIT_BOOT;
+    // reference by fid+fsid
+    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+      spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" fxid=%08llx ino=%s path=%s", byfid, path,
+               spath.c_str());
+      path = spath.c_str();
+    } catch (eos::MDException& e) {
+      eos_debug("caught exception %d %s\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+      return Emsg(epname, error, ENOENT,
+                  "open - you specified a not existing inode number", path);
+    }
+  }
+
+  COMMONTIMING("fid::fetched", &tm);
+  openOpaque = new XrdOucEnv(ininfo);
+
+  // Handle (delegated) tpc redirection for writes
+  if (isRW && RedirectTpcAccess()) {
+    return SFS_REDIRECT;
+  }
+
+  std::string app_name = GetClientApplicationName(openOpaque, client, vid);
+
+  // Decide if this is a FUSE access
+  if (!app_name.empty()) {
+    if (app_name == "fuse" || app_name == "xrootdfs" ||
+        app_name.find("fuse::") == 0) {
+      isFuse = true;
+      vid.app = app_name;
+    } else if (app_name == "touch") {
+      isTouch = true;
+      isFuse = true;
+    }
+  } else {
+    // App name is empty, check for the presence of oss.task
+    // as XRootD's XrdTpcTPC can set this opaque information
+    // to indicate that the open() is due to an HTTP TPC
+    // transfer
+    const char* ossTask = nullptr;
+
+    if ((ossTask = openOpaque->Get("oss.task"))) {
+      // We have oss.task opaque, check if it is equal to httptpc
+      // (set by XrdTpcTPC)
+      if (!strncmp("httptpc", ossTask, 7)) {
+        if (isRW) {
+          // Open for write --> HTTP TPC PULL
+          app_name += "http/tpcpull";
+        } else {
+          // HTTP TPC PUSH
+          app_name += "http/tpcpush";
+        }
+      }
+    }
+  }
+
+
+    // handle io priority
+  if (auto ioprio = XrdUtils::GetEnv(*openOpaque, "eos.iopriority");
+      !ioprio.empty()) {
+    // only operator/admins can set iopriority
+    if (vid.HasUid(11)) {
+      ioPriority = std::move(ioprio);
+    } else {
+      eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
+               ioprio.c_str());
+    }
+  }
+  // handle various values from CGI
+  XrdUtils::GetEnv(*openOpaque, "eos.obfuscate", mEosObfuscate, -1);
+  mEosKey = XrdUtils::GetEnv(*openOpaque, "eos.key");
+  if (!mEosKey.empty()) {
+    if (mEosObfuscate == 0) {
+      mEosObfuscate = 1;
+    }
+  }
+  // Populate ocuploaduuid from openopaque
+  if (auto _ocuuid = XrdUtils::GetEnv(*openOpaque, "oc-chunk-uuid");
+      !_ocuuid.empty()) {
+      ocUploadUuid = _ocuuid.c_str();
+  }
+
+  if (auto _tried = XrdUtils::GetEnv(*openOpaque, "tried");
+      !_tried.empty()) {
+      tried_cgi = _tried + ",";
+  }
+
+  currentWorkflow = XrdUtils::GetEnv(*openOpaque, "eos.workflow", "default");
+  versioning_cgi = XrdUtils::GetEnv(*openOpaque, "eos.versioning");
+  isXattrPreserve = (XrdUtils::GetEnv(*openOpaque, "eos.xattr.preserve") == "1");
+  isTpc = openOpaque->Get("tpc.stage") != nullptr;
+
+  if (!isFuse && isRW) {
+    // resolve symbolic links
+    try {
+      std::string s_path = path;
+      spath = gOFS->eosView->getRealPath(s_path).c_str();
+      eos_info("msg=\"rewrote symlinks\" sym-path=%s realpath=%s", s_path.c_str(),
+               spath.c_str());
+      path = spath.c_str();
+    } catch (eos::MDException& e) {
+      eos_debug("caught exception %d %s\n",
+                e.getErrno(),
+                e.getMessage().str().c_str());
+      // will throw the error later
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PIO MODE CONFIGURATION
+  // ---------------------------------------------------------------------------
+  // PIO mode return's a vector of URLs to a client and the client contact's
+  // directly these machines and run's the RAIN codec on client side.
+  // The default mode return's one gateway machine and this machine run's the
+  // RAIN codec.
+  // On the fly reconstruction is done using PIO mode when the reconstruction
+  // action is defined ('eos.pio.action=reconstruct'). The client can specify
+  // a list of filesystem's which should be excluded. In case they are used
+  // in the layout the stripes on the explicitly referenced filesystems and
+  // all other unavailable filesystems get reconstructed into stripes on
+  // new machines.
+  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // discover PIO mode
+  // ---------------------------------------------------------------------------
+  isPio = XrdUtils::GetEnv(*openOpaque, "eos.cli.access") == "pio";
+  isPioReconstruct = XrdUtils::GetEnv(*openOpaque, "eos.pio.action") == "reconstruct";
+
+  // PIO writes leave the parity computation and the commit to the client. Any
+  // client can commit or drop only what the PIO write capability issued to its
+  // uid covers, therefore anonymous identities are refused upfront.
+  if (isPio && isRW && vid.IsNobody()) {
+    eos_err("msg=\"PIO write refused for nobody identity\" prot=%s host=%s "
+            "path=\"%s\"",
+            vid.prot.c_str(), vid.host.c_str(), path);
+    gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, EACCES,
+                "open - PIO write not allowed for "
+                "unauthorized identity",
+                path);
+  }
+
+  // Client identity bound to the PIO write capability, taken before any
+  // sticky owner mapping of the vid
+  const uid_t pio_client_uid = vid.uid;
+
+  {
+    // Discover PIO reconstruction filesystems (stripes to be replaced)
+    std::string sPioRecoverFs = XrdUtils::GetEnv(*openOpaque, "eos.pio.recfs");
+
+    std::vector<std::string> fsToken;
+    eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
+
+    if (!sPioRecoverFs.empty() && fsToken.empty()) {
+      return Emsg(epname, error, EINVAL, "open - you specified a list of"
+                  " reconstruction filesystems but the list is empty", path);
+    }
+
+    for (size_t i = 0; i < fsToken.size(); i++) {
+      errno = 0;
+      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(), 0, 10);
+      XrdOucString srfs = "";
+      srfs += (int) rfs;
+
+      if (errno || (srfs != fsToken[i].c_str())) {
+        return Emsg(epname, error, EINVAL, "open - you specified a list of "
+                    "reconstruction filesystems but the list contains non "
+                    "numerical or illegal id's", path);
+      }
+
+      // store in the reconstruction filesystem list
+      pio_reconstruct_fs.insert(rfs);
+    }
+  }
+
+  int rcode = SFS_ERROR;
+  XrdOucString redirectionhost = "invalid?";
+  std::string targethost;
+  int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
+  int targethttpport = gOFS->mHttpdPort;
+  int ecode = 0;
+  unsigned long fmdlid = 0;
+  unsigned long long cid = 0;
+  eos::IFileMD::LocationVector vect_loc;
+
+  // Proc filter
+  if (ProcInterface::IsProcAccess(path)) {
+    if (gOFS->mExtAuthz && (vid.prot != "sss") && (vid.prot != "gsi") &&
+        (vid.prot != "krb5") && (vid.prot != "oauth2") && (vid.host != "localhost") &&
+        (vid.host != "localhost.localdomain")) {
+      return Emsg(epname, error, EPERM, "execute proc command - you don't have"
+                  " the requested permissions for that operation (1)", path);
+    }
+
+    gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1, vid.app);
+
+    if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
+      return Emsg(epname, error, EPERM, "execute proc command - you don't have "
+                  "the requested permissions for that operation (2)", path);
+    } else {
+      mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
+
+      if (mProcCmd) {
+        eos::common::Timing tm("ProcCmd");
+        COMMONTIMING("begin", &tm);
+
+        eos_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
+        mProcCmd->SetLogId(logId, vid, tident);
+        mProcCmd->SetError(&error);
+
+        rcode = mProcCmd->open(path, ininfo, vid, &error);
+        COMMONTIMING("file::open", &tm);
+        // If we need to stall the client then save the IProcCommand object and
+        // add it to the map for when the client comes back.
+        if (rcode > 0) {
+          if (mProcCmd->GetCmd(ininfo) != "proto") {
+            COMMONTIMING("client::stall", &tm);
+            eos_debug("proccmd=%s %s stall=%d", mProcCmd->GetCmd(ininfo).c_str(),
+                     tm.Dump().c_str(), rcode);
+            return rcode;
+          }
+
+          if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
+            eos_err("failed to save submitted command object");
+            return Emsg(epname, error, EINVAL, "save sumitted command object "
+                        "for path ", path);
+          }
+
+          // Now the mProcCmd object is null and moved to the global map
+        }
+        COMMONTIMING("end", &tm);
+
+        eos_debug("proccmd=%s %s rcode=%d",
+                 mProcCmd ? mProcCmd->GetCmd(ininfo).c_str() : "moved", tm.Dump().c_str(),
+                 rcode);
+        return rcode;
+      } else {
+        // Null mProcCmd here means either the protobuf admin gate refused
+        // the request (see ProcInterface::HandleProtobufRequest /
+        // ProcInterface::IsAdminCmd) or allocation failed. EPERM is the
+        // common case in well-formed deployments.
+        return Emsg(epname, error, EPERM, "execute proc command - admin role"
+                    " required or allocation failed for ", path);
+      }
+    }
+  }
+
+  gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1, vid.app);
+  bool dotFxid = spath.beginswith("/.fxid:");
+
+  if (dotFxid) {
+    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+      spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" fxid=%08llx ino=%s path=%s", byfid, path,
+               spath.c_str());
+      path = spath.c_str();
+    } catch (eos::MDException& e) {
+      eos_debug("caught exception %d %s\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      return Emsg(epname, error, ENOENT,
+                  "open - you specified a not existing fxid", path);
+    }
+  }
+
+  COMMONTIMING("authorize", &tm);
+  AUTHORIZE(client, openOpaque, acc_op,
+            ((acc_op == AOP_Create) ? "create" : "open"), inpath, error);
+  COMMONTIMING("authorized", &tm);
+  eos::common::Path cPath(path);
+  // indicate the scope for a possible token
+  TOKEN_SCOPE;
+  isAtomicName = cPath.isAtomicFile();
+
+  // prevent any access to a recycling bin for writes
+  if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
+    return Emsg(epname, error, EPERM,
+                "open file - nobody can write to a recycling bin",
+                cPath.GetParentPath());
+  }
+
+  std::shared_ptr<eos::IContainerMD> dmd;
+
+  // check if we have to create the full path
+  if (Mode & SFS_O_MKPTH) {
+    eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
+    XrdSfsFileExistence file_exists;
+    std::shared_ptr<eos::IFileMD> _fmd;
+    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
+                           error, vid, dmd, _fmd, 0);
+
+    // check if that is a file
+    if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
+        (file_exists != XrdSfsFileExistIsDirectory)) {
+      return Emsg(epname, error, ENOTDIR,
+                  "open file - parent path is not a directory",
+                  cPath.GetParentPath());
+    }
+
+    // if it does not exist try to create the path!
+    if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
+      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
+
+      if (ec) {
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
+        return SFS_ERROR;
+      }
+    }
+  }
+
+  bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
+
+  if (gOFS->is_squashfs_access(path, vid)) {
+    isSharedFile = true;
+  }
+
+  COMMONTIMING("path-computed", &tm);
+  // Get the directory meta data if it exists
+  eos::IContainerMD::XAttrMap attrmap;
+  Acl acl;
+  Workflow workflow;
+  bool stdpermcheck = false;
+  int versioning = 0;
+  uid_t d_uid = vid.uid;
+  gid_t d_gid = vid.gid;
+  std::string creation_path = path;
+  // The name looked up under the read lock below
+  std::string lookup_name;
+  {
+    // This is probably one of the hottest code paths in the MGM, we definitely
+    // want prefetching here.
+    if (!byfid) {
+      if (!(open_flags & O_EXCL)) {
+        // if we want to create, why would we prefetch file md?
+        eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
+      } else {
+        eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+            cPath.GetParentPath());
+      }
+    }
+
+    try {
+      if (byfid) {
+        dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+      } else if (!dmd) {
+        dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      }
+
+      // get the attributes out
+      gOFS->listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+      // extract workflows
+      workflow.Init(&attrmap);
+
+      if (dmd) {
+        try {
+          std::string filePath = cPath.GetPath();
+          std::string fileName = cPath.GetName();
+
+          if (ocUploadUuid.length()) {
+            eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
+                                    ocUploadUuid));
+            filePath = aPath.GetPath();
+            fileName = aPath.GetName();
+          }
+
+          lookup_name = fileName;
+
+          if ((fmd = dmd->findFile(fileName))) {
+            /* in case of a hard link, may need to switch to target */
+            /* A hard link to another file */
+            if (fmd->hasAttribute(SYS_HARD_LINK)) {
+              std::shared_ptr<eos::IFileMD> gmd;
+              uint64_t mdino;
+
+              if (eos::common::StringToNumeric(fmd->getAttribute(SYS_HARD_LINK),
+                                               mdino)) {
+                gmd = gOFS->eosFileService->getFileMD(
+                        eos::common::FileId::InodeToFid(mdino));
+                eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
+                         fmd->getName().c_str(), fmd->getId(),
+                         gmd->getName().c_str(), gmd->getId());
+                fmd = gmd;
+                isHardLink = true;
+              } else {
+                //Conversion from string to inode number failed, log the error and return an error to the client
+                return Emsg(epname, error, ENOENT,
+                            "convert the inode extended attribute to a number", path);
+              }
+            }
+
+            if (fmd->isLink()) {
+              // we have to get it by path
+              fmd = gOFS->eosView->getFile(filePath);
+            }
+
+            uint64_t dmd_id = fmd->getContainerId();
+            byfid = fmd->getId();
+
+            // If fmd is resolved via a symbolic link, we have to find the
+            // 'real' parent directory
+            if (dmd_id != dmd->getId()) {
+              // retrieve the 'real' parent
+              try {
+                dmd = gOFS->eosDirectoryService->getContainerMD(dmd_id);
+              } catch (const eos::MDException& e) {
+                // this looks like corruption, but will return in ENOENT for the parent
+                dmd.reset();
+                errno = ENOENT;
+              }
+            }
+
+            // check for O_EXCL here to save some time
+            if (open_flags & O_EXCL) {
+              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
+              return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
+            }
+          }
+        } catch (eos::MDException& e) {
+          fmd.reset();
+        }
+
+        if (!fmd) {
+          if (dmd && dmd->findContainer(cPath.GetName())) {
+            errno = EISDIR;
+          } else {
+            errno = ENOENT;
+          }
+        } else {
+          mFid = fmd->getId();
+          fmdlid = fmd->getLayoutId();
+          vect_loc = fmd->getLocations();
+          cid = fmd->getContainerId();
+          fmdsize = fmd->getSize();
+        }
+
+        if (dmd) {
+          d_uid = dmd->getCUid();
+          d_gid = dmd->getCGid();
+        }
+      } else {
+        fmd.reset();
+      }
+    } catch (eos::MDException& e) {
+      dmd.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    };
+
+    COMMONTIMING("container::fetched", &tm);
+
+    // Check permissions
+    if (!dmd) {
+      int save_errno = errno;
+      MAYREDIRECT_ENOENT;
+
+      if (cPath.GetSubPath(2)) {
+        eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
+
+        // Check if we have a redirection setting at level 2 in the namespace
+        try {
+          dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
+          // get the attributes out
+          gOFS->listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+        } catch (eos::MDException& e) {
+          dmd.reset();
+          errno = e.getErrno();
+          eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
+                    e.getErrno(), e.getMessage().str().c_str());
+        }
+
+        if (std::string _redir;
+            attr::getValue(attrmap, "sys.redirect.enoent", _redir) && !_redir.empty()) {
+          // there is a redirection setting here
+          redirectionhost = "";
+          redirectionhost = _redir.c_str();
+          int portpos = 0;
+
+          if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+            XrdOucString port = redirectionhost;
+            port.erase(0, portpos + 1);
+            ecode = atoi(port.c_str());
+            redirectionhost.erase(portpos);
+          } else {
+            ecode = 1094;
+          }
+
+          if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+            eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+            return SFS_ERROR;
+          }
+
+          rcode = SFS_REDIRECT;
+          gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1, vid.app);
+          XrdOucString predirectionhost = redirectionhost.c_str();
+          eos::common::StringConversion::MaskSecretTags(predirectionhost);
+          eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(),
+                   ecode);
+          return rcode;
+        }
+      }
+
+      // put back original errno
+      errno = save_errno;
+      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1, vid.app);
+      return Emsg(epname, error, errno, "open file", path);
+    }
+
+    bool sticky_owner;
+    attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+
+    // -------------------------------------------------------------------------
+    // ACL and permission check
+    // -------------------------------------------------------------------------
+    if (dotFxid and (not vid.sudoer) and (vid.uid != 0)) {
+      /* restricted: this could allow access to a file hidden by the hierarchy */
+      eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
+      errno = EPERM;
+      return Emsg(epname, error, errno, "open file - open by fxid denied", path);
+    }
+
+    if (fmd) {
+      gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+    }
+
+    acl.SetFromAttrMap(attrmap, vid, &attrmapF);
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+             acl.HasEgroup(), isSharedFile, acl.IsMutable(),
+             acl.EvalUserAttrFile());
+
+    if (acl.HasAcl() && (vid.uid != 0)) {
+      if ((vid.uid != 0) && (!vid.sudoer) &&
+          (isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
+        eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
+                  vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite(),
+                  acl.CanNotUpdate());
+        errno = EPERM;
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
+        return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
+      }
+
+      if (isRW) {
+        // Update case - unless SFS_O_TRUNC is specified then this is a normal write
+        if (fmd && ((open_flags & O_TRUNC) == 0)) {
+          eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
+                    acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
+                    fmd->getCGid());
+
+          if (acl.CanNotUpdate() || (acl.CanNotWrite() && !acl.CanUpdate())) {
+            // the ACL has !u set - we don't allow to do file updates
+            gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
+            return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
+                        path);
+          }
+
+          stdpermcheck = (!acl.CanUpdate());
+        } else {
+          // Write case
+          if (!(acl.CanWrite() || acl.CanWriteOnce())) {
+            // We have to check the standard permissions
+            stdpermcheck = true;
+          }
+        }
+      } else {
+        // read case
+        if (!acl.CanRead()) {
+          // we have to check the standard permissions
+          stdpermcheck = true;
+        }
+      }
+    } else {
+      stdpermcheck = true;
+    }
+
+    if (isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
+      // immutable directory
+      errno = EPERM;
+      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
+      return Emsg(epname, error, errno, "open file - directory immutable", path);
+    }
+
+    // check publicaccess level
+    if (!gOFS->allow_public_access(path, vid)) {
+      return Emsg(epname, error, EACCES, "access - public access level restriction",
+                  path);
+    }
+
+    int taccess = -1;
+
+    if ((!isSharedFile || isRW) && stdpermcheck) {
+      // when tokens are used, UNIX permissions are disabled
+      if (vid.token && vid.uid) {
+        errno = EPERM;
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
+        return Emsg(epname, error, errno, "open file", path);
+      }
+
+      if (!(taccess = dmd->access(vid.uid, vid.gid,
+                                  (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
+        eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+                  fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+                  stdpermcheck, taccess);
+
+        if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+          // we don't apply this permission check for reconstruction jobs issued via the daemon account
+          errno = EPERM;
+          gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+          return Emsg(epname, error, errno, "open file", path);
+        }
+      }
+    }
+
+    if (sticky_owner) {
+      eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
+               path, vid.uid, vid.gid, d_uid, d_gid);
+      vid.uid = d_uid;
+      vid.gid = d_gid;
+    }
+
+    // If a file has the sys.proc attribute, it will be redirected as a command
+    if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
+      return open("/proc/user/", open_mode, Mode, client,
+                  fmd->getAttribute("sys.proc").c_str());
+    }
+  }
+  // check for versioning depth, cgi overrides sys & user attributes
+  versioning = attr::getVersioning(attrmap, versioning_cgi);
+  // eos.versioning=0 in a versioned directory only skips the new version, the
+  // file keeps its versions and its xattrs
+  const bool skipVersion = !versioning && (attr::getVersioning(attrmap, "") > 0);
+  // check for atomic uploads only in non fuse clients
+  isAtomicUpload = !isFuse &&
+                   attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
+  // check for injection in non fuse clients with cgi
+  isInjection = !isFuse && openOpaque->Get("eos.injection") != nullptr;
+  isRepair = openOpaque->Get("eos.repair") != nullptr;
+  isRepairRead = openOpaque->Get("eos.repairread") != nullptr;
+  // Fusex client uuid - tagged on write opens, used to detect and block
+  // parallel writers into the same (RAIN/EC) file while it is being created
+  const std::string client_uuid =
+      (openOpaque->Get("mgm.uuid") ? openOpaque->Get("mgm.uuid") : "");
+
+  // Short-cut to block multi-source access to EC files
+  if (IsRainRetryWithExclusion(isRW, fmdlid)) {
+    return Emsg(epname, error, ENETUNREACH,  "open file - "
+                "multi-source reading on EC file blocked for ", path);
+  }
+
+  // ---------------------------------------------------------------------------
+  // If the client requested a given checksum type (e.g. HTTP Repr-Digest or
+  // cks.type coming from HTTP TPC), validate it against the layout checksum
+  // type before any namespace entry is created. This way a request that can
+  // never pass the checksum verification neither leaves a 0-size file behind
+  // nor needs any cleanup on the FST side.
+  // ---------------------------------------------------------------------------
+  if (isRW) {
+    std::string cksumType, cksumValue;
+    getCksumFromOpaque(cksumType, cksumValue);
+
+    if (!cksumType.empty()) {
+      const int req_xs = LayoutId::GetChecksumFromString(cksumType);
+
+      if (req_xs < 0) {
+        return Emsg(epname, error, EINVAL,
+                    "open file - the requested "
+                    "checksum type does not exist: ",
+                    cksumType.c_str());
+      }
+
+      unsigned long target_lid = fmdlid;
+
+      if (!fmd) {
+        // New file: do a dry-run of the layout selection to learn the
+        // checksum type the policy would assign. The result is discarded,
+        // the effective layout is computed later at the usual place.
+        std::string tmp_space = "default";
+        unsigned long tmp_lid = 0;
+        unsigned long tmp_fsid = 0;
+        long tmp_group = -1;
+        std::string tmp_bw, tmp_ioprio, tmp_iotype;
+        bool tmp_sched = false;
+        Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, tmp_space, *openOpaque,
+                                  tmp_fsid, tmp_group, tmp_bw, tmp_sched, tmp_ioprio,
+                                  tmp_iotype, isRW, true);
+        target_lid = tmp_lid;
+      }
+
+      if (LayoutId::GetChecksum(target_lid) == LayoutId::kNone) {
+        return Emsg(epname, error, EINVAL,
+                    "open file - a checksum type was "
+                    "requested but the layout has no checksum configured ",
+                    path);
+      }
+
+      if (static_cast<unsigned long>(req_xs) != LayoutId::GetChecksum(target_lid)) {
+        std::ostringstream oss;
+        oss << "open file - the requested checksum type (" << cksumType
+            << ") does not match the one configured on the layout ("
+            << LayoutId::GetChecksumStringReal(target_lid) << ") for ";
+        return Emsg(epname, error, EINVAL, oss.str().c_str(), path);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // attribute lock logic, don't allow file opens which have an attr lock
+  // ---------------------------------------------------------------------------
+  XattrLock alock(attrmapF);
+
+  if (alock.foreignLock(vid, isRW)) {
+    return Emsg(epname, error, EBUSY,
+                "open file - file has a valid extended attribute lock ", path);
+  }
+
+  // ---------------------------------------------------------------------------
+  // An existing file which was encrypted with the key of a space has to be
+  // (de-)ciphered with that very key. A truncating open drops the file and
+  // creates a brand new one instead, there the policy is re-evaluated further
+  // down - which also keeps overwrites working after a key rotation.
+  // ---------------------------------------------------------------------------
+  const bool drops_content =
+      isRW && !isInjection && (open_flags & O_TRUNC) && (ocUploadUuid.length() == 0);
+
+  if (fmd && !drops_content &&
+      ApplySpaceEncryption(path, attrmap, attrmapF, isRW, false)) {
+    return SFS_ERROR;
+  }
+
+  // ---------------------------------------------------------------------------
+  // No FST applies the obfuscation or encryption key to the stripes a PIO
+  // client reads or writes directly. Refuse PIO whenever a key may be
+  // involved, the client then falls back to a gateway access. For writes this
+  // has to happen before an overwritten file is versioned or removed.
+  // ---------------------------------------------------------------------------
+  if (isPio) {
+    const bool obfuscates_new_file = isRW && ObfuscatesNewFile(attrmap);
+
+    if (!mEosKey.empty() || attrmapF.count(eos::kAttrObfuscateKey) ||
+        obfuscates_new_file) {
+      return Emsg(epname, error, ENOTSUP,
+                  "open - PIO is not supported for "
+                  "obfuscated or encrypted files",
+                  path);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // An update keeps the file, and the MGM can't apply a key of the client to the
+  // new range: a reader passing that key would get garbage from it. Refuse before
+  // anything changes, eos.obfuscate=0 is no way out as a write always gets the
+  // keys the file is stored with. eosxd applies its secret itself, and a recall
+  // from tape writes the stored bytes without any key.
+  // ---------------------------------------------------------------------------
+  if (fmd && isRW && !drops_content && !isFuse && !isInjection &&
+      attrmapF.count(eos::kAttrEncrypted) && !attrmapF.count(eos::kAttrEncryptSpace) &&
+      mEosKey.empty()) {
+    return Emsg(epname, error, ENOKEY,
+                "update file - it is encrypted with a client key: "
+                "provide it with eos.key",
+                path);
+  }
+
+  if (isRW) {
+    if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
+        !isInjection && !isTpc && !isRepair) {
+      // Get space that file belongs to
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+      std::string source_space = (space_name.empty() ? "default" : space_name);
+      std::string target_space;
+      unsigned long target_layout;
+      auto conversion = Policy::UpdateConversion(path, attrmap, vid, fmdlid,
+                        source_space, *openOpaque,
+                        target_layout, target_space);
+
+      if (conversion == Policy::eFail) {
+        return Emsg(epname, error, EINVAL, "open file for update - invalid "
+                    "update conversion policy found!", path);
+      }
+
+      if (conversion == Policy::eAsync) {
+        error.setErrCode(0);
+        auto conversionCb = std::make_shared<XrdOucCallBack>();
+        conversionCb->Init(&error);
+        error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
+        auto conversiontag = ConversionTag::Get(
+                               byfid, target_space, target_layout, std::string(""), true);
+        std::string err_msg;
+
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
+                                                err_msg, conversionCb)) {
+          eos_info("msg=\"update conversion started\" fxid=%08llx conv=\"%s\"",
+                   byfid, conversiontag.c_str());
+          return SFS_STARTED;
+        } else {
+          // remove the callback from the error object
+          error.setErrCB(0);
+          error.setErrArg(0);
+          error.setErrInfo(60, "please retry after 60 seconds for update conversion");
+          eos_info("msg=\"stalling client for update conversion\" fxid=%08llx "
+                   "conv=\"%s\"", byfid, conversiontag.c_str());
+          return SFS_STALL;
+        }
+      } else {
+        // no conversion to be run
+      }
+    }
+
+    // Allow updates of 0-size RAIN files so that we are able to write from the
+    // FUSE mount with lazy-open mode enabled.
+    if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
+        (fmdsize != 0) && (LayoutId::IsRain(fmdlid))) {
+      // Unpriviledged users are not allowed to open RAIN files for update
+      gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
+      return Emsg(epname, error, EPERM, "update RAIN layout file - "
+                  "you have to be a priviledged user for updates");
+    }
+
+    // PIO writes are handled by the client only for RAIN layouts. Check this
+    // with a dry-run of the layout selection before any namespace change.
+    if (isPio) {
+      std::string tmp_space = "default";
+      unsigned long tmp_lid = 0;
+      unsigned long tmp_fsid = 0;
+      long tmp_group = -1;
+      std::string tmp_bw, tmp_ioprio, tmp_iotype;
+      bool tmp_sched = false;
+      Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, tmp_space, *openOpaque,
+                                tmp_fsid, tmp_group, tmp_bw, tmp_sched, tmp_ioprio,
+                                tmp_iotype, isRW, true);
+
+      if (!LayoutId::IsRain(tmp_lid)) {
+        return Emsg(epname, error, ENOTSUP,
+                    "open - PIO write is supported "
+                    "only for RAIN layouts",
+                    path);
+      }
+    }
+
+    // Block parallel writers into a (RAIN/EC) file which is still being created
+    if (isFuse && (fmdsize == 0) && LayoutId::IsRain(fmdlid)) {
+      if (BlockParallelEcWriters(fmd, client_uuid, path) != SFS_OK) {
+        return SFS_ERROR;
+      }
+    }
+
+    if (!isInjection && (open_flags & O_TRUNC) && fmd) {
+      // Capture state before truncation
+      {
+        eos::IFileMD::ctime_t cts, mts;
+        fmd->getCTime(cts);
+        fmd->getMTime(mts);
+        truncBefore.set_ctime(cts.tv_sec);
+        truncBefore.set_mtime(mts.tv_sec);
+        truncBefore.set_uid(fmd->getCUid());
+        truncBefore.set_gid(fmd->getCGid());
+        uint32_t m = (fmd->getFlags() & 07777);
+        truncBefore.set_mode(m);
+        char mo[8];
+        snprintf(mo, sizeof(mo), "0%04o", m);
+        truncBefore.set_mode_octal(mo);
+        truncPath = path;
+        auditTruncate = true;
+      }
+
+      // The new file is protected like the one it replaces, and gets its
+      // xattrs for versions, a skipped version or if asked by
+      // eos.xattr.preserve
+      attrmapOverwritten = fmd->getAttributes();
+
+      // check if this directory is write-once for the mapped user
+      if (acl.HasAcl()) {
+        if (acl.CanWriteOnce()) {
+          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
+          // this is a write once user
+          return Emsg(epname, error, EEXIST,
+                      "overwrite existing file - you are write-once user");
+        } else {
+          if ((!stdpermcheck) && (!acl.CanWrite())) {
+            return Emsg(epname, error, EPERM,
+                        "overwrite existing file - you have no write permission");
+          }
+        }
+      }
+
+      // The MGM can't encrypt the new contents with a key of the client, and
+      // contents stored in clear or with another key decode to garbage for a
+      // reader passing that key. Refuse before the file is versioned or
+      // removed, unless the upload brings the key or passes eos.obfuscate=0 to
+      // store the new contents without it - readers then must not pass the key
+      // any more.
+      if (attrmapOverwritten.count(eos::kAttrEncrypted) &&
+          !attrmapOverwritten.count(eos::kAttrEncryptSpace) && mEosKey.empty() &&
+          (mEosObfuscate != 0)) {
+        return Emsg(epname, error, ENOKEY,
+                    "overwrite existing file - it is "
+                    "encrypted with a client key: provide it with eos.key, or "
+                    "drop it with eos.obfuscate=0 and read without it",
+                    path);
+      }
+
+      if (versioning) {
+        if (isAtomicUpload) {
+          // atomic uploads need just to purge version to max-1, the version is created on commit
+          // purge might return an error if the file was not yet existing/versioned
+          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, versioning - 1);
+          errno = 0;
+        } else {
+          // handle the versioning for a specific file ID
+          if (gOFS->Version(mFid, error, vid, versioning)) {
+            return Emsg(epname, error, errno, "version file", path);
+          }
+        }
+      } else {
+        // drop the old file (for non atomic uploads) and create a new truncated one
+        if ((!isAtomicUpload) &&
+            gOFS->_rem(path, error, vid, ininfo, false, skipVersion)) {
+          return Emsg(epname, error, errno, "remove file for truncation", path);
+        }
+      }
+
+      if (fmd) {
+        ReadThroughCache::TruncateOnMutation(fmd);
+      }
+
+      if (!ocUploadUuid.length()) {
+        fmd.reset();
+      } else {
+        eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
+      }
+
+      gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1, vid.app);
+    } else {
+      if (isInjection && !fmd) {
+        errno = ENOENT;
+        return Emsg(epname, error, errno, "inject into a non-existing file", path);
+      }
+
+      if (!fmd && ((open_flags & O_CREAT))) {
+        gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1, vid.app);
+      } else {
+        if (acl.HasAcl()) {
+          if (acl.CanWriteOnce()) {
+            // this is a write once user
+            return Emsg(epname, error, EEXIST,
+                        "overwrite existing file - you are write-once user");
+          } else {
+            if ((!stdpermcheck) && (!acl.CanWrite()) && (!acl.CanUpdate())) {
+              return Emsg(epname, error, EPERM,
+                          "overwrite existing file - you have no write permission");
+            }
+          }
+        }
+
+        gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+
+        if (fmd) {
+          ReadThroughCache::TruncateOnMutation(fmd);
+        }
+
+        // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
+        if (gOFS->mAudit) {
+          eos::audit::Stat beforeStat;
+          eos::mgm::auditutil::buildStatFromFileMD(fmd,
+              beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+          gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm",
+                              std::string(), &beforeStat, nullptr);
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // write case
+    // -------------------------------------------------------------------------
+    if (!fmd) {
+      if (!(open_flags & O_CREAT)) {
+        // Open for write for non existing file without creation flag
+        return Emsg(epname, error, ENOENT, "open file without creation flag", path);
+      } else {
+        // A file replacing an obfuscated or encrypted one stays so, with a key
+        // of its own - unless the upload asks for eos.obfuscate=0 and its
+        // directory does not obfuscate its files. It is encrypted with the
+        // current key of its space or with the key the upload brings. Without
+        // either it is only obfuscated: once the key of a space is removed,
+        // what is written there is not encrypted any more.
+        if ((mEosObfuscate < 0) && attrmapOverwritten.count(eos::kAttrObfuscateKey)) {
+          mEosObfuscate = 1;
+        }
+
+        // A new file is created - if the space it is placed in defines an
+        // instance encryption key, encrypt it with that key. Has to happen
+        // before the namespace write lock is taken since the placement policy
+        // needs the filesystem view. The copy a conversion writes under
+        // proc/conversion holds the stored bytes of the converted file, which
+        // keeps its own keys: it gets no key, whatever its directory or space
+        // say, or the bytes would be obfuscated twice.
+        const bool isConversion = Policy::IsProcConversion(path);
+
+        if (isConversion) {
+          mEosKey.clear();
+          mEncryptionSpace.clear();
+        } else if (ApplySpaceEncryption(path, attrmap, attrmapF, isRW, true)) {
+          return SFS_ERROR;
+        }
+
+        // Generate the obfuscation key and its fingerprint before taking the
+        // namespace write lock, they only depend on the space key. The policy
+        // of the directory wins over eos.obfuscate=0.
+        const bool obfuscate = !isConversion && ObfuscatesNewFile(attrmap);
+        std::string obfuscate_key;
+        std::string obfuscate_fprint;
+
+        if (obfuscate) {
+          obfuscate_key = eos::common::SymKey::RandomCipher(mEosKey);
+
+          if (mEosKey.length() && !mEncryptionSpace.empty()) {
+            obfuscate_fprint = eos::common::SymKey::KeyPrint16(mEosKey,
+                               obfuscate_key);
+          }
+        }
+
+        // The new file never reuses the keys of a file it replaces (e.g. an
+        // open with O_TRUNC), they would end up in the capability and on a
+        // version while the contents are written with other ones
+        for (const auto* key : eos::kAttrEncryptionKeys) {
+          attrmapF.erase(key);
+        }
+
+        // creation of a new file or isOcUpload
+        COMMONTIMING("write::begin", &tm);
+        {
+          // -------------------------------------------------------------------
+          std::shared_ptr<eos::IFileMD> ref_fmd;
+          // Audit record contents are captured under the lock but the record
+          // is only written out once the lock is released
+          bool emit_audit = false;
+          eos::audit::Stat audit_after_stat;
+          std::unique_ptr<eos::MDLocking::BulkMDWriteLock::Locks> md_locks;
+          eos::MDLocking::FileWriteLockPtr new_fmd_lock;
+
+          try {
+            // we create files with the uid/gid of the parent directory
+            if (isAtomicUpload) {
+              creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+              eos_info("atomic-path=%s", creation_path.c_str());
+
+              try {
+                ref_fmd = gOFS->eosView->getFile(path);
+              } catch (eos::MDException& e) {
+                // empty
+              }
+            }
+
+            // Avoid any race condition when opening for creation O_EXCL
+            if (open_flags & O_EXCL) {
+              if (isAtomicUpload) {
+                try {
+                  fmd = gOFS->eosView->getFile(creation_path);
+                } catch (eos::MDException& e1) {
+                  // empty
+                }
+              }
+
+              if (fmd) {
+                gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
+                return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
+              }
+            }
+
+            // The quota node lookup walks up the parents, so it runs before
+            // the MD locks
+            eos::IQuotaNode* ns_quota = nullptr;
+
+            if (!isInjection) {
+              ns_quota = gOFS->eosView->getQuotaNode(dmd.get());
+            }
+
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(dmd.get());
+
+            if (ref_fmd) {
+              md_locker.add(ref_fmd.get());
+            }
+
+            md_locks = std::make_unique<eos::MDLocking::BulkMDWriteLock::Locks>(
+                md_locker.lockAll());
+
+            // A parallel rmdir removed the parent after the lookup
+            if (dmd->isDeleted()) {
+              throw_mdexception(ENOENT, "No such file or directory");
+            }
+
+            {
+              eos::common::Path cPath(creation_path.c_str());
+              std::string fileName = cPath.GetName();
+
+              eos::FileOrContainerMD conflict = dmd->findItem(fileName).get();
+
+              // The lookup above ran under the read lock: a parallel open can
+              // have created this file since. Let the client retry, it then
+              // finds that file. A retry can not clear the other conflicts,
+              // nor one under a name that the lookup does not use.
+              if (conflict.file && !conflict.file->isLink() &&
+                  (fileName == lookup_name)) {
+                return gOFS->Stall(error, vid, 1, "file was created meanwhile");
+              }
+
+              if (conflict.file || conflict.container) {
+                throw_mdexception(EEXIST, "File exists");
+              }
+
+              // a faster replacement for createFile view
+              auto file = gOFS->eosFileService->createFile(0);
+
+              if (!file) {
+                eos_static_crit("File creation failed for %s", creation_path.c_str());
+                throw_mdexception(EIO, "File creation failed");
+              }
+
+              // The parent lock is held: a new file is locked after its parent
+              new_fmd_lock = eos::MDLocking::writeLock(file.get());
+              file->setName(fileName);
+              file->setCUid(vid.uid);
+              file->setCGid(vid.gid);
+              file->setCTimeNow();
+              file->setATimeNow(0);
+              file->setMTimeNow();
+              file->clearChecksum(0);
+              dmd->addFile(file.get());
+              fmd = file;
+            }
+
+            // Capture the state for the CREATE or TRUNCATE audit after creation
+            if (gOFS->mAudit) {
+              eos::mgm::auditutil::buildStatFromFileMD(fmd,
+                  audit_after_stat, /*includeSize=*/false, /*includeChecksum=*/false,
+                  /*includeNs=*/true);
+              emit_audit = true;
+            }
+
+            if (obfuscate) {
+              // attach an obfucation key
+              fmd->setAttribute(eos::kAttrObfuscateKey, obfuscate_key);
+              attrmapF[eos::kAttrObfuscateKey] = obfuscate_key;
+
+              if (mEosKey.length()) {
+                fmd->setAttribute(eos::kAttrEncrypted, "1");
+                attrmapF[eos::kAttrEncrypted] = "1";
+              }
+
+              if (mEosKey.length() && !mEncryptionSpace.empty()) {
+                // Remember which space key was used together with a low
+                // resolution fingerprint of it. This keeps reads working when
+                // the file moves to another space and turns a changed or a
+                // removed space key into a clean error instead of garbage.
+                fmd->setAttribute(eos::kAttrEncryptSpace, mEncryptionSpace);
+                fmd->setAttribute(eos::kAttrEncryptedFp, obfuscate_fprint);
+                attrmapF[eos::kAttrEncryptSpace] = mEncryptionSpace;
+                attrmapF[eos::kAttrEncryptedFp] = obfuscate_fprint;
+              }
+            }
+
+            if (ocUploadUuid.length()) {
+              fmd->setFlags(0);
+            } else {
+              fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+            }
+
+            // For versions, a skipped version or if asked by eos.xattr.preserve,
+            // copy the xattrs stored on the overwritten file over, never the
+            // space attributes merged into attrmapF as they would stick to the
+            // file once the space configuration changes. The encryption keys
+            // are the ones the new file is written with. An atomic upload gets
+            // them at commit, which keeps the changes made to the overwritten
+            // file while it runs, e.g. an application lock refreshed or
+            // released.
+            if ((versioning || skipVersion || isXattrPreserve) && !isAtomicUpload) {
+              for (const auto& [key, val] :
+                   attr::getCarryOverXattrs(attrmapOverwritten)) {
+                fmd->setAttribute(key, val);
+              }
+            }
+
+            fmd->setAttribute(eos::common::EOS_UTRACE_ATTR, logId);
+            fmd->setAttribute(eos::common::EOS_VTRACE_ATTR, vid.getTrace());
+
+            if (ref_fmd) {
+              // If we have a target file we tag the latest atomic upload name
+              // on a temporary attribute
+              ref_fmd->setAttribute(eos::common::EOS_TMP_ATOMIC_ATTR, fmd->getName());
+
+              if (acl.EvalUserAttrFile()) {
+                // we inherit existing ACLs during (atomic) versioning
+                ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
+                ref_fmd->setAttribute("sys.eval.useracl", "1");
+              }
+            }
+
+            mFid = fmd->getId();
+            fmdlid = fmd->getLayoutId();
+            // oc chunks start with flags=0
+            cid = fmd->getContainerId();
+            auto cmd = dmd; // we have this already
+            cmd->setMTimeNow();
+            eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+            eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
+
+            // Account the new file in quota while holding the locks, this
+            // avoids taking them a second time later on.
+            // The file is empty so the accounting does not depend on the
+            // layout which is only set afterwards.
+            if (ns_quota) {
+              ns_quota->addFile(fmd.get());
+            }
+
+            new_fmd_lock.reset();
+            md_locks.reset();
+            // Create walks paths, so it runs after the release of the MD locks
+            gOFS->mReplicationTracker->Create(fmd);
+
+            if (emit_audit) {
+              if (auditTruncate) {
+                gOFS->mAudit->audit(eos::audit::TRUNCATE,
+                                    truncPath.empty() ? path : truncPath,
+                                    vid, logId, cident, "mgm",
+                                    std::string(), &truncBefore, &audit_after_stat);
+              } else {
+                gOFS->mAudit->audit(eos::audit::CREATE,
+                                    creation_path.c_str(),
+                                    vid, logId, cident, "mgm",
+                                    std::string(), nullptr, &audit_after_stat);
+              }
+            }
+
+            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+            gOFS->eosView->updateContainerStore(cmd.get());
+            updateFileStoreIfNotDeleted(fmd.get());
+
+            if (ref_fmd) {
+              updateFileStoreIfNotDeleted(ref_fmd.get());
+            }
+
+            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
+          } catch (eos::MDException& e) {
+            fmd.reset();
+            errno = e.getErrno();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+          };
+
+          // -------------------------------------------------------------------
+        } // end ns_lock
+        COMMONTIMING("write::end", &tm);
+
+        if (!fmd) {
+          // creation failed
+          gOFS->MgmStats.Add("OpenFailedCreate", vid.uid, vid.gid, 1, vid.app);
+          return Emsg(epname, error, errno, "create file", path);
+        }
+
+        isCreation = true;
+        // -------------------------------------------------------------------------
+      }
+    } else {
+      // we attached to an existing file
+      if (open_flags & O_EXCL) {
+        gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
+        return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
+      }
+    }
+  } else {
+    if (!fmd) {
+      // check if there is a redirect or stall for missing entries
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+
+      if (auto redirect_kv = attrmap.find("sys.redirect.enoent");
+          redirect_kv != attrmap.end()) {
+        // there is a redirection setting here
+        redirectionhost = "";
+        redirectionhost = redirect_kv->second.c_str();
+        int portpos = 0;
+
+        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0, portpos + 1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1, vid.app);
+        return rcode;
+      }
+
+      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1, vid.app);
+      return Emsg(epname, error, errno, "open file", path);
+    }
+
+    eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(attrmap));
+
+    if (Policy::HasReadConversion(attrmap) && (vid.prot != "https") &&
+        !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+      std::string source_space = (space_name.empty() ? "default" : space_name);
+      std::string target_space;
+      unsigned long target_layout;
+      auto conversion = Policy::ReadConversion(path, attrmap, vid, fmdlid,
+                        source_space, *openOpaque,
+                        target_layout, target_space);
+
+      if (conversion == Policy::eFail) {
+        return Emsg(
+                 epname, error, EINVAL,
+                 "open file for read - invalid read conversion policy found!", path);
+      }
+
+      if (conversion == Policy::eAsync) {
+        error.setErrCode(0);
+        auto conversionCb = std::make_shared<XrdOucCallBack>();
+        conversionCb->Init(&error);
+        error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
+        auto conversiontag = ConversionTag::Get(
+                               byfid, target_space, target_layout, std::string(""), true);
+        std::string err_msg;
+
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
+                                                err_msg, conversionCb)) {
+          eos_info("msg=\"read conversion started\" fxid=%08llx conv=\"%s\"",
+                   byfid, conversiontag.c_str());
+          return SFS_STARTED;
+        } else {
+          // remove the callback from the error object
+          error.setErrCB(0);
+          error.setErrArg(0);
+          error.setErrInfo(60, "please retry after 60 seconds for read conversion");
+          eos_info("msg=\"stalling client for read conversion\" fxid=%08llx "
+                   "conv=\"%s\"", byfid, conversiontag.c_str());
+          return SFS_STALL;
+        }
+      } else {
+        // no conversion to be run
+      }
+    }
+
+    if (isSharedFile) {
+      gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1, vid.app);
+    } else {
+      gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1, vid.app);
+    }
+
+    // possibly apply an access conversion policy
+    gOFS->mReplicationTracker->Access(fmd);
+  }
+
+  // ---------------------------------------------------------------------------
+  // flush synchronization logic, don't open a file which is currently flushing
+  // ---------------------------------------------------------------------------
+  if (gOFS->zMQ->gFuseServer.Flushs().hasFlush(eos::common::FileId::FidToInode(
+        mFid))) {
+    // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
+    return gOFS->Stall(error, vid, 1, "file is currently being flushed");
+  }
+
+  // ---------------------------------------------------------------------------
+  // construct capability
+  // ---------------------------------------------------------------------------
+  XrdOucString capability = "";
+
+  if (gOFS->mTapeEnabled) {
+    capability += "&tapeenabled=1";
+  }
+
+  if (isPioReconstruct) {
+    capability += "&mgm.access=update";
+  } else {
+    if (isRW) {
+      if (isRewrite) {
+        capability += "&mgm.access=update";
+      } else {
+        capability += "&mgm.access=create";
+
+        // The commit of an atomic upload copies the xattrs of the file it
+        // replaces, a versioned one is recognised by its temporary name. An
+        // ownCloud chunked upload only gets them with versioning.
+        if (isAtomicUpload && !ocUploadUuid.length() &&
+            (skipVersion || isXattrPreserve)) {
+          capability += "&mgm.xattr.preserve=1";
+        }
+      }
+
+      uint64_t cloneId;
+
+      if (fmd && (cloneId = fmd->getCloneId()) != 0) {
+        char sbuff[1024];
+        std::string cloneFST = fmd->getCloneFST();
+
+        if (cloneFST == "") {      /* This triggers the copy-on-write */
+          CowDirs cow;
+          bool cloned = false;
+          {
+            // prepare_cow walks paths, so it runs before the MD locks
+
+            if (int rc = prepare_cow(dmd, fmd, cow, error)) {
+              return rc;
+            }
+
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(dmd.get());
+            md_locker.add(cow.cow_dir.get());
+            md_locker.add(fmd.get());
+            auto md_locks = md_locker.lockAll();
+            // -1: a parallel open cloned the file meanwhile
+            cloned = (apply_cow(cowUpdate, dmd, fmd, cow, vid) == 0);
+          }
+
+          if (cloned) {
+            notify_cow(cow);
+          }
+        }
+
+        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
+                  fmd->getCloneFST().c_str(), open_flags & O_TRUNC);
+        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
+                 fmd->getCloneFST().c_str());
+        capability += sbuff;
+      }
+    } else {
+      capability += "&mgm.access=read";
+    }
+  }
+
+  // A write always applies the keys the file is stored with, eos.obfuscate=0
+  // only asks for the raw stored bytes when reading
+  if ((mEosObfuscate || isRW) && !isFuse) {
+    // add obfuscation key to redirection capability
+    if (attrmapF.count(eos::kAttrObfuscateKey)) {
+      capability += "&mgm.obfuscate.key=";
+      capability += attrmapF[eos::kAttrObfuscateKey].c_str();
+    }
+
+    // add encryption key to redirection capability
+    if (mEosKey.length()) {
+      capability += "&mgm.encryption.key=";
+      capability += mEosKey.c_str();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // forward some allowed user opaque tags
+  // ---------------------------------------------------------------------------
+  unsigned long layoutId = (isCreation) ? LayoutId::kPlain : fmdlid;
+  // the client can force to read a file on a defined file system
+  unsigned long forcedFsId = 0;
+  // the client can force to place a file in a specified group of a space
+  long forced_group = -1;
+  // this is the filesystem defining the client access point in the selection
+  // vector - for writes it is always 0, for reads it comes out of the
+  // FileAccess function
+  unsigned long fsIndex = 0;
+  std::string space = "default";
+  unsigned long new_lid = 0;
+  eos::mgm::Scheduler::tPlctPolicy plctplcy;
+  std::string targetgeotag;
+  std::string bandwidth;
+  std::string ioprio;
+  std::string iotype;
+  bool schedule = false;
+  uint64_t atimeage = 0;
+  std::vector<std::string> altChecksums;
+  bool computeAltXs = false;
+  // Which engine took the scheduling decision of this open, and how much time
+  // the engines spent on it. Filled in by whichever of the scheduling sites
+  // below runs - an open that reads and then re-creates pays for two.
+  Scheduler::SchedEngine sched_engine = Scheduler::SchedEngine::kNone;
+  double sched_ms = 0.0;
+  // select space and layout according to policies
+  COMMONTIMING("Policy::begin", &tm);
+  Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
+                            forcedFsId, forced_group, bandwidth, schedule,
+                            ioprio, iotype, isRW, true, &atimeage, &altChecksums, &computeAltXs);
+  COMMONTIMING("Policy::end", &tm);
+  Policy::RedirectStatus rs;
+
+  // do a local redirect here if there is only one replica attached and this is not an HTTPS request
+  if (vid.prot != "https" && !isRW && !isFuse && !isPio &&
+      (fmd->getNumLocation() == 1) &&
+      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
+                                  *openOpaque)) != Policy::eNever) {
+    XrdCl::URL url(std::string("root://localhost//") + std::string(
+                     path ? path : "/dummy/") + std::string("?") + std::string(
+                     ininfo ? ininfo : ""));
+    std::string localhost = "localhost";
+
+    if (gOFS->Tried(url, localhost, "*")) {
+      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1, vid.app);
+      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"",
+               path, ininfo);
+    } else {
+      eos::common::FileSystem::fs_snapshot_t local_snapshot;
+      unsigned int local_id = fmd->getLocation(0);
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
+        local_fs->SnapShotFileSystem(local_snapshot);
+        eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
+      }
+      std::string anchor = "#";
+      std::string appanchor = app_name;
+      auto hpos = app_name.find("#");
+
+      if (hpos != std::string::npos) {
+        appanchor = app_name.substr(hpos);
+      }
+
+      anchor += local_snapshot.mSharedFs;
+      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(),
+                anchor.c_str(), rs);
+
+      if ((rs == Policy::eAlways) ||
+          ((rs == Policy::eOptional) && (appanchor == anchor))) {
+        // compute the local path
+        std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+                                   eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+                                   local_snapshot.mPath.c_str());
+        eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
+                 local_path.c_str(), path, ininfo);
+        redirectionhost = "file://localhost";
+        redirectionhost += local_path.c_str();
+        ecode = -1;
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1, vid.app);
+        eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
+        return rcode;
+      }
+    }
+  }
+
+  if (ioPriority.length()) {
+    ioprio = ioPriority;
+    capability += "&mgm.iopriority=";
+    capability += ioPriority.c_str();
+  } else {
+    if (ioprio.length()) {
+      capability += "&mgm.iopriority=";
+      capability += ioprio.c_str();
+    }
+  }
+
+  if (schedule) {
+    capability += "&mgm.schedule=1";
+  }
+
+  if (iotype.length()) {
+    capability += "&mgm.iotype=";
+    capability += iotype.c_str();
+  }
+
+  if (fmd && atimeage) {
+    // Traffic EOS generates for itself - drain, balance, conversion, fsck -
+    // must not move the access time of the files it touches, and says so by
+    // naming itself "eos/<subsystem>", see InternalAppTag
+    if (!eos::common::IsInternalApp(app_name)) {
+      // do a potential atime update, we don't need a name
+      try {
+        if (fmd->setATimeNow(atimeage)) {
+          updateFileStoreIfNotDeleted(fmd.get());
+        }
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        std::string errmsg = e.getMessage().str();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
+        return Emsg(epname, error, errno, "open file and update atime for reading",
+                    errmsg.c_str());
+      }
+    }
+  }
+
+  // get placement policy
+  Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
+  unsigned long long ext_mtime_sec = 0;
+  unsigned long long ext_mtime_nsec = 0;
+  unsigned long long ext_ctime_sec = 0;
+  unsigned long long ext_ctime_nsec = 0;
+  std::string ext_etag;
+  std::string syntheticio_value;
+  std::map<std::string, std::string> ext_xattr_map;
+
+  if (isCreation) {
+    std::string forced_syntheticio;
+    if (!attr::getValue(attrmap, SYS_FORCED_SYNTHETICIO, forced_syntheticio)) {
+      attr::getValue(attrmap, "user.forced.syntheticio", forced_syntheticio);
+    }
+
+    std::string cgi_syntheticio = XrdUtils::GetEnv(*openOpaque, "eos.syntheticio");
+    std::string syntheticio_source;
+
+    if (!forced_syntheticio.empty()) {
+      if (eos::common::syntheticio_disabled(forced_syntheticio)) {
+        if (!cgi_syntheticio.empty() &&
+            !eos::common::syntheticio_disabled(cgi_syntheticio)) {
+          return Emsg(epname, error, EINVAL, "open - syntheticio disabled by policy",
+                      path);
+        }
+      } else {
+        syntheticio_source = forced_syntheticio;
+      }
+    } else if (!cgi_syntheticio.empty() &&
+               !eos::common::syntheticio_disabled(cgi_syntheticio)) {
+      syntheticio_source = cgi_syntheticio;
+    }
+
+    if (!syntheticio_source.empty()) {
+      auto spec = eos::common::parse_syntheticio_with_seed(
+          eos::common::normalize_syntheticio_cgi(syntheticio_source), mFid);
+      if (!spec) {
+        return Emsg(epname, error, EINVAL, "open - invalid syntheticio value", path);
+      }
+      syntheticio_value = spec->value;
+    }
+  }
+
+  if (openOpaque->Get("eos.ctime")) {
+    std::string str_ctime = openOpaque->Get("eos.ctime");
+    size_t pos = str_ctime.find('.');
+
+    if (pos == std::string::npos) {
+      ext_ctime_sec = strtoull(str_ctime.c_str(), 0, 10);
+      ext_ctime_nsec = 0;
+    } else {
+      ext_ctime_sec = strtoull(str_ctime.substr(0, pos).c_str(), 0, 10);
+      ext_ctime_nsec = strtoull(str_ctime.substr(pos + 1).c_str(), 0, 10);
+    }
+  }
+
+  if (openOpaque->Get("eos.mtime")) {
+    std::string str_mtime = openOpaque->Get("eos.mtime");
+    size_t pos = str_mtime.find('.');
+
+    if (pos == std::string::npos) {
+      ext_mtime_sec = strtoull(str_mtime.c_str(), 0, 10);
+      ext_mtime_nsec = 0;
+    } else {
+      ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
+      ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
+    }
+  }
+
+  ext_etag = XrdUtils::GetEnv(*openOpaque, "eos.etag");
+
+  if (openOpaque->Get("eos.xattr")) {
+    std::vector<std::string> xattr_keys;
+    eos::common::StringConversion::GetKeyValueMap(openOpaque->Get("eos.xattr"),
+        ext_xattr_map, "=", "#", &xattr_keys);
+
+    for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
+      if (it->substr(0, 5) != "user.") {
+        ext_xattr_map.erase(*it);
+      }
+    }
+  }
+
+  if ((!isInjection) && (isCreation || (open_flags & O_TRUNC))) {
+    eos_info("blocksize=%llu lid=%x", LayoutId::GetBlocksize(new_lid), new_lid);
+    layoutId = new_lid;
+    {
+      std::shared_ptr<eos::IFileMD> fmdnew;
+
+      if (!byfid) {
+        try {
+          fmdnew = dmd->findFile(fileName);
+        } catch (eos::MDException& e) {
+          if ((!isAtomicUpload) && (fmdnew != fmd)) {
+            // file has been recreated in the meanwhile
+            return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
+          }
+        }
+      }
+
+      // Set the layout and commit new meta data
+      fmd->setLayoutId(layoutId);
+
+      if (isFuse && (open_flags & O_TRUNC)) {
+        std::string s;
+
+        if (fmd->hasAttribute("sys.fusex.state")) {
+          s = fmd->getAttribute("sys.fusex.state");
+        }
+
+        s += "T";
+        fmd->setAttribute("sys.fusex.state",
+                          eos::common::StringConversion::ReduceString(s).c_str());
+      }
+
+      // if specified set an external modification/creation time
+      if (ext_mtime_sec) {
+        eos::IFileMD::ctime_t mtime;
+        mtime.tv_sec = ext_mtime_sec;
+        mtime.tv_nsec = ext_mtime_nsec;
+        fmd->setMTime(mtime);
+      } else {
+        fmd->setMTimeNow();
+      }
+
+      if (ext_ctime_sec) {
+        eos::IFileMD::ctime_t ctime;
+        ctime.tv_sec = ext_ctime_sec;
+        ctime.tv_nsec = ext_ctime_nsec;
+        fmd->setCTime(ctime);
+      }
+
+      if (isCreation) {
+        // store the birth time as an extended attribute
+        eos::IFileMD::ctime_t ctime;
+        fmd->getCTime(ctime);
+        char btime[256];
+        snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+        fmd->setAttribute("sys.eos.btime", btime);
+
+        if (!syntheticio_value.empty()) {
+          fmd->setAttribute(SYS_SYNTHETICIO, syntheticio_value);
+          fmd->setAttribute("sys.tmp.etag",
+                            eos::common::syntheticio_etag(syntheticio_value).c_str());
+        }
+      } else {
+        fmd->setATimeNow(0);
+      }
+
+      // if specified set an external temporary ETAG
+      if (ext_etag.length() && syntheticio_value.empty()) {
+        fmd->setAttribute("sys.tmp.etag", ext_etag);
+      }
+
+      for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
+        fmd->setAttribute(it->first, it->second);
+      }
+
+      // Remember the fusex client (re)creating this EC file so that other
+      // clients can be blocked from writing into the same inode in parallel
+      // while it is still being written - see the 0-size RAIN guard above.
+      if (isFuse && !client_uuid.empty() && LayoutId::IsRain(layoutId)) {
+        fmd->setAttribute("sys.fusex.creator", client_uuid);
+      }
+
+      if (acl.EvalUserAttrFile()) {
+        if (isAtomicUpload && !ocUploadUuid.length() &&
+            (versioning || skipVersion || isXattrPreserve)) {
+          // No ACL until the commit, which copies the one of the replaced file
+          // as it is then: an ACL changed or removed during the upload is
+          // neither lost nor brought back. The commit only adds missing keys,
+          // so drop a user.acl given with eos.xattr, the replaced file's wins.
+          fmd->removeAttribute("user.acl");
+        } else {
+          // we inherit existing ACLs during (atomic) versioning
+          fmd->setAttribute("user.acl", acl.UserAttrFile());
+          fmd->setAttribute("sys.eval.useracl", "1");
+        }
+      }
+
+      try {
+        eos::FileIdentifier fmd_id = fmd->getIdentifier();
+
+        if (isCreation) {
+          // The container mtime update, the quota accounting and the
+          // container refresh were already done under the locks taken for
+          // the creation, only persist the file metadata.
+          COMMONTIMING("filemd::update", &tm);
+          updateFileStoreIfNotDeleted(fmd.get());
+          gOFS->FuseXCastRefresh(fmd_id, dmd->getIdentifier());
+          COMMONTIMING("fusex::bc", &tm);
+        } else {
+          std::shared_ptr<eos::IContainerMD> cmd =
+            gOFS->eosDirectoryService->getContainerMD(cid);
+          eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+          eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+          // The quota node lookup walks up the parents, so it runs before
+          // the MD locks
+          eos::IQuotaNode* ns_quota =
+              fmd->getNumLocation() ? nullptr : gOFS->eosView->getQuotaNode(cmd.get());
+          {
+            eos::MDLocking::BulkMDWriteLock md_locker;
+            md_locker.add(cmd.get());
+            md_locker.add(fmd.get());
+            auto md_locks = md_locker.lockAll();
+
+            // A parallel rename moved, or a parallel rm removed, the file
+            // after the lookup: its quota is not in this directory
+            if (fmd->isDeleted() || (fmd->getContainerId() != cid)) {
+              throw_mdexception(ENOENT, "No such file or directory");
+            }
+
+            cmd->setMTimeNow();
+
+            if (!fmd->getNumLocation() && ns_quota) {
+              ns_quota->addFile(fmd.get());
+            }
+          }
+          COMMONTIMING("filemd::update", &tm);
+          updateFileStoreIfNotDeleted(fmd.get());
+          cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+          gOFS->eosView->updateContainerStore(cmd.get());
+          gOFS->FuseXCastRefresh(fmd_id, cmd_id);
+          gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
+          COMMONTIMING("fusex::bc", &tm);
+        }
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        std::string errmsg = e.getMessage().str();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
+        return Emsg(epname, error, errno, "open file", errmsg.c_str());
+      }
+    }
+  }
+
+  // 0-size files can be read from the MGM if this is not FUSE access
+  // atomic files are only served from here and also rain files are skipped
+  if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
+    if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
+      eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
+      mIsZeroSize = true;
+
+      // ---------------------------------------------------------------------
+      // Per-directory sys.audit override for READ auditing
+      if (gOFS->AllowAuditRead(path)) {
+        gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                            std::string(), nullptr, nullptr,
+                            std::string(), std::string(), std::string(),
+                            __FILE__, __LINE__, VERSION);
+      }
+
+      // ---------------------------------------------------------------------
+      return SFS_OK;
+    }
+  }
+
+  // @todo(esindril) the tag is wrong should actually be mgm.uid
+  capability += "&mgm.ruid=";
+  capability += (int) vid.uid;
+  capability += "&mgm.rgid=";
+  capability += (int) vid.gid;
+  // @todo(esindril) not used and should be removed
+  capability += "&mgm.uid=99";
+  capability += "&mgm.gid=99";
+  capability += "&mgm.path=";
+  {
+    // an '&' will create a failure on the FST
+    XrdOucString safepath = spath.c_str();
+    eos::common::StringConversion::SealXrdPath(safepath);
+    capability += safepath;
+  }
+  capability += "&mgm.manager=";
+  capability += gOFS->ManagerId.c_str();
+  capability += "&mgm.fid=";
+  std::string hex_fid;
+
+  if (!isRW) {
+    const char* val;
+
+    if ((val = openOpaque->Get("eos.clonefst")) && (strlen(val) < 32)) {
+      hex_fid = fmd->getCloneFST();
+      eos_debug("open read eos.clonefst %s hex_fid %s", val, hex_fid.c_str());
+
+      if (hex_fid != val) {
+        return Emsg(epname, error, EINVAL, "open - invalid clonefst argument", path);
+      }
+    }
+  }
+
+  if (hex_fid.empty()) {
+    hex_fid = eos::common::FileId::Fid2Hex(mFid);
+  }
+
+  capability += hex_fid.c_str();
+  XrdOucString sizestring;
+  capability += "&mgm.cid=";
+  capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
+  // add the mgm.sec information to the capability
+  capability += "&mgm.sec=";
+  capability += eos::common::SecEntity::ToKey(client, app_name.c_str()).c_str();
+  std::string containertag;
+
+  if (attr::getValue(attrmap, "user.tag", containertag)) {
+    capability += "&mgm.container=";
+    capability += containertag.c_str();
+  }
+
+  bool has_client_booking = false;
+  // File size to be reserved on each file system where data will be placed,
+  // this is updated depending on the type of layout of the file.
+  unsigned long long bookingsize = 0;
+  // Full logical file size to be stored in EOS
+  unsigned long long targetsize = 0;
+  unsigned long long minimumsize = 0;
+  unsigned long long maximumsize = 0;
+
+  // Allow only a system attribute not to get fooled by a user
+  if (!attr::getValue(attrmap, "sys.forced.bookingsize", bookingsize)) {
+    // Fallback to user booking size xattr
+    if (!attr::getValue(attrmap, "user.forced.bookingsize", bookingsize)) {
+      // Fallback to user specified booking size
+      if (XrdUtils::GetEnv(*openOpaque, "eos.bookingsize", bookingsize, 1024ull)) {
+        has_client_booking = true;
+      } else {
+        // Fallback to XRootD specific file size opaque info
+        has_client_booking =
+            XrdUtils::GetEnv(*openOpaque, "oss.asize", bookingsize, 1024ull);
+      }
+    }
+  }
+
+  attr::getValue(attrmap, "sys.forced.minsize", minimumsize);
+  attr::getValue(attrmap, "sys.forced.maxsize", maximumsize);
+
+  // The target size is enforced by the FST on close, so it must only come from
+  // the client. A booking size (possibly forced by sys/user.forced.bookingsize)
+  // is just a space reservation hint and must not be used as target size.
+  if (!XrdUtils::GetEnv(*openOpaque, "eos.targetsize", targetsize)) {
+    XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize);
+  }
+
+  // Traffic class of this request. An internal engine - the converter, the
+  // fsck scan - asks for it explicitly with eos.schedclass; everything else,
+  // including a client that types the key, is scheduled as client traffic.
+  const eos::common::SchedActivity sched_activity = Scheduler::SchedActivityFromRequest(
+      openOpaque->Get(eos::common::kSchedClassKey.data()), vid);
+  std::vector<unsigned int> selectedfs;
+  std::vector<unsigned int> excludefs = GetExcludedFsids();
+  std::vector<uint32_t> excludefs_access(excludefs.begin(), excludefs.end());
+  // file systems which are unavailable during a read operation
+  std::vector<unsigned int> unavailfs;
+  // file systems which have been replaced with a new reconstructed stripe
+  std::vector<unsigned int> replacedfs;
+  int retc = 0;
+  bool isRecreation = false;
+
+  // Place a new file
+  if (isCreation || (!fmd->getNumLocation()) || isInjection) {
+    Scheduler::PlacementArguments plctargs;
+    bookingsize = eos::common::LayoutId::GetStripeFileSize(layoutId, bookingsize);
+
+    if (isRepair) {
+      if (bookingsize == 0) {
+        bookingsize = gOFS->getFuseBookingSize();
+      }
+    } else if (isFuse) {
+      if (isTouch) {
+        bookingsize = 0;
+      } else {
+        bookingsize = gOFS->getFuseBookingSize();
+      }
+    }
+
+    using namespace eos::mgm::scheduler;
+    plctargs
+        .setFileParams(space, Path(path), GroupTag(containertag.c_str()), Lid(layoutId),
+                       (ino64_t)fmd->getId(), BookingSize(bookingsize),
+                       open_flags & O_TRUNC, vid)
+        .setFsParams(&selectedfs, &excludefs, &selectedfs)
+        .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                       openOpaque->Get("eos.schedulingstrategy"))
+        .setSchedActivity(sched_activity);
+
+    if (!plctargs.isValid()) {
+      return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+    }
+
+    COMMONTIMING("Scheduler::Placement", &tm);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    retc = Quota::FilePlacement(&plctargs);
+    COMMONTIMING("Scheduler::FilePlaced", &tm);
+    sched_engine = plctargs.sched_engine;
+    sched_ms += plctargs.sched_exec_ms;
+    Scheduler::ReshuffleFs(selectedfs);
+  } else {
+    // Access existing file - fill the vector with the existing locations
+    for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
+      auto loc = fmd->getLocation(i);
+
+      if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
+        selectedfs.push_back(loc);
+        excludefs.push_back(loc);
+      }
+    }
+
+    eos::IFileMD::LocationVector unlinked = fmd->getUnlinkedLocations();
+
+    for (auto loc : unlinked) {
+      excludefs.push_back(loc);
+    }
+
+    if (selectedfs.empty()) {
+      // this file has not a single existing replica
+      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1, vid.app);
+      // Fire and forget a sync::offline workflow event
+      errno = 0;
+      workflow.SetFile(path, mFid);
+      std::string workflowErrorMsg;
+      const auto ret_wfe = workflow.Trigger("sync::offline", currentWorkflow,
+                                            vid,
+                                            ininfo, workflowErrorMsg);
+
+      if (ret_wfe < 0 && errno == ENOKEY) {
+        eos_debug("msg=\"no workflow defined for sync::offline\"");
+      } else {
+        eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d event=\"sync::offline\"",
+                 ret_wfe, errno);
+      }
+
+      return Emsg(epname, error, ENODEV, "open - no disk replica exists", path);
+    }
+
+    /// ###############
+    // reconstruction opens files in RW mode but we actually need RO mode in this case
+    /// ###############
+    // if the client should go through a firewall entrypoint, try to get it
+    // if the scheduled fs need to be accessed through a dataproxy, try to get it
+    // if any of the two fails, the scheduling operation fails
+    Scheduler::AccessArguments acsargs;
+    acsargs.bookingsize = fmd->getSize();
+    acsargs.forcedfsid = forcedFsId;
+    acsargs.forcedspace = space.c_str();
+    acsargs.fsindex = &fsIndex;
+    acsargs.isRW = isPioReconstruct ? false : isRW;
+    acsargs.lid = layoutId;
+    acsargs.inode = (ino64_t) fmd->getId();
+    acsargs.locationsfs = &selectedfs;
+    acsargs.tried_cgi = &tried_cgi;
+    acsargs.unavailfs = &unavailfs;
+    acsargs.vid = &vid;
+    acsargs.exclude_filesystems = &excludefs_access;
+    acsargs.activity = sched_activity;
+
+    if (!acsargs.isValid()) {
+      // there is something wrong in the arguments of file access
+      return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
+    }
+
+    {
+      COMMONTIMING("Scheduler::Access", &tm);
+      // TODO future: this doesn't really require a FsView readlock!
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      retc = Scheduler::Access(&acsargs);
+      COMMONTIMING("Scheduler::Accessed", &tm);
+      sched_engine = acsargs.sched_engine;
+      sched_ms += acsargs.sched_exec_ms;
+    }
+
+    if (acsargs.isRW) {
+      // If this is an update, we don't have to send the client to cgi
+      // excluded locations, we tell that the file is unreachable
+      for (size_t k = 0; k < selectedfs.size(); k++) {
+        // if the fs is available
+        if (std::find(unavailfs.begin(), unavailfs.end(),
+                      selectedfs[k]) != unavailfs.end()) {
+          eos_info("msg=\"location %d is excluded as an unavailable filesystem"
+                   " - returning ENETUNREACH\"", selectedfs[k]);
+          retc = ENETUNREACH;
+          break;
+        }
+      }
+    }
+
+    if ((retc == ENETUNREACH) || (retc == EROFS) || isRepair) {
+      if (isRW && ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair))) {
+        // File-recreation due to offline/full file systems
+        isCreation = true;
+        Scheduler::PlacementArguments plctargs;
+        {
+          using namespace eos::mgm::scheduler;
+          plctargs
+              .setFileParams(space, Path(path), GroupTag(containertag.c_str()),
+                             Lid(layoutId), (ino64_t)fmd->getId(),
+                             BookingSize(bookingsize), open_flags & O_TRUNC, vid)
+              .setFsParams(&excludefs, &excludefs, &selectedfs)
+              .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                             openOpaque->Get("eos.schedulingstrategy"))
+              .setSchedActivity(sched_activity);
+
+          if (!plctargs.isValid()) {
+            return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+          }
+        }
+        COMMONTIMING("Scheduler::Placement", &tm);
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        retc = Quota::FilePlacement(&plctargs);
+        COMMONTIMING("Scheduler::FilePlaced", &tm);
+        sched_engine = plctargs.sched_engine;
+        sched_ms += plctargs.sched_exec_ms;
+        eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
+                 path, retc);
+        isRecreation = true;
+        // end scope fs_rd_lock
+      } else {
+        // Normal read failed, try to reply with the triedrc value if this
+        // exists in the URL otherwise we'll return ENETUNREACH which is a
+        // client recoverable error.
+        if (auto triedrc = XrdUtils::GetEnv(*openOpaque, "triedrc");
+            !triedrc.empty()) {
+          int errno_tried = GetTriedrcErrno(triedrc);
+          if (errno_tried) {
+            return Emsg(epname, error, errno_tried, "open file", path);
+          }
+        }
+      }
+    }
+
+    if (retc == EXDEV) {
+      // Indicating that the layout requires the replacement of stripes
+      retc = 0; // TODO: we currently don't support repair on the fly mode
+    }
+  }
+
+  LogSchedulingInfo(selectedfs);
+
+  if (retc) {
+    // If we don't have quota we don't bounce the client back
+    if ((retc != ENOSPC) && (retc != EDQUOT)) {
+      // INLINE Workflows
+      int stalltime = 0;
+      workflow.SetFile(path, fmd->getId());
+      std::string errorMsg;
+
+      if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo,
+                                        errorMsg)) > 0) {
+        eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
+        return gOFS->Stall(error, vid, stalltime, ""
+                           "File is currently unavailable - triggered workflow!");
+      }
+
+      // check if we have a global redirect or stall for offline files
+      MAYREDIRECT_ENONET;
+      MAYSTALL_ENONET;
+      MAYREDIRECT_ENETUNREACH;
+      MAYSTALL_ENETUNREACH;
+
+      // check if the dir attributes tell us to let clients rebounce
+      // stall clients when sys/user attributes are set
+      if (attr::getValue(attrmap, "sys.stall.unavailable", stalltime) && stalltime > 0) {
+          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
+          eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
+                   path, isRW);
+          return gOFS->Stall(error, vid, stalltime,
+                             "Required filesystems are currently unavailable!");
+      }
+
+      if (attr::getValue(attrmap, "user.stall.unavailable", stalltime) && stalltime > 0) {
+          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
+          eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",
+                   path, isRW);
+          return gOFS->Stall(error, vid, stalltime,
+                             "Required filesystems are currently unavailable!");
+      }
+
+      if (std::string _redir;
+          attr::getValue(attrmap, "sys.redirect.enonet", _redir) && !_redir.empty()) {
+        // there is a redirection setting here if files are unaccessible
+        redirectionhost = "";
+        redirectionhost = _redir.c_str();
+        int portpos = 0;
+
+        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0, portpos + 1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1, vid.app);
+        return rcode;
+      }
+
+      if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
+        // Redirect ENONET to the actual master
+        int port {0};
+        std::string hostname;
+        std::string master_id = gOFS->mMaster->GetMasterId();
+
+        if (!eos::common::ParseHostNamePort(master_id, hostname, port)) {
+          eos_err("msg=\"failed parsing remote master info\", id=%s",
+                  master_id.c_str());
+          return Emsg(epname, error, retc, "open file - failed parsing remote "
+                      "master info", path);
+        }
+
+        redirectionhost = hostname.c_str();
+        ecode = port;
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1, vid.app);
+        return rcode;
+      }
+
+      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1, vid.app);
+    } else {
+      // Remove the created file from the namespace as root since somebody could
+      // have a no-delete ACL. Do this only if there are no replicas already
+      // attached to the file md entry. If there are, this means the current
+      // thread was blocked in scheduling and a retry of the client went
+      // through successfully. If we delete the entry we end up with data lost.
+      if (isCreation) {
+        bool do_remove = false;
+
+        try {
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path.c_str());
+          auto tmp_fmd = gOFS->eosView->getFile(creation_path.c_str());
+
+          if (isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
+            do_remove = true;
+          }
+        } catch (eos::MDException& e) {
+          if (isAtomicUpload) {
+            do_remove = true;
+          }
+        }
+
+        if (do_remove) {
+          eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();
+          gOFS->_rem(creation_path.c_str(), error, vidroot, 0, false, false, false);
+        }
+      }
+
+      gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
+    }
+
+    if (isRW) {
+      if (retc == ENOSPC) {
+        return Emsg(epname, error, retc, "get free physical space", path);
+      }
+
+      if (retc == EDQUOT) {
+        return Emsg(epname, error, retc,
+                    "get quota space - quota not defined or exhausted", path);
+      }
+
+      return Emsg(epname, error, retc, "access quota space", path);
+    } else {
+      return Emsg(epname, error, retc, "open file ", path);
+    }
+  } else {
+    if (isRW) {
+      // we want to define the order of chunks during creation, so we attach also rain layouts
+      if (isCreation && has_client_booking &&
+          ((bookingsize == 0) || ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
+        // ---------------------------------------------------------------------
+        // if this is a creation we commit the scheduled replicas NOW
+        // we do the same for chunked/parallel uploads
+        // ---------------------------------------------------------------------
+        {
+          // get an empty file checksum
+          std::string binchecksum = LayoutId::GetEmptyFileBinChecksum(layoutId);
+          eos::Buffer cx;
+          cx.putData(binchecksum.c_str(), binchecksum.size());
+
+          // FUSEX repair access needs to retrieve the file by fid
+          // TODO: Refactor isCreation and isRecreation code paths
+          // -------------------------------------------------------------------
+
+          try {
+            // The locations go to the file system lists too: do not add them
+            // to a file a parallel truncation or rm removed meanwhile
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+            if (fmd->isDeleted()) {
+              throw_mdexception(ENOENT, "file was removed meanwhile");
+            }
+
+            std::string locations;
+
+            if (fmd->hasAttribute("sys.fs.tracking")) {
+              locations = fmd->getAttribute("sys.fs.tracking");
+            }
+
+            if (isRecreation) {
+              fmd->unlinkAllLocations();
+              locations += "=";
+            }
+
+            if (isRecreation) {
+              std::string s;
+
+              if (fmd->hasAttribute("sys.fusex.state")) {
+                s = fmd->getAttribute("sys.fusex.state");
+              }
+
+              s += "Z";
+              fmd->setAttribute("sys.fusex.state",
+                                eos::common::StringConversion::ReduceString(s).c_str());
+            }
+
+            for (auto& fsid : selectedfs) {
+              fmd->addLocation(fsid);
+              locations += "+";
+              locations += std::to_string(fsid);
+            }
+
+            fmd->setAttribute("sys.fs.tracking",
+                              eos::common::StringConversion::ReduceString(locations).c_str());
+            fmd->setChecksum(cx);
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& e) {
+            errno = e.getErrno();
+            std::string errmsg = e.getMessage().str();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
+            return Emsg(epname, error, errno, "open file", errmsg.c_str());
+          }
+
+          // -------------------------------------------------------------------
+        }
+        mIsZeroSize = true;
+      }
+
+      if (isFuse && !isCreation) {
+        // ---------------------------------------------------------------------
+        // if we come from fuse for an update
+        // consistently redirect to the highest fsid having if possible the same
+        // geotag as the client
+        // ---------------------------------------------------------------------
+        if (byfid) {
+          // the new FUSE client needs to have the replicas attached after the
+          // first open call
+          std::string locations;
+
+          try {
+            // See the creation case above
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+
+            if (fmd->isDeleted()) {
+              throw_mdexception(ENOENT, "file was removed meanwhile");
+            }
+
+            if (fmd->hasAttribute("sys.fs.tracking")) {
+              locations = fmd->getAttribute("sys.fs.tracking");
+            }
+
+            for (auto& fsid : selectedfs) {
+              fmd->addLocation(fsid);
+              locations += "+";
+              locations += std::to_string(fsid);
+            }
+
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& e) {
+            errno = e.getErrno();
+            std::string errmsg = e.getMessage().str();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
+            return Emsg(epname, error, errno, "open file", errmsg.c_str());
+          }
+        }
+
+        eos::common::FileSystem::fsid_t fsid = 0;
+        fsIndex = 0;
+        std::string fsgeotag;
+        {
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+          for (size_t k = 0; k < selectedfs.size(); k++) {
+            auto filesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[k]);
+            fsgeotag = "";
+
+            if (filesystem) {
+              fsgeotag = filesystem->GetString("stat.geotag");
+            }
+
+            // if the fs is available
+            if (std::find(unavailfs.begin(), unavailfs.end(), selectedfs[k]) ==
+                unavailfs.end()) {
+              // take the highest fsid with the same geotag if possible
+              if ((vid.geolocation.empty() ||
+                   (fsgeotag.find(vid.geolocation) != std::string::npos)) &&
+                  (selectedfs[k] > fsid)) {
+                fsIndex = k;
+                fsid = selectedfs[k];
+              }
+            }
+          }
+        } // fs_rd_lock scope
+
+        // if the client has a geotag which does not match any of the fs's
+        if (!fsIndex) {
+          fsid = 0;
+
+          for (size_t k = 0; k < selectedfs.size(); k++)
+            if (selectedfs[k] > fsid) {
+              fsIndex = k;
+              fsid = selectedfs[k];
+            }
+        }
+
+        // EOS-2787
+        // reshuffle the selectedfs to set if available the highest with matching geotag in front
+        if (fsid) {
+          std::vector<unsigned int> newselectedfs;
+          newselectedfs.push_back(fsid);
+
+          for (const auto& i : selectedfs) {
+            if (i != newselectedfs.front()) {
+              newselectedfs.push_back(i);
+            }
+          }
+
+          selectedfs.swap(newselectedfs);
+          fsIndex = 0;
+        }
+      }
+    } else {
+      if (!fmd->getSize()) {
+        // 0-size files can be read from the MGM if this is not FUSE access and
+        // also if this is not a rain file
+        if (!isFuse && !LayoutId::IsRain(layoutId)) {
+          mIsZeroSize = true;
+
+          // ----------f---------------------------------------------------------
+          // Per-directory sys.audit override for READ auditing
+          if (gOFS->AllowAuditRead(path)) {
+            gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr,
+                                std::string(), std::string(), std::string(),
+                                __FILE__, __LINE__, VERSION);
+          }
+
+          // -------------------------------------------------------------------
+          return SFS_OK;
+        }
+      }
+    }
+  }
+
+  // If this is a RAIN layout, we want a nice round-robin for the entry
+  // server since it  has the burden of encoding and traffic fan-out
+  if (isRW && LayoutId::IsRain(layoutId)) {
+    fsIndex = mFid % selectedfs.size();
+    eos_static_info("msg=\"selecting entry-server\" fsIndex=%lu fsid=%lu "
+                    "fxid=%08llx mod=%lu", fsIndex, selectedfs[fsIndex],
+                    mFid, selectedfs.size());
+  }
+
+  // If behaviour enabled then add preference to always select the file system
+  // with the lowest fsid as the server entry point
+  if (LayoutId::IsRain(layoutId) &&
+      gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
+    fsIndex = EnforceRainMinFsidEntry(selectedfs);
+  }
+
+  // Get the redirection host from the selected entry in the vector
+  if (!selectedfs[fsIndex]) {
+    eos_err("msg=\"0 filesystem in selection\" fxid=%08llx", mFid);
+    return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
+  }
+
+  XrdOucString piolist = "";
+  XrdOucString infolog = "";
+  std::string fs_hostport, fs_host, fs_port, fs_http_port, fs_prefix,
+      fs_host_alias, fs_port_alias;
+  uint32_t fs_id;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto filesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[fsIndex]);
+
+    if (!filesystem) {
+      return Emsg(epname, error, ENETUNREACH,
+                  "received non-existent filesystem", path);
+    }
+
+    fs_hostport = filesystem->GetString("hostport");
+    fs_host = filesystem->GetString("host");
+    fs_port = filesystem->GetString("port");
+    fs_host_alias = filesystem->GetString("stat.alias.host");
+    fs_port_alias = filesystem->GetString("stat.alias.port");
+
+    // allow FST host alias
+    if (fs_host_alias.length()) {
+      fs_host = fs_host_alias;
+
+      if (fs_port_alias.length()) {
+        fs_port = fs_port_alias;
+      }
+
+      fs_hostport = fs_host + std::string(":") + fs_port;
+      eos_info("redirection-alias=\"%s:%s\"", fs_host_alias.c_str(),
+               fs_port_alias.c_str());
+    }
+
+    fs_http_port = filesystem->GetString("stat.http.port");
+    fs_prefix = filesystem->GetPath();
+    fs_id = filesystem->GetId();
+  } // fs_rd_lock scope
+
+  COMMONTIMING("redirect::fs", &tm);
+  targethost = fs_host.c_str();
+  targetport = atoi(fs_port.c_str());
+  targethttpport = atoi(fs_http_port.c_str());
+  redirectionhost = targethost.c_str();
+  redirectionhost += "?";
+
+  // ---------------------------------------------------------------------------
+  // Rebuild the layout ID (for read it should indicate only the number of
+  // available stripes for reading);
+  // For 'pio' mode we hand out plain layouts to the client and add the IO
+  // layout as an extra field. For 'pio' writes the stripes keep the RAIN
+  // layout since they are written exactly as the stripes of a gateway write.
+  // ---------------------------------------------------------------------------
+  const bool isPioRead = isPio && !isRW;
+  // Get the unique set of file systems
+  std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
+  ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
+  // If file system 0 sentinel is present then it must be removed
+  ufs.erase(0u);
+  new_lid = LayoutId::GetId(
+      isPioRead ? LayoutId::kPlain : LayoutId::GetLayoutType(layoutId),
+      (isPioRead ? LayoutId::kNone : LayoutId::GetChecksum(layoutId)),
+      isPioReconstruct ? static_cast<int>(ufs.size())
+                       : static_cast<int>(selectedfs.size()),
+      LayoutId::GetBlocksizeType(layoutId), LayoutId::GetBlockChecksum(layoutId));
+
+  // For RAIN layouts we need to keep the original number of stripes since this
+  // is used to compute the different groups and block sizes in the FSTs
+  if ((LayoutId::IsRain(layoutId))) {
+    LayoutId::SetStripeNumber(new_lid,
+                              LayoutId::GetStripeNumber(layoutId));
+  }
+
+  // Bit 31 is the compression target. GetId() rebuilds the other fields and
+  // drops it. A signed append would also print that bit as a negative number.
+  LayoutId::SetCompression(new_lid, LayoutId::HasCompression(layoutId));
+  capability += "&mgm.lid=";
+  {
+    const std::string lid_text = std::to_string(new_lid);
+    capability += lid_text.c_str();
+  }
+  // space to be prebooked/allocated
+  capability += "&mgm.bookingsize=";
+
+  if (isPioReconstruct) {
+    // For pio reconstruct the booking size needs to be 0,
+    // the recovery will fail on non xfs filesystem otherwise.
+    capability += "0";
+  } else {
+    capability +=
+      eos::common::StringConversion::GetSizeString(sizestring, bookingsize);
+  }
+
+  if (minimumsize) {
+    capability += "&mgm.minsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
+                  minimumsize);
+  }
+
+  if (maximumsize) {
+    capability += "&mgm.maxsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
+                  maximumsize);
+  }
+
+  // Expected size of the target file on close
+  if (targetsize) {
+    capability += "&mgm.targetsize=";
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
+                  targetsize);
+  }
+
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
+    capability += "&mgm.fsid=";
+    capability += (int) fs_id;
+  }
+
+  if (isRepairRead) {
+    capability += "&mgm.repairread=1";
+  }
+
+  if (mIsZeroSize) {
+    capability += "&mgm.zerosize=1";
+  }
+
+  // Stripes written in PIO mode leave the parity and commit to the client.
+  // The client identity is used to authorize its commit and drop requests.
+  if (isPio && isRW) {
+    capability += "&mgm.pio.write=1";
+    capability += "&mgm.pio.uid=";
+    capability += std::to_string(pio_client_uid).c_str();
+  }
+
+  // Add the store flag for RAIN reconstruct jobs
+  if (isPioReconstruct) {
+    capability += "&mgm.rain.store=1";
+    // Append also the mgm.rain.size since we can't deduce at the FST during
+    // the recovery step and we need it for the stat information
+    capability += "&mgm.rain.size=";
+    capability += std::to_string(fmdsize).c_str();
+  }
+
+  if (bandwidth.length() && (bandwidth != "0")) {
+    capability += "&mgm.iobw=";
+    capability += bandwidth.c_str();
+  }
+
+  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) ||
+      (LayoutId::IsRain(layoutId))) {
+    capability += "&mgm.fsid=";
+    capability += (int) fs_id;
+    eos::mgm::FileSystem* repfilesystem = 0;
+    replacedfs.resize(selectedfs.size());
+    // If replacement has been specified try to get new locations for
+    // reconstruction or for missing stripes
+    std::set<unsigned int> add_new_fsid;
+
+    if (isPioReconstruct && !(pio_reconstruct_fs.empty())) {
+      // Get the scheduling group of one of the stripes
+      if (fmd->getNumLocation() == 0) {
+        eos_err("msg=\"no locations available for file\"");
+        return Emsg(epname, error, EIO, "get any locations for file", path);
+      }
+
+      eos::common::FileSystem::fs_snapshot_t orig_snapshot;
+      unsigned int orig_id = fmd->getLocation(0);
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        // Note this is a eos::common::filesystem not a mgm one
+        auto orig_fs = FsView::gFsView.mIdView.lookupByID(orig_id);
+
+        if (!orig_fs) {
+          return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
+        }
+
+        orig_fs->SnapShotFileSystem(orig_snapshot);
+      } // fs_rd_lock
+      forced_group = orig_snapshot.mGroupIndex;
+      // Add new stripes if file doesn't have the nomial number
+      auto stripe_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1) -
+                         selectedfs.size();
+      // Create a plain layout with the number of replacement stripes to be
+      // scheduled in the file placement routine
+      unsigned long plain_lid = new_lid;
+
+      if (pio_reconstruct_fs.find(0) != pio_reconstruct_fs.end()) {
+        LayoutId::SetStripeNumber(plain_lid, stripe_diff - 1);
+      } else {
+        LayoutId::SetStripeNumber(plain_lid,
+                                  pio_reconstruct_fs.size() - 1 + stripe_diff);
+      }
+
+      eos_info("msg=\"nominal stripes:%d reconstructed stripes=%d group_idx=%d\"",
+               LayoutId::GetStripeNumber(new_lid) + 1,
+               LayoutId::GetStripeNumber(plain_lid) + 1,
+               forced_group);
+      // Compute the size of the stripes to be placed
+      unsigned long num_data_stripes = LayoutId::GetStripeNumber(layoutId) + 1 -
+                                       LayoutId::GetRedundancyStripeNumber(layoutId);
+      uint64_t plain_book_sz = (uint64_t)std::ceil((float)fmd->getSize() /
+                               LayoutId::GetBlocksize(layoutId));
+      plain_book_sz = std::ceil((float) plain_book_sz / std::pow(num_data_stripes,
+                                2)) *
+                      num_data_stripes * LayoutId::GetBlocksize(layoutId) + LayoutId::OssXsBlockSize;
+      eos_info("msg=\"plain booking size is %llu\"", plain_book_sz);
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      Scheduler::PlacementArguments plctargs;
+      {
+        using namespace eos::mgm::scheduler;
+        plctargs
+            .setFileParams(space, Path(path), GroupTag(containertag.c_str()),
+                           Lid(plain_lid), (ino64_t)fmd->getId(),
+                           BookingSize(plain_book_sz), false, rootvid)
+            .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
+            .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                           openOpaque->Get("eos.schedulingstrategy"))
+            .setSchedActivity(sched_activity);
+
+        if (!plctargs.isValid()) {
+          return Emsg(epname, error, EIO, "open - invalid placement argument", path);
+        }
+      }
+      COMMONTIMING("Scheduler::Placement", &tm);
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        retc = Quota::FilePlacement(&plctargs);
+      }
+      COMMONTIMING("Scheduler::FilePlaced", &tm);
+      sched_engine = plctargs.sched_engine;
+      sched_ms += plctargs.sched_exec_ms;
+      LogSchedulingInfo(selectedfs);
+
+      if (retc) {
+        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1,
+                           vid.app);
+        return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
+      }
+
+      for (const auto& elem : pio_replacement_fs) {
+        eos_debug("msg=\"reconstruction scheduled on new fs\" fsid=%lu num=%lu",
+                  elem, pio_replacement_fs.size());
+      }
+
+      auto selection_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1)
+                            - selectedfs.size();
+      eos_info("msg=\"fs selection summary\" nominal=%d actual=%d diff=%d",
+               (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
+               selectedfs.size(), selection_diff);
+
+      // If there are stripes missing then fill them in from the replacements
+      if (pio_replacement_fs.size() < selection_diff) {
+        eos_err("msg=\"not enough replacement fs\" need=%lu have=%lu",
+                selection_diff, pio_replacement_fs.size());
+        return Emsg(epname, error, retc, "schedule enough stripes for reconstruction",
+                    path);
+      }
+
+      for (size_t i = 0; i < selection_diff; ++i) {
+        unsigned int fsid = pio_replacement_fs.back();
+        pio_replacement_fs.pop_back();
+        selectedfs.push_back(fsid);
+        add_new_fsid.insert(fsid);
+      }
+    }
+
+    replacedfs.resize(selectedfs.size());
+    {
+      // Put all the replica urls into the capability,
+      // this is all under a view lock
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+      for (unsigned int i = 0; i < selectedfs.size(); ++i) {
+        if (!selectedfs[i]) {
+          eos_err("%s", "msg=\"fsid 0 in replica vector\"");
+        }
+
+        // Logic to discover filesystems to be reconstructed
+        bool replace = false;
+
+        if (isPioReconstruct) {
+          replace = (pio_reconstruct_fs.find(selectedfs[i]) != pio_reconstruct_fs.end());
+        }
+
+        if (replace) {
+          // If we don't find any replacement
+          if (pio_replacement_fs.empty()) {
+            return Emsg(epname, error, EIO, "get replacement file system", path);
+          }
+
+          // Take one replacement filesystem from the replacement list
+          replacedfs[i] = selectedfs[i];
+          selectedfs[i] = pio_replacement_fs.back();
+          pio_replacement_fs.pop_back();
+          // Only the entry server commits, it needs all the new stripes
+          add_new_fsid.insert(selectedfs[i]);
+          eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i],
+                   selectedfs[i]);
+        } else {
+          // There is no replacement happening
+          replacedfs[i] = 0;
+        }
+
+        repfilesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[i]);
+
+        if (!repfilesystem) {
+          // Don't fail IO on a shadow file system but throw a critical error
+          // message
+          eos_crit("msg=\"Unable to get replica filesystem information\" "
+                   "path=\"%s\" fsid=%d", path, selectedfs[i]);
+          continue;
+        }
+
+        std::string replicahost;
+        int replicaport{0};
+
+        if (replace) {
+          targethost = repfilesystem->GetString("host").c_str();
+          targetport = atoi(repfilesystem->GetString("port").c_str());
+          targethttpport = atoi(repfilesystem->GetString("stat.http.port").c_str());
+          redirectionhost = targethost.c_str();
+          redirectionhost += "?";
+          replicahost += repfilesystem->GetString("host").c_str();
+          replicaport = atoi(repfilesystem->GetString("port").c_str());
+          // point at the right vector entry
+          fsIndex = i;
+        }
+
+        const int xio_port =
+            atoi(repfilesystem->GetString("stat.xio.port").c_str());
+        capability += "&mgm.url";
+        capability += (int) i;
+        capability += (xio_port > 0 ? "=xiohttp://" : "=root://");
+
+        // -----------------------------------------------------------------------
+        // Logic to mask 'offline' filesystems
+        // -----------------------------------------------------------------------
+        for (unsigned int k = 0; k < unavailfs.size(); ++k) {
+          if (selectedfs[i] == unavailfs[k]) {
+            replicahost = "__offline_";
+            break;
+          }
+        }
+
+        replicahost = repfilesystem->GetString("host");
+        replicaport = atoi(repfilesystem->GetString("port").c_str());
+        capability += replicahost.c_str();
+        capability += ":";
+        capability += (xio_port > 0 ? xio_port : replicaport);
+        capability += "//";
+        // add replica fsid
+        capability += "&mgm.fsid";
+        capability += (int)i;
+        capability += "=";
+        capability += (int)repfilesystem->GetId();
+
+        if (isPio) {
+          if (replacedfs[i]) {
+            // Add the drop message to the replacement capability
+            capability += "&mgm.drainfsid";
+            capability += (int)i;
+            capability += "=";
+            capability += (int)replacedfs[i];
+          }
+
+          piolist += "pio.";
+          piolist += (int)i;
+          piolist += "=";
+          if (xio_port > 0) {
+            piolist += "xiohttp://";
+            piolist += replicahost.c_str();
+            piolist += ":";
+            piolist += xio_port;
+          } else {
+            piolist += replicahost.c_str();
+            piolist += ":";
+            piolist += replicaport;
+          }
+          piolist += "&";
+        }
+
+        eos_debug("msg=\"redirection url\" %d => %s", i, replicahost.c_str());
+        infolog += "target[";
+        infolog += (int)i;
+        infolog += "]=(";
+        infolog += replicahost.c_str();
+        infolog += ",";
+        infolog += (int)repfilesystem->GetId();
+        infolog += ") ";
+      }
+    } // fs_rd_lock
+
+    if (isPioReconstruct && !add_new_fsid.empty()) {
+      std::string pio_addfs = "eos.pio.addfs=";
+
+      for (const auto& elem : add_new_fsid) {
+        pio_addfs += std::to_string(elem).c_str();
+        pio_addfs += ",";
+      }
+
+      pio_addfs.erase(pio_addfs.length() - 1, 1);
+      redirectionhost += pio_addfs.c_str();
+    }
+
+    COMMONTIMING("redirect::replicas", &tm);
+  }
+
+  if (!altChecksums.empty()) {
+    capability += "&mgm.altxs=";
+    capability += eos::common::StringConversion::Join(altChecksums, ",").c_str();
+    capability += "&mgm.altxs.compute=";
+    capability += computeAltXs ? "1" : "0";
+  }
+
+  // ---------------------------------------------------------------------------
+  // Optionally redirect reads through a configured cache space. Keep the
+  // backend fsid/host in the capability so the cache FST can fetch/bridge.
+  // ---------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t cache_fsid = 0;
+
+  if (!isRW && !isCreation && !isPio && !isPioReconstruct && !isInjection &&
+      !mIsZeroSize && fmd) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    // Directory sys.forced.cachespace overrides space.cachespace when set
+    cache_fsid = ReadThroughCache::SelectCacheFs(space, fmd, &attrmap);
+
+    if (cache_fsid) {
+      auto* cache_fs = FsView::gFsView.mIdView.lookupByID(cache_fsid);
+
+      if (cache_fs) {
+        const std::string cache_host = cache_fs->GetString("host");
+        const int cache_port = atoi(cache_fs->GetString("port").c_str());
+        const int cache_http_port =
+          atoi(cache_fs->GetString("stat.http.port").c_str());
+        capability += "&mgm.cache=1";
+        capability += "&mgm.cache.fsid=";
+        capability += (int) cache_fsid;
+        capability += "&mgm.cache.backend.host=";
+        capability += targethost.c_str();
+        capability += "&mgm.cache.backend.port=";
+        capability += (int) targetport;
+        capability += "&mgm.cache.backend.fsid=";
+        capability += (int) fs_id;
+        capability += "&mgm.size=";
+        capability += std::to_string(fmd->getSize()).c_str();
+        {
+          eos::IFileMD::ctime_t mtime;
+          fmd->getMTime(mtime);
+          capability += "&mgm.cache.mtime=";
+          capability += std::to_string(mtime.tv_sec).c_str();
+        }
+        {
+          auto sit = FsView::gFsView.mSpaceView.find(space);
+          const std::string low_wm =
+            (sit != FsView::gFsView.mSpaceView.end() && sit->second) ?
+            sit->second->GetConfigMember(
+              eos::common::SPACE_CACHE_LOW_WATERMARK_NAME) :
+            std::string(eos::common::SPACE_CACHE_LOW_WATERMARK_DEFAULT);
+          const std::string high_wm =
+            (sit != FsView::gFsView.mSpaceView.end() && sit->second) ?
+            sit->second->GetConfigMember(
+              eos::common::SPACE_CACHE_HIGH_WATERMARK_NAME) :
+            std::string(eos::common::SPACE_CACHE_HIGH_WATERMARK_DEFAULT);
+          capability += "&mgm.cache.low_watermark=";
+          capability += (low_wm.empty() ?
+                         eos::common::SPACE_CACHE_LOW_WATERMARK_DEFAULT :
+                         low_wm.c_str());
+          capability += "&mgm.cache.high_watermark=";
+          capability += (high_wm.empty() ?
+                         eos::common::SPACE_CACHE_HIGH_WATERMARK_DEFAULT :
+                         high_wm.c_str());
+        }
+        // Switch client redirect target to the cache FST
+        targethost = cache_host.c_str();
+        targetport = cache_port;
+        targethttpport = cache_http_port;
+        // Rebuild redirection host prefix; opaque is appended after encrypt
+        redirectionhost = targethost.c_str();
+        redirectionhost += "?";
+        eos_info("msg=\"read-through cache redirect\" fxid=%08llx "
+                 "cache_fsid=%u backend_fsid=%u", mFid, cache_fsid, fs_id);
+        const auto previous_cache_fsid = fmd->getCacheLocation();
+        const bool need_persist = (previous_cache_fsid != cache_fsid);
+        fs_rd_lock.Release();
+
+        if (need_persist) {
+          try {
+            eos::MDLocking::FileWriteLock fmd_lock(fmd.get());
+            fmd->setCacheLocation(cache_fsid);
+            updateFileStoreIfNotDeleted(fmd.get());
+          } catch (eos::MDException& e) {
+            eos_warning("msg=\"failed to persist cache_location\" fxid=%08llx "
+                        "errno=%d", mFid, e.getErrno());
+          }
+
+          // Topology remapping (e.g. cache space grew): drop the orphan journal
+          // on the previous cache FS so it does not linger until LRU eviction
+          if (previous_cache_fsid) {
+            (void) ReadThroughCache::NotifyJournalTruncate(previous_cache_fsid,
+                mFid);
+          }
+        }
+      } else {
+        cache_fsid = 0;
+      }
+    }
+  }
+
+  COMMONTIMING("capability::built", &tm);
+  // ---------------------------------------------------------------------------
+  // Encrypt capability
+  // ---------------------------------------------------------------------------
+  XrdOucEnv incapability(capability.c_str());
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  eos_debug("capability=%s\n", capability.c_str());
+  int caprc = 0;
+  XrdOucEnv* capabilityenvRaw = nullptr;
+
+  if ((caprc = eos::common::SymKey::CreateCapability(&incapability,
+               capabilityenvRaw,
+               symkey, gOFS->mCapabilityValidity))) {
+    return Emsg(epname, error, caprc, "sign capability", path);
+  }
+
+  COMMONTIMING("capability::signed", &tm);
+  std::unique_ptr<XrdOucEnv> capabilityenv(capabilityenvRaw);
+  int caplen = 0;
+
+  if (isPio) {
+    redirectionhost = piolist;
+    redirectionhost += "mgm.lid=";
+    {
+      const std::string lid_text = std::to_string(layoutId);
+      redirectionhost += lid_text.c_str();
+    }
+    redirectionhost += "&mgm.logid=";
+    redirectionhost += this->logId;
+    redirectionhost += capabilityenv->Env(caplen);
+  } else {
+    redirectionhost += capabilityenv->Env(caplen);
+    redirectionhost += "&mgm.logid=";
+    redirectionhost += this->logId;
+    if (std::string _blockxs = XrdUtils::GetEnv(*openOpaque, "eos.blockchecksum");
+        !_blockxs.empty()) {
+      redirectionhost += "&eos.blockchecksum=";
+      redirectionhost += _blockxs.c_str();
+    } else {
+      if (!isRW && LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) {
+        redirectionhost += "&mgm.blockchecksum=ignore";
+      }
+    }
+
+    // A checksum value alone is enough to trigger the verification, it is done
+    // against the layout checksum type - cks.value behaves like eos.checksum
+    if (openOpaque->Get("eos.checksum") || openOpaque->Get("cks.value") ||
+        openOpaque->Get("eos.cloneid")) {
+      std::string checksumType;
+      std::string checksumValue;
+
+      getCksumFromOpaque(checksumType, checksumValue);
+      // Legacy behavior: always forward the expected checksum value, the FST
+      // verifies it against the layout checksum at close time
+      redirectionhost += "&mgm.checksum=";
+      redirectionhost += checksumValue.c_str();
+
+      // Only write opens verify a client-requested checksum type - the type
+      // was already validated against the layout above
+      if (isRW && !checksumType.empty() && !checksumValue.empty()) {
+        redirectionhost += "&mgm.checksumtypereq=";
+        redirectionhost += checksumType.c_str();
+      }
+    }
+
+    if (openOpaque->Get("eos.mtime")) {
+      redirectionhost += "&mgm.mtime=0";
+    }
+
+    std::string syntheticio_cap_value = syntheticio_value;
+    if (syntheticio_cap_value.empty()) {
+      attr::getValue(attrmapF, SYS_SYNTHETICIO, syntheticio_cap_value);
+    }
+    if (!syntheticio_cap_value.empty()) {
+      redirectionhost += "&eos.syntheticio=";
+      redirectionhost += syntheticio_cap_value.c_str();
+    }
+
+    // For the moment we redirect only on storage nodes
+    redirectionhost += "&mgm.replicaindex=";
+    redirectionhost += (int) fsIndex;
+    redirectionhost += "&mgm.replicahead=";
+    redirectionhost += (int) fsIndex;
+  }
+
+  COMMONTIMING("redirect::built", &tm);
+
+  if (vid.prot == "https") {
+    std::string etag;
+
+    if (isAtomicUpload || ocUploadUuid.length()) {
+      // The etag refers to the final path and not to the upload entry
+      struct stat buf;
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      gOFS->_stat(path, &buf, error, rootvid, "", &etag);
+    } else if (isHardLink || fmd->hasAttribute(SYS_HARD_LINK)) {
+      etag = "hardlink";
+    } else {
+      // The file metadata is protected by its own lock, no namespace lookup
+      // or namespace lock is needed
+      eos::calculateEtag(fmd.get(), etag);
+    }
+
+    redirectionhost += "&mgm.etag=";
+
+    if (!etag.length()) {
+      redirectionhost += "undef";
+    } else {
+      redirectionhost += etag.c_str();
+    }
+
+    COMMONTIMING("etag::stat", &tm);
+  }
+
+  // add the MGM hex id for this file
+  redirectionhost += "&mgm.id=";
+  redirectionhost += hex_fid.c_str();
+
+  if (isFuse) {
+    redirectionhost += "&mgm.mtime=0";
+  } else {
+    if (!isRW)  {
+      eos::IFileMD::ctime_t mtime;
+
+      try {
+        fmd->getMTime(mtime);
+        redirectionhost += "&mgm.mtime=";
+        std::string smtime;
+        smtime += std::to_string(mtime.tv_sec);
+        redirectionhost += smtime.c_str();
+      } catch (eos::MDException& ex) {
+      }
+    }
+  }
+
+  // Also trigger synchronous create workflow event if it's defined
+  if (isCreation) {
+    errno = 0;
+    workflow.SetFile(path, mFid);
+
+    std::string errorMsg;
+    auto ret_wfe = workflow.Trigger("sync::create", currentWorkflow, vid,
+                                    ininfo, errorMsg);
+
+    if (ret_wfe < 0 && errno == ENOKEY) {
+      eos_debug("msg=\"no workflow defined for sync::create\"");
+    } else {
+      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+
+      if (ret_wfe != 0) {
+        // Remove the file from the namespace in this case
+        try {
+          std::shared_ptr<eos::IContainerMD> pmd;
+          const auto pid = fmd->getContainerId();
+
+          if (pid) {
+            pmd = gOFS->eosDirectoryService->getContainerMD(pid);
+          }
+
+          // The creation added the file to quota. The quota node lookup walks
+          // up the parents, so it runs before the MD locks.
+          eos::IQuotaNode* ns_quota = nullptr;
+
+          if (pmd && !isInjection) {
+            try {
+              ns_quota = gOFS->eosView->getQuotaNode(pmd.get());
+            } catch (const eos::MDException& e) {
+              ns_quota = nullptr;
+            }
+          }
+
+          eos::MDLocking::BulkMDWriteLock md_locker;
+
+          if (pmd) {
+            md_locker.add(pmd.get());
+          }
+
+          md_locker.add(fmd.get());
+          auto md_locks = md_locker.lockAll();
+
+          // A parallel rm or rename can have changed the file meanwhile
+          if (!fmd->isDeleted() && (fmd->getContainerId() == pid)) {
+            if (ns_quota) {
+              ns_quota->removeFile(fmd.get());
+            }
+
+            gOFS->eosView->removeFile(fmd.get());
+          }
+        } catch (eos::MDException& ex) {
+          eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
+                  ex.what());
+        }
+
+        return Emsg(epname, error, ret_wfe, errorMsg.c_str(),
+                    path);
+      }
+    }
+  }
+
+  // add workflow cgis, has to come after create workflow
+  workflow.SetFile(path, mFid);
+
+  if (isRW) {
+    redirectionhost += workflow.getCGICloseW(currentWorkflow, vid).c_str();
+  } else {
+    redirectionhost += workflow.getCGICloseR(currentWorkflow).c_str();
+  }
+
+  COMMONTIMING("workflow", &tm);
+
+  // Notify tape garbage collector if tape support is enabled
+  if (gOFS->mTapeEnabled) {
+    try {
+      const auto tgcFmd = gOFS->eosFileService->getFileMD(mFid);
+      const bool isATapeFile = tgcFmd->hasAttribute("sys.archive.file_id");
+
+      if (isATapeFile) {
+        if (isRW) {
+          const std::string tgcSpace = nullptr != space.c_str() ? space.c_str() : "";
+          gOFS->mTapeGc->fileOpenedForWrite(tgcSpace, mFid);
+        } else {
+          const auto fsId = getFirstDiskLocation(selectedfs);
+          const std::string tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(fsId);
+          gOFS->mTapeGc->fileOpenedForRead(tgcSpace, mFid);
+        }
+      }
+    } catch (...) {
+      // Ignore any garbage collection exceptions
+    }
+  }
+
+  COMMONTIMING("tapegc", &tm);
+
+  // Always redirect
+  if ((vid.prot == "https") || (vid.prot == "http")) {
+    ecode = targethttpport;
+  } else {
+    ecode = targetport;
+  }
+
+  rcode = SFS_REDIRECT;
+  EXEC_TIMING_END("Open");
+  COMMONTIMING("end", &tm);
+  const char* io_bw = bandwidth.length() ? bandwidth.c_str() : "inf";
+  const char* io_type = iotype.length() ? iotype.c_str() : "buffered";
+  const char* io_prio = ioprio.length() ? ioprio.c_str() : "default";
+  // Client info forwarded to the FST, the format must not change
+  char clientinfo[1024];
+  snprintf(clientinfo, sizeof(clientinfo),
+           "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
+           __exec_time__, io_bw, schedule, io_type, io_prio, targethost.c_str(),
+           ecode);
+  std::string sclientinfo(clientinfo);
+  std::string zclientinfo;
+  eos::common::SymKey::ZBase64(sclientinfo, zclientinfo);
+  redirectionhost += "&eos.clientinfo=";
+  redirectionhost += zclientinfo.c_str();
+
+  if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+    eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+    return SFS_ERROR;
+  }
+
+  // Replica/stripe targets as "target[i]=(host,fsid)" separated by spaces
+  std::string targets = infolog.c_str();
+
+  if (!targets.empty() && (targets.back() == ' ')) {
+    targets.pop_back();
+  }
+
+  eos_info("op=%s path=%s sched:engine=%s sched:rt=%.02fms %s io:bw=%s "
+           "io:sched=%d io:type=%s io:prio=%s %s%sredirect=%s xrd_port=%d "
+           "http_port=%d", isRW ? "write" : "read", path,
+           Scheduler::SchedEngineName(sched_engine), sched_ms, tm.Dump().c_str(),
+           io_bw, schedule, io_type, io_prio, targets.c_str(),
+           targets.empty() ? "" : " ", targethost.c_str(), targetport,
+           targethttpport);
+
+  // Audit READ for successful open if read-only using global or per-dir override
+  if (!isRW && gOFS->AllowAuditRead(path)) {
+    gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                        std::string(), nullptr, nullptr,
+                        std::string(), std::string(), std::string(),
+                        __FILE__, __LINE__, VERSION);
+  }
+
+  return rcode;
+}
+
+
+//----------------------------------------------------------------------------
+// Read a partial result of a 'proc' interface command
+//----------------------------------------------------------------------------
+XrdSfsXferSize
+EosMgmOfsFile::read(XrdSfsFileOffset offset,
+                    char* buff,
+                    XrdSfsXferSize blen)
+{
+  static const char* epname = "read";
+
+  if (mIsZeroSize) {
+    return 0;
+  }
+
+  if (mProcCmd) {
+    return mProcCmd->read(offset, buff, blen);
+  }
+
+  return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Read file pages into a buffer and return corresponding checksums
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+EosMgmOfsFile::pgRead(XrdSfsFileOffset offset, char* buffer,
+                      XrdSfsXferSize rdlen, uint32_t* csvec, uint64_t opts)
+{
+  XrdSfsXferSize bytes;
+
+  if ((bytes = read(offset, buffer, rdlen)) <= 0) {
+    return bytes;
+  }
+
+  // Generate the crc's
+  XrdOucPgrwUtils::csCalc(buffer, offset, bytes, csvec);
+  return bytes;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief close a file object
+ *
+ * @return SFS_OK
+ *
+ * The close on the MGM is called only for files opened using the 'proc' e.g.
+ * EOS shell comamnds. By construction failures can happen only during the open
+ * of a 'proc' file e.g. the close always succeeds!
+ */
+/*----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::close()
+{
+  oh = -1;
+
+  if (mProcCmd) {
+    mProcCmd->close();
+    return SFS_OK;
+  }
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief stat the size of an open 'proc' command/file
+ *
+ * @param buf stat struct where to store information
+ * @return SFS_OK if open proc file otherwise SFS_ERROR
+ *
+ * For 'proc' files the result is created during the file open call.
+ * The stat function will fill the size of the created result into the stat
+ * buffer.
+ */
+/*----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::stat(struct stat* buf)
+{
+  static const char* epname = "stat";
+
+  if (mIsZeroSize) {
+    memset(buf, 0, sizeof(struct stat));
+    return 0;
+  }
+
+  if (mProcCmd) {
+    return mProcCmd->stat(buf);
+  }
+
+  return Emsg(epname, error, EOPNOTSUPP, "stat", fileName.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::sync()
+/*----------------------------------------------------------------------------*/
+/*
+ * sync an open file - no implemented (no use case)
+ *
+ * @return SFS_ERROR and EOPNOTSUPP
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char* epname = "sync";
+  return Emsg(epname, error, EOPNOTSUPP, "sync", fileName.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::sync(XrdSfsAio* aiop)
+/*----------------------------------------------------------------------------*/
+/*
+ * aio sync an open file - no implemented (no use case)
+ *
+ * @return SFS_ERROR and EOPNOTSUPP
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char* epname = "sync";
+  // Execute this request in a synchronous fashion
+  //
+  return Emsg(epname, error, EOPNOTSUPP, "sync", fileName.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+int
+EosMgmOfsFile::truncate(XrdSfsFileOffset flen)
+/*----------------------------------------------------------------------------*/
+/*
+ * truncate an open file - no implemented (no use case)
+ *
+ * @return SFS_ERROR and EOPNOTSUPP
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char* epname = "trunc";
+  return Emsg(epname, error, EOPNOTSUPP, "truncate", fileName.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
+EosMgmOfsFile::~EosMgmOfsFile()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief destructor
+ *
+ * Cleans-up the file object on destruction
+ */
+/*----------------------------------------------------------------------------*/
+{
+  if (oh > 0) {
+    close();
+  }
+
+  if (openOpaque) {
+    delete openOpaque;
+    openOpaque = 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+/*
+ * @brief create an error message for a file object
+ *
+ * @param pfx message prefix value
+ * @param einfo error text/code object
+ * @param ecode error code
+ * @param op name of the operation performed
+ * @param target target of the operation e.g. file name etc.
+ *
+ * @return SFS_ERROR in all cases
+ *
+ * This routines prints also an error message into the EOS log.
+ */
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::Emsg(const char* pfx,
+                    XrdOucErrInfo& einfo,
+                    int ecode,
+                    const char* op,
+                    const char* target)
+{
+  char etext[128], buffer[4096];
+
+  // Get the reason for the error
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
+
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    sprintf(etext, "reason unknown (%d)", ecode);
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+  eos_err("Unable to %s %s; %s", op, target, etext);
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Block parallel writers into a (RAIN/EC) file which is still being created
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::BlockParallelEcWriters(const std::shared_ptr<eos::IFileMD>& fmd,
+                                      const std::string& client_uuid, const char* path)
+{
+  static const char* epname = "open";
+
+  // The 0-size carve-out in the RAIN update guard exists for the FUSE lazy-open
+  // flow, but it also lets two clients writing to the same path advance their
+  // asynchronous opens and write two different streams into the same inode. A
+  // 0-size RAIN file that already carries the creator's fusex uuid is being
+  // written by that client - only the same client is allowed to (re)open it.
+  // The caller already restricts this to FUSE opens of 0-size RAIN files.
+  if (!fmd || client_uuid.empty() || !fmd->hasAttribute("sys.fusex.creator")) {
+    return SFS_OK;
+  }
+
+  const std::string creator = fmd->getAttribute("sys.fusex.creator");
+
+  if (creator == client_uuid) {
+    return SFS_OK;
+  }
+
+  // The creator marker is considered stale if the file metadata (ctime) has not
+  // been updated for more than 5 minutes. This allows a new client (e.g. a
+  // remounted FUSE client with a fresh uuid) to take over a 0-size EC file
+  // whose original creator abandoned it, instead of being blocked forever.
+  eos::IFileMD::ctime_t ctime;
+  fmd->getCTime(ctime);
+  time_t age = time(nullptr) - (time_t)ctime.tv_sec;
+
+  if (age <= 300) {
+    eos_warning("msg=\"block parallel writer on EC file being created\" "
+                "path=\"%s\" fxid=%08llx creator=\"%s\" client=\"%s\" "
+                "ctime_age_sec=%ld",
+                path, (unsigned long long)mFid, creator.c_str(), client_uuid.c_str(),
+                (long)age);
+    gOFS->MgmStats.Add("OpenFailedParallelWrite", vid.uid, vid.gid, 1, vid.app);
+    return Emsg(epname, error, EBUSY,
+                "open file - another client is "
+                "currently writing this EC file",
+                path);
+  }
+
+  eos_info("msg=\"allow takeover of stale EC file being created\" "
+           "path=\"%s\" fxid=%08llx creator=\"%s\" client=\"%s\" "
+           "ctime_age_sec=%ld",
+           path, (unsigned long long)mFid, creator.c_str(), client_uuid.c_str(),
+           (long)age);
+
+  // Record the taking-over client as the new creator so that its own subsequent
+  // (lazy) opens are accepted and any other client is now blocked against the
+  // new owner.
+  try {
+    // An attribute change: the file MD lock is enough
+    std::shared_ptr<eos::IFileMD> wfmd = gOFS->eosFileService->getFileMD(mFid);
+    eos::MDLocking::FileWriteLock wfmd_lock(wfmd.get());
+
+    if (!wfmd->isDeleted()) {
+      wfmd->setAttribute("sys.fusex.creator", client_uuid);
+      gOFS->eosView->updateFileStore(wfmd.get());
+    }
+  } catch (eos::MDException& e) {
+    eos_warning("msg=\"failed to update EC creator on takeover\" "
+                "fxid=%08llx ec=%d emsg=\"%s\"",
+                (unsigned long long)mFid, e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Check if this is a client retry with exclusion of some diskserver. This
+// happens usually for CMS workflows. To distinguish such a scenario from
+// a legitimate retry due to a recoverable error, we need to search for the
+// "tried=" opaque tag without a corresponding "triedrc=" tag.
+//------------------------------------------------------------------------------
+bool
+EosMgmOfsFile::IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const
+{
+  if (!is_rw && eos::common::LayoutId::IsRain(lid)) {
+    char* tried_info = openOpaque->Get("tried");
+
+    if ((tried_info == nullptr) || strlen(tried_info) == 0) {
+      return false;
+    }
+
+    // Don't exclude if tried information contains a globally unique cluster
+    // ID which has the form: +<port><host>
+    bool exclude = false;
+    auto endpoints =  eos::common::StringTokenizer::split
+                      <std::list<std::string>>(tried_info, ',');
+
+    for (const auto& ep : endpoints) {
+      if (!ep.empty() && (ep[0] != '+')) {
+        exclude = true;
+        break;
+      }
+    }
+
+    if (openOpaque->Get("triedrc") == nullptr) {
+      return exclude;
+    }
+  }
+
+  return false;
+}
+
+
+//------------------------------------------------------------------------------
+// Parse the triedrc opaque info and return the corresponding error number
+//------------------------------------------------------------------------------
+int
+EosMgmOfsFile::GetTriedrcErrno(const std::string& input) const
+{
+  if (input.empty()) {
+    return 0;
+  }
+
+  std::vector<std::string> vect_err;
+  eos::common::StringConversion::Tokenize(input, vect_err, ",");
+
+  for (const auto& elem : vect_err) {
+    if (elem == "enoent") {
+      return ENOENT;
+    } else if (elem == "ioerr") {
+      return EIO;
+    } else if (elem == "fserr") {
+      return EFAULT;
+    } else if (elem == "srverr") {
+      return EFAULT;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle (delegated) TPC redirection
+//------------------------------------------------------------------------------
+bool
+EosMgmOfsFile::RedirectTpcAccess()
+{
+  if (!gOFS->mTpcRedirect) {
+    return false;
+  }
+
+  const char* tpc_key = openOpaque->Get("tpc.key");
+
+  if (tpc_key == nullptr) {
+    return false;
+  }
+
+  bool is_delegated_tpc = (strncmp(tpc_key, "delegate", 8) == 0);
+  // Support the tpc.dlgon=1 marker for XRootD client >= 4.11.2
+  const char* dlg_marker = openOpaque->Get("tpc.dlgon");
+
+  if (dlg_marker) {
+    is_delegated_tpc = is_delegated_tpc || (strncmp(dlg_marker, "1", 1) == 0);
+  }
+
+  auto it = gOFS->mTpcRdrInfo.find(is_delegated_tpc);
+
+  // If rdr info not present or if host is empty then skip
+  if ((it == gOFS->mTpcRdrInfo.end()) || (it->second.first.empty())) {
+    return false;
+  }
+
+  error.setErrInfo(it->second.second, it->second.first.c_str());
+  eos_info("msg=\"tpc %s redirect\" rdr_host=%s rdr_port=%i",
+           is_delegated_tpc ? "delegated" : "undelegated",
+           it->second.first.c_str(), it->second.second);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Dump scheduling info
+//------------------------------------------------------------------------------
+void
+EosMgmOfsFile::LogSchedulingInfo(const std::vector<unsigned int>& selected_fs) const
+{
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
+    std::ostringstream oss;
+    oss << "selectedfs: ";
+
+    for (const auto& elem : selected_fs) {
+      oss << elem << "  ";
+    }
+
+    eos_debug("msg=\"scheduling info %s\"", oss.str().c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get file system ids excluded from scheduling
+//------------------------------------------------------------------------------
+std::vector<unsigned int>
+EosMgmOfsFile::GetExcludedFsids() const
+{
+  std::vector<unsigned int> fsids;
+  std::string sfsids;
+
+  if (openOpaque) {
+    sfsids = (openOpaque->Get("eos.excludefsid") ?
+              openOpaque->Get("eos.excludefsid") : "");
+  }
+
+  if (sfsids.empty()) {
+    return fsids;
+  }
+
+  auto lst_ids = eos::common::StringTokenizer::split<std::list<std::string>>
+                 (sfsids, ',');
+
+  for (const auto& sid : lst_ids) {
+    try {
+      fsids.push_back(std::stoul(sid));
+    } catch (...) {}
+  }
+
+  return fsids;
+}

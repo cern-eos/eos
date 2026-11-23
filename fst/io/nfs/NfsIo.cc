@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #ifdef HAVE_NFS
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "fst/io/nfs/NfsIo.hh"
 #include "common/Path.hh"
 #include <sys/types.h>
@@ -55,7 +55,7 @@ std::string getAttrPath(std::string path)
 // Constructor
 //------------------------------------------------------------------------------
 
-NfsIo::NfsIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client)
+NfsIo::NfsIo(std::string path, EosFstOfsFile* file, const XrdSecEntity* client)
   : FileIo(path, "NfsIo")
 {
   eos_debug("NfsIo::NfsIo called with path=%s", path.c_str());

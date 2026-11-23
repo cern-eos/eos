@@ -23,7 +23,7 @@
 
 
 // -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 #include "proto/Audit.pb.h"
@@ -32,7 +32,7 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::chmod(const char* inpath,
+EosMgmOfs::chmod(const char* inpath,
                  XrdSfsMode Mode,
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client,
@@ -74,7 +74,7 @@ XrdMgmOfs::chmod(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_chmod(const char* path,
+EosMgmOfs::_chmod(const char* path,
                   XrdSfsMode& Mode,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,

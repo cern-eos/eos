@@ -23,7 +23,7 @@
 
 #include "common/Logging.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/zmq/ZMQ.hh"
@@ -35,7 +35,7 @@
 // Will redirect to the RW master.
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::Fusex(const char* path,
+EosMgmOfs::Fusex(const char* path,
                  const char* ininfo,
                  std::string protobuf,
                  XrdOucEnv& env,

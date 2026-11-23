@@ -22,7 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <fst/XrdFstOfs.hh>
+#include <fst/EosFstOfs.hh>
 #include <fst/storage/FileSystem.hh>
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -39,7 +39,7 @@ using eos::common::LayoutId;
 //------------------------------------------------------------------------------
 FileIo*
 FileIoPlugin::GetIoObject(std::string path,
-                          XrdFstOfsFile* file,
+                          EosFstOfsFile* file,
                           const XrdSecEntity* client)
 {
   auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
@@ -47,7 +47,15 @@ FileIoPlugin::GetIoObject(std::string path,
   if (ioType == LayoutId::kLocal) {
     return static_cast<FileIo*>(new LocalIo(path, file, client));
   } else if (ioType == LayoutId::kXrdCl) {
+#if defined(EOS_HAVE_XIO)
+    const std::string xu = XioIo::ServiceUrl(path);
+    if (xu.empty()) {
+      return nullptr;
+    }
+    return MakeXioIo(xu);
+#else
     return static_cast<FileIo*>(new XrdIo(path));
+#endif
   } else if (ioType == LayoutId::kDavix) {
 #ifdef HAVE_DAVIX
     std::string s3credentials = "";
@@ -63,6 +71,8 @@ FileIoPlugin::GetIoObject(std::string path,
 #endif // HAVE_DAVIX
     eos_static_warning("EOS has been compiled without DAVIX support.");
     return NULL;
+  } else if (ioType == LayoutId::kXio) {
+    return MakeXioIo(path);
   } else if (ioType == LayoutId::kNfs) {
 #ifdef HAVE_NFS
     return static_cast<FileIo*>(new NfsIo(path, file, client));

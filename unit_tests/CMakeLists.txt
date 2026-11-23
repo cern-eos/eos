@@ -113,8 +113,8 @@ set(MGM_UT_SRCS
   mgm/tgc/TapeGcTests.cc
   mgm/CtaUtilsTests.cc
   mgm/WFEClientTests.cc
-  mgm/XrdMgmOfsTests.cc
-  mgm/XrdMgmOfsFileTests.cc
+  mgm/EosMgmOfsTests.cc
+  mgm/EosMgmOfsFileTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
@@ -204,14 +204,14 @@ set(FUSEX_UT_SRCS
 )
 
 set(FST_UT_SRCS
-  fst/XrdFstOfsTests.cc
-  fst/XrdFstOssFileTest.cc
+  fst/EosFstOfsTests.cc
+  fst/EosFstOssFileTest.cc
   fst/CompressOssTests.cc
   fst/SyntheticIOOssTests.cc
   fst/HealthTest.cc
   fst/TrafficShapingTests.cc
   fst/UtilsTest.cc
-  fst/XrdFstOfsFileInternalTest.cc
+  fst/EosFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
   ${CMAKE_SOURCE_DIR}/fst/ScanDir.cc # To pass on the NOOFS flag explicitly
   fst/LoadTests.cc
@@ -260,6 +260,9 @@ target_link_libraries(eos-unit-tests PRIVATE
   XROOTD::SERVER
   RestAnnot-Objects
   XrdEosMgm-Static)
+if(EOS_HAVE_XIO)
+  target_link_libraries(eos-unit-tests PRIVATE EosFstIo)
+endif()
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-fst executable
@@ -282,7 +285,7 @@ target_link_libraries(eos-unit-tests-fst PRIVATE
 add_executable(eos-unit-tests-with-instance
   fst/main_fst.cc
   fst/TestEnv.cc
-  fst/XrdFstOfsFileTest.cc
+  fst/EosFstOfsFileTest.cc
   fst/XrdIoTests.cc
   fst/NfsIoTests.cc)
 
@@ -299,7 +302,7 @@ add_executable(eos-unit-tests-with-qdb
   with_qdb/FsViewStaleQueuePathTests.cc
   with_qdb/TestUtils.cc)
 
-# The FsView tests instantiate an XrdMgmOfs, which needs the same objects
+# The FsView tests instantiate an EosMgmOfs, which needs the same objects
 # as eos-unit-tests
 target_link_libraries(eos-unit-tests-with-qdb
   EosConsoleHelpers-Objects
@@ -315,6 +318,9 @@ target_link_libraries(eos-unit-tests-with-qdb
   XrdEosMgm-Static
   READLINE::READLINE
   JSONCPP::JSONCPP)
+if(EOS_HAVE_XIO)
+  target_link_libraries(eos-unit-tests-with-qdb EosFstIo)
+endif()
 
 install(TARGETS
   eos-unit-tests eos-unit-tests-with-instance eos-unit-tests-fst

@@ -38,7 +38,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declaration
-class XrdFstOfsFile;
+class EosFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! Class which abstracts the physical layout of the file
@@ -52,7 +52,7 @@ public:
   //! @param file file handler
   //! @param fmdHandler file meta data handler
   //----------------------------------------------------------------------------
-  Layout(XrdFstOfsFile* file, eos::fst::FmdHandler* fmdHandler);
+  Layout(EosFstOfsFile* file, eos::fst::FmdHandler* fmdHandler);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -65,7 +65,7 @@ public:
   //! @param fmdHandler file meta data handler
   //! @param timeout timeout value
   //----------------------------------------------------------------------------
-  Layout(XrdFstOfsFile* file,
+  Layout(EosFstOfsFile* file,
          unsigned long lid,
          const XrdSecEntity* client,
          XrdOucErrInfo* outError,
@@ -320,7 +320,7 @@ protected:
   std::string mLastTriedUrl; ///< last tried URL for remote files
   int mLastErrCode; ///< last errCode
   int mLastErrNo; ///< last errno
-  XrdFstOfsFile* mOfsFile; ///< handler to logical file
+  EosFstOfsFile* mOfsFile; ///< handler to logical file
   std::string mLocalPath; ///< path to local file
   XrdOucErrInfo* mError; ///< error information
   XrdSecEntity* mSecEntity; ///< security information

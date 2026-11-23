@@ -28,7 +28,7 @@
 #include "common/SymKeys.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <sstream>
 

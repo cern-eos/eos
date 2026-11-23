@@ -35,7 +35,7 @@
 #include "mgm/fsview/FsView.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/imaster/IMaster.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "mq/MessagingRealm.hh"
@@ -65,10 +65,10 @@ public:
   MOCK_METHOD(std::string, PrintOut, (), (override));
 };
 
-class StaleFsTestOfs : public XrdMgmOfs {
+class StaleFsTestOfs : public EosMgmOfs {
 public:
   explicit StaleFsTestOfs(XrdSysError* error)
-      : XrdMgmOfs(error)
+      : EosMgmOfs(error)
   {
   }
 
@@ -290,7 +290,7 @@ protected:
   bool mPreviousDisableDefaults = false;
   std::string mPreviousInstance;
   XrdSysError mError{nullptr, "fsview-stale-queuepath-test"};
-  XrdMgmOfs* mPreviousOfs = nullptr;
+  EosMgmOfs* mPreviousOfs = nullptr;
   std::unique_ptr<StaleFsTestOfs> mOfs;
   std::map<std::string, std::optional<std::string>> mEnvironment;
 };

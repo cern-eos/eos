@@ -30,6 +30,7 @@
 #include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/davix/DavixIo.hh"
 #include "fst/io/nfs/NfsIo.hh"
+#include "fst/io/xio/XioIo.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 
@@ -38,7 +39,7 @@ EOSFSTNAMESPACE_BEGIN
 using eos::common::LayoutId;
 
 //! Forward declaration
-class XrdFstOfsFile;
+class EosFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! Class used to obtain a IO plugin object
@@ -66,7 +67,7 @@ public:
   //! @return requested layout type object
   //--------------------------------------------------------------------------
   static FileIo*
-  GetIoObject(std::string path, XrdFstOfsFile* file = 0,
+  GetIoObject(std::string path, EosFstOfsFile* file = 0,
               const XrdSecEntity* client = 0)
   {
     auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
@@ -74,13 +75,23 @@ public:
     if (ioType == LayoutId::kLocal) {
       return static_cast<FileIo*>(new FsIo(path));
     } else if (ioType == LayoutId::kXrdCl) {
+#if defined(EOS_HAVE_XIO)
+      const std::string xu = XioIo::ServiceUrl(path);
+      if (xu.empty()) {
+        return nullptr;
+      }
+      return MakeXioIo(xu);
+#else
       return static_cast<FileIo*>(new XrdIo(path));
+#endif
     } else if (ioType == LayoutId::kDavix) {
 #ifdef HAVE_DAVIX
       return static_cast<FileIo*>(new DavixIo(path));
 #endif // HAVE_DAVIX
       eos_static_warning("%s", "msg=\"EOS has been compiled without DAVIX support\"");
       return nullptr;
+    } else if (ioType == LayoutId::kXio) {
+      return MakeXioIo(path);
     } else if (ioType == LayoutId::kNfs) {
 #ifdef HAVE_NFS
       return static_cast<FileIo*>(new NfsIo(path, file, client));

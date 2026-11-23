@@ -30,7 +30,7 @@
 #include <curl/curl.h>
 
 //! Forward declaration
-class XrdMgmOfs;
+class EosMgmOfs;
 class XrdAccAuthorize;
 class XrdSfsFileSystem;
 
@@ -115,7 +115,7 @@ public:
   XrdHttpExtHandler* mTokenHttpHandler; ///< Macaroons ext http handler
   //! Authz plugin from libMacaroons/libXrdSciTokens
   XrdAccAuthorize* mTokenAuthzHandler;
-  XrdMgmOfs* mMgmOfsHandler; ///< Pointer to the MGM OFS plugin
+  EosMgmOfs* mMgmOfsHandler; ///< Pointer to the MGM OFS plugin
   //! Url to access rest api grpc-gateway
   const char* mRestApiGwUrl = "http://localhost:40054";
   //! Path to rest api grpc-gateway
@@ -167,7 +167,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  XrdMgmOfs* GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
+  EosMgmOfs* GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
                           const char* confg);
 
   //----------------------------------------------------------------------------

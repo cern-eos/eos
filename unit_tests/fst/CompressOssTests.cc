@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #define IN_TEST_HARNESS
-#include "fst/XrdFstOss.hh"
-#include "fst/XrdFstOssFile.hh"
+#include "fst/EosFstOss.hh"
+#include "fst/EosFstOssFile.hh"
 #undef IN_TEST_HARNESS
 
 #include "common/LayoutId.hh"
@@ -42,16 +42,16 @@
 #include <vector>
 
 using eos::common::LayoutId;
-using eos::fst::XrdFstOss;
-using eos::fst::XrdFstOssFile;
+using eos::fst::EosFstOss;
+using eos::fst::EosFstOssFile;
 
 namespace {
 
-XrdFstOss& GetTestOss()
+EosFstOss& GetTestOss()
 {
   static XrdSysLogger logger(fileno(stderr), 0);
-  static XrdFstOss* oss = []() {
-    auto* instance = new XrdFstOss();
+  static EosFstOss* oss = []() {
+    auto* instance = new EosFstOss();
     instance->Init(&logger, nullptr);
     return instance;
   }();
@@ -93,7 +93,7 @@ protected:
       delete mOss;
       mOss = nullptr;
     }
-    mOss = new XrdFstOssFile("compress-test");
+    mOss = new EosFstOssFile("compress-test");
     const std::string opaque = "&mgm.lid=" + std::to_string(lid);
     XrdOucEnv env(opaque.c_str());
     return mOss->Open(mPath.c_str(), flags, 0644, env);
@@ -146,7 +146,7 @@ protected:
   }
 
   std::string mPath;
-  XrdFstOssFile* mOss = nullptr;
+  EosFstOssFile* mOss = nullptr;
 };
 
 } // namespace

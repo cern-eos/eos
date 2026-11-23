@@ -71,7 +71,7 @@ Example JSON line (pretty-printed for readability):
 
 ### Log files, rotation, and location
 
-- **Location**: `<logdir>/audit/` where `logdir` is derived from `XRDLOGDIR` (see `mgm/XrdMgmOfsConfigure.cc`).
+- **Location**: `<logdir>/audit/` where `logdir` is derived from `XRDLOGDIR` (see `mgm/EosMgmOfsConfigure.cc`).
   - Directory is created on startup if missing; mode 0755; owned appropriately by the service user.
 - **Active segment symlink**: `<logdir>/audit/audit.zstd` points to the current segment file.
 - **Segments**: Files are ZSTD-compressed; rotated every 1 hour by default.
@@ -105,10 +105,10 @@ Example JSON line (pretty-printed for readability):
   - If the vector contains `"*"`, all files are audited for READ (equivalent to `setReadAuditAll(true)`).
   - Matching is case-insensitive and based on the file extension of the path being opened.
 - **Where READ/LIST audits are emitted**:
-  - READ: in `mgm/XrdMgmOfsFile.cc::open` for successful read-only opens (including 0-size files served by MGM) when enabled and suffix matches.
-  - LIST: in `mgm/XrdMgmOfsDirectory.cc::_open` on successful directory opens when enabled.
+  - READ: in `mgm/EosMgmOfsFile.cc::open` for successful read-only opens (including 0-size files served by MGM) when enabled and suffix matches.
+  - LIST: in `mgm/EosMgmOfsDirectory.cc::_open` on successful directory opens when enabled.
 
-### Default settings in XrdMgmOfs
+### Default settings in EosMgmOfs
 
 - The MGM reads environment variables at startup and applies them to the `Audit` instance:
   - Default mode (`EOS_MGM_AUDIT` unset or `default`):
@@ -134,7 +134,7 @@ Example JSON line (pretty-printed for readability):
 
 ### Environment configuration
 
-- `EOS_MGM_AUDIT` — control overall audit level (parsed in `XrdMgmOfs` and applied during configure):
+- `EOS_MGM_AUDIT` — control overall audit level (parsed in `EosMgmOfs` and applied during configure):
   - `none`, `false`, `no`, `off`, or empty: disable all auditing
   - `default`: audit modifications and READ for default document suffixes (no LIST)
   - `modifications`: audit only modifications (no LIST, no READ)
@@ -148,18 +148,18 @@ Example JSON line (pretty-printed for readability):
   - If unset, the built-in default document-style list is used
 
 Notes:
-- Variables are parsed in `XrdMgmOfs` constructor and applied after the `Audit` instance is created in `XrdMgmOfsConfigure.cc`.
+- Variables are parsed in `EosMgmOfs` constructor and applied after the `Audit` instance is created in `EosMgmOfsConfigure.cc`.
 - Setting `EOS_MGM_AUDIT=attribute` keeps the logger active while relying solely on per-directory `sys.audit` to enable auditing.
 - Setting `EOS_MGM_AUDIT=off` disables the logger entirely (no auditing).
 
 ### Integration points (where audits are emitted)
 
 - Core MGM (`mgm/`):
-  - `XrdMgmOfs.hh`: `std::unique_ptr<eos::common::Audit> mAudit` member
-  - `XrdMgmOfsConfigure.cc`: initializes `mAudit` with `<logdir>/audit/`
+  - `EosMgmOfs.hh`: `std::unique_ptr<eos::common::Audit> mAudit` member
+  - `EosMgmOfsConfigure.cc`: initializes `mAudit` with `<logdir>/audit/`
   - Operations:
-    - Files: `XrdMgmOfsFile.cc::open` (CREATE, TRUNCATE, UPDATE, READ), `fsctl/Commit.cc` (WRITE)
-    - Directories: `Mkdir.cc` (MKDIR), `Remdir.cc` (RMDIR), `XrdMgmOfsDirectory.cc` (LIST)
+    - Files: `EosMgmOfsFile.cc::open` (CREATE, TRUNCATE, UPDATE, READ), `fsctl/Commit.cc` (WRITE)
+    - Directories: `Mkdir.cc` (MKDIR), `Remdir.cc` (RMDIR), `EosMgmOfsDirectory.cc` (LIST)
     - Metadata: `Chmod.cc` (CHMOD), `Chown.cc` (CHOWN), `Attr.cc` (SET_XATTR, RM_XATTR)
     - Symlinks: `Link.cc` (SYMLINK)
     - Delete: `Rm.cc` (DELETE)

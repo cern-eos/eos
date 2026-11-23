@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "common/Constants.hh"
 #include <fcntl.h>

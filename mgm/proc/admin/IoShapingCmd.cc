@@ -3,7 +3,7 @@
 #include "common/shaping/Identity.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/shaping/TrafficShaping.hh"
 
 #include "proto/ConsoleReply.pb.h"

@@ -7,6 +7,9 @@
 #include "console/ConsoleCli.hh"
 #include "console/ConsoleCommandHelp.hh"
 #include "namespace/utils/Mode.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#endif
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <cerrno>
@@ -167,10 +170,59 @@ ListPath(const std::string& path, const std::string& option, CommandContext& ctx
     if (!Path.empty() && Path.back() != '/') {
       Path += '/';
     }
+#if defined(EOS_HAVE_XIO)
+    if (isXrd) {
+      std::string err;
+      int http = 0;
+      std::vector<eos::common::XioListEnt> ents;
+      const int rc = eos::common::XioUserList(url.c_str(), ents, err, &http);
+      if (rc || http == 0) {
+        fprintf(stderr, "error: cannot list %s: %s\n", path.c_str(),
+                err.empty() ? "HTTP/2 listener is not reachable" : err.c_str());
+        return rc ? rc : EIO;
+      }
+      for (const auto& ent : ents) {
+        if (option.find("a") == std::string::npos && !ent.name.empty() &&
+            ent.name[0] == '.') {
+          continue;
+        }
+        if (option.find("l") == std::string::npos) {
+          fprintf(stdout, "%s\n", ent.name.c_str());
+          continue;
+        }
+        char t_creat[14];
+        char modestr[11];
+        eos::modeToBuffer(ent.mode, modestr);
+        XrdOucString sizestring = "";
+        time_t when = 0;
+        struct tm t_tm_local;
+        struct tm* t_tm = localtime_r(&when, &t_tm_local);
+        strftime(t_creat, 13, "%b %d %H:%M", t_tm);
+        XrdOucString dirmarker = "";
+        if (option.find("F") != std::string::npos && modestr[0] == 'd') {
+          dirmarker = "/";
+        }
+        fprintf(stdout, "%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr, 1, "0",
+                "0",
+                eos::common::StringConversion::GetSizeString(
+                    sizestring, (unsigned long long)ent.size),
+                t_creat, ent.name.c_str(), dirmarker.c_str());
+      }
+      return 0;
+    }
+#endif
+#if defined(EOS_HAVE_XIO)
+    DIR* dir = opendir(url.c_str());
+#else
     DIR* dir = (isXrd) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(url.c_str());
+#endif
     if (dir) {
       struct dirent* entry;
+#if defined(EOS_HAVE_XIO)
+      while ((entry = readdir(dir))) {
+#else
       while ((entry = (isXrd) ? XrdPosixXrootd::Readdir(dir) : readdir(dir))) {
+#endif
         struct stat buf;
         XrdOucString curl = "";
         XrdOucString cpath = Path.c_str();
@@ -182,8 +234,12 @@ ListPath(const std::string& path, const std::string& option, CommandContext& ctx
             continue;
           }
         }
+#if defined(EOS_HAVE_XIO)
+        if (!stat(curl.c_str(), &buf)) {
+#else
         if (!((isXrd) ? XrdPosixXrootd::Stat(curl.c_str(), &buf)
                       : stat(curl.c_str(), &buf))) {
+#endif
           if (option.find("l") == std::string::npos) {
             fprintf(stdout, "%s\n", entry->d_name);
           } else {
@@ -214,7 +270,11 @@ ListPath(const std::string& path, const std::string& option, CommandContext& ctx
           }
         }
       }
+#if defined(EOS_HAVE_XIO)
+      closedir(dir);
+#else
       (isXrd) ? XrdPosixXrootd::Closedir(dir) : closedir(dir);
+#endif
     }
     if (!dir) {
       const int status = errno ? errno : ENOENT;

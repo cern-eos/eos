@@ -34,7 +34,7 @@ EOSBULKNAMESPACE_BEGIN
  * according to their types.
  *
  * As the proc directory is created and known when the MGM starts, a pointer to this class
- * is stored in the XrdMgmOfs object so that it can be reused later on.
+ * is stored in the EosMgmOfs object so that it can be reused later on.
  */
 class ProcDirectoryBulkRequestLocations
 {

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "FsckCmd.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/fsck/Fsck.hh"
 #ifdef EOS_GRPC_GATEWAY

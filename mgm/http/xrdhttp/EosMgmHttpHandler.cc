@@ -22,7 +22,7 @@
 
 #include "EosMgmHttpHandler.hh"
 #include "common/Logging.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm//http/HttpServer.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/StringConversion.hh"
@@ -698,13 +698,13 @@ EosMgmHttpHandler::GetHttpExtLibPath(const std::string& cfg_line)
 //------------------------------------------------------------------------------
 // Get a pointer to the MGM OFS plug-in
 //------------------------------------------------------------------------------
-XrdMgmOfs*
+EosMgmOfs*
 EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
                                 const char* confg)
 {
   char resolve_path[2048];
   bool no_alt_path {false};
-  XrdMgmOfs* mgm_ofs_handler {nullptr};
+  EosMgmOfs* mgm_ofs_handler {nullptr};
 
   if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
                      sizeof(resolve_path))) {
@@ -736,7 +736,8 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
     return mgm_ofs_handler;
   }
 
-  mgm_ofs_handler = static_cast<XrdMgmOfs*>(sfs_fs);
+  // The loader returns the XRootD forwarder. The EOS object is gOFS.
+  mgm_ofs_handler = gOFS;
   eos_info("msg=\"successfully loaed XrdSfsFileSystem\" mgm_plugin_addr=%p",
            mgm_ofs_handler);
   return mgm_ofs_handler;

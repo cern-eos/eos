@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <XrdSfs/XrdSfsInterface.hh>
 #include "common/Logging.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/http/HttpServer.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/StringConversion.hh"
@@ -56,7 +56,7 @@ int
 EosFstHttpHandler::Init(const char* cfgfile)
 {
   if (getenv("EOSFSTOFS")) {
-    OFS = (eos::fst::XrdFstOfs*)(strtoull(getenv("EOSFSTOFS"), 0, 10));
+    OFS = (eos::fst::EosFstOfs*)(strtoull(getenv("EOSFSTOFS"), 0, 10));
   }
 
   std::string cfg;

@@ -23,7 +23,7 @@
 
 #include "FileSystemStatusUtils.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "common/Logging.hh"
 
 namespace eos::mgm::fsutils

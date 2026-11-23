@@ -30,7 +30,7 @@
 #include "common/token/SciToken.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/macros/Macros.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "rest-api/manager/RestApiManager.hh"
 #include <XrdNet/XrdNetAddr.hh>

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/layout/LayoutPlugin.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "common/FileSystem.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/ReplicaParLayout.hh"
@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 // Get layout object
 //------------------------------------------------------------------------------
 Layout*
-LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
+LayoutPlugin::GetLayoutObject(EosFstOfsFile* file,
                               unsigned long layoutId,
                               const XrdSecEntity* client,
                               XrdOucErrInfo* error,

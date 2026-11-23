@@ -18,7 +18,7 @@
 //
 
 #include "fst/utils/XrdOfsPathHandler.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/storage/Storage.hh"
 
 namespace eos::fst

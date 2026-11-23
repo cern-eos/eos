@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfsDirectory.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/stat/Stat.hh"
@@ -55,7 +55,7 @@ ProcCommand::Fuse()
   if (!spath.length()) {
     mResultStream += EINVAL;
   } else {
-    XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*) gOFS->newDir((char*) "");
+    EosMgmOfsDirectory* inodir = (EosMgmOfsDirectory*) gOFS->newDir((char*) "");
 
     if (!inodir) {
       mResultStream += ENOMEM;

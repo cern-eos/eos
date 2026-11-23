@@ -23,10 +23,10 @@
 
 #include "fst/http/HttpServer.hh"
 #include "fst/http/ProtocolHandlerFactory.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/SecEntity.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
 

@@ -24,7 +24,7 @@
 #include <functional>
 
 #include "mgm/EosCtaReporter.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/iostat/Iostat.hh"
 
 EOSMGMNAMESPACE_BEGIN

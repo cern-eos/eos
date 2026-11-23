@@ -23,7 +23,7 @@
 
 #include "mgm/scheduler/Scheduler.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/stat/Stat.hh"

@@ -350,7 +350,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // Downgrade to 'nobody' but keep prot/tident - a full reset via
         // VirtualIdentity::Nobody() clears vid.prot, which makes the
         // protocol dependent logic downstream misbehave. Most visibly
-        // XrdMgmOfsFile::open would then pick the FST XRootD port instead
+        // EosMgmOfsFile::open would then pick the FST XRootD port instead
         // of the HTTP one when building the redirection for an HTTP client.
         vid.toNobody();
         std::string nobearer = authz.substr(9);

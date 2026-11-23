@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/http/s3/S3Handler.hh"
 #include "fst/http/HttpServer.hh"
-#include "fst/XrdFstOfsFile.hh"
+#include "fst/EosFstOfsFile.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/s3/S3Response.hh"
 #include "common/Logging.hh"
@@ -61,7 +61,7 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
   }
 
   if (!mFile) {
-    mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
+    mFile = (EosFstOfsFile*) gOFS.newFile(mClient.name);
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
     mode_t create_mode = 0;

@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 //! TPC data structure to hold useful TPC information.
 //!
 //! Note: The structure has been extracted to a header file
-//!       as it is being used by the XrdFstOfs and XrdFstOfsFile objects
+//!       as it is being used by the EosFstOfs and EosFstOfsFile objects
 //------------------------------------------------------------------------------
 struct TpcInfo {
   std::string path; ///< file path to read/write

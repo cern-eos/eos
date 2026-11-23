@@ -27,7 +27,7 @@
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "mgm/EosCtaReporter.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/interface/IView.hh"
 #include <optional>

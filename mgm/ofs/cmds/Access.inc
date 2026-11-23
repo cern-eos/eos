@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@
 //! Check access permissions for files/directories - XRootD API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::access(const char* inpath,
+EosMgmOfs::access(const char* inpath,
                   int mode,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client,
@@ -61,7 +61,7 @@ XrdMgmOfs::access(const char* inpath,
 // Check access permissions for file/directories - EOS low-level API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
+EosMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid, const char* info)
 {
   static const char* epname = "_access";
@@ -123,7 +123,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 
     // Honor sys.owner.auth BEFORE the ACL/POSIX checks so a keyed
     // 'prot:key' match can satisfy W_OK/R_OK as the directory owner
-    // (same ordering as XrdMgmOfsFile::open and _mkdir). The sticky
+    // (same ordering as EosMgmOfsFile::open and _mkdir). The sticky
     // '*' form intentionally does NOT rewrite vid here — _access only
     // decides permission, not new-entry ownership.
     {
@@ -254,7 +254,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 // Define access permissions by vid for a file/directory
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::acc_access(const char* path,
+EosMgmOfs::acc_access(const char* path,
                       XrdOucErrInfo& error,
                       eos::common::VirtualIdentity& vid,
                       std::string& accperm)
@@ -423,7 +423,7 @@ XrdMgmOfs::acc_access(const char* path,
 // Test if this is eosnobody accessing a squashfs file
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::is_squashfs_access(const char* path,
+EosMgmOfs::is_squashfs_access(const char* path,
                               eos::common::VirtualIdentity& vid)
 {
   static int errc = 0;
@@ -450,7 +450,7 @@ XrdMgmOfs::is_squashfs_access(const char* path,
 // Test if public access is allowed for a given path
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::allow_public_access(const char* path,
+EosMgmOfs::allow_public_access(const char* path,
                                eos::common::VirtualIdentity& vid)
 {
   int sq = is_squashfs_access(path, vid);
@@ -496,7 +496,7 @@ XrdMgmOfs::allow_public_access(const char* path,
 // for the client in the XrdSecEntity
 //------------------------------------------------------------------------------
 XrdAccPrivs
-XrdMgmOfs::GetXrdAccPrivs(const std::string& path, const XrdSecEntity* client,
+EosMgmOfs::GetXrdAccPrivs(const std::string& path, const XrdSecEntity* client,
                           XrdOucEnv* env)
 {
   std::string eos_path;

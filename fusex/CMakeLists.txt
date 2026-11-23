@@ -106,6 +106,12 @@ add_library(eosxd-objects OBJECT
   submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER})
 
+if(EOS_HAVE_XIO)
+  target_compile_definitions(eosxd-objects PRIVATE EOS_HAVE_XIO=1)
+  target_include_directories(eosxd-objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_link_libraries(eosxd-objects PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
+
 target_link_libraries(eosxd-objects PUBLIC
   ROCKSDB::ROCKSDB
   LIBEVENT::LIBEVENT
@@ -154,6 +160,12 @@ add_library(eosxd3-objects OBJECT
   submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER})
 
+if(EOS_HAVE_XIO)
+  target_compile_definitions(eosxd3-objects PRIVATE EOS_HAVE_XIO=1)
+  target_include_directories(eosxd3-objects PRIVATE ${EOS_XIO_INCLUDE_DIRS})
+  target_link_libraries(eosxd3-objects PUBLIC ${EOS_XIO_LINK_LIBS})
+endif()
+
 target_link_libraries(eosxd3-objects PUBLIC
   ROCKSDB::ROCKSDB
   LIBEVENT::LIBEVENT
@@ -187,6 +199,10 @@ add_executable(eosxd eosxd/main.cc)
 target_link_libraries(eosxd PRIVATE
   eosxd-objects
   ${EOSXD_COMMON_LINK_LIBRARIES})
+
+if(EOS_HAVE_XIO)
+  target_link_libraries(eosxd PRIVATE ${EOS_XIO_LINK_LIBS})
+endif()
 
 if(Linux)
   target_link_libraries(eosxd PRIVATE JEMALLOC::JEMALLOC)
@@ -258,6 +274,10 @@ if (FUSE3_FOUND AND NOT APPLE)
     eosxd3-objects
     JEMALLOC::JEMALLOC
     ${EOSXD_COMMON_LINK_LIBRARIES})
+
+  if(EOS_HAVE_XIO)
+    target_link_libraries(eosxd3 PUBLIC ${EOS_XIO_LINK_LIBS})
+  endif()
 
   set_target_properties(eosxd3
     PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})

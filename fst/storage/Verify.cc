@@ -25,15 +25,16 @@
 #include <inttypes.h>
 
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/XrdFstOss.hh"
+#include "fst/EosFstOfs.hh"
+#include "fst/EosFstOss.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/checksum/ChecksumGroup.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "common/Path.hh"
 
-extern eos::fst::XrdFstOss* XrdOfsOss;
+class XrdOss;
+extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -187,7 +188,7 @@ Storage::Verify()
       std::chrono::milliseconds scantime {0};
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
       cbd.caller = (void*) io;
-      eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
+      eos::fst::CheckSum::ReadCallBack cb(eos::fst::EosFstOfsFile::FileIoReadCB, cbd);
 
       if ((checksummer) && verifyfile->computeChecksum &&
           (!checksummer->ScanFile(cb, scansize, scantime, verifyfile->verifyRate))) {

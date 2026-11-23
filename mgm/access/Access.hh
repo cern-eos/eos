@@ -41,8 +41,8 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /** @brief class implementing global access rules
  *
- * The access regulations are applied in XrdMgmOfs::ShouldStall &
- * XrdMgmOfs::ShouldRedirect functions.\n
+ * The access regulations are applied in EosMgmOfs::ShouldStall &
+ * EosMgmOfs::ShouldRedirect functions.\n
  * Normally User,Group & Host rules act as black-list and the AllowedXX rules
  * exclude individuals from the black list.\n\n
  * The stall rules can be:\n

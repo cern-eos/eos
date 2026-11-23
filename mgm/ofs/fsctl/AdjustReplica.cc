@@ -24,7 +24,7 @@
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include "mgm/macros/Macros.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/user/FileCmd.hh"
 #include "mgm/stat/Stat.hh"
 #include "proto/ConsoleRequest.pb.h"
@@ -37,7 +37,7 @@
 // path in mgm.path, the same command is built for them.
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::AdjustReplica(const char* path,
+EosMgmOfs::AdjustReplica(const char* path,
                          const char* ininfo,
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,

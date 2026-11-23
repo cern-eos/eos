@@ -23,7 +23,7 @@
 
 #include "IoCmd.hh"
 #include "mgm/iostat/Iostat.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "proto/Io.pb.h"
 #include "zmq.hpp"

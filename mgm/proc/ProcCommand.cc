@@ -24,7 +24,7 @@
 #include "common/CommentLog.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "json/json.h"

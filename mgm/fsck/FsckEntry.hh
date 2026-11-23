@@ -29,7 +29,9 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#if !defined(EOS_HAVE_XIO)
 #include <XrdCl/XrdClFileSystem.hh>
+#endif
 #include <functional>
 #include <set>
 #include <vector>
@@ -237,8 +239,10 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
+#if !defined(EOS_HAVE_XIO)
   bool GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo, XrdCl::FileSystem& fs,
                  eos::common::FileSystem::fsid_t fsid);
+#endif
 
   //----------------------------------------------------------------------------
   //! Update MGM stats depending on the final outcome

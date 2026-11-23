@@ -22,11 +22,11 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
-#include "mgm/ofs/XrdMgmOfsTrace.hh"
+#include "mgm/ofs/EosMgmOfsTrace.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/misc/AuditHelpers.hh"
 
@@ -34,7 +34,7 @@
 // List extended attributes for a given file/directory - high-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::attr_ls(const char* inpath,
+EosMgmOfs::attr_ls(const char* inpath,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
                    const char* ininfo,
@@ -61,7 +61,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
 // List extended attributes for a given file/directory - low-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
+EosMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
                     const eos::common::VirtualIdentity& vid,
                     const char* info, eos::IContainerMD::XAttrMap& map,
                     bool links)
@@ -96,7 +96,7 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
 // Get an extended attribute for a given entry by key - high-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
+EosMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
                     const char* key, std::string& value)
 {
@@ -120,7 +120,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
 // Get extended attribute for a given metadata object - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(eos::FileOrContainerMD& item, std::string key,
+EosMgmOfs::_attr_get(eos::FileOrContainerMD& item, std::string key,
                      std::string& rvalue)
 {
   if (item.file) {
@@ -136,7 +136,7 @@ XrdMgmOfs::_attr_get(eos::FileOrContainerMD& item, std::string key,
 // Get extended attribute for a given file - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
+EosMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 {
   return getAttribute(gOFS->eosView, fmd, key, rvalue);
 }
@@ -145,7 +145,7 @@ XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 // Get extended attribute for a given container - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
+EosMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
                      std::string& rvalue)
 {
   return gOFS->getAttribute(gOFS->eosView, cmd, key, rvalue);
@@ -155,7 +155,7 @@ XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
 // Get an extended attribute for a given entry by key - low-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
+EosMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, std::string& value)
 {
@@ -231,7 +231,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 // Set an extended attribute for a given file/directory - high-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
+EosMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
                     const char* key, const char* value)
 {
@@ -255,7 +255,7 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
 // Set an extended attribute for a given file/directory - low-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
+EosMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
                      bool exclusive)
@@ -395,7 +395,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 // Set an extended attribute for a given ContainerMD - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_set(eos::FileOrContainerMD& item, std::string_view key,
+EosMgmOfs::_attr_set(eos::FileOrContainerMD& item, std::string_view key,
                      std::string_view value, bool exclusive,
                      eos::common::VirtualIdentity& vid,
                      eos::mgm::FusexCastBatch& fuse_batch)
@@ -473,7 +473,7 @@ XrdMgmOfs::_attr_set(eos::FileOrContainerMD& item, std::string_view key,
 // Remove an extended attribute for a given entry - high-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
+EosMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
                     const char* key)
 {
@@ -497,7 +497,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
 // Remove an extended attribute for a given entry - low-level API.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
+EosMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key)
 
@@ -613,7 +613,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 // List attributes high-level function merging space and namespace attributes
 //----------------------------------------------------------------------------
 void
-XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
+EosMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
                                 bool existing)
 {
   std::string space = "default";
@@ -713,7 +713,7 @@ XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
 
 
 void
-XrdMgmOfs::listAttributes(eos::IView* view, eos::IContainerMD* target,
+EosMgmOfs::listAttributes(eos::IView* view, eos::IContainerMD* target,
                           eos::IContainerMD::XAttrMap& out, bool prefixLinks)
 {
   eos::listAttributes(view, target, out, prefixLinks);
@@ -721,7 +721,7 @@ XrdMgmOfs::listAttributes(eos::IView* view, eos::IContainerMD* target,
 }
 
 void
-XrdMgmOfs::listAttributes(eos::IView* view, eos::IFileMD* target,
+EosMgmOfs::listAttributes(eos::IView* view, eos::IFileMD* target,
                           eos::IContainerMD::XAttrMap& out, bool prefixLinks)
 {
   eos::listAttributes(view, target, out, prefixLinks);
@@ -729,7 +729,7 @@ XrdMgmOfs::listAttributes(eos::IView* view, eos::IFileMD* target,
 }
 
 void
-XrdMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
+EosMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
                           eos::IContainerMD::XAttrMap& out, bool prefixLinks)
 {
   eos::listAttributes(view, target, out, prefixLinks);
@@ -737,7 +737,7 @@ XrdMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
 }
 
 template<typename T>
-bool XrdMgmOfs::getAttribute(eos::IView* view, T& md, std::string key,
+bool EosMgmOfs::getAttribute(eos::IView* view, T& md, std::string key,
                              std::string& rvalue)
 {
   auto result = eos::getAttribute(view, md, key, rvalue);

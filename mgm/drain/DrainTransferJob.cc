@@ -27,7 +27,7 @@
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/scheduler/Scheduler.hh"
@@ -36,9 +36,71 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <XrdCl/XrdClFileSystem.hh>
+#include <cstdlib>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#endif
 
 namespace
 {
+#if defined(EOS_HAVE_XIO)
+std::string XioUrlOf(const XrdCl::URL& url, std::string& err)
+{
+  const std::string host = url.GetHostName();
+  const int xrd_port = url.GetPort();
+  int xio_port = 0;
+  const bool mgm = gOFS &&
+                   (host == "localhost" ||
+                    host == gOFS->MgmOfsAlias.c_str() ||
+                    (gOFS->HostName && host == gOFS->HostName));
+  if (mgm && (xrd_port == 0 || xrd_port == gOFS->ManagerPort)) {
+    if (const char* p = std::getenv("EOS_MGM_XIO_PORT")) {
+      xio_port = std::atoi(p);
+    }
+  }
+  if (xio_port <= 0) {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    for (const auto& elem : FsView::gFsView.mIdView) {
+      auto* fs = elem.second;
+      if (!fs || fs->GetString("host") != host) {
+        continue;
+      }
+      if (xrd_port > 0 && std::atoi(fs->GetString("port").c_str()) != xrd_port) {
+        continue;
+      }
+      xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
+      if (xio_port > 0) {
+        break;
+      }
+    }
+  }
+  const char* token = std::getenv("EOS_XIO_INTERNAL_TOKEN");
+  if (xio_port <= 0 || !token || !token[0]) {
+    err = "xio listener is not published";
+    return {};
+  }
+  std::string out = "http://" + host + ":" + std::to_string(xio_port);
+  const std::string path = url.GetPath();
+  if (path.empty() || path.front() != '/') {
+    out.push_back('/');
+  }
+  out += path;
+  std::string query;
+  for (const auto& kv : url.GetParams()) {
+    if (!query.empty()) {
+      query.push_back('&');
+    }
+    query += kv.first;
+    query.push_back('=');
+    query += kv.second;
+  }
+  if (!query.empty()) {
+    out.push_back('?');
+    out += query;
+  }
+  return out;
+}
+#endif
 
 //----------------------------------------------------------------------------
 // Check if container id exists
@@ -227,6 +289,42 @@ DrainTransferJob::DoTransfer(const FileDrainInfo& fdrain)
       return;
     }
 
+#if defined(EOS_HAVE_XIO)
+    std::string xerr;
+    const std::string xio_src = XioUrlOf(url_src, xerr);
+    const std::string xio_dst = xio_src.empty() ? std::string() : XioUrlOf(url_dst, xerr);
+    if (!xio_src.empty() && !xio_dst.empty()) {
+      const int timeout = eos::common::FileId::EstimateTpcTimeout(
+                              fdrain.mProto.size(), mMinTxRate.load()).count();
+      const int trc = eos::common::XioTpcCopy(xio_src, xio_dst, timeout, xerr, [&] {
+        return mProgressHandler.ShouldCancel(0);
+      });
+      if (trc == 0) {
+        eos_info("msg=\"%s successful\" logid=%s fxid=%s", mAppTag.c_str(),
+                 log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
+        mStatus = Status::OK;
+        if (LayoutId::IsRain(fdrain.mProto.layout_id()) && !mBalanceMode &&
+            (mAppTag != eos::common::EOS_APP_FSCK) && gOFS) {
+          gOFS->MgmStats.Add(mRainStripeCopy ? "DrainRainStripeCopy"
+                                             : "DrainRainReconstruct",
+                             mVid.uid, mVid.gid, 1);
+        }
+        return;
+      }
+      eos_err("%s", SSTR("src=" << xio_src << " dst=" << xio_dst
+                         << " logid=" << log_id << " tpc_err=" << xerr).c_str());
+      if (mProgressHandler.ShouldCancel(0) || trc == ECANCELED) {
+        break;
+      }
+      if (trc == EINPROGRESS) {
+        break;
+      }
+      continue;
+    }
+    ReportError(SSTR("msg=\"HTTP/2 endpoint is not configured\" fxid="
+                     << eos::common::FileId::Fid2Hex(mFileId)));
+    return;
+#else
     // If enabled use xrootd connection pool to avoid bottelnecks on the
     // same physical connection
     eos::common::XrdConnIdHelper src_id_helper(gOFS->mXrdConnPool, url_src);
@@ -298,6 +396,7 @@ DrainTransferJob::DoTransfer(const FileDrainInfo& fdrain)
       eos_err("%s", SSTR("msg=\"prepare failed\" logid="
                          << log_id.c_str()).c_str());
     }
+#endif
   }
 
   mStatus = Status::Failed;
@@ -355,6 +454,7 @@ DrainTransferJob::SetupRainStripeCopy(
     eos::common::FileSystem::fs_snapshot_t& src_snapshot)
 {
   eos::common::FileSystem::fs_snapshot_t snapshot;
+  int xio_port = 0;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
@@ -364,13 +464,41 @@ DrainTransferJob::SetupRainStripeCopy(
     }
 
     fs->SnapShotFileSystem(snapshot);
+    xio_port = std::atoi(fs->GetString("stat.xio.port").c_str());
   }
+#if !defined(EOS_HAVE_XIO)
+  (void)xio_port;
+#endif
 
   if (!eos::common::IsSelectableFor(snapshot, eos::common::kInternalRead)) {
     return false;
   }
 
   // The stripe checksum is only known to the FST holding the stripe
+#if defined(EOS_HAVE_XIO)
+  if (xio_port > 0 && getenv("EOS_XIO_INTERNAL_TOKEN")) {
+    std::string body;
+    std::string err;
+    std::string query = SSTR("fst.pcmd=getfmd&fst.getfmd.fsid="
+                             << snapshot.mId << "&fst.getfmd.fid=" << std::hex
+                             << mFileId.load());
+    if (eos::common::XioOpaqueQuery(snapshot.mHost, xio_port, query, body,
+                                    err) == 0 &&
+        body.compare(0, 5, "ERROR") != 0) {
+      XrdOucEnv fmd_env(body.c_str());
+      eos::common::FmdHelper fmd;
+      if (eos::common::EnvToFstFmd(fmd_env, fmd) &&
+          !fmd.mProtoFmd.stripechecksum().empty()) {
+        mSrcStripeXs = fmd.mProtoFmd.stripechecksum();
+        src_snapshot = snapshot;
+        return true;
+      }
+    }
+  }
+#endif
+#if defined(EOS_HAVE_XIO)
+  return false;
+#else
   XrdCl::URL url;
   url.SetProtocol("root");
   url.SetHostName(snapshot.mHost.c_str());
@@ -415,6 +543,7 @@ DrainTransferJob::SetupRainStripeCopy(
   mSrcStripeXs = fmd.mProtoFmd.stripechecksum();
   src_snapshot = snapshot;
   return true;
+#endif
 }
 
 //------------------------------------------------------------------------------

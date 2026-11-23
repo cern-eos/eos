@@ -25,7 +25,7 @@
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "mgm/zmq/ZMQ.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include <regex.h>

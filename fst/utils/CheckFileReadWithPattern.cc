@@ -19,6 +19,15 @@
 #include "CLI/CLI.hpp"
 #include "common/utils/RandUtils.hh"
 #include <XrdCl/XrdClFile.hh>
+#if defined(EOS_HAVE_XIO)
+#include "fst/io/xio/XioIo.hh"
+#include <cstring>
+#include <fcntl.h>
+#include <memory>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <vector>
+#endif
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -154,6 +163,66 @@ GetReadRequestsFromFile(const std::string fpattern)
   return chunks;
 }
 
+#if defined(EOS_HAVE_XIO)
+class RangeReader
+{
+public:
+  ~RangeReader()
+  {
+    close();
+  }
+
+  bool open(const std::string& url, std::string& err)
+  {
+    if (url.compare(0, 7, "root://") == 0 || url.compare(0, 8, "roots://") == 0) {
+      const std::string xu = eos::fst::XioIo::UserUrl(url);
+      if (xu.empty()) {
+        err = "HTTP/2 listener is not configured";
+        return false;
+      }
+      io_.reset(new eos::fst::XioIo(xu));
+      io_->useProcessAuth();
+      if (io_->fileOpen(0)) {
+        err = io_->GetLastErrMsg().empty() ? "HTTP/2 open failed" : io_->GetLastErrMsg();
+        return false;
+      }
+      return true;
+    }
+    fd_ = ::open(url.c_str(), O_RDONLY);
+    if (fd_ < 0) {
+      err = "open failed";
+      return false;
+    }
+    return true;
+  }
+
+  int64_t read(uint64_t off, char* buf, uint32_t len)
+  {
+    if (io_) {
+      return io_->fileRead(static_cast<XrdSfsFileOffset>(off), buf,
+                           static_cast<XrdSfsXferSize>(len));
+    }
+    return ::pread(fd_, buf, len, static_cast<off_t>(off));
+  }
+
+  void close()
+  {
+    if (io_) {
+      io_->fileClose();
+      io_.reset();
+    }
+    if (fd_ >= 0) {
+      ::close(fd_);
+      fd_ = -1;
+    }
+  }
+
+private:
+  std::unique_ptr<eos::fst::XioIo> io_;
+  int fd_{-1};
+};
+#endif
+
 //------------------------------------------------------------------------------
 //! Check match between the reference file and the checked file
 //!
@@ -167,6 +236,33 @@ bool
 CheckMatch(const std::string& fref, const std::string fcheck,
            const std::map<uint64_t, uint32_t> chunks, uint32_t block_sz)
 {
+#if defined(EOS_HAVE_XIO)
+  (void)block_sz;
+  RangeReader ref_file, check_file;
+  std::string err;
+  if (!ref_file.open(fref, err)) {
+    std::cerr << "error: failed to open reference file - " << fref
+              << " " << err << std::endl;
+    return false;
+  }
+  if (!check_file.open(fcheck, err)) {
+    std::cerr << "error: failed to open check file - " << fcheck
+              << " " << err << std::endl;
+    return false;
+  }
+  for (const auto& chunk : chunks) {
+    std::vector<char> ref_buff(chunk.second);
+    std::vector<char> check_buff(chunk.second);
+    const int64_t nr = ref_file.read(chunk.first, ref_buff.data(), chunk.second);
+    const int64_t nc = check_file.read(chunk.first, check_buff.data(), chunk.second);
+    if (nr != static_cast<int64_t>(chunk.second) || nc != nr ||
+        memcmp(ref_buff.data(), check_buff.data(), chunk.second) != 0) {
+      std::cerr << "error: mismatch in reference vs. checked buffer " << std::endl;
+      return false;
+    }
+  }
+  return true;
+#else
   size_t readv_sz = 5;
   std::string ref_buff;
   std::string check_buff;
@@ -239,6 +335,7 @@ CheckMatch(const std::string& fref, const std::string fcheck,
   }
 
   return true;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -251,6 +348,24 @@ CheckMatch(const std::string& fref, const std::string fcheck,
 uint64_t
 GetXrdFileSize(const std::string& fref)
 {
+#if defined(EOS_HAVE_XIO)
+  if (fref.compare(0, 7, "root://") == 0 || fref.compare(0, 8, "roots://") == 0) {
+    struct stat st;
+    int http = 0;
+    const int rc = eos::fst::XioIo::UserStat(fref, &st, http);
+    if (http == 0 || rc) {
+      std::cerr << "error: failed to stat file - " << fref << std::endl;
+      return 0;
+    }
+    return static_cast<uint64_t>(st.st_size);
+  }
+  struct stat st;
+  if (::stat(fref.c_str(), &st) != 0) {
+    std::cerr << "error: failed to stat file - " << fref << std::endl;
+    return 0;
+  }
+  return static_cast<uint64_t>(st.st_size);
+#else
   uint64_t size = 0ull;
   XrdCl::URL url(fref);
 
@@ -279,6 +394,7 @@ GetXrdFileSize(const std::string& fref)
 
   size = info_raw->GetSize();
   return size;
+#endif
 }
 
 

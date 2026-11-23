@@ -63,8 +63,8 @@ class FileSystem;
 //! Class Storage
 //------------------------------------------------------------------------------
 class Storage : public eos::common::LogId {
-  friend class XrdFstOfsFile;
-  friend class XrdFstOfs;
+  friend class EosFstOfsFile;
+  friend class EosFstOfs;
 
 public:
   //----------------------------------------------------------------------------

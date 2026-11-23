@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -86,7 +86,7 @@ private:
 // Rename file or directory - part of the XRootD API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::rename(const char* old_name,
+EosMgmOfs::rename(const char* old_name,
                   const char* new_name,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client,
@@ -155,7 +155,7 @@ XrdMgmOfs::rename(const char* old_name,
 // permission checks
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::rename(const char* old_name,
+EosMgmOfs::rename(const char* old_name,
                   const char* new_name,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
@@ -224,7 +224,7 @@ XrdMgmOfs::rename(const char* old_name,
 // Rename file or directory - EOS internal low-level API
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& error,
+EosMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid, const char* infoO,
                    const char* infoN, bool updateCTime, bool checkQuota, bool overwrite,
                    bool fusexcast, bool* removedTarget)
@@ -1104,7 +1104,7 @@ XrdMgmOfs::_rename(const char* old_name, const char* new_name, XrdOucErrInfo& er
 // to the new destination.
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
+EosMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
                                 XrdOucErrInfo& error,
                                 eos::common::VirtualIdentity& vid,
                                 const char* infoO, const char* infoN,

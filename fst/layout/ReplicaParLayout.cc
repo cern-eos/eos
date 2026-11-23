@@ -22,14 +22,14 @@
  ************************************************************************/
 
 #include "fst/layout/ReplicaParLayout.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
+ReplicaParLayout::ReplicaParLayout(EosFstOfsFile* file,
                                    unsigned long lid,
                                    const XrdSecEntity* client,
                                    XrdOucErrInfo* outError,

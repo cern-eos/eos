@@ -31,7 +31,7 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/macros/Macros.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/interface/IView.hh"

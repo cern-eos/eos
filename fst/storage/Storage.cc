@@ -23,11 +23,11 @@
 
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/EosFstOfs.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/XrdFstOss.hh"
+#include "fst/EosFstOss.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -45,7 +45,8 @@
    // @note (esindril)use this when Clang (>= 6.0.0) supports it
    // #include <filesystem>
 
-    extern eos::fst::XrdFstOss* XrdOfsOss;
+    class XrdOss;
+extern XrdOss* XrdOfsOss;
 
 namespace
 {
@@ -681,7 +682,7 @@ Storage::Boot(FileSystem* fs)
     if (cnt > 20) {
       eos_static_alert("%s", "msg=\"didn't receive manager name, aborting\"");
       std::this_thread::sleep_for(std::chrono::seconds(5));
-      XrdFstOfs::xrdfstofs_shutdown(1);
+      EosFstOfs::xrdfstofs_shutdown(1);
     }
   } while (true);
 

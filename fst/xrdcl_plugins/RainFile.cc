@@ -33,7 +33,38 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysPageSize.hh>
 #include <algorithm>
+#include <cstring>
 #include <sys/time.h>
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#include <cstdlib>
+
+int rainUserPost(const std::string& host, const std::string& request,
+                 std::string& body, std::string& err, int& http)
+{
+  http = 0;
+  eos::common::XioCall call;
+  std::string scheme = "http";
+  if (!eos::common::XioProcessCall(call, scheme) || host.empty()) {
+    return 0;
+  }
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const int port = port_env ? std::atoi(port_env) : 0;
+  if (port <= 0) {
+    return 0;
+  }
+  std::string path = request;
+  if (path.empty() || path.front() != '/') {
+    path.insert(path.begin(), '/');
+  }
+  const std::string url = scheme + "://" + host + ":" + std::to_string(port) + path;
+  const int rc = eos::common::XioUserExchange("POST", url, call, body, err, &http);
+  if (http == 0) {
+    return 0;
+  }
+  return rc == 0 ? 0 : rc;
+}
+#endif
 
 using namespace eos::common;
 using namespace eos::fst;
@@ -187,6 +218,20 @@ RainFile::Open(const std::string& url, OpenFlags::Flags flags, Access::Mode mode
     pRainFile = nullptr;
   }
 
+#if defined(EOS_HAVE_XIO)
+  if (is_xrootd) {
+    if (st.IsOK()) {
+      st = XRootDStatus(stError, errNotSupported, EOPNOTSUPP,
+                        "root open is not used");
+    }
+    if (handler) {
+      XRootDStatus* ret_st = new XRootDStatus(st);
+      handler->HandleResponse(ret_st, 0);
+    }
+    return st;
+  }
+#endif
+
   // Normal XrdCl file access
   pFile = new XrdCl::File(false);
   st = pFile->Open(url, flags, mode, handler, timeout);
@@ -238,8 +283,32 @@ RainFile::OpenPio(const std::string& url, bool is_write, OpenFlags::Flags flags,
   std::string endpoint = url;
   endpoint.erase(spos + 1);
   URL Url(endpoint);
+#if defined(EOS_HAVE_XIO)
+  {
+    std::string body;
+    std::string err;
+    int http_status = 0;
+    const int qrc = rainUserPost(Url.GetHostName(), request, body, err,
+                                 http_status);
+      if (http_status != 0) {
+        if (qrc) {
+          return XRootDStatus(stError, errErrorResponse, qrc, err.c_str());
+        }
+        raw_response = new XrdCl::Buffer();
+        raw_response->FromString(body);
+        st = XRootDStatus();
+      }
+  }
+  if (!raw_response) {
+    return XRootDStatus(stError, errErrorResponse, EIO,
+                        "HTTP/2 listener is not reachable");
+  }
+#else
   XrdCl::FileSystem fs(Url);
-  st = fs.Query(QueryCode::OpaqueFile, arg, raw_response);
+  if (!raw_response) {
+    st = fs.Query(QueryCode::OpaqueFile, arg, raw_response);
+  }
+#endif
   std::unique_ptr<XrdCl::Buffer> response(raw_response);
 
   if (!st.IsOK()) {
@@ -284,8 +353,18 @@ RainFile::OpenPio(const std::string& url, bool is_write, OpenFlags::Flags flags,
       return XRootDStatus(stError, errDataError, 0, "missing stripe location");
     }
 
-    stripePath = "root://";
-    stripePath += stripe_host;
+    if (!strncmp(stripe_host, "xiohttp://", 10) ||
+        !strncmp(stripe_host, "xiohttps://", 11)) {
+      stripePath = stripe_host;
+    } else {
+#if defined(EOS_HAVE_XIO)
+      eos_err("msg=\"stripe has no HTTP/2 endpoint\" pio=%s", stripe_host);
+      return XRootDStatus(stError, errDataError, 0, "stripe has no HTTP/2 endpoint");
+#else
+      stripePath = "root://";
+      stripePath += stripe_host;
+#endif
+    }
     stripePath += "/";
     stripePath += fpath.c_str();
     stripeUrls.push_back(stripePath.c_str());
@@ -543,10 +622,28 @@ RainFile::QueryMgm(const std::string& query)
   XrdCl::Buffer arg;
   XrdCl::Buffer* raw_response = nullptr;
   arg.FromString(query);
+#if defined(EOS_HAVE_XIO)
+  {
+    URL mgm(mMgmEndpoint);
+    std::string body;
+    std::string err;
+    int http_status = 0;
+    const int qrc = rainUserPost(mgm.GetHostName(), query, body, err, http_status);
+      if (http_status != 0) {
+        if (qrc) {
+          return XRootDStatus(stError, errErrorResponse, qrc, err.c_str());
+        }
+        return XRootDStatus();
+      }
+  }
+  return XRootDStatus(stError, errErrorResponse, EIO,
+                      "HTTP/2 listener is not reachable");
+#else
   XrdCl::FileSystem fs{URL(mMgmEndpoint)};
   XRootDStatus st = fs.Query(QueryCode::OpaqueFile, arg, raw_response);
   delete raw_response;
   return st;
+#endif
 }
 
 //------------------------------------------------------------------------------

@@ -23,7 +23,7 @@
 
 #include "common/BuildVersion.hh"
 #include "mgm/features/Features.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/stat/Stat.hh"
 #include <XrdVersion.hh>

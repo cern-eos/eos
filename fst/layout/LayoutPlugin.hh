@@ -30,7 +30,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class XrdFstOfsFile;
+class EosFstOfsFile;
 class Layout;
 
 using eos::common::LayoutId;
@@ -66,7 +66,7 @@ public:
   //! @return requested layout type object
   //!
   //----------------------------------------------------------------------------
-  static Layout* GetLayoutObject(XrdFstOfsFile* file,
+  static Layout* GetLayoutObject(EosFstOfsFile* file,
                                  unsigned long layoutId,
                                  const XrdSecEntity* client,
                                  XrdOucErrInfo* error,

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
+// This file is included source code in EosMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ bool GetFABuff(XrdSfsFACtl& faCtl, int sz = 0)
 // Perform a filesystem extended attribute function
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::FAttr(XrdSfsFACtl* faReq,
+EosMgmOfs::FAttr(XrdSfsFACtl* faReq,
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client)
 {

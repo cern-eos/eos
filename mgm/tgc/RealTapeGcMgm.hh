@@ -26,7 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "namespace/interface/IFileMD.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -50,7 +50,7 @@ public:
   //!
   //! @param ofs The XRootD OFS plugin implementing the metadata handling of EOS
   //----------------------------------------------------------------------------
-  explicit RealTapeGcMgm(XrdMgmOfs &ofs);
+  explicit RealTapeGcMgm(EosMgmOfs &ofs);
 
   //----------------------------------------------------------------------------
   //! Delete copy constructor
@@ -132,7 +132,7 @@ public:
 private:
 
   /// The XRootD OFS plugin implementing the metadata handling of EOS
-  XrdMgmOfs &m_ofs;
+  EosMgmOfs &m_ofs;
 
   //----------------------------------------------------------------------------
   //! @return The string value of the specified space configuration variable.

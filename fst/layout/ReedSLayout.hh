@@ -49,7 +49,7 @@ public:
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  ReedSLayout(XrdFstOfsFile* file, unsigned long lid,
+  ReedSLayout(EosFstOfsFile* file, unsigned long lid,
               const XrdSecEntity* client, XrdOucErrInfo* outError,
               const char* path, eos::fst::FmdHandler* fmdHandler, uint16_t timeout = 0,
               bool storeRecovery = false, off_t targetSize = 0,

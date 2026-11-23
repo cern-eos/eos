@@ -29,6 +29,11 @@
 #include "console/ConsoleColor.hh"
 #include "console/ConsoleCommandHelp.hh"
 #include "console/ConsoleMain.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioUser.hh"
+#include "fst/io/xio/XioIo.hh"
+#include <fcntl.h>
+#endif
 #include "console/commands/helpers/NewfindHelper.hh"
 #include <CLI/CLI.hpp>
 #include <XrdCl/XrdClCopyProcess.hh>
@@ -37,6 +42,7 @@
 #include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -386,6 +392,169 @@ fs_result eos_find(const char* path)
   return result;
 }
 
+#if defined(EOS_HAVE_XIO)
+std::string
+xioHttp(std::string url)
+{
+  if (url.compare(0, 7, "root://") != 0 && url.compare(0, 8, "roots://") != 0) {
+    return url;
+  }
+  const char* port_env = std::getenv("EOS_MGM_XIO_PORT");
+  const int port = port_env ? std::atoi(port_env) : 0;
+  if (port <= 0) {
+    return {};
+  }
+  eos::common::XioCall call;
+  std::string scheme;
+  eos::common::XioProcessCall(call, scheme);
+  if (url.compare(0, 8, "roots://") == 0) {
+    scheme = "https";
+  }
+  const std::string rest = url.compare(0, 8, "roots://") == 0 ? url.substr(8)
+                                                              : url.substr(7);
+  const auto slash = rest.find('/');
+  std::string host = slash == std::string::npos ? rest : rest.substr(0, slash);
+  std::string path = slash == std::string::npos ? "/" : rest.substr(slash);
+  const auto at = host.find('@');
+  if (at != std::string::npos) {
+    host.erase(0, at + 1);
+  }
+  const auto colon = host.rfind(':');
+  if (colon != std::string::npos) {
+    host.erase(colon);
+  }
+  return scheme + "://" + host + ":" + std::to_string(port) + path;
+}
+
+int
+xioMethod(const std::string& method, const std::string& root_url)
+{
+  const std::string http = xioHttp(root_url);
+  if (http.empty()) {
+    std::cerr << "error: HTTP/2 listener is not configured" << std::endl;
+    return EIO;
+  }
+  eos::common::XioCall call;
+  std::string scheme;
+  eos::common::XioProcessCall(call, scheme);
+  std::string body;
+  std::string err;
+  int http_st = 0;
+  const int rc = eos::common::XioUserExchange(method, http, call, body, err, &http_st);
+  if (http_st == 0) {
+    std::cerr << "error: HTTP/2 listener is not reachable" << std::endl;
+    return EIO;
+  }
+  return rc;
+}
+
+int
+copyXio(const std::string& src, const std::string& dst)
+{
+  const bool src_root = src.compare(0, 7, "root://") == 0 ||
+                        src.compare(0, 8, "roots://") == 0;
+  const bool dst_root = dst.compare(0, 7, "root://") == 0 ||
+                        dst.compare(0, 8, "roots://") == 0;
+  std::unique_ptr<eos::fst::XioIo> sin;
+  std::unique_ptr<eos::fst::XioIo> din;
+  int in_fd = -1;
+  int out_fd = -1;
+  if (src_root) {
+    const std::string xu = eos::fst::XioIo::UserUrl(src);
+    if (xu.empty()) {
+      std::cerr << "error: HTTP/2 listener is not configured" << std::endl;
+      return EIO;
+    }
+    sin.reset(new eos::fst::XioIo(xu));
+    sin->useProcessAuth();
+    if (sin->fileOpen(0)) {
+      std::cerr << "error: source open failed " << src << std::endl;
+      return sin->GetLastErrNo() ? sin->GetLastErrNo() : EIO;
+    }
+  } else {
+    in_fd = open(src.c_str(), O_RDONLY);
+    if (in_fd < 0) {
+      return errno ? errno : EIO;
+    }
+  }
+  if (dst_root) {
+    const std::string xu = eos::fst::XioIo::UserUrl(dst);
+    if (xu.empty()) {
+      if (in_fd >= 0) {
+        close(in_fd);
+      }
+      std::cerr << "error: HTTP/2 listener is not configured" << std::endl;
+      return EIO;
+    }
+    din.reset(new eos::fst::XioIo(xu));
+    din->useProcessAuth();
+    if (din->fileOpen(SFS_O_CREAT | SFS_O_RDWR | SFS_O_TRUNC)) {
+      if (in_fd >= 0) {
+        close(in_fd);
+      }
+      std::cerr << "error: destination open failed " << dst << std::endl;
+      return din->GetLastErrNo() ? din->GetLastErrNo() : EIO;
+    }
+  } else {
+    out_fd = open(dst.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (out_fd < 0) {
+      if (in_fd >= 0) {
+        close(in_fd);
+      }
+      return errno ? errno : EIO;
+    }
+  }
+  std::vector<char> buf(1024 * 1024);
+  off_t off = 0;
+  int rc = 0;
+  for (;;) {
+    int64_t n = 0;
+    if (sin) {
+      n = sin->fileRead(off, buf.data(), static_cast<XrdSfsXferSize>(buf.size()));
+    } else {
+      n = ::read(in_fd, buf.data(), buf.size());
+    }
+    if (n < 0) {
+      rc = EIO;
+      break;
+    }
+    if (n == 0) {
+      break;
+    }
+    if (din) {
+      const int64_t w = din->fileWrite(off, buf.data(), static_cast<XrdSfsXferSize>(n));
+      if (w != n) {
+        rc = EIO;
+        break;
+      }
+    } else {
+      const ssize_t w = ::write(out_fd, buf.data(), static_cast<size_t>(n));
+      if (w != n) {
+        rc = EIO;
+        break;
+      }
+    }
+    off += n;
+  }
+  if (sin) {
+    sin->fileClose();
+  }
+  if (din) {
+    din->fileClose();
+  }
+  if (in_fd >= 0) {
+    close(in_fd);
+  }
+  if (out_fd >= 0) {
+    close(out_fd);
+  }
+  if (rc) {
+    std::cerr << "error: copy failed " << src << " -> " << dst << std::endl;
+  }
+  return rc;
+}
+#endif
+
 int createDir(const std::string& i, eos::common::Path& prefix)
 {
   if (!prefix.GetFullPath().beginswith("/eos/")) {
@@ -409,6 +578,12 @@ int createDir(const std::string& i, eos::common::Path& prefix)
       return 0;
     }
 
+#if defined(EOS_HAVE_XIO)
+    const int rc = xioMethod("mkcol", url.GetURL());
+    std::cerr << "[ mkdir                 ] : url:" << url.GetURL() << " : " <<
+              (rc == 0) << std::endl;
+    return rc != 0;
+#else
     XrdCl::FileSystem fs(url);
     mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP;
     XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
@@ -418,6 +593,7 @@ int createDir(const std::string& i, eos::common::Path& prefix)
     std::cerr << "[ mkdir                 ] : url:" << url.GetURL() << " : " <<
               status.IsOK() << std::endl;
     return (!status.IsOK());
+#endif
   }
 }
 
@@ -444,11 +620,18 @@ int removeDir(const std::string& i, eos::common::Path& prefix)
       return 0;
     }
 
+#if defined(EOS_HAVE_XIO)
+    const int rc = xioMethod("delete", url.GetURL());
+    std::cerr << "[ rmdir                 ] : url:" << url.GetURL() << " : " <<
+              (rc == 0) << std::endl;
+    return rc != 0;
+#else
     XrdCl::FileSystem fs(url);
     XrdCl::XRootDStatus status = fs.RmDir(url.GetPath());
     std::cerr << "[ rmdir                 ] : url:" << url.GetURL() << " : " <<
               status.IsOK() << std::endl;
     return (!status.IsOK());
+#endif
   }
 }
 
@@ -475,11 +658,18 @@ int removeFile(const std::string& i, eos::common::Path& prefix)
       return 0;
     }
 
+#if defined(EOS_HAVE_XIO)
+    const int rc = xioMethod("delete", url.GetURL());
+    std::cerr << "[ unlink                ] : url:" << url.GetURL() << " : " <<
+              (rc == 0) << std::endl;
+    return rc != 0;
+#else
     XrdCl::FileSystem fs(url);
     XrdCl::XRootDStatus status = fs.Rm(url.GetPath());
     std::cerr << "[ unlink                ] : url:" << url.GetURL() << " : " <<
               status.IsOK() << std::endl;
     return (!status.IsOK());
+#endif
   }
 }
 
@@ -582,6 +772,28 @@ int createLink(const std::string& i, eos::common::Path& prefix,
         oss << std::setfill('0') << std::setw(9) << mtime.tv_nsec;
         request += oss.str();
         request += "&eos.encodepath=1";
+#if defined(EOS_HAVE_XIO)
+        const std::string base = xioHttp(serveruri.c_str());
+        if (base.empty()) {
+          retc |= EIO;
+        } else {
+          std::string target = base;
+          if (!target.empty() && target.back() == '/') {
+            target.pop_back();
+          }
+          target += "/";
+          target += request;
+          eos::common::XioCall call;
+          std::string scheme;
+          eos::common::XioProcessCall(call, scheme);
+          std::string body;
+          std::string err;
+          int http_st = 0;
+          const int rc = eos::common::XioUserExchange("POST", target, call, body, err,
+                                                      &http_st);
+          retc |= (http_st == 0 || rc) ? 1 : 0;
+        }
+#else
         XrdCl::Buffer arg;
         XrdCl::Buffer* response = nullptr;
         arg.FromString(request);
@@ -592,6 +804,7 @@ int createLink(const std::string& i, eos::common::Path& prefix,
           delete response;
         }
         retc |= !status.IsOK();
+#endif
       }
     }
 
@@ -639,8 +852,6 @@ int setDirMtime(const std::string& i, eos::common::Path& prefix,
     }
 
     std::string request;
-    XrdCl::Buffer arg;
-    XrdCl::Buffer* response = nullptr;
     request = eos::common::StringConversion::curl_escaped(std::string(
                 prefix.GetFullPath().c_str()) + std::string("/") + i);
     request += "?";
@@ -654,6 +865,31 @@ int setDirMtime(const std::string& i, eos::common::Path& prefix,
     oss << std::setfill('0') << std::setw(9) << mtime.tv_nsec;
     request += oss.str();
     request += "&eos.encodepath=1";
+#if defined(EOS_HAVE_XIO)
+    int rc = 0;
+    const std::string base = xioHttp(serveruri.c_str());
+    if (base.empty()) {
+      rc = EIO;
+    } else {
+      std::string target = base;
+      if (!target.empty() && target.back() == '/') {
+        target.pop_back();
+      }
+      target += "/";
+      target += request;
+      eos::common::XioCall call;
+      std::string scheme;
+      eos::common::XioProcessCall(call, scheme);
+      std::string body;
+      std::string err;
+      int http_st = 0;
+      const int qrc = eos::common::XioUserExchange("POST", target, call, body, err,
+                                                   &http_st);
+      rc = (http_st == 0 || qrc) ? 1 : 0;
+    }
+#else
+    XrdCl::Buffer arg;
+    XrdCl::Buffer* response = nullptr;
     arg.FromString(request);
     XrdCl::FileSystem fs(url);
     XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
@@ -664,6 +900,7 @@ int setDirMtime(const std::string& i, eos::common::Path& prefix,
     }
 
     int rc = !status.IsOK();
+#endif
 
     if (!is_silent && verbose) {
       std::cerr << "[ mtime                 ] : path:" << "[utime] path: " <<
@@ -718,6 +955,15 @@ XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src,
               dsturl << std::endl;
   }
 
+#if defined(EOS_HAVE_XIO)
+  if (srcurl.compare(0, 7, "root://") == 0 || srcurl.compare(0, 8, "roots://") == 0 ||
+      dsturl.compare(0, 7, "root://") == 0 || dsturl.compare(0, 8, "roots://") == 0) {
+    if (!dryrun) {
+      (void)copyXio(srcurl, dsturl);
+    }
+    return result;
+  }
+#endif
   copyProcess.AddJob(props, result);
   return result;
 }

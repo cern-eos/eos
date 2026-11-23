@@ -37,7 +37,7 @@
 #include "common/StringUtils.hh"
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IView.hh"

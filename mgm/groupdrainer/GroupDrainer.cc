@@ -11,7 +11,7 @@
 #include "mgm/groupbalancer/ConverterUtils.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
 #include "namespace/interface/IFsView.hh"
 

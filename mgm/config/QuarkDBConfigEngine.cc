@@ -25,7 +25,7 @@
 #include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/EosMgmOfs.hh"
 #include "qclient/structures/QScanner.hh"
 #include <ctime>
 #include <folly/executors/IOThreadPoolExecutor.h>

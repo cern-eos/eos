@@ -1,5 +1,9 @@
 #include "fst/filemd/FmdMgm.hh"
 #include "fst/Config.hh"
+#if defined(EOS_HAVE_XIO)
+#include "common/xio/XioQuery.hh"
+#include <cstdlib>
+#endif
 #include "common/ShellCmd.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
@@ -208,10 +212,8 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
 
   int rc = 0;
   std::string mgr;
-  XrdCl::Buffer arg;
   std::string query = SSTR("/?mgm.pcmd=getfmd&mgm.getfmd.fid=" << fid).c_str();
   std::unique_ptr<XrdCl::Buffer> response;
-  XrdCl::Buffer* resp_raw = nullptr;
   XrdCl::XRootDStatus status;
 
   do {
@@ -226,6 +228,35 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
       }
     }
 
+#if defined(EOS_HAVE_XIO)
+    if (const char* xport = getenv("EOS_MGM_XIO_PORT")) {
+      if (xport[0] && getenv("EOS_XIO_INTERNAL_TOKEN")) {
+        int http = 0;
+        std::string body;
+        std::string xerr;
+        int qrc = eos::common::XioOpaqueQuery(
+                    eos::common::XioHostOf(mgr), std::atoi(xport), query, body,
+                    xerr, 10000, &http);
+        if (http) {
+          if (qrc == 0) {
+            response.reset(new XrdCl::Buffer());
+            response->FromString(body);
+            rc = 0;
+            status = XrdCl::XRootDStatus();
+            break;
+          }
+          eos_static_err("msg=\"MGM HTTP/2 getfmd failed\" fxid=%08llx err=\"%s\"",
+                         fid, xerr.c_str());
+          return EIO;
+        }
+      }
+    }
+    eos_static_err("msg=\"MGM HTTP/2 listener is not reachable\" fxid=%08llx",
+                   fid);
+    return EIO;
+#else
+    XrdCl::Buffer arg;
+    XrdCl::Buffer* resp_raw = nullptr;
     std::string address = SSTR("root://" << mgr <<
                                "//dummy?xrd.wantprot=sss").c_str();
     XrdCl::URL url(address.c_str());
@@ -267,7 +298,14 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
         rc = ECOMM;
       }
     }
-  } while ((status.code >= 100) && (status.code <= 300));
+#endif
+  } while (
+#if !defined(EOS_HAVE_XIO)
+           (status.code >= 100) && (status.code <= 300)
+#else
+           false
+#endif
+          );
 
   if (rc) {
     return EIO;
