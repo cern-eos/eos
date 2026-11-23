@@ -20,7 +20,7 @@ foreach( lib ${libraries})
   find_library(ABSL_${lib}_LIBRARY
     NAMES ${lib}
     HINTS /opt/eos/grpc ${ABSL_ROOT}
-    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
+    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR} lib64 lib)
 
   if(ABSL_${lib}_LIBRARY)
     set(ABSL_${lib}_FOUND 1)
