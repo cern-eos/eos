@@ -45,6 +45,12 @@ TEST_F(RecycleCliTest, PreservesPathsKeysAndAclsFromArgv)
   EXPECT_EQ(purge.date(), "2026");
   EXPECT_EQ(purge.type(), eos::console::RecycleProto::UID);
   EXPECT_TRUE(purge.recycleid().empty());
+  // Without a date the whole project recycle bin is selected
+  run("recycle", {"purge", "--project", "/eos/project with spaces&x=y"});
+  const auto purge_all = protobuf(false).recycle().purge();
+  EXPECT_EQ(purge_all.path(), "/eos/project with spaces&x=y");
+  EXPECT_TRUE(purge_all.date().empty());
+  EXPECT_TRUE(purge_all.key().empty());
   run("recycle", {"project", "--acl", "u:123=rx, g:456=rx", "--path", "/eos/a b&c=d"});
   const auto project = protobuf(false).recycle().project();
   EXPECT_EQ(project.path(), "/eos/a b&c=d");
@@ -262,6 +268,9 @@ INSTANTIATE_TEST_SUITE_P(
         InvalidRecycleArguments{"ConflictingIdSelector",
                                 {"purge", "--all", "--rid", "1", "2026"}},
         InvalidRecycleArguments{"MissingPurgeEntry", {"purge", "--all"}},
+        InvalidRecycleArguments{"MissingPurgeEntryUid", {"purge", "--uid"}},
+        InvalidRecycleArguments{"MissingPurgeEntryId", {"purge", "--rid", "1"}},
+        InvalidRecycleArguments{"MissingPurgeEntryDefault", {"purge"}},
         InvalidRecycleArguments{"ConflictingProjectSelector",
                                 {"purge", "--project", "/eos/a", "--uid", "2026"}},
         InvalidRecycleArguments{"EmptyPurgeProject", {"purge", "--project", "", "2026"}},

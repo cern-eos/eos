@@ -123,6 +123,9 @@ TEST(Recycle, IsSafeRecyclePath)
                                    "relative/project"));
   EXPECT_EQ(EINVAL, Recycle::Purge(std_out, std_err, vid, "fxid:1", "", "uid", "",
                                    "/eos/test/project"));
+  // A project purge without a date still requires an absolute path
+  EXPECT_EQ(EINVAL,
+            Recycle::Purge(std_out, std_err, vid, "", "", "uid", "", "relative/project"));
   Recycle::gRecyclingPrefix = old_prefix;
   Recycle::gRecyclingBinLevel = old_bin_level;
 }

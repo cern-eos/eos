@@ -220,7 +220,8 @@ public:
   //! @param type glocal, user or request id type of operation
   //! @param recycle_id recycle project identifier for scoping this request
   //! @param project_path path belonging to a recycle project (carrying the
-  //!        sys.forced.recycleid xattr); takes precedence over type/recycle_id
+  //!        sys.forced.recycleid xattr); takes precedence over type/recycle_id.
+  //!        With an empty date the whole project recycle bin is purged.
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------

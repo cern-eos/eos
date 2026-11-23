@@ -1190,20 +1190,24 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     if (retc) {
       return retc;
     }
+  } else if (!project_path.empty()) {
+    // An explicit project path takes precedence over the selection type.
+    // Without a date the whole project recycle bin is purged.
+    std::string rid_val;
+
+    if (int retc = GetProjectRecycleId(project_path, rid_val, std_err)) {
+      return retc;
+    }
+
+    recycle_path = SSTR(Recycle::gRecyclingPrefix << "rid:" << rid_val);
+
+    if (!date.empty()) {
+      recycle_path += SSTR('/' << date);
+    }
   } else if (!date.empty()) {
     char sdir[4096];
 
-    if (!project_path.empty()) {
-      // An explicit project path takes precedence over the selection type
-      std::string rid_val;
-
-      if (int retc = GetProjectRecycleId(project_path, rid_val, std_err)) {
-        return retc;
-      }
-
-      snprintf(sdir, sizeof(sdir) - 1, "%srid:%s/%s", Recycle::gRecyclingPrefix.c_str(),
-               rid_val.c_str(), date.data());
-    } else if ((type == "all") && (vid.uid == 0)) {
+    if ((type == "all") && (vid.uid == 0)) {
       snprintf(sdir, sizeof(sdir) - 1, "%s", Recycle::gRecyclingPrefix.c_str());
     } else if ((type == "rid") && !recycle_id.empty()) {
       snprintf(sdir, sizeof(sdir) - 1, "%srid:%s/%s", Recycle::gRecyclingPrefix.c_str(),

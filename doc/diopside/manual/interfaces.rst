@@ -3123,8 +3123,8 @@ Running as **root** does not purge the recycle bin of all users by default.
 If you want to purge the recycle bin completely add the ``--all`` option.
 
 For "recycle projects" the purge is scoped either with the recycle id or with
-any path belonging to the project. In both cases a date is required and the
-purge is restricted to that date inside the project recycle bin:
+any path belonging to the project. With a date the purge is restricted to that
+date inside the project recycle bin:
 
 .. code-block:: bash
 
@@ -3132,6 +3132,15 @@ purge is restricted to that date inside the project recycle bin:
    success: purged path /eos/dev/proc/recycle/rid:1007/2025/12 from recycle bin!
    EOS Console [root://localhost] |/eos/> recycle purge --project /eos/dev/plain 2025/12
    success: purged path /eos/dev/proc/recycle/rid:1007/2025/12 from recycle bin!
+
+With ``--project`` the date can be omitted. In this case every entry ever
+recycled in that project is purged, while the project recycle bin itself is
+kept:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/eos/> recycle purge --project /eos/dev/plain
+   success: purged path /eos/dev/proc/recycle/rid:1007 from recycle bin!
 
 Implementation
 ^^^^^^^^^^^^^^

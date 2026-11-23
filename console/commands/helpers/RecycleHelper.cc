@@ -278,14 +278,21 @@ RecycleHelper::ParseOrCompleteArguments(const std::vector<std::string>& args,
       AddSelection(*purge, purge_all, purge_uid, purge_rid)
           ->add_option("--project", purge_path, "path belonging to a recycle project")
           ->check(AbsolutePath);
+  // A date or a key is required, except with --project where omitting both
+  // purges the whole project recycle bin.
   auto* purge_entry = purge->add_option_group("Entry");
-  purge_entry->require_option(1, 1);
+  purge_entry->require_option(0, 1);
   auto* purge_date_option = purge_entry->add_option("date", purge_date, "recycle date")
                                 ->check(RecycleDate(false));
   auto* purge_key_option = purge_entry->add_option("-k", purge_key, "recycle key")
                                ->check(eos::console::NonEmptyArgument);
   purge_date_option->excludes(purge_key_option);
   purge_project_option->excludes(purge_key_option);
+  purge->callback([purge_entry, purge_project_option]() {
+    if (!purge_entry->count_all() && !purge_project_option->count()) {
+      throw CLI::RequiredError("<date>, -k <key> or --project <path>");
+    }
+  });
 
   auto* restore = app.add_subcommand("restore", "Restore a recycled entry");
   bool force_original = false, restore_versions = false, make_path = false;
