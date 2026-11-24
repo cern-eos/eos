@@ -26,6 +26,7 @@
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
+#include <cerrno>
 #include <gmock/gmock.h>
 
 using namespace eos::mgm::bulk;
@@ -301,4 +302,60 @@ TEST_F(TapeRestApiBusinessTest, releasePathsThrowsWhenEvictFails)
 
   ASSERT_THROW(mBusiness->releasePaths(&paths, &mIssuer),
                TapeRestApiBusinessException);
+}
+
+//------------------------------------------------------------------------------
+// The prepare refuses a change with EACCES when its token authorizes none of
+// the files: the client gets 403, and nothing changes.
+//------------------------------------------------------------------------------
+TEST_F(TapeRestApiBusinessTest, createStageBulkRequestForbiddenWhenPrepareRefusesAccess)
+{
+  CreateStageBulkRequestModel model;
+  model.addFile("/eos/user/file.txt", "");
+  mBusiness->setBulkRequestPrepareManager(
+      std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+          "the token authorizes none of the files", EACCES));
+
+  ASSERT_THROW(mBusiness->createStageBulkRequest(&model, &mIssuer), ForbiddenException);
+  EXPECT_TRUE(mStore->empty());
+}
+
+TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestForbiddenWhenPrepareRefusesAccess)
+{
+  const std::string requestId = "req-cancel-refused";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  mBusiness->setBulkRequestPrepareManager(
+      std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+          "the token authorizes none of the files", EACCES));
+
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  ASSERT_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mIssuer),
+               ForbiddenException);
+  EXPECT_TRUE(stageRequestExists(requestId));
+}
+
+TEST_F(TapeRestApiBusinessTest, releasePathsForbiddenWhenPrepareRefusesAccess)
+{
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  mBusiness->setBulkRequestPrepareManager(
+      std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+          "the token authorizes none of the files", EACCES));
+
+  ASSERT_THROW(mBusiness->releasePaths(&paths, &mIssuer), ForbiddenException);
+}
+
+TEST_F(TapeRestApiBusinessTest, deleteStageBulkRequestForbiddenWhenPrepareRefusesAccess)
+{
+  const std::string requestId = "req-delete-refused";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  mBusiness->setPrepareManager(
+      std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+          "the token authorizes none of the files", EACCES));
+
+  ASSERT_THROW(mBusiness->deleteStageBulkRequest(requestId, &mIssuer),
+               ForbiddenException);
+  // The request is only removed once its files are cancelled
+  EXPECT_TRUE(stageRequestExists(requestId));
 }

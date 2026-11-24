@@ -111,22 +111,27 @@ EOSMGMRESTNAMESPACE_BEGIN
 class FailingBulkRequestPrepareManager : public bulk::BulkRequestPrepareManager
 {
 public:
-  explicit FailingBulkRequestPrepareManager(const std::string& errorMsg)
-    : bulk::BulkRequestPrepareManager(
-        std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>()),
-      mErrorMsg(errorMsg) {}
+  explicit FailingBulkRequestPrepareManager(const std::string& errorMsg,
+                                            const int errorCode = 1)
+      : bulk::BulkRequestPrepareManager(
+            std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>())
+      , mErrorMsg(errorMsg)
+      , mErrorCode(errorCode)
+  {
+  }
 
   int prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
               const common::VirtualIdentity* vid) noexcept override
   {
     (void)pargs;
     (void)vid;
-    error.setErrInfo(1, mErrorMsg.c_str());
+    error.setErrInfo(mErrorCode, mErrorMsg.c_str());
     return SFS_ERROR;
   }
 
 private:
   std::string mErrorMsg;
+  int mErrorCode;
 };
 
 class UnfinishedQueryPrepareManager : public bulk::PrepareManager
