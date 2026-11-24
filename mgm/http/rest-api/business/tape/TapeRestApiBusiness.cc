@@ -21,19 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "TapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
+#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
 #include "mgm/stat/Stat.hh"
+#include <cerrno>
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+namespace {
+//------------------------------------------------------------------------------
+//! The prepare refuses with EACCES a change whose token authorizes none of the
+//! files: the client gets 403
+//------------------------------------------------------------------------------
+void
+throwIfForbidden(XrdOucErrInfo& error)
+{
+  if (error.getErrInfo() == EACCES) {
+    throw ForbiddenException(error.getErrText());
+  }
+}
+} // namespace
 
 std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(
   const CreateStageBulkRequestModel* model, const common::VirtualIdentity* vid)
@@ -50,6 +64,7 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(
                          *pargsWrapper.getPrepareArguments(), error, vid);
 
   if (prepareRetCode != SFS_DATA) {
+    throwIfForbidden(error);
     throw TapeRestApiBusinessException(error.getErrText());
   }
 
@@ -106,6 +121,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
                                       vid);
 
     if (retCancellation != SFS_OK) {
+      throwIfForbidden(error);
       std::stringstream ss;
       ss << "Unable to cancel the files provided. errMsg=\""
          << error.getErrText() << "\"";
@@ -228,6 +244,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
   int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retCancellation != SFS_OK) {
+    throwIfForbidden(error);
     std::stringstream ss;
     ss << "Unable to cancel the files provided. errMsg=\"" << error.getErrText() <<
        "\"";
@@ -286,6 +303,7 @@ void TapeRestApiBusiness::releasePaths(const PathsModel* model,
   int retEvict = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retEvict != SFS_OK) {
+    throwIfForbidden(error);
     std::stringstream ss;
     ss << "Unable to release the files provided. errMsg=\"" << error.getErrText() <<
        "\"";

@@ -388,8 +388,9 @@ fi
 
 TOK_STAGE=$(mint "storage.stage:$dir/in")
 TOK_READ=$(mint "storage.read:$dir/in")
+TOK_STAGE_OUT=$(mint "storage.stage:$dir/out")
 
-if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ"; then
+if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ" || ! is_jwt "$TOK_STAGE_OUT"; then
   echo "FAIL: eos scitoken create did not return a token"
   exit 1
 fi
@@ -514,6 +515,95 @@ if expect "stage, in-scope token" 201 '.requestId | type == "string" and length 
   expect "stage status after delete" 404
 else
   fail "stage status, release, cancel and delete not run: no stage request"
+fi
+
+# --- Tokens that authorize none of the files ---------------------------------
+# A stage, cancel, release or delete whose token authorizes none of its files
+# gets 403. It creates no stage request and leaves the existing ones as they
+# are. A token that authorizes the files keeps its request when the files fail
+# for another reason, e.g. because they do not exist.
+
+# refused_changes <case> <token> <request id>
+refused_changes() {
+  api POST stage/ "$2" "{\"files\":[{\"path\":\"$in\"}]}"
+
+  if [[ $code == 201 ]]; then
+    requests+=("$(jq -r .requestId "$work/body")")
+  fi
+
+  expect "stage, $1" 403
+
+  api POST "stage/$3/cancel" "$2" "{\"paths\":[\"$in\"]}"
+  expect "cancel, $1" 403
+
+  api POST "release/$3" "$2" "{\"paths\":[\"$in\"]}"
+  expect "release, $1" 403
+
+  api DELETE "stage/$3" "$2"
+  expect "delete, $1" 403
+}
+
+api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$in\"}]}"
+
+if expect "stage, in-scope token, for the tokens that authorize no file" 201 \
+     '.requestId | type == "string" and length > 0'; then
+  id=$(jq -r .requestId "$work/body")
+  requests+=("$id")
+
+  if ! before=$(stage_requests); then
+    fail "tokens that authorize no file: cannot list $stagedir"
+  else
+    refused_changes "token without the stage permission" "$TOK_READ" "$id"
+    refused_changes "stage token for another directory" "$TOK_STAGE_OUT" "$id"
+
+    if ! after=$(stage_requests); then
+      fail "tokens that authorize no file: cannot list $stagedir after the requests"
+    elif [[ $after != "$before" ]]; then
+      fail "tokens that authorize no file: $stagedir went from $before to $after stage requests"
+    else
+      pass "tokens that authorize no file: no new stage request in $stagedir"
+    fi
+  fi
+
+  api GET "stage/$id" "$TOK_STAGE"
+  expect "stage status after the changes with tokens that authorize no file" 200 \
+    '.id == $id and (.files | length == 1) and .files[0].path == $p and (.files[0].error // "") == ""' \
+    --arg id "$id" --arg p "$in"
+else
+  fail "changes with tokens that authorize no file not run: no stage request"
+fi
+
+missing="$dir/in/missing"
+
+if ! before=$(stage_requests); then
+  fail "stage, in-scope token, missing file: cannot list $stagedir"
+else
+  api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$missing\"}]}"
+
+  if expect "stage, in-scope token, missing file" 201 \
+       '.requestId | type == "string" and length > 0'; then
+    id=$(jq -r .requestId "$work/body")
+    requests+=("$id")
+
+    if ! after=$(stage_requests); then
+      fail "stage, in-scope token, missing file: cannot list $stagedir after the request"
+    elif (( after != before + 1 )); then
+      fail "stage, in-scope token, missing file: $stagedir went from $before to $after stage requests, expected one more"
+    else
+      pass "stage, in-scope token, missing file: one new stage request in $stagedir"
+    fi
+
+    api GET "stage/$id" "$TOK_STAGE"
+    expect "stage status, in-scope token, missing file" 200 \
+      '.id == $id and (.files | length == 1) and .files[0].path == $p and (.files[0].error | type == "string" and length > 0)' \
+      --arg id "$id" --arg p "$missing"
+  fi
+
+  # A delete cancels every file of its request, and fails while one of them
+  # does not exist: create the file, so that the cleanup can delete the request
+  if ! eos -b "$rooturl" touch "$missing" > /dev/null; then
+    fail "stage, in-scope token, missing file: cannot create $missing for the cleanup"
+  fi
 fi
 
 : > "$work/body"

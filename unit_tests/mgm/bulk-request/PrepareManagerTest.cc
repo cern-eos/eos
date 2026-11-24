@@ -22,16 +22,25 @@
  ************************************************************************/
 
 #include "unit_tests/mgm/bulk-request/PrepareManagerTest.hh"
+#include "common/Logging.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "unit_tests/mgm/FakeSciTokensAuthz.hh"
 #include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include "unit_tests/mgm/http/rest-api/tape/InMemoryBulkRequestDAO.hh"
+#include <cerrno>
+#include <functional>
 #include <pwd.h>
 
-using ::testing::Return;
 using ::testing::_;
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::HasSubstr;
 using ::testing::Invoke;
-using ::testing::NiceMock;
 using ::testing::MatchesRegex;
+using ::testing::NiceMock;
+using ::testing::Return;
 
 USE_EOSBULKNAMESPACE
 
@@ -847,4 +856,300 @@ TEST_F(PrepareManagerTokenTest, queryPrepareInvalidTokenIgnoresTheUserOfAnEarlie
     EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
               file.error_text);
   }
+}
+
+//------------------------------------------------------------------------------
+// A change through the tape REST API (stage, cancel, release, DELETE) checks
+// its token file by file. When the token authorizes none of the files, the
+// change is refused with EACCES before any file is looked at and before
+// anything is saved. Every other per-file error keeps the request, with the
+// error of each file.
+//------------------------------------------------------------------------------
+class PrepareManagerTokenChangeTest : public PrepareManagerTokenTest {
+protected:
+  void
+  SetUp() override
+  {
+    PrepareManagerTokenTest::SetUp();
+    const struct passwd* pw = getpwnam("daemon");
+    ASSERT_NE(nullptr, pw);
+    mTokenUid = pw->pw_uid;
+    mTokenGid = pw->pw_gid;
+    mStore = std::make_shared<InMemoryBulkRequestDAO::StageStore>();
+    mBulkRequestBusiness = std::make_shared<BulkRequestBusiness>(
+        std::make_unique<InMemoryDAOFactory>(mStore));
+    mClient.tident = mTident.c_str();
+  }
+
+  // Only the user of the token sees the files, if they exist. Each file is in
+  // a directory with a stage workflow, where it may be prepared.
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>>
+  makeMgmOfs(XrdAccAuthorize& authz, const bool filesExist = true)
+  {
+    auto mgmOfs = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+    const uid_t tokenUid = mTokenUid;
+    ON_CALL(*mgmOfs, getTokenHandler()).WillByDefault(Return(&authz));
+    ON_CALL(*mgmOfs, getReqIdMaxCount()).WillByDefault(Return(64));
+    // Like XrdMgmOfs::Emsg, which puts the error code in the error object
+    ON_CALL(*mgmOfs, Emsg(_, _, _, _, _))
+        .WillByDefault(Invoke([](const char* pfx, XrdOucErrInfo& einfo, int ecode,
+                                 const char* op, const char* target) {
+          einfo.setErrInfo(ecode, op);
+          return SFS_ERROR;
+        }));
+    ON_CALL(*mgmOfs, _exists(_, _, _, _, _, _))
+        .WillByDefault(Invoke([tokenUid, filesExist](
+                                  const char* path, XrdSfsFileExistence& file_exists,
+                                  XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
+                                  const char* opaque, bool take_lock) {
+          const bool visible = filesExist && (vid.uid == tokenUid);
+          file_exists = visible ? XrdSfsFileExistIsFile : XrdSfsFileExistNo;
+          return visible ? SFS_OK : SFS_ERROR;
+        }));
+    ON_CALL(*mgmOfs, _attr_ls(_, _, _, _, _, _))
+        .WillByDefault(Invoke(MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA));
+    ON_CALL(*mgmOfs, _access(_, _, _, _, _))
+        .WillByDefault(
+            Invoke(MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA));
+    ON_CALL(*mgmOfs, FSctl(_, _, _, _)).WillByDefault(Return(SFS_DATA));
+    return mgmOfs;
+  }
+
+  // The identity of a tape REST request with a WLCG token: nobody until the
+  // token is checked for each file
+  eos::common::VirtualIdentity
+  tokenVid(const std::string& token)
+  {
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Nobody();
+    vid.prot = "https";
+    vid.tident = mTident.c_str();
+    vid.deferredClientPtr = &mClient;
+    vid.deferredAuth = token;
+    return vid;
+  }
+
+  // The identity of a tape REST request with the client's own credentials,
+  // e.g. an X.509 certificate of the user of the token
+  eos::common::VirtualIdentity
+  userVid()
+  {
+    eos::common::VirtualIdentity vid;
+    vid.uid = mTokenUid;
+    vid.gid = mTokenGid;
+    vid.allowed_uids = {mTokenUid};
+    vid.allowed_gids = {mTokenGid};
+    vid.name = "daemon";
+    vid.prot = "https";
+    vid.tident = mTident.c_str();
+    return vid;
+  }
+
+  int
+  stage(BulkRequestPrepareManager& pm, const std::vector<std::string>& paths,
+        const eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
+  {
+    PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths,
+                                  PrepareManagerTest::generateEmptyOinfos(paths.size()));
+    pm.setBulkRequestBusiness(mBulkRequestBusiness);
+    return pm.prepare(*(pargs.getPrepareArguments()), error, &vid);
+  }
+
+  // The error of the file with this path in a stage request, or "none" if it
+  // has none
+  static std::string
+  fileError(const StageBulkRequest& request, const std::string& path)
+  {
+    const auto files = request.getFilesMap();
+    const auto it = files->find(path);
+
+    if (it == files->end()) {
+      return "not in the request";
+    }
+
+    return it->second->getError().value_or("none");
+  }
+
+  // The lines that the MGM log gets at error level while run() runs
+  static std::vector<std::string>
+  errorLinesOf(const std::function<void()>& run)
+  {
+    auto& logging = eos::common::Logging::GetInstance();
+    const int oldMask = logging.gLogMask;
+    logging.gLogMask = oldMask | LOG_MASK(LOG_ERR);
+    logging.gMutex.Lock();
+    const unsigned long first = logging.gLogCircularIndex[LOG_ERR];
+    logging.gMutex.UnLock();
+    run();
+    logging.gLogMask = oldMask;
+    std::vector<std::string> lines;
+    logging.gMutex.Lock();
+    const unsigned long last = logging.gLogCircularIndex[LOG_ERR];
+
+    for (unsigned long i = first; i < last; ++i) {
+      const char* text =
+          logging.gLogMemory[LOG_ERR][i % logging.gCircularIndexSize].c_str();
+      lines.emplace_back(text ? text : "");
+    }
+
+    logging.gMutex.UnLock();
+    return lines;
+  }
+
+  uid_t mTokenUid = 0;
+  gid_t mTokenGid = 0;
+  // A client without a name of its own: without a token, it is nobody
+  XrdSecEntity mClient{"https"};
+  std::string mTident = "client.1:2@client.example.org";
+  std::shared_ptr<InMemoryBulkRequestDAO::StageStore> mStore;
+  std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
+};
+
+TEST_F(PrepareManagerTokenChangeTest, stageTokenAuthorizingNoFileIsRefused)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  auto mgmOfsPtr = makeMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, FSctl(_, _, _, _)).Times(0);
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_ERROR, stage(pm, PrepareManagerTest::generateDefaultPaths(2),
+                             tokenVid("Bearer valid-token"), error));
+  EXPECT_EQ(EACCES, error.getErrInfo());
+  EXPECT_TRUE(mStore->empty());
+}
+
+TEST_F(PrepareManagerTokenChangeTest, stageTokenMappedToNobodyIsRefused)
+{
+  // The token is accepted for every file, but its user is nobody
+  FakeSciTokensAuthz authz("valid-token", "", "nobody");
+  auto mgmOfsPtr = makeMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, FSctl(_, _, _, _)).Times(0);
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_ERROR, stage(pm, PrepareManagerTest::generateDefaultPaths(2),
+                             tokenVid("Bearer valid-token"), error));
+  EXPECT_EQ(EACCES, error.getErrInfo());
+  EXPECT_TRUE(mStore->empty());
+}
+
+TEST_F(PrepareManagerTokenChangeTest, stageTokenAuthorizingOneFileKeepsTheRequest)
+{
+  // path1 is in the scope of the token, path2 is not
+  FakeSciTokensAuthz authz("valid-token", "path1", "daemon");
+  auto mgmOfsPtr = makeMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, FSctl(_, _, _, _)).Times(1);
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_DATA,
+            stage(pm, {"path1", "path2"}, tokenVid("Bearer valid-token"), error));
+  ASSERT_EQ(1u, mStore->size());
+  const StageBulkRequest& request = *mStore->begin()->second;
+  ASSERT_EQ(2u, request.getFilesMap()->size());
+  EXPECT_EQ("none", fileError(request, "path1"));
+  EXPECT_NE("none", fileError(request, "path2"));
+}
+
+TEST_F(PrepareManagerTokenChangeTest, stageTokenAuthorizingMissingFilesKeepsTheRequest)
+{
+  // The token authorizes every file, but none of them exists
+  FakeSciTokensAuthz authz("valid-token", "", "daemon");
+  auto mgmOfsPtr = makeMgmOfs(authz, false);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(2);
+  EXPECT_CALL(mgmOfs, FSctl(_, _, _, _)).Times(0);
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_DATA, stage(pm, PrepareManagerTest::generateDefaultPaths(2),
+                            tokenVid("Bearer valid-token"), error));
+  ASSERT_EQ(1u, mStore->size());
+  const StageBulkRequest& request = *mStore->begin()->second;
+  ASSERT_EQ(2u, request.getFilesMap()->size());
+
+  for (const auto& path : PrepareManagerTest::generateDefaultPaths(2)) {
+    EXPECT_NE("none", fileError(request, path)) << path;
+  }
+}
+
+TEST_F(PrepareManagerTokenChangeTest, stageWithoutTokenWhoseFilesAllFailKeepsTheRequest)
+{
+  // The client's own identity, not a token, maps every file. None of them
+  // exists.
+  FakeSciTokensAuthz authz("valid-token", "", "daemon");
+  auto mgmOfsPtr = makeMgmOfs(authz, false);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(2);
+  EXPECT_CALL(mgmOfs, FSctl(_, _, _, _)).Times(0);
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_DATA,
+            stage(pm, PrepareManagerTest::generateDefaultPaths(2), userVid(), error));
+  ASSERT_EQ(1u, mStore->size());
+  const StageBulkRequest& request = *mStore->begin()->second;
+  ASSERT_EQ(2u, request.getFilesMap()->size());
+
+  for (const auto& path : PrepareManagerTest::generateDefaultPaths(2)) {
+    EXPECT_NE("none", fileError(request, path)) << path;
+  }
+}
+
+TEST_F(PrepareManagerTokenChangeTest,
+       stageTokenAuthorizingNoFileWritesAReportRecordForEachFile)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  auto mgmOfsPtr = makeMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  const std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(2);
+  const std::string nobodyUid = std::to_string(eos::common::VirtualIdentity::kNobodyUid);
+
+  // As for a file that is not prepared: who asked, and why it was not prepared
+  for (const auto& path : paths) {
+    EXPECT_CALL(
+        mgmOfs,
+        writeEosReportRecord(
+            AllOf(HasSubstr("&path=" + path + "&"), HasSubstr("&ruid=" + nobodyUid + "&"),
+                  HasSubstr("&senttowfe=false&"), HasSubstr("&successful=false&"),
+                  HasSubstr("&error=prepare - the token authorizes none of the files"),
+                  HasSubstr("sec.app=tape_prepare"))))
+        .Times(1);
+  }
+
+  BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  ASSERT_EQ(SFS_ERROR, stage(pm, paths, tokenVid("Bearer valid-token"), error));
+  EXPECT_EQ(EACCES, error.getErrInfo());
+  EXPECT_TRUE(mStore->empty());
+}
+
+TEST_F(PrepareManagerTokenChangeTest, stageTokenAuthorizingNoFileLogsTheClient)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  BulkRequestPrepareManager pm(makeMgmOfs(authz));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  int retCode = SFS_OK;
+  const std::vector<std::string> lines = errorLinesOf([&]() {
+    retCode = stage(pm, PrepareManagerTest::generateDefaultPaths(2),
+                    tokenVid("Bearer valid-token"), error);
+  });
+  ASSERT_EQ(SFS_ERROR, retCode);
+  // One error line tells who was refused, for what and for how many files
+  EXPECT_THAT(
+      lines,
+      Contains(AllOf(
+          HasSubstr("msg=\"the token authorizes none of the files, request refused\""),
+          HasSubstr("event=\"sync::prepare\""), HasSubstr("client=\"" + mTident + "\""),
+          HasSubstr("nfiles=2"))));
 }

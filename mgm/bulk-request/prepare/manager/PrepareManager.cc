@@ -21,25 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <XrdVersion.hh>
-#include <XrdOuc/XrdOucTList.hh>
-#include <XrdSfs/XrdSfsFlags.hh>
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/EosCtaReporter.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "common/Path.hh"
-#include "common/Timing.hh"
-#include "common/SecEntity.hh"
-#include "common/utils/XrdUtils.hh"
 #include "common/Definitions.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include <mgm/xattr/XattrSet.hh>
+#include "common/Path.hh"
+#include "common/SecEntity.hh"
+#include "common/Timing.hh"
+#include "common/utils/XrdUtils.hh"
+#include "mgm/EosCtaReporter.hh"
 #include "mgm/bulk-request/File.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include <XrdOuc/XrdOucTList.hh>
+#include <XrdSfs/XrdSfsFlags.hh>
+#include <XrdVersion.hh>
+#include <algorithm>
+#include <cerrno>
+#include <mgm/xattr/XattrSet.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -199,6 +201,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   // Each individual path/file may be mapped to a different VID
   std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
+  // A token that authorizes none of the files changes nothing: no file is
+  // checked, no request is saved and no workflow is triggered
+  bool tokenAuthorizesNoFile = false;
 
   if (vid.IsNobody() && !vid.deferredAuth.empty()) {
     // If vid is not yet resolved, but an authentication token has been provided, then
@@ -214,6 +219,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         mMgmFsInterface->addStats("IdMap", fileVidRef.uid, fileVidRef.gid, 1);
       }
     }
+
+    tokenAuthorizesNoFile =
+        std::all_of(fileToVidMap.begin(), fileToVidMap.end(),
+                    [](const auto& fileVid) { return fileVid.second.IsNobody(); });
   } else {
     // Otherwise, apply the current vid to all files
     for (XrdOucTList* pptr_aux = pptr; pptr_aux; pptr_aux = pptr_aux->next) {
@@ -249,6 +258,15 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str())
         .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
         .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
+
+    if (tokenAuthorizesNoFile) {
+      eosLog.addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
+          .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
+          .addParam(EosCtaReportParam::PREP_REQ_ERROR,
+                    "prepare - the token authorizes none of the files");
+      continue;
+    }
+
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {
       const char* inpath = prep_path.c_str();
@@ -433,6 +451,16 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     if (currentFile != nullptr) {
       addFileToBulkRequest(std::move(currentFile));
     }
+  }
+
+  if (tokenAuthorizesNoFile) {
+    eos_err("msg=\"the token authorizes none of the files, request refused\" "
+            "event=\"%s\" reqid=\"%s\" client=\"%s\" nfiles=%u",
+            event.c_str(), reqid.c_str(), vid.tident.length() ? vid.tident.c_str() : "",
+            nbFilesProvidedByUser);
+    error.setErrInfo(EACCES, "Unable to prepare: Permission denied; "
+                             "the token authorizes none of the files");
+    return SFS_ERROR;
   }
 
   try {
