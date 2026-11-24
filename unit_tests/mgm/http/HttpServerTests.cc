@@ -87,6 +87,34 @@ TEST(HttpServer, ParsePathAndToken)
 }
 
 //------------------------------------------------------------------------------
+// A download URL can carry the EOS token as its only path component.
+//------------------------------------------------------------------------------
+TEST(HttpServer, TokenAsDownloadPath)
+{
+  using eos::mgm::HttpServer;
+  std::string path;
+  std::unique_ptr<XrdOucEnv> env;
+  std::map<std::string, std::string> headers{
+      {"xrd-http-fullresource", "/zteos64:abc=?eos.app=test"}};
+  ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  EXPECT_STREQ("zteos64:abc=", env->Get("authz"));
+  EXPECT_STREQ("http", env->Get("eos.app"));
+  EXPECT_TRUE(path.empty());
+
+  headers["authorization"] = "Bearer another";
+  EXPECT_FALSE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  headers.erase("authorization");
+  headers["xrd-http-query"] = "&authz=another";
+  EXPECT_FALSE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  headers = {{"xrd-http-fullresource", "/zteos64:abc%3d/"}};
+  EXPECT_FALSE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  headers = {{"xrd-http-fullresource", "/eos/data/zteos64:abc"}};
+  ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  EXPECT_EQ("/eos/data/zteos64:abc", path);
+  EXPECT_EQ(nullptr, env->Get("authz"));
+}
+
+//------------------------------------------------------------------------------
 // Count the number of occurrences of a needle inside the given string
 //------------------------------------------------------------------------------
 static size_t

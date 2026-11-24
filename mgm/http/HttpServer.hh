@@ -121,15 +121,16 @@ public:
   //! @param client XrdSecEntity for current request
   //! @param authz_obj authorization library
   //! @param err_msg error message in case of failure
+  //! @param err_status HTTP response status in case of failure
   //!
   //! @return protocol handler or null in case of failure
   //----------------------------------------------------------------------------
   virtual std::unique_ptr<eos::common::ProtocolHandler>
-  XrdHttpHandler(std::string& method, std::string& uri,
+  XrdHttpHandler(std::string& method, const std::string& uri,
                  std::map<std::string, std::string>& headers,
                  std::map<std::string, std::string>& cookies, std::string& body,
                  const XrdSecEntity& client, XrdAccAuthorize* authz_obj,
-                 std::string& err_msg, XrdHttpExtReq& req);
+                 std::string& err_msg, int& err_status, XrdHttpExtReq& req);
 
   //----------------------------------------------------------------------------
   //! Extract opaque query from the full path passed in parameter
@@ -175,7 +176,7 @@ public:
   //! Build path and opaque information based on the HTTP headers
   //!
   //! @param normalized_headers HTTP headers
-  //! @param path canonical path of the HTTP request
+  //! @param path canonical path, or empty when the credential supplies the path
   //! @param env_opaque opaque information stored in XrdOucEnv object
   //!
   //! @return true if successful, otherwise false

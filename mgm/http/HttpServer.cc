@@ -27,6 +27,7 @@
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/token/EosTok.hh"
 #include "common/token/SciToken.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/macros/Macros.hh"
@@ -305,11 +306,11 @@ Access_Operation MapHttpVerbToAOP(const std::string& http_verb)
 // HTTP object handler function called by XrdHttp
 //------------------------------------------------------------------------------
 std::unique_ptr<eos::common::ProtocolHandler>
-HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
+HttpServer::XrdHttpHandler(std::string& method, const std::string& uri,
                            std::map<std::string, std::string>& headers,
                            std::map<std::string, std::string>& cookies, std::string& body,
                            const XrdSecEntity& client, XrdAccAuthorize* authz_obj,
-                           std::string& err_msg, XrdHttpExtReq& req)
+                           std::string& err_msg, int& err_status, XrdHttpExtReq& req)
 {
   using namespace eos::common;
   WAIT_BOOT;
@@ -366,15 +367,24 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
 
   std::string query; //@todo(esindril) decide if this is needed
   std::unique_ptr<VirtualIdentity> vid;
+  std::string token_target;
+  const bool token_path = EosTok::IsEosTokenPath(uri.c_str());
+  if (token_path && (method != "GET" && method != "HEAD")) {
+    err_status = HttpResponse::METHOD_NOT_ALLOWED;
+    err_msg = "token paths support GET and HEAD";
+    return nullptr;
+  }
 
   // Native XrdHttp access
   if (headers.find("x-forwarded-for") == headers.end() && !s3_access) {
     std::string path;
     std::unique_ptr<XrdOucEnv> env_opaque;
 
-    if (!BuildPathAndEnvOpaque(headers, path, env_opaque)) {
-      err_msg = "conflicting authorization info present";
-      eos_static_err("msg=\"%s\" path=\"%s\"", err_msg.c_str(), path.c_str());
+    if (!BuildPathAndEnvOpaque(headers, path, env_opaque) || path.empty() != token_path) {
+      if (token_path) {
+        err_status = HttpResponse::BAD_REQUEST;
+      }
+      err_msg = "invalid request path or conflicting authorization";
       return nullptr;
     }
 
@@ -410,9 +420,33 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
       vid->deferredAuth = auth_it->second;
     } else {
       Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, acc_op, path);
+      if (token_path) {
+        // Resolve only a verified, single-file credential before access, stat and open.
+        if (!vid->token || !vid->token->Valid() || vid->token->TreeToken()) {
+          err_status = HttpResponse::FORBIDDEN;
+          err_msg = "invalid file token";
+          return nullptr;
+        }
+        token_target = vid->token->Path();
+        if (token_target.empty() || token_target.front() != '/' ||
+            token_target.back() == '/' || token_target != Path(token_target).GetPath() ||
+            vid->token->ValidatePath(token_target) ||
+            token_target.compare(0, 6, "/proc/") == 0 ||
+            gOFS->mRestApiManager->isRestRequest(token_target)) {
+          err_status = HttpResponse::FORBIDDEN;
+          err_msg = "invalid file token target";
+          return nullptr;
+        }
+        headers.erase("xrd-http-fullresource");
+      }
     }
     EXEC_TIMING_END("IdMap");
   } else { // HTTP access through Nginx
+    if (token_path) {
+      err_status = HttpResponse::FORBIDDEN;
+      err_msg = "token paths require native EOS authentication";
+      return nullptr;
+    }
     headers["client-real-ip"] = "NOIPLOOKUP";
     headers["client-real-host"] = client.host;
     headers["x-real-ip"] = client.host;
@@ -441,7 +475,8 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
   std::string usr_name = eos::common::Mapping::UidToUserName(vid->uid, errc);
   vid->name = (errc ? std::to_string(vid->uid).c_str() : usr_name.c_str());
   // Add the path to the vid's scope member for token ACL path validation
-  vid->scope = uri;
+  const auto& request_path = token_path ? token_target : uri;
+  vid->scope = request_path;
   eos_static_info("request=%s client-real-ip=%s client-real-host=%s "
                   "vid.name=%s vid.uid=%s vid.gid=%s vid.host=%s "
                   "vid.dn=%s vid.tident=%s",
@@ -461,14 +496,22 @@ HttpServer::XrdHttpHandler(std::string& method, std::string& uri,
 
   size_t bodySize = body.length();
   // Retrieve the protocol handler stored in *ptr
-  std::unique_ptr<eos::common::HttpRequest> request{
-      new eos::common::HttpRequest(headers, method, uri, (query.c_str() ? query : ""),
-                                   body, &bodySize, cookies, req.mReprDigest)};
-  eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
-                   request->GetBody().c_str());
+  std::unique_ptr<eos::common::HttpRequest> request{new eos::common::HttpRequest(
+      headers, method, request_path, (query.c_str() ? query : ""), body, &bodySize,
+      cookies, req.mReprDigest)};
+  if (token_path && request->GetUrl() != request_path) {
+    err_status = HttpResponse::FORBIDDEN;
+    err_msg = "cannot remap a token download";
+    return nullptr;
+  }
+  if (!token_path) {
+    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
+                     request->GetBody().c_str());
+  }
   handler->HandleRequest(request.get());
   eos_static_debug("method=%s uri=\"%s\"client=\"%s\" msg=\"warning this is "
-                   "not the mapped identity\"", method.c_str(), uri.c_str(),
+                   "not the mapped identity\"",
+                   method.c_str(), request_path.c_str(),
                    eos::common::SecEntity::ToString(&client, "xrdhttp").c_str());
   return handler;
 }
@@ -495,6 +538,10 @@ HttpServer::BuildPathAndEnvOpaque
 
   std::string opaque;
   extractPathAndOpaque(it->second, path, opaque);
+  const bool token_path = eos::common::EosTok::IsEosTokenPath(path.c_str());
+  if (token_path && it->second.compare(0, it->second.find('?'), path) != 0) {
+    return false;
+  }
   // XrdHttp exposes the very same opaque query twice: percent-encoded inside the
   // "xrd-http-fullresource" header and already decoded inside the
   // "xrd-http-query" one. Concatenating both used to duplicate every key in
@@ -523,6 +570,17 @@ HttpServer::BuildPathAndEnvOpaque
   // If opaque data aleady contains authorization info i.e. "&authz=..." and we also
   // have a HTTP authorization header then we fail
   bool has_opaque_authz = (opaque.find("authz=") != std::string::npos);
+
+  if (token_path) {
+    if (has_opaque_authz || !http_authz.empty() ||
+        path.find_first_of("/&", 1) != std::string::npos) {
+      return false;
+    }
+    // Only the signed path identifies the file. Do not pass caller-supplied
+    // MGM CGI (such as path overrides) alongside this credential.
+    opaque = "authz=" + path.substr(1);
+    path.clear();
+  }
 
   if (has_opaque_authz && !http_authz.empty()) {
     eos_static_err("msg=\"request has both opaque and http authorization\" "
