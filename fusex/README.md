@@ -77,7 +77,11 @@ This
     "ztn" : 1,
     "unix" : 0,
     "unix-root" : 0,
-    "environ-deadlock-timeout" : 100,
+    "environ-deadlock-timeout" : 500,
+    "proclink-workers" : 10,
+    "proclink-peruser-limit" : 5,
+    "proclink-deadlock-timeoutms" : 500,
+    "proclink-skipvalidation-timeoutms" : 5000,
     "forknoexec-heuristic" : 1
   },
   "inline" : {

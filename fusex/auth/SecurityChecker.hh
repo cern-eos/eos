@@ -31,6 +31,7 @@
 #ifdef __APPLE__
 #include <sys/types.h>
 #endif
+class ProcLinkReader;
 
 //------------------------------------------------------------------------------
 // A class which provides a preliminary check that a credentials file can be
@@ -58,17 +59,20 @@ enum class CredentialState {
   kCannotStat = 0,
   kBadPermissions = 1,
   kOk = 2,
-  kOkWithContents = 3
+  kOkWithContents = 3,
+  kTimeout = 4
 };
 
 class SecurityChecker
 {
 public:
+  // lets the proclinkreader call lookupNonLocalJail
+  friend class ProcLinkReader;
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SecurityChecker(bool ignoreJails);
+  SecurityChecker(bool ignoreJails, ProcLinkReader& plr);
 
   struct Info {
     CredentialState state;
@@ -187,6 +191,7 @@ private:
 
   std::map<std::string, InjectedData> injections;
   bool ignoreJails;
+  ProcLinkReader& procLinkReader;
 };
 
 #endif

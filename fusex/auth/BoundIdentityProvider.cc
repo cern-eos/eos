@@ -435,7 +435,9 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Item is in the cache, and reconnection was not requested. Still valid?
     //--------------------------------------------------------------------------
-    if (validator.checkValidity(jail, *cached->getCreds())) {
+    bool deadlocked = false;
+    bool valid = validator.checkValidity(jail, *cached->getCreds(), deadlocked);
+    if (valid || deadlocked) {
       return cached;
     }
   }
@@ -523,7 +525,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
         defaultEnv.push_back("KRB5CCNAME=" + default_name);
 #endif
       }
-      
+
       krb5_free_context(krb_ctx);
     }
   }
@@ -613,9 +615,12 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
 //------------------------------------------------------------------------------
 // Check if the given BoundIdentity object is still valid.
 //------------------------------------------------------------------------------
-bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
-    const BoundIdentity& identity)
+bool
+BoundIdentityProvider::checkValidity(const JailInformation& jail,
+                                     const BoundIdentity& identity, bool& deadlocked)
 {
+  deadlocked = false;
+
   if (!identity.getCreds()) {
     return false;
   }
@@ -624,7 +629,7 @@ bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
     return false;
   }
 
-  return validator.checkValidity(jail, *identity.getCreds());
+  return validator.checkValidity(jail, *identity.getCreds(), deadlocked);
 }
 
 //------------------------------------------------------------------------------

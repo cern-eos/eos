@@ -96,9 +96,10 @@ public:
 
   //----------------------------------------------------------------------------
   // Check if the given BoundIdentity object is still valid.
+  // For deadlock see also note in the similar method of CredentialValidator.
   //----------------------------------------------------------------------------
-  bool checkValidity(const JailInformation& jail,
-                     const BoundIdentity& identity);
+  bool checkValidity(const JailInformation& jail, const BoundIdentity& identity,
+                     bool& deadlocked);
 
   //----------------------------------------------------------------------------
   // Fallback to unix authentication. Guaranteed to always return a valid

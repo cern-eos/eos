@@ -23,6 +23,7 @@
 
 #include "auth/Utils.hh"
 #include "auth/JailIdentifier.hh"
+#include "auth/ProcLinkReader.hh"
 #include "auth/UuidStore.hh"
 #include "common/SymKeys.hh"
 #include <gtest/gtest.h>
@@ -57,19 +58,20 @@ TEST(FileReadWrite, BasicSanity)
 
 TEST(JailIdentifier, IdentifyMyself)
 {
-  JailResolver jr;
-  JailIdentifier id = jr.resolveIdentifier(getpid());
+  ProcLinkReader procLinkReader(10, 500, 5);
+  JailResolver jr(procLinkReader);
+  JailIdentifier id = jr.resolveIdentifier(geteuid(), getpid());
   std::cout << id.describe() << std::endl;
   ASSERT_TRUE(id.ok());
-  JailIdentifier id2 = jr.resolveIdentifier(getppid());
+  JailIdentifier id2 = jr.resolveIdentifier(geteuid(), getppid());
   std::cout << id2.describe() << std::endl;
   ASSERT_TRUE(id2.ok());
-  JailIdentifier id3 = jr.resolveIdentifier(getsid(getpid()));
+  JailIdentifier id3 = jr.resolveIdentifier(geteuid(), getsid(getpid()));
   std::cout << id3.describe() << std::endl;
   ASSERT_TRUE(id3.ok());
   ASSERT_EQ(id, id2);
   ASSERT_EQ(id, id3);
-  JailInformation ji = jr.resolve(getpid());
+  JailInformation ji = jr.resolve(geteuid(), getpid());
   ASSERT_EQ(ji.id, id);
   ASSERT_EQ(ji.pid, getpid());
   ASSERT_TRUE(ji.sameJailAsThisPid);
