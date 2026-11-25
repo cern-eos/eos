@@ -32,6 +32,7 @@ class ProcessInfoProvider;
 class JailResolver;
 class SecurityChecker;
 class EnvironmentReader;
+class ProcLinkReader;
 class CredentialValidator;
 class UuidStore;
 class UserCredentialFactory;
@@ -85,6 +86,11 @@ public:
   EnvironmentReader* environmentReader();
 
   //----------------------------------------------------------------------------
+  // Retrieve proc link reader, lazy initialize
+  //----------------------------------------------------------------------------
+  ProcLinkReader* procLinkReader();
+
+  //----------------------------------------------------------------------------
   // Retrieve credential validator, lazy initialize
   //----------------------------------------------------------------------------
   CredentialValidator* credentialValidator();
@@ -102,15 +108,21 @@ public:
 private:
   CredentialConfig config;
 
+  // these are arranged in dependency order; those later may
+  // contain references to those listed earlier. The exception
+  // is securityChecker / procLinkReader, where secutyChecker
+  // does hold a refernce to procLinkReader but procLinkReader
+  // may be running queued jobs refering to securityChecker.
   std::unique_ptr<EnvironmentReader> environmentReaderPtr;
   std::unique_ptr<SecurityChecker> securityCheckerPtr;
+  std::unique_ptr<ProcLinkReader> procLinkReaderPtr;
+  std::unique_ptr<UuidStore> uuidStorePtr;
+  std::unique_ptr<UserCredentialFactory> userCredentialFactoryPtr;
   std::unique_ptr<JailResolver> jailResolverPtr;
   std::unique_ptr<ProcessInfoProvider> processInfoProviderPtr;
   std::unique_ptr<CredentialValidator> credentialValidatorPtr;
-  std::unique_ptr<UuidStore> uuidStorePtr;
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
-  std::unique_ptr<UserCredentialFactory> userCredentialFactoryPtr;
 };
 
 

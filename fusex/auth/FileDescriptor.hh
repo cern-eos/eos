@@ -24,6 +24,7 @@
 #ifndef EOS_FUSEX_FILE_DESCRIPTOR_HH
 #define EOS_FUSEX_FILE_DESCRIPTOR_HH
 
+#include <string.h>
 #include <unistd.h>
 
 class FileDescriptor
@@ -100,4 +101,3 @@ private:
 };
 
 #endif
-

@@ -1951,6 +1951,7 @@ int main(int argc, char* argv[])
   cconfig.credentialStore = "/var/cache/eos/cfsd/credential-store/";
   cconfig.tryKrb5First = true;
   cconfig.environ_deadlock_timeout = 100;
+  cconfig.proclink_deadlock_timeout = 100;
   cconfig.forknoexec_heuristic = true;
   Json::Value root;
 
@@ -2154,5 +2155,3 @@ err_out1:
     exit(errno ? errno : -1);
   }
 }
-
-

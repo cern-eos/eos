@@ -49,18 +49,19 @@ ProcessCache::ProcessCache(const CredentialConfig& conf,
     processInfoProvider(pip),
     jailResolver(jr)
 {
-  myJail = jailResolver.resolve(getpid());
+  myJail = jailResolver.resolve(geteuid(), getpid());
 }
 
 //------------------------------------------------------------------------------
 // Discover some bound identity to use matching the given arguments.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-ProcessCache::discoverBoundIdentity(const JailInformation& jail,
-                                    const ProcessInfo& processInfo, uid_t uid, gid_t gid, bool reconnect,
-                                    Logbook& logbook)
+ProcessCache::discoverBoundIdentity(const JailInformation& jailin,
+                                    const ProcessInfo& processInfo, uid_t uid, gid_t gid,
+                                    bool reconnect, Logbook& logbook)
 {
   std::shared_ptr<const BoundIdentity> output;
+  bool skippid = false;
 
   //----------------------------------------------------------------------------
   // Shortcut: If the situation implies that only unix is available
@@ -82,6 +83,8 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
                                           reconnect, scope, env);
   }
 
+  JailInformation jail = jailin;
+
   //----------------------------------------------------------------------------
   // First thing to consider: Should we check the credentials of the process
   // itself first, or that of the parent?
@@ -94,6 +97,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     // Nope, we're certainly in execve, don't check the process itself at all.
     //--------------------------------------------------------------------------
     checkParentFirst = true;
+    skippid = true;
   }
 
   if (credConfig.forknoexec_heuristic &&
@@ -107,6 +111,32 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     // we have to pay the deadlock timeout penalty.
     //--------------------------------------------------------------------------
     checkParentFirst = true;
+  }
+
+  if (jail.id.timedout()) {
+    //--------------------------------------------------------------------------
+    // if jail of pid could not be resolved because of timeout then we will
+    // also timeout and fail to read env. If we're not using an injected process
+    // skip pid and try to get parent process's jail.
+    //--------------------------------------------------------------------------
+    if (!processInfoProvider.useInjected()) {
+      skippid = true;
+      if (processInfo.getParentId() != 1) {
+        jail = jailResolver.resolve(uid, processInfo.getParentId());
+        checkParentFirst = true;
+      }
+    }
+  }
+
+  if (jail.id.timedout() && !processInfoProvider.useInjected()) {
+    LogbookScope scope = logbook.makeScope("No usable jail, using unix auth");
+    Environment pidEnv;
+    //--------------------------------------------------------------------------
+    // We will probably repeatly block while trying to look inside the jail..
+    // Skip to unix auth
+    //--------------------------------------------------------------------------
+    return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid, reconnect,
+                                          scope, pidEnv);
   }
 
   LOGBOOK_INSERT(logbook, "execveAlarm = " << execveAlarm <<
@@ -132,12 +162,12 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Check process itself?
   //
   // Don't even attempt to read /proc/pid/environ if we _know_ we're doing an
-  // execve. If execveAlarm is off, there's still the possibility we're doing
-  // an execve due to uncached lookups sent by the kernel before the actual
-  // open! In that case, we'll simply have to pay the deadlock timeout penalty,
-  // but we'll still recover.
+  // execve or jail failure. If skippid is off, there's still the possibility
+  // we're doing an execve due to uncached lookups sent by the kernel before
+  // the actual open! In that case, we'll simply have to pay the deadlock
+  // timeout penalty, but we'll still recover.
   //----------------------------------------------------------------------------
-  if (!execveAlarm) {
+  if (!skippid) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
              processInfo.getPid(), uid, gid, reconnect, scope, pidEnv);
 
@@ -219,33 +249,6 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   }
 
   //----------------------------------------------------------------------------
-  // Possibly retrieve information about the jail in which this pid lives.
-  // The result is used for reading of credential files. However resolving the
-  // jail can cause deadlock, e.g. if the jail itself is the eos filesystem we
-  // are providing. If we are sure we'll only be needed unix auth skip resolve.
-  //----------------------------------------------------------------------------
-  JailInformation jailInfo = myJail;
-  if (onlyUnix(uid)) {
-    LOGBOOK_INSERT(scope, "Not attempting to retrieve jail information for pid="
-                   << pid << ", as we will only need unix auth, subsituting "
-                   "with my jail");
-  } else {
-    jailInfo = jailResolver.resolve(pid);
-  }
-
-  if (!jailInfo.id.ok()) {
-    //--------------------------------------------------------------------------
-    // Couldn't retrieve jail of this pid.. bad. Assume our jail.
-    //--------------------------------------------------------------------------
-    eos_static_notice("Could not retrieve jail information for pid=%d: %s", pid,
-                      jailInfo.id.describe().c_str());
-    jailInfo = myJail;
-    LOGBOOK_INSERT(scope, "WARNING: Could not retrieve jail information for pid=" <<
-                   pid << ", subsituting with my jail");
-  }
-
-  LOGBOOK_INSERT(scope, jailInfo.describe());
-  //----------------------------------------------------------------------------
   // First, let's check the cache. Major retrieve function, called by the rest
   // of eosxd.
   //----------------------------------------------------------------------------
@@ -280,9 +283,30 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
       // Yep, that's a cache hit.. but credentials could have been invalidated
       // in the meantime, check.
       //------------------------------------------------------------------------
-      if (boundIdentityProvider.checkValidity(jailInfo,
-                                              *entry->getBoundIdentity())) {
+
+      //------------------------------------------------------------------------
+      // In case we expect the jail (/proc access) to be currently deadlocking
+      // just return the checked credentials.
+      //------------------------------------------------------------------------
+      bool unblock = false;
+      if (entry->isJailKnownDeadlocking(credConfig.proclink_cred_toms, unblock)) {
         return entry;
+      }
+
+      //------------------------------------------------------------------------
+      // if we just unblocked after a deadlock, don't return the cached entry,
+      // let us try to rediscover jail and cred
+      //------------------------------------------------------------------------
+      if (!unblock) {
+        bool deadlocked = false;
+        bool valid = boundIdentityProvider.checkValidity(
+            entry->getJailInfo(), *entry->getBoundIdentity(), deadlocked);
+        if (valid || deadlocked) {
+          if (deadlocked) {
+            entry->jailDeadlocking();
+          }
+          return entry;
+        }
       }
     }
 
@@ -292,11 +316,42 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   }
 
   //----------------------------------------------------------------------------
+  // Possibly retrieve information about the jail in which this pid lives.
+  // The result is used for reading of credential files. However resolving the
+  // jail can cause deadlock, e.g. if the jail itself is the eos filesystem we
+  // are providing. This will trigger a timeout, but avoid this if we can.
+  // If we are sure we'll only be needed unix auth skip resolve.
+  //----------------------------------------------------------------------------
+  JailInformation jailInfo = myJail;
+  if (processInfoProvider.useInjected()) {
+    jailInfo = myJail;
+  } else if (onlyUnix(uid)) {
+    LOGBOOK_INSERT(scope, "Not attempting to retrieve jail information for pid="
+                              << pid
+                              << ", as we will only need unix auth, subsituting "
+                                 "with my jail");
+  } else {
+    jailInfo = jailResolver.resolve(uid, pid);
+  }
+
+  if (!jailInfo.id.ok() && !jailInfo.id.timedout()) {
+    //--------------------------------------------------------------------------
+    // Couldn't retrieve jail of this pid.. bad. Assume our jail.
+    //--------------------------------------------------------------------------
+    eos_static_notice("Could not retrieve jail information for pid=%d: %s", pid,
+                      jailInfo.id.describe().c_str());
+    jailInfo = myJail;
+    LOGBOOK_INSERT(scope, "WARNING: Could not retrieve jail information for pid="
+                              << pid << ", subsituting with my jail");
+  }
+
+  LOGBOOK_INSERT(scope, jailInfo.describe());
+  //----------------------------------------------------------------------------
   // Retrieve full information about this process, including its jail
   //----------------------------------------------------------------------------
   ProcessInfo processInfo;
 
-  if (!processInfoProvider.retrieveFull(pid, processInfo)) {
+  if (!processInfoProvider.retrieveFull(uid, pid, processInfo)) {
     return {};
   }
 
@@ -314,6 +369,10 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
               std::unique_ptr<ProcessCacheEntry>(new ProcessCacheEntry(processInfo,
                   jailInfo, bdi)),
               result);
+
+  if (jailInfo.id.timedout()) {
+    result->jailDeadlocking();
+  }
 
   if (EOS_LOGS_NOTICE && logbook.toString().size()) {
     eos_static_notice("Auth:{\n%s\n}", logbook.toString().c_str());

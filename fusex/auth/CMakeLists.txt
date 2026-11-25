@@ -36,6 +36,7 @@ add_library(
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh
   ProcessInfo.cc                   ProcessInfo.hh
+  ProcLinkReader.cc                ProcLinkReader.hh
   RmInfo.cc                        RmInfo.hh
                                    ScopedFsUidSetter.hh
   SecurityChecker.cc               SecurityChecker.hh

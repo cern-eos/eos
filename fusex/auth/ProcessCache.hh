@@ -35,10 +35,63 @@ class Logbook;
 class ProcessCacheEntry
 {
 public:
-
   ProcessCacheEntry(const ProcessInfo& pinfo, const JailInformation& jinfo,
                     std::shared_ptr<const BoundIdentity> boundid)
-    : processInfo(pinfo), jailInfo(jinfo), boundIdentity(boundid) { }
+      : processInfo(pinfo)
+      , jailInfo(jinfo)
+      , jailDeadlocked(false)
+      , boundIdentity(boundid)
+  {
+  }
+
+  // copy constructor is so that ShardedCache::get_shard can return
+  // a copy of the Entry.
+  ProcessCacheEntry(const ProcessCacheEntry& other)
+  {
+    this->processInfo = other.processInfo;
+    this->jailInfo = other.jailInfo;
+    this->jailDeadlocked = false;
+    this->boundIdentity = other.boundIdentity;
+  }
+
+  const JailInformation&
+  getJailInfo() const
+  {
+    return jailInfo;
+  }
+
+  // informs the Entry that its jail is currently deadlocking
+  void
+  jailDeadlocking() const
+  {
+    std::unique_lock<std::mutex> lock(dlMtx);
+    dlTime = std::chrono::steady_clock::now();
+    jailDeadlocked = true;
+  }
+
+  // returns indication of whether the Entry's jail has been
+  // recently seen to be deadlocking.
+  bool
+  isJailKnownDeadlocking(unsigned timeoutms, bool& unblocked) const
+  {
+    unblocked = false;
+    if (!jailDeadlocked) {
+      return false;
+    }
+    std::unique_lock<std::mutex> lock(dlMtx);
+    if (!jailDeadlocked) {
+      return false;
+    }
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    std::chrono::milliseconds duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - dlTime);
+    if (duration.count() > timeoutms) {
+      jailDeadlocked = false;
+      unblocked = true;
+      return false;
+    }
+    return true;
+  }
 
   const ProcessInfo& getProcessInfo() const
   {
@@ -93,6 +146,9 @@ public:
 private:
   ProcessInfo processInfo;
   JailInformation jailInfo;
+  mutable std::chrono::steady_clock::time_point dlTime;
+  mutable std::atomic<bool> jailDeadlocked;
+  mutable std::mutex dlMtx;
   std::shared_ptr<const BoundIdentity> boundIdentity;
 };
 

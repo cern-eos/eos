@@ -24,8 +24,10 @@
 #ifndef EOS_FUSE_JAIL_IDENTIFIER_HH
 #define EOS_FUSE_JAIL_IDENTIFIER_HH
 
-#include <string>
+#include <cerrno>
 #include <cstdint>
+#include <string>
+class ProcLinkReader;
 
 #ifdef __APPLE__
 typedef uint64_t ino_t;
@@ -81,6 +83,15 @@ public:
   bool ok() const;
 
   //----------------------------------------------------------------------------
+  // Check if the object contains timeout error
+  //----------------------------------------------------------------------------
+  bool
+  timedout() const
+  {
+    return errc == ETIMEDOUT;
+  }
+
+  //----------------------------------------------------------------------------
   // Equality operator
   //----------------------------------------------------------------------------
   bool operator==(const JailIdentifier& other) const;
@@ -126,26 +137,27 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  JailResolver();
+  JailResolver(ProcLinkReader& plr);
 
   //----------------------------------------------------------------------------
   // Resolve a given pid_t to JailIdentifier
   //----------------------------------------------------------------------------
-  JailIdentifier resolveIdentifier(pid_t pid);
+  JailIdentifier resolveIdentifier(uid_t uid, pid_t pid);
 
   //----------------------------------------------------------------------------
   // Resolve a given pid_t to JailInformation
   //----------------------------------------------------------------------------
-  JailInformation resolve(pid_t pid);
+  JailInformation resolve(uid_t uid, pid_t pid);
 
   //----------------------------------------------------------------------------
   // Resolve a given pid_t to JailInformation - if an error is encountered,
   // return _my_ jail.
   //----------------------------------------------------------------------------
-  JailInformation resolveOrReturnMyJail(pid_t pid);
+  JailInformation resolveOrReturnMyJail(uid_t uid, pid_t pid);
 
 private:
   JailInformation myJail;
+  ProcLinkReader& procLinkReader;
 };
 
 #endif

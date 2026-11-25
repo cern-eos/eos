@@ -1277,6 +1277,30 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.auth.environ_deadlock_timeout = 500;
     }
 
+    const int pl_dltimeout = root["auth"]["proclink-deadlock-timeoutms"].asInt();
+    const int pl_nworkers = root["auth"]["proclink-workers"].asInt();
+    int pl_ulimit = -1;
+    if (root["auth"].isMember("proclink-peruser-limit")) {
+      pl_ulimit = root["auth"]["proclink-peruser-limit"].asInt();
+    }
+    const int pl_skip = root["auth"]["proclink-skipvalidation-timeoutms"].asInt();
+    config.auth.proclink_deadlock_timeout = pl_dltimeout;
+    config.auth.proclink_workers = pl_nworkers;
+    config.auth.proclink_peruser_limit = pl_ulimit;
+    config.auth.proclink_cred_toms = pl_skip;
+    if (pl_dltimeout <= 0) {
+      config.auth.proclink_deadlock_timeout = 500;
+    }
+    if (pl_nworkers <= 0) {
+      config.auth.proclink_workers = 10;
+    }
+    if (pl_ulimit < 0) {
+      config.auth.proclink_peruser_limit = 5;
+    }
+    if (pl_skip <= 0) {
+      config.auth.proclink_cred_toms = 5000;
+    }
+
     config.inliner.max_size = root["inline"]["max-size"].asInt();
     config.inliner.default_compressor =
       root["inline"]["default-compressor"].asString();

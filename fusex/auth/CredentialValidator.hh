@@ -62,9 +62,13 @@ public:
   //
   // - The underlying credential file on disk has changed.
   // - Reconnection
+  //
+  // Deadlocked is returned true is during the validity check timeouts are
+  // encountered. (Typically due to  deadlock under /proc). Currently, if
+  // deadlock is true then the validity check itself will have failed.
   //----------------------------------------------------------------------------
-  bool checkValidity(const JailInformation& jail,
-                     const TrustedCredentials& out);
+  bool checkValidity(const JailInformation& jail, const TrustedCredentials& out,
+                     bool& deadlocked);
 
   //----------------------------------------------------------------------------
   // Should the given keyring be usable by this uid?
