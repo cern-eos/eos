@@ -52,15 +52,6 @@ protected:
   createBulkRequestPrepareManager();
   virtual std::unique_ptr<bulk::PrepareManager> createPrepareManager();
   virtual std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
-  /**
-   * Checks whether the issuer of a request is allowed to access the stage bulk-request
-   * for modification, consultation, deletion...
-   * @param bulkRequest the stage bulk-request to check the access
-   * @param vid the vid of the user who issued the request against the bulkRequest
-   * @param action what action the user issued (cancel, delete, get)
-   */
-  void checkIssuerAuthorizedToAccessStageBulkRequest(const bulk::StageBulkRequest*
-      bulkRequest, const common::VirtualIdentity* vid, const std::string& action);
 };
 
 EOSMGMRESTNAMESPACE_END

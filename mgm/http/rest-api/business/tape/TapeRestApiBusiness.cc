@@ -347,14 +347,4 @@ TapeRestApiBusiness::createBulkRequestBusiness()
   return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
 
-void TapeRestApiBusiness::checkIssuerAuthorizedToAccessStageBulkRequest(
-  const bulk::StageBulkRequest* bulkRequest, const common::VirtualIdentity* vid,
-  const std::string& action)
-{
-  //First, check if the issuer of the cancellation is root, or is the person who submitted the stage request
-  if (vid->uid != 0 && vid->uid != bulkRequest->getIssuerVid().uid) {
-    throw ForbiddenException("You are not allowed to " + action +
-                             " this bulk-request");
-  }
-}
 EOSMGMRESTNAMESPACE_END
