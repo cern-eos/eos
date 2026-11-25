@@ -137,18 +137,30 @@ private:
 class UnfinishedQueryPrepareManager : public bulk::PrepareManager
 {
 public:
-  UnfinishedQueryPrepareManager()
-    : bulk::PrepareManager(std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>()) {}
+  // A non-zero error code is set in the error object, as a refused query does
+  explicit UnfinishedQueryPrepareManager(const int errorCode = 0)
+      : bulk::PrepareManager(
+            std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>())
+      , mErrorCode(errorCode)
+  {
+  }
 
   std::unique_ptr<bulk::QueryPrepareResult> queryPrepare(
     XrdSfsPrep& pargs, XrdOucErrInfo& error,
     const common::VirtualIdentity* vidClient) override
   {
     (void)pargs;
-    (void)error;
     (void)vidClient;
+
+    if (mErrorCode) {
+      error.setErrInfo(mErrorCode, "the token authorizes none of the files");
+    }
+
     return std::make_unique<bulk::QueryPrepareResult>();
   }
+
+private:
+  int mErrorCode;
 };
 
 class TestableTapeRestApiBusiness : public TapeRestApiBusiness

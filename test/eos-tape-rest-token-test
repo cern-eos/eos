@@ -389,8 +389,10 @@ fi
 TOK_STAGE=$(mint "storage.stage:$dir/in")
 TOK_READ=$(mint "storage.read:$dir/in")
 TOK_STAGE_OUT=$(mint "storage.stage:$dir/out")
+TOK_POLL=$(mint "storage.poll:$dir/in")
 
-if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ" || ! is_jwt "$TOK_STAGE_OUT"; then
+if ! is_jwt "$TOK_STAGE" || ! is_jwt "$TOK_READ" || ! is_jwt "$TOK_STAGE_OUT" ||
+   ! is_jwt "$TOK_POLL"; then
   echo "FAIL: eos scitoken create did not return a token"
   exit 1
 fi
@@ -491,6 +493,11 @@ expect "archiveinfo, in-scope token" 200 \
   'length == 1 and .[0].path == $p and .[0].locality == "DISK" and (.[0].error // "") == ""' \
   --arg p "$in"
 
+api POST archiveinfo/ "$TOK_POLL" "{\"paths\":[\"$in\"]}"
+expect "archiveinfo, poll token" 200 \
+  'length == 1 and .[0].path == $p and .[0].locality == "DISK" and (.[0].error // "") == ""' \
+  --arg p "$in"
+
 api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$in\"}]}"
 
 if expect "stage, in-scope token" 201 '.requestId | type == "string" and length > 0'; then
@@ -499,6 +506,11 @@ if expect "stage, in-scope token" 201 '.requestId | type == "string" and length 
 
   api GET "stage/$id" "$TOK_STAGE"
   expect "stage status, same token" 200 \
+    '.id == $id and (.files | length == 1) and .files[0].path == $p and (.files[0].error // "") == ""' \
+    --arg id "$id" --arg p "$in"
+
+  api GET "stage/$id" "$TOK_POLL"
+  expect "stage status, poll token" 200 \
     '.id == $id and (.files | length == 1) and .files[0].path == $p and (.files[0].error // "") == ""' \
     --arg id "$id" --arg p "$in"
 
@@ -518,10 +530,11 @@ else
 fi
 
 # --- Tokens that authorize none of the files ---------------------------------
-# A stage, cancel, release or delete whose token authorizes none of its files
-# gets 403. It creates no stage request and leaves the existing ones as they
-# are. A token that authorizes the files keeps its request when the files fail
-# for another reason, e.g. because they do not exist.
+# A request whose token authorizes none of its files gets 403. A stage, cancel,
+# release or delete creates no stage request and leaves the existing ones as
+# they are; archiveinfo and the stage status tell nothing about the files. A
+# token that authorizes the files keeps its request when the files fail for
+# another reason, e.g. because they do not exist.
 
 # refused_changes <case> <token> <request id>
 refused_changes() {
@@ -543,6 +556,15 @@ refused_changes() {
   expect "delete, $1" 403
 }
 
+# refused_queries <case> <token> <request id>
+refused_queries() {
+  api POST archiveinfo/ "$2" "{\"paths\":[\"$in\"]}"
+  expect "archiveinfo, $1" 403
+
+  api GET "stage/$3" "$2"
+  expect "stage status, $1" 403
+}
+
 api POST stage/ "$TOK_STAGE" "{\"files\":[{\"path\":\"$in\"}]}"
 
 if expect "stage, in-scope token, for the tokens that authorize no file" 201 \
@@ -555,6 +577,8 @@ if expect "stage, in-scope token, for the tokens that authorize no file" 201 \
   else
     refused_changes "token without the stage permission" "$TOK_READ" "$id"
     refused_changes "stage token for another directory" "$TOK_STAGE_OUT" "$id"
+    refused_queries "token without the stage permission" "$TOK_READ" "$id"
+    refused_queries "stage token for another directory" "$TOK_STAGE_OUT" "$id"
 
     if ! after=$(stage_requests); then
       fail "tokens that authorize no file: cannot list $stagedir after the requests"
@@ -692,10 +716,9 @@ if ! reused; then
 elif [[ ${codes[0]:-} != 200 ]]; then
   fail "$name: the valid token got HTTP ${codes[0]:-none}, expected 200"
 else
+  # The second token does not get the user of the first one: it authorizes no file
   code=${codes[1]:-000}
-  expect "$name" 200 \
-    'length == 1 and .[0].path == $p and .[0].locality == null and (.[0].error | type == "string" and length > 0)' \
-    --arg p "$out"
+  expect "$name" 403
 fi
 
 # xrdcp opens its sources one after the other, on one connection to the MGM.
@@ -734,10 +757,9 @@ if ! expect "archiveinfo, client certificate" 200 \
   echo "  the MGM must map the X.509 identity of $cert to $user"
 fi
 
+# With a token, the X.509 identity does not count: this token authorizes no file
 api POST archiveinfo/ "$TOK_INVALID" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
-expect "archiveinfo, client certificate and an invalid token" 200 \
-  'length == 1 and .[0].path == $p and .[0].locality == null and (.[0].error | type == "string" and length > 0)' \
-  --arg p "$in"
+expect "archiveinfo, client certificate and an invalid token" 403
 
 if (( failures )); then
   issuer_log

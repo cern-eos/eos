@@ -696,6 +696,8 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   // Each individual path/file may be mapped to a different VID
   std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
+  // A token that authorizes none of the files learns nothing about them
+  bool tokenAuthorizesNoFile = false;
 
   if (vid.IsNobody() && !vid.deferredAuth.empty()) {
     // If vid is not yet resolved, but an authentication token has been provided, then
@@ -713,6 +715,10 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         ++path_cnt;
       }
     }
+
+    tokenAuthorizesNoFile =
+        std::all_of(fileToVidMap.begin(), fileToVidMap.end(),
+                    [](const auto& fileVid) { return fileVid.second.IsNobody(); });
   } else {
     // Otherwise, apply the current vid to all files
     for (XrdOucTList* pptr_aux = pargs.paths; pptr_aux; pptr_aux = pptr_aux->next) {
@@ -725,6 +731,16 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   }
 
   mMgmFsInterface->addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
+
+  if (tokenAuthorizesNoFile) {
+    eos_err("msg=\"the token authorizes none of the files, query refused\" "
+            "reqid=\"%s\" client=\"%s\" nfiles=%d",
+            reqid.c_str(), vid.tident.length() ? vid.tident.c_str() : "", path_cnt);
+    error.setErrInfo(EACCES, "Unable to query prepare: Permission denied; "
+                             "the token authorizes none of the files");
+    return SFS_ERROR;
+  }
+
   auto filesToQuery = filesToQueryCollection.getAllFiles();
   std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
 

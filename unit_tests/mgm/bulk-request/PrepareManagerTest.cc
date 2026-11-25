@@ -35,12 +35,14 @@
 
 using ::testing::_;
 using ::testing::AllOf;
+using ::testing::AnyNumber;
 using ::testing::Contains;
 using ::testing::HasSubstr;
 using ::testing::Invoke;
 using ::testing::MatchesRegex;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::StrEq;
 
 USE_EOSBULKNAMESPACE
 
@@ -844,18 +846,13 @@ TEST_F(PrepareManagerTokenTest, queryPrepareInvalidTokenIgnoresTheUserOfAnEarlie
     EXPECT_EQ("", file.error_text) << file.path;
   }
 
+  // Without the user of the earlier token, the token authorizes none of the
+  // files, so the query is refused
   std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> invalid =
       query("Bearer invalid-token");
-  ASSERT_EQ(SFS_DATA, invalid->getReturnCode());
-  const auto& responses = invalid->getResponse()->responses;
-  ASSERT_EQ(paths.size(), responses.size());
-
-  for (const auto& file : responses) {
-    EXPECT_FALSE(file.is_exists) << file.path;
-    EXPECT_FALSE(file.can_show_locality.has_value()) << file.path;
-    EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
-              file.error_text);
-  }
+  EXPECT_EQ(SFS_ERROR, invalid->getReturnCode());
+  EXPECT_FALSE(invalid->hasQueryPrepareFinished());
+  EXPECT_TRUE(invalid->getResponse()->responses.empty());
 }
 
 //------------------------------------------------------------------------------
@@ -1151,5 +1148,179 @@ TEST_F(PrepareManagerTokenChangeTest, stageTokenAuthorizingNoFileLogsTheClient)
       Contains(AllOf(
           HasSubstr("msg=\"the token authorizes none of the files, request refused\""),
           HasSubstr("event=\"sync::prepare\""), HasSubstr("client=\"" + mTident + "\""),
+          HasSubstr("nfiles=2"))));
+}
+
+//------------------------------------------------------------------------------
+// A query through the tape REST API (archiveinfo, stage status) checks its
+// token file by file, like a change. When the token authorizes none of the
+// files, the query is refused with EACCES before any file is looked at.
+// Otherwise every file gets its answer, with an error for each file the token
+// does not authorize.
+//------------------------------------------------------------------------------
+class PrepareManagerTokenQueryTest : public PrepareManagerTokenChangeTest {
+protected:
+  // As for a change, and each file is on disk and on tape
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>>
+  makeQueryMgmOfs(XrdAccAuthorize& authz, const bool filesExist = true)
+  {
+    auto mgmOfs = makeMgmOfs(authz, filesExist);
+    ON_CALL(*mgmOfs, _stat(_, _, _, _, _, _, _, _))
+        .WillByDefault(Invoke(MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
+    return mgmOfs;
+  }
+
+  std::unique_ptr<QueryPrepareResult>
+  query(PrepareManager& pm, const std::vector<std::string>& paths,
+        const eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
+  {
+    PrepareArgumentsWrapper pargs("testReqId", Prep_QUERY, paths,
+                                  PrepareManagerTest::generateEmptyOinfos(paths.size()));
+    return pm.queryPrepare(*(pargs.getPrepareArguments()), error, &vid);
+  }
+
+  // The error of the answer for this path, or "none" if it has none
+  static std::string
+  answerError(const QueryPrepareResult& result, const std::string& path)
+  {
+    for (const auto& file : result.getResponse()->responses) {
+      if (file.path == path) {
+        return file.error_text.empty() ? "none" : file.error_text;
+      }
+    }
+
+    return "no answer";
+  }
+};
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenAuthorizingNoFileIsRefused)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  auto mgmOfsPtr = makeQueryMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _)).Times(0);
+  PrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, PrepareManagerTest::generateDefaultPaths(2),
+                      tokenVid("Bearer valid-token"), error);
+  EXPECT_EQ(SFS_ERROR, result->getReturnCode());
+  EXPECT_FALSE(result->hasQueryPrepareFinished());
+  EXPECT_EQ(EACCES, error.getErrInfo());
+  EXPECT_TRUE(result->getResponse()->responses.empty());
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenMappedToNobodyIsRefused)
+{
+  // The token is accepted for every file, but its user is nobody
+  FakeSciTokensAuthz authz("valid-token", "", "nobody");
+  auto mgmOfsPtr = makeQueryMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _)).Times(0);
+  PrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, PrepareManagerTest::generateDefaultPaths(2),
+                      tokenVid("Bearer valid-token"), error);
+  EXPECT_EQ(SFS_ERROR, result->getReturnCode());
+  EXPECT_FALSE(result->hasQueryPrepareFinished());
+  EXPECT_EQ(EACCES, error.getErrInfo());
+  EXPECT_TRUE(result->getResponse()->responses.empty());
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenAuthorizingOneFileAnswersEveryFile)
+{
+  // path1 is in the scope of the token, path2 is not
+  FakeSciTokensAuthz authz("valid-token", "path1", "daemon");
+  PrepareManager pm(makeQueryMgmOfs(authz));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, {"path1", "path2"}, tokenVid("Bearer valid-token"), error);
+  ASSERT_EQ(SFS_DATA, result->getReturnCode());
+  ASSERT_EQ(2u, result->getResponse()->responses.size());
+  EXPECT_EQ("none", answerError(*result, "path1"));
+  EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
+            answerError(*result, "path2"));
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenAuthorizingMissingFilesAnswersEveryFile)
+{
+  // The token authorizes every file, but none of them exists
+  FakeSciTokensAuthz authz("valid-token", "", "daemon");
+  PrepareManager pm(makeQueryMgmOfs(authz, false));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, PrepareManagerTest::generateDefaultPaths(2),
+                      tokenVid("Bearer valid-token"), error);
+  ASSERT_EQ(SFS_DATA, result->getReturnCode());
+  ASSERT_EQ(2u, result->getResponse()->responses.size());
+
+  for (const auto& path : PrepareManagerTest::generateDefaultPaths(2)) {
+    EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
+              answerError(*result, path))
+        << path;
+  }
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryWithoutTokenWhoseFilesAllFailAnswersEveryFile)
+{
+  // The client's own identity, not a token, maps every file. None of them
+  // exists.
+  FakeSciTokensAuthz authz("valid-token", "", "daemon");
+  PrepareManager pm(makeQueryMgmOfs(authz, false));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, PrepareManagerTest::generateDefaultPaths(2), userVid(), error);
+  ASSERT_EQ(SFS_DATA, result->getReturnCode());
+  ASSERT_EQ(2u, result->getResponse()->responses.size());
+
+  for (const auto& path : PrepareManagerTest::generateDefaultPaths(2)) {
+    EXPECT_EQ("USER ERROR: file does not exist or is not accessible to you",
+              answerError(*result, path))
+        << path;
+  }
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenAuthorizingNoFileCountsInTheStats)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  auto mgmOfsPtr = makeQueryMgmOfs(authz);
+  auto& mgmOfs = *mgmOfsPtr;
+  // A refused query counts in QueryPrepare (eos ns stat), as any other query
+  EXPECT_CALL(mgmOfs, addStats(_, _, _, _)).Times(AnyNumber());
+  EXPECT_CALL(mgmOfs, addStats(StrEq("QueryPrepare"), _, _, 2)).Times(1);
+  PrepareManager pm(std::move(mgmOfsPtr));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  auto result = query(pm, PrepareManagerTest::generateDefaultPaths(2),
+                      tokenVid("Bearer valid-token"), error);
+  EXPECT_EQ(SFS_ERROR, result->getReturnCode());
+  EXPECT_EQ(EACCES, error.getErrInfo());
+}
+
+TEST_F(PrepareManagerTokenQueryTest, queryTokenAuthorizingNoFileLogsTheClient)
+{
+  // The token is valid, but none of the files is in its scope
+  FakeSciTokensAuthz authz("valid-token", "/eos/elsewhere/", "daemon");
+  PrepareManager pm(makeQueryMgmOfs(authz));
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo& error = *errorWrapper.getError();
+  std::unique_ptr<QueryPrepareResult> result;
+  const std::vector<std::string> lines = errorLinesOf([&]() {
+    result = query(pm, PrepareManagerTest::generateDefaultPaths(2),
+                   tokenVid("Bearer valid-token"), error);
+  });
+  ASSERT_EQ(SFS_ERROR, result->getReturnCode());
+  // One error line tells who was refused, for which request and for how many
+  // files
+  EXPECT_THAT(
+      lines,
+      Contains(AllOf(
+          HasSubstr("msg=\"the token authorizes none of the files, query refused\""),
+          HasSubstr("reqid=\"testReqId\""), HasSubstr("client=\"" + mTident + "\""),
           HasSubstr("nfiles=2"))));
 }
