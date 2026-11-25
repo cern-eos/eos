@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "auth/ProcLinkReader.hh"
 #include "auth/ProcessInfo.hh"
 #include "gtest/gtest.h"
 
@@ -102,14 +103,15 @@ TEST(ProcessInfoProvider, ParseCmdline)
 
 TEST(ProcessInfoProvider, GetMyProcessInfo)
 {
-  ProcessInfoProvider processInfoProvider;
+  ProcLinkReader procLinkReader(10, 500, 5);
+  ProcessInfoProvider processInfoProvider(procLinkReader);
   ProcessInfo myself;
-  ASSERT_TRUE(processInfoProvider.retrieveFull(getpid(), myself));
+  ASSERT_TRUE(processInfoProvider.retrieveFull(geteuid(), getpid(), myself));
   ASSERT_FALSE(myself.isEmpty());
-  ASSERT_THROW(processInfoProvider.retrieveFull(getpid(), myself),
+  ASSERT_THROW(processInfoProvider.retrieveFull(geteuid(), getpid(), myself),
                FatalException);
   ProcessInfo parent;
-  ASSERT_TRUE(processInfoProvider.retrieveFull(getppid(), parent));
+  ASSERT_TRUE(processInfoProvider.retrieveFull(geteuid(), getppid(), parent));
   ASSERT_EQ(myself.getParentId(), parent.getPid());
   std::cerr << "My cmdline: " << myself.cmdStr << std::endl;
   std::cerr << "Parent's cmdline: " << parent.cmdStr << std::endl;
@@ -118,7 +120,8 @@ TEST(ProcessInfoProvider, GetMyProcessInfo)
 
 TEST(ProcessInfoProvider, BasicSanity3)
 {
-  ProcessInfoProvider processInfoProvider;
+  ProcLinkReader procLinkReader(10, 500, 5);
+  ProcessInfoProvider processInfoProvider(procLinkReader);
   ProcessInfo info;
   info.fillStat(123, 234, 345, 456, 11111, 0);
   info.fillCmdline({"/bin/bash", "some-script.sh"});

@@ -22,29 +22,32 @@
  ************************************************************************/
 
 #include "JailIdentifier.hh"
+#include "ProcLinkReader.hh"
 #include "Utils.hh"
 #include "common/Logging.hh"
-#include <sys/stat.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-JailResolver::JailResolver()
+JailResolver::JailResolver(ProcLinkReader& plr)
+    : procLinkReader(plr)
 {
-  myJail = resolve(getpid());
+  myJail = resolve(geteuid(), getpid());
 }
 
 //------------------------------------------------------------------------------
 // Resolve a given pid_t
 //------------------------------------------------------------------------------
-JailIdentifier JailResolver::resolveIdentifier(pid_t pid)
+JailIdentifier
+JailResolver::resolveIdentifier(uid_t uid, pid_t pid)
 {
   std::string path = SSTR("/proc/" << pid << "/root");
   struct stat buf;
 
-  if (stat(path.c_str(), &buf) != 0) {
+  if (procLinkReader.stat(uid, path.c_str(), &buf) != 0) {
     int myerrno = errno;
     return JailIdentifier::MakeError(myerrno,
                                      SSTR("Could not resolve jail of " << pid << ": " << strerror(myerrno)));
@@ -122,9 +125,10 @@ bool JailIdentifier::operator==(const JailIdentifier& other) const
 //------------------------------------------------------------------------------
 // Resolve a given pid_t to JailInformation
 //------------------------------------------------------------------------------
-JailInformation JailResolver::resolve(pid_t pid)
+JailInformation
+JailResolver::resolve(uid_t uid, pid_t pid)
 {
-  JailIdentifier id = resolveIdentifier(pid);
+  JailIdentifier id = resolveIdentifier(uid, pid);
   return { id, pid, (id == myJail.id) };
 }
 
@@ -132,9 +136,10 @@ JailInformation JailResolver::resolve(pid_t pid)
 // Resolve a given pid_t to JailInformation - if an error is encountered,
 // return _my_ jail.
 //------------------------------------------------------------------------------
-JailInformation JailResolver::resolveOrReturnMyJail(pid_t pid)
+JailInformation
+JailResolver::resolveOrReturnMyJail(uid_t uid, pid_t pid)
 {
-  JailInformation jailInfo = resolve(pid);
+  JailInformation jailInfo = resolve(uid, pid);
 
   if (!jailInfo.id.ok()) {
     //--------------------------------------------------------------------------

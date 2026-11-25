@@ -22,13 +22,14 @@
  ************************************************************************/
 
 #include "SecurityChecker.hh"
-#include "ScopedFsUidSetter.hh"
 #include "FileDescriptor.hh"
+#include "ProcLinkReader.hh"
+#include "ScopedFsUidSetter.hh"
 #include "Utils.hh"
 #include "common/Logging.hh"
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <iostream>
+#include <sys/stat.h>
 
 //------------------------------------------------------------------------------
 // Portability helper: Extract timespec from stat struct
@@ -45,7 +46,11 @@ struct timespec extractTimespec(const struct stat& st)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
+SecurityChecker::SecurityChecker(bool ij, ProcLinkReader& plr)
+    : ignoreJails(ij)
+    , procLinkReader(plr)
+{
+}
 
 //------------------------------------------------------------------------------
 // Inject the given fake data. Once an injection is active, _all_ returned
@@ -195,7 +200,8 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
                                O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if (!next.ok()) {
-      eos_static_alert("Failed to openat next child");
+      eos_static_alert("Failed to openat next child %d %s", current.getFD(),
+                       splitPath[i].c_str());
       return Info(CredentialState::kCannotStat, {0, 0});
     }
 
@@ -209,7 +215,8 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
                                O_NOFOLLOW | O_RDONLY));
 
   if (!fileFd.ok()) {
-    eos_static_alert("Failed to openat file");
+    eos_static_alert("Failed to openat file %d %s", current.getFD(),
+                     splitPath.back().c_str());
     return Info(CredentialState::kCannotStat, {0, 0});
   }
 
@@ -275,5 +282,5 @@ SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
     return lookupLocalJail(path, uid);
   }
 
-  return lookupNonLocalJail(jail, path, uid, gid);
+  return procLinkReader.lookupNonLocalJail(*this, jail, path, uid, gid);
 }

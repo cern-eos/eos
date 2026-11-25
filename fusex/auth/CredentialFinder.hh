@@ -42,15 +42,25 @@
 class CredentialConfig
 {
 public:
-
-  CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), use_user_ztn(false),
-    tryKrb5First(false),
-    use_user_unix(false),
-    use_root_unix(false),
-    fuse_shared(false),
-    environ_deadlock_timeout(500), forknoexec_heuristic(true),
-    ignore_containerization(false) { }
+  CredentialConfig()
+      : use_user_krb5cc(false)
+      , use_user_gsiproxy(false)
+      , use_user_sss(false)
+      , use_user_oauth2(false)
+      , use_user_ztn(false)
+      , tryKrb5First(false)
+      , use_user_unix(false)
+      , use_root_unix(false)
+      , fuse_shared(false)
+      , environ_deadlock_timeout(500)
+      , proclink_workers(10)
+      , proclink_deadlock_timeout(500)
+      , proclink_peruser_limit(5)
+      , proclink_cred_toms(5000)
+      , forknoexec_heuristic(true)
+      , ignore_containerization(false)
+  {
+  }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -72,6 +82,15 @@ public:
   bool fuse_shared;
   //! How long to wait before declaring a kernel deadlock when reading /proc/environ
   unsigned environ_deadlock_timeout;
+  //! Number of thread workers for accessing links under /proc
+  size_t proclink_workers;
+  //! How long to wait before declaring a kernel deadlock when accessing links under
+  //! /proc/<pid>, in ms
+  unsigned proclink_deadlock_timeout;
+  //! Number of worker threads one uid can take
+  size_t proclink_peruser_limit;
+  //! How long a cached credential's validation may be skipped during jail timeout, in ms
+  unsigned proclink_cred_toms;
   //! Use PF_FORKNOEXEC as a heuristic to decide if the process is doing an execve.
   bool forknoexec_heuristic;
   //! Credential store

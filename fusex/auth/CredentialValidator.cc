@@ -367,6 +367,13 @@ bool CredentialValidator::validate(const JailInformation& jail,
     LOGBOOK_INSERT(scope, "Credential file unable to stat");
     return false;
 
+  case CredentialState::kTimeout:
+    //------------------------------------------------------------------------
+    // Credential file cannot be stat'ed because of timeout
+    //------------------------------------------------------------------------
+    LOGBOOK_INSERT(scope, "Credential file unable to stat due to timeout");
+    return false;
+
   case CredentialState::kBadPermissions: {
     //------------------------------------------------------------------------
     // Credential file cannot be used.
@@ -507,9 +514,12 @@ static bool checkTimespecEquality(const struct timespec& t1,
 // - The underlying credential file on disk has changed.
 // - Reconnection
 //------------------------------------------------------------------------------
-bool CredentialValidator::checkValidity(const JailInformation& jail,
-                                        const TrustedCredentials& tc)
+bool
+CredentialValidator::checkValidity(const JailInformation& jail,
+                                   const TrustedCredentials& tc, bool& deadlocked)
 {
+  deadlocked = false;
+
   if (!tc.valid()) {
     return false;
   }
@@ -529,6 +539,15 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
   // KRB5, X509, OAUTH2: Check underlying file, ensure contents have not changed.
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
+
+  if (info.state == CredentialState::kTimeout) {
+    //--------------------------------------------------------------------------
+    // Timeout during stat, probably kernel deadlock, so can not fully check.
+    // We don't invalidate.
+    //--------------------------------------------------------------------------
+    deadlocked = true;
+    return false;
+  }
 
   if (info.state != CredentialState::kOk &&
       info.state != CredentialState::kOkWithContents) {

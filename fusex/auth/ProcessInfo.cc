@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #define __STDC_FORMAT_MACROS
+#include "ProcessInfo.hh"
+#include "ProcLinkReader.hh"
+#include "common/Logging.hh"
 #include <inttypes.h>
 #include <unistd.h>
-#include "ProcessInfo.hh"
-#include "common/Logging.hh"
 
 bool ProcessInfoProvider::fromString(const std::string& procstat,
                                      const std::string& cmdline, ProcessInfo& ret)
@@ -262,7 +263,8 @@ bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo& ret)
   return true;
 }
 
-bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
+bool
+ProcessInfoProvider::retrieveFull(uid_t uid, pid_t pid, ProcessInfo& ret)
 {
   if (useInjectedData) {
     std::lock_guard<std::mutex> lock(mtx);
@@ -290,12 +292,12 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   }
 
   parseCmdline(cmdline, ret);
-  parseExec(pid, ret);
+  parseExec(uid, pid, ret);
   ret.fillRmInfo();
   // Read path of /proc/<pid>/exe
   std::string exePath = SSTR("/proc/" << pid << "/exe");
   char buffer[1024];
-  ssize_t outcome = readlink(exePath.c_str(), buffer, 1024);
+  ssize_t outcome = procLinkReader.readlink(uid, exePath.c_str(), buffer, 1024);
 
   if (outcome > 0) {
     ret.exe = std::string(buffer, outcome);
@@ -304,12 +306,13 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   return true;
 }
 
-bool ProcessInfoProvider::parseExec(pid_t pid, ProcessInfo& ret)
+bool
+ProcessInfoProvider::parseExec(uid_t uid, pid_t pid, ProcessInfo& ret)
 {
   const size_t BUFF_SIZE = 8096;
   char buffer[BUFF_SIZE];
-  ssize_t len = readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer,
-                         BUFF_SIZE - 2);
+  ssize_t len = procLinkReader.readlink(uid, SSTR("/proc/" << pid << "/exe").c_str(),
+                                        buffer, BUFF_SIZE - 2);
 
   if (len == -1) {
     return false;

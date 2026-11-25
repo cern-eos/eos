@@ -24,11 +24,12 @@
 #ifndef __PROCESS_INFO_HH__
 #define __PROCESS_INFO_HH__
 
-#include <mutex>
-#include <map>
-#include <atomic>
 #include "Utils.hh"
 #include "auth/RmInfo.hh"
+#include <atomic>
+#include <map>
+#include <mutex>
+class ProcLinkReader;
 
 typedef int64_t Jiffies;
 
@@ -173,6 +174,10 @@ public:
 class ProcessInfoProvider
 {
 public:
+  ProcessInfoProvider(ProcLinkReader& plr)
+      : procLinkReader(plr)
+  {
+  }
   void inject(pid_t pid, const ProcessInfo& info);
 
   // retrieves information about a process from the kernel.
@@ -180,7 +185,17 @@ public:
   bool retrieveBasic(pid_t pid, ProcessInfo& ret);
 
   // retrieves information about a process from the kernel, including cmdline.
-  bool retrieveFull(pid_t pid, ProcessInfo& ret);
+  bool retrieveFull(uid_t uid, pid_t pid, ProcessInfo& ret);
+
+  //----------------------------------------------------------------------------
+  // Check if data has been injected
+  //----------------------------------------------------------------------------
+  bool
+  useInjected()
+  {
+    return useInjectedData.load();
+  }
+
   static bool fromString(const std::string& stat, const std::string& cmd,
                          ProcessInfo& ret);
 private:
@@ -189,7 +204,8 @@ private:
   std::atomic<bool> useInjectedData{false};
   static bool parseStat(const std::string& stat, ProcessInfo& ret);
   static void parseCmdline(const std::string& cmdline, ProcessInfo& ret);
-  static bool parseExec(pid_t pid, ProcessInfo& ret);
+  bool parseExec(uid_t uid, pid_t pid, ProcessInfo& ret);
+  ProcLinkReader& procLinkReader;
 };
 
 #endif
