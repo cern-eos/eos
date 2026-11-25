@@ -359,3 +359,27 @@ TEST_F(TapeRestApiBusinessTest, deleteStageBulkRequestForbiddenWhenPrepareRefuse
   // The request is only removed once its files are cancelled
   EXPECT_TRUE(stageRequestExists(requestId));
 }
+
+//------------------------------------------------------------------------------
+// The query prepare refuses with EACCES a query whose token authorizes none of
+// the files: the client gets 403.
+//------------------------------------------------------------------------------
+TEST_F(TapeRestApiBusinessTest, getFileInfoForbiddenWhenQueryPrepareRefusesAccess)
+{
+  PathsModel paths;
+  paths.addFile("/eos/user/archive.txt");
+  mBusiness->setPrepareManager(
+      std::make_unique<eos::mgm::rest::UnfinishedQueryPrepareManager>(EACCES));
+
+  ASSERT_THROW(mBusiness->getFileInfo(&paths, &mIssuer), ForbiddenException);
+}
+
+TEST_F(TapeRestApiBusinessTest, getStageBulkRequestForbiddenWhenQueryPrepareRefusesAccess)
+{
+  const std::string requestId = "req-query-refused";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  mBusiness->setPrepareManager(
+      std::make_unique<eos::mgm::rest::UnfinishedQueryPrepareManager>(EACCES));
+
+  ASSERT_THROW(mBusiness->getStageBulkRequest(requestId, &mIssuer), ForbiddenException);
+}

@@ -174,6 +174,7 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
                             error, vid);
 
   if (!queryPrepareResult->hasQueryPrepareFinished()) {
+    throwIfForbidden(error);
     std::stringstream ss;
     ss << "Unable to get information about the files belonging to the request " <<
        requestId << ". errMsg=\"" << error.getErrText() << "\"";
@@ -279,6 +280,7 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(
                             error, vid);
 
   if (!queryPrepareResult->hasQueryPrepareFinished()) {
+    throwIfForbidden(error);
     std::stringstream ss;
     ss << "Unable to get information about the files provided. errMsg=\"" <<
        error.getErrText() << "\"";
