@@ -23,6 +23,7 @@ eos-bats-test contention /eos/dockertest
 eos-bats-test contention /eos/dockertest --filter "rm of one file"
 eos-bats-test                      # list the suites
 eos-bats-test contention --list    # list the tests, the names for --filter
+eos-bats-test instance /eos/dev --filter-tags acl   # the files with this tag
 eos-bats-test contention /eos/dockertest --filter-tags '!slow'  # skip the slow checks
 ```
 
@@ -47,14 +48,55 @@ without a change.
 test/<suite>/
   <suite>.bash        settings and helpers; starts with "load ../bats/eos"
   setup_suite.bash    setup_suite and teardown_suite: once for the whole run
-  1-<part>.bats       the tests; bats runs the files in name order
-  2-<part>.bats
+  <part>.bats         the tests; each file works alone
+  1-<part>.bats       or: numbered, when a file needs the state of an earlier
+  2-<part>.bats       one (bats runs the files in name order)
 ```
 
-Each `.bats` file starts with `load <suite>`. `setup_suite` calls `eos_setup_suite`
-first. CMake installs each directory of `test/` with `.bats` files as a suite, and
-the RPM and Debian packages take all of `/usr/share/eos/test`: a new suite needs no
-build or package edit.
+Each `.bats` file starts with `load <suite>` and a tag with its name, e.g.
+`# bats file_tags=races`: `--filter-tags races` runs only that file, and
+`--filter-tags races --filter-tags load` runs both. Give a file a number only when
+it needs the state that an earlier file leaves (the end checks of `contention` run
+after the races and the load). Files without a number must each work alone.
+
+`setup_suite` calls `eos_setup_suite` first. CMake installs each directory of
+`test/` with `.bats` files as a suite, and the RPM and Debian packages take all of
+`/usr/share/eos/test`: a new suite needs no build or package edit.
+
+A big suite (as `instance`, with 50 files) can put its files in one level of
+directories, one for each area
+(`eos-bats-test` runs bats with `--recursive`). Such a file starts with
+`load ../<suite>`. The helper file sets `suite=<suite>` and loads `eos.bash` with
+its own path, because bats finds a `load` path from the test file:
+
+```bash
+suite=instance
+here=$(dirname "${BASH_SOURCE[0]}")
+load "$here/../bats/eos"
+```
+
+## The instance suite
+
+`test/instance/` is the old `eos-instance-test` and the scripts that
+`eos-instance-test-ci` ran. Each category of the old script is one file, tagged with
+its name, in a directory for its area (`namespace`, `access`, `io`, `fuse`, `http`,
+`ci`). The categories keep their `runtest` lines and the paths of the old script
+(`/eos/<instance>/test/instancetest`, with the instance from the prefix). As in the
+old script, a failed `runtest` line does not stop its test: the next lines run, the
+failed line shows as `FAILED`, and the test fails at the end. The `ci` files are
+written with the helpers of `eos.bash`.
+
+```bash
+eos-bats-test instance /eos/dev                          # all categories
+eos-bats-test instance /eos/dev --filter-tags rm         # one category
+eos-bats-test instance /eos/dev --filter-tags '!fusex'   # all but one
+```
+
+`setup_suite` runs the old "prep" category for each selection. It also applies the
+settings `EOS_SCHEDULER_TYPE` and `EOS_TEST_QUOTA` (CI sets `EOS_TEST_QUOTA=on`),
+and the end of the suite undoes them. The fuse
+categories mount `eosxd` on `/eos` and `/test-fusex`, and fusex changes
+`/etc/eos/fuse.sss.keytab`: run them only on a test instance.
 
 ## Run a suite in CI
 
@@ -92,9 +134,11 @@ contention jobs.
 | `upload <local> <path> [opts]`, `download <path> <local> [opts]` | `xrdcp` to and from an EOS path |
 | `same_file <local> <path>` | true if the EOS file has the bytes of the local file |
 | `make_file <local> <size>` | a local file of random bytes, `<size>` as for `head -c` (`16M`) |
+| `local_checksum <type> <local>` | `adler`, `md5`, `sha1` (or `sha`) or `sha256` of a local file, as EOS shows it |
 | `json <filter> <eos args>` | `eos -j <args> \| jq -r <filter>`, e.g. `json .id fileinfo $f` |
 | `attr_value <path> <key>` | the value of an extended attribute, empty if not set |
-| `fs_value <fsid> <key>` | one value of `eos fs ls -m`, e.g. `configstatus`, `host`, `local.drain` |
+| `fs_value <fsid> <key>` | one value of `eos fs ls -m`, e.g. `configstatus`, `host`, `local.drain`, else of `eos fs status`, e.g. `scan_disk_interval` |
+| `group_value <group> <key>` | one value of `eos group ls -m`, e.g. `dev.stat.statfs.filled` |
 | `fs_set <fsid> <key> <value>` | `eos fs config`, undone at the end of the suite |
 | `replicas <path>`, `replica_file <path> <fsid>` | the fsids of a file, and the path of one replica on its FST |
 | `on_fst <fsid> <cmd>` | run a shell command on the host of a file system (here, or through `$EOS_FST_EXEC <host> <cmd>`; else the test skips) |
@@ -102,6 +146,7 @@ contention jobs.
 | `$http_url`, `http <method> <path> [curl opts]` | the HTTPS endpoint of the MGM (`$EOS_HTTP_URL`, else the XrdHttp port of `/etc/xrd.cf.mgm`), and a request to it |
 | `token_for <path> <perm> [<s>]` | a token for nobody; a `<path>` with a final `/` covers the tree |
 | `recycle_entries <path>`, `recycle_as_owner <action> <path>` | `<uid> <gid> <key>` of each recycle bin entry under a path (`"<path> "` for the path only), and `restore -f` or `purge -k` of one entry as its owner |
+| `recycle_purge <path>` | purge each recycle bin entry under a path, as its owner |
 | `mount_fuse <dir>`, `umount_fuse <dir>` | an eosxd mount of `/eos`, ready when `$testdir` is in it, and its unmount |
 | `log_has <regex>` | true if the MGM log has a matching line since the start of the suite |
 | `make_testdir`, `remove_testdir` | an empty `$testdir` that all users may write, and its removal |
@@ -130,6 +175,9 @@ failure.
 After a failure, `$logs/failed/<n>.mgm.log` has the MGM log lines of test `<n>`:
 CI keeps them with the suite logs.
 
+The suites use the xrootd clients of eos-xrootd (`/opt/eos/xrootd`) where it is
+installed, as EOS does: the RAIN plugin works only with them.
+
 `BATS_TEST_TIMEOUT` (default 600 s) stops a test that hangs.
 `XRD_REQUESTTIMEOUT` (default 60 s) stops each xrootd request, the console too.
 
@@ -153,8 +201,9 @@ runs shellcheck on the BATS files when shellcheck is installed (EPEL: `ShellChec
 | `exit 1` in a check | `return 1` |
 | a `runtest` line (`<info> <auth> <expect> <env> <mode> ...`) | the same line in an `@test`, with `load ../bats/runtest`: see `runtest.bash`. Fast, but the lines stay hard to read |
 
-A test written in the BATS way is easier to read and its failures say more. These
-are the lines that the old test scripts have most:
+A test written in the BATS way has a name that says what must be true, and its
+failure shows the command that failed. These are the lines that the old test
+scripts have most:
 
 | Old script | BATS |
 |---|---|

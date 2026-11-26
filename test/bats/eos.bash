@@ -5,7 +5,8 @@
 #   load ../bats/eos
 #
 # It sets:
-#   $suite     the name of the suite directory, e.g. contention
+#   $suite     the name of the suite directory, e.g. contention. A suite
+#              with its tests in subdirectories sets it before the load.
 #   $testdir   $EOS_TEST_PREFIX/$suite, the EOS directory of the suite
 #   $logs      the local log directory, default ${TMPDIR:-/tmp}/eos-$suite.
 #              $logs/checks gets the output of each test.
@@ -21,7 +22,7 @@ BATS_LIB_PATH=$(dirname "${BASH_SOURCE[0]}")/vendor${BATS_LIB_PATH:+:$BATS_LIB_P
 bats_load_library bats-support
 bats_load_library bats-assert
 
-suite=$(basename "$BATS_TEST_DIRNAME")
+suite=${suite:-$(basename "$BATS_TEST_DIRNAME")}
 testdir=${EOS_TEST_PREFIX:+$EOS_TEST_PREFIX/$suite}
 logs=${logs:-${TMPDIR:-/tmp}/eos-$suite}
 mkdir -p "$logs"
@@ -39,6 +40,12 @@ if command -v pkill >/dev/null || command -v ps >/dev/null; then
   export BATS_TEST_TIMEOUT=${BATS_TEST_TIMEOUT:-600}
 fi
 export XRD_REQUESTTIMEOUT=${XRD_REQUESTTIMEOUT:-60}
+# The xrootd clients of eos-xrootd first, where it is installed: EOS is built
+# against them, and the RAIN plugin (libEosRainClient.so) works only with them
+if [ -d /opt/eos/xrootd/bin ]; then
+  export PATH=/opt/eos/xrootd/bin:$PATH
+  export LD_LIBRARY_PATH=/opt/eos/xrootd/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+fi
 
 # ------------------------------------------------------------------------------
 # Set up
@@ -97,9 +104,19 @@ fs_set() {
   eos fs config $1 $2=$3
 }
 
-# fs_value <fsid> <key>: one value of "eos fs ls -m", e.g. configstatus, host
+# fs_value <fsid> <key>: one value of "eos fs ls -m", e.g. configstatus, host,
+# else of "eos fs status <fsid>", e.g. scan_disk_interval
 fs_value() {
-  eos fs ls -m | grep " id=$1 " | tr ' ' '\n' | grep "^$2=" | head -1 | cut -d= -f2- || true
+  local v
+  v=$(eos fs ls -m | grep " id=$1 " | tr ' ' '\n' | grep "^$2=" | head -1 | cut -d= -f2- || true)
+  [ -n "$v" ] || v=$(eos fs status $1 | awk -v k=$2 '$1 == k {print $3; exit}' || true)
+  echo "$v"
+}
+
+# group_value <group> <key>: one value of "eos group ls -m", e.g.
+# dev.stat.statfs.filled
+group_value() {
+  eos group ls -m | grep "name=$1 " | tr ' ' '\n' | grep "^$2=" | head -1 | cut -d= -f2- || true
 }
 
 # mgm_log: the lines of the MGM log since the start of the suite
@@ -221,6 +238,18 @@ make_file() {
   head -c $2 /dev/urandom > $1
 }
 
+# local_checksum <adler|md5|sha1|sha256> <local>: the checksum of a local file,
+# as EOS shows it. sha is sha1, as EOS names it in the alternative checksums.
+local_checksum() {
+  case $1 in
+    adler) eos-adler32 $2 | sed -n 's/.*adler32=\([0-9a-f]*\).*/\1/p' ;;
+    md5) md5sum < $2 | cut -d' ' -f1 ;;
+    sha1|sha) sha1sum < $2 | cut -d' ' -f1 ;;
+    sha256) sha256sum < $2 | cut -d' ' -f1 ;;
+    *) echo "local_checksum: unknown type $1"; return 1 ;;
+  esac
+}
+
 # is <expected> <command> ...: true if the command prints <expected>, e.g.
 # wait_until 600 is drained fs_value 3 local.drain
 is() {
@@ -279,6 +308,15 @@ recycle_as_owner() {
   read -r uid gid key <<< "$(recycle_entries "$2 " | tail -1)"
   [ -n "$key" ] || { echo "no recycle bin entry of $2"; return 1; }
   eos -r $uid $gid recycle $1 $key
+}
+
+# recycle_purge <path>: purge each recycle bin entry under <path>, as its
+# owner, e.g. what an earlier run left
+recycle_purge() {
+  local uid gid key
+  recycle_entries $1 | while read -r uid gid key; do
+    eos -r $uid $gid recycle purge -k $key >/dev/null 2>&1 || echo "could not purge $key"
+  done
 }
 
 # mount_fuse <dir>: an eosxd mount of /eos at <dir>, ready when $testdir is

@@ -1,7 +1,5 @@
 usr/sbin/eos-fuse-test
 usr/sbin/eos-fusex-certify
-usr/sbin/eos-instance-test
-usr/sbin/eos-instance-test-ci
 usr/sbin/eos-bats-test
 usr/sbin/eos-accounting-test
 usr/sbin/eos-file-cont-detached-test
@@ -11,7 +9,6 @@ usr/sbin/eos-io-tool
 usr/sbin/eos-jwk-https-test
 usr/sbin/eos-oc-test
 usr/sbin/eos-rain-test
-usr/sbin/eos-rain-pio-write-test
 usr/sbin/eoscp-rain-test
 usr/sbin/fusex-benchmark
 usr/sbin/xrdcpabort

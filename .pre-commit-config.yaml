@@ -56,4 +56,4 @@ repos:
         name: shellcheck
         entry: bash -c 'command -v shellcheck >/dev/null || { echo "shellcheck is not installed, skipped"; exit 0; }; shellcheck --shell=bash --severity=warning --exclude=SC2154,SC2034,SC2046,SC2048,SC2068 "$@"' --
         language: system
-        files: ^test/(bats/[^/]+|[^/]+/[^/]+)\.(bash|bats)$|^test/eos-bats-test$
+        files: ^test/(bats/[^/]+|[^/]+/[^/]+|[^/]+/[^/]+/[^/]+)\.(bash|bats)$|^test/eos-bats-test$

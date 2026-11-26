@@ -39,3 +39,33 @@ P0-P5 scale of "Debug And Ticket Priorities" there.
 - Severity: P4 (wrong error output: the plugin reports the wrong reason; the
   fallback works and nothing persists).
 - Blocks the task: no (follow-up of MR !522, EOS-6676).
+
+## `eos recycle ls` (default `--uid`) does not list the entries of root
+
+- File: `mgm/proc/user/RecycleCmd.cc` (listing for the current uid); the help
+  is in `console/commands/native/recycle-proto-native.cc:33`.
+- Symptom: as root, after `eos rm` of a file in a directory with a recycle bin,
+  `eos recycle ls` prints no entry; `eos recycle ls --all` shows it, with owner
+  root.
+- Evidence: dev box (5.5.4, 2026-11-25): a probe directory with
+  `recycle config --add-bin`, an upload and `eos rm` as root: `recycle ls | grep
+  <path>` finds 0 lines, `recycle ls --all | grep <path>` finds 1. The
+  `### Recycle-Ls` line of the instance suite (`namespace/recycle.bats`) fails
+  on it. The old eos-instance-test piped that line outside runtest, so its
+  result was never checked.
+- Severity: P4 (wrong output of a listing; the entry exists and can be restored
+  and purged).
+- Blocks the task: no.
+
+## `eoscp-rain-test on a plain file` finds no local `file3.rain`
+
+- File: `test/instance/io/rain.bats` (the `### Upload` line of the eoscp-rain
+  test), same in the old `test/eos-instance-test`.
+- Symptom: `xrdcp: no such file or directory processing
+  /tmp/eos-instance-test/rain/file3.rain`. The setup makes the file, but it is
+  gone when the eoscp-rain test runs.
+- Evidence: dev box, 2026-11-25: the old script (10:10) and the BATS suite
+  (rerun at 13:4x) fail on the same line with the same message.
+- Severity: P5 (test only, no EOS behavior; the eoscp-rain conversion is not
+  tested).
+- Blocks the task: no.

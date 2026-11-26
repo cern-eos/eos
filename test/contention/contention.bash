@@ -257,10 +257,7 @@ undrain() {
 
 # rm -r does not remove a quota node, so remove the node first
 remove_test_tree() {
-  local uid gid key
-  recycle_entries $base/ | while read uid gid key; do
-    eos -r $uid $gid recycle purge -k $key >/dev/null 2>&1 || true
-  done
+  recycle_purge $base/ >/dev/null
 
   eos quota rmnode -p $base >/dev/null 2>&1 || true
   eos rm -r -F --no-confirmation $base >/dev/null 2>&1 || true

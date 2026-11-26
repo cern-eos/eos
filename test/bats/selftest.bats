@@ -27,6 +27,9 @@ case "$*" in
     [ "$(< $STUB/order)" = on ] && echo off > $STUB/order || echo on > $STUB/order ;;
   "space status default -m") echo "a=1 policy.x=2" ;;
   "fs ls -m") echo "host=$(hostname -f) id=1 configstatus=rw"; echo "host=other.host id=2 configstatus=ro" ;;
+  "fs status 2") echo "scan_disk_interval               := 14400" ;;
+  "group ls -m") echo "type=groupview name=default.0 status=on dev.stat.statfs.filled=0.06"
+    echo "type=groupview name=default.10 status=on dev.stat.statfs.filled=9.99" ;;
   "-j fileinfo /f") echo '{"id":7,"locations":[{"fsid":1,"fstpath":"/d/1/a"},{"fsid":2,"fstpath":"/d/2/a"}]}' ;;
   "attr get user.x /f") echo 'user.x="v 1"' ;;
   "recycle ls -m -n --all")
@@ -42,7 +45,8 @@ cp "${src/#root:\/\/localhost/$STUB/fs}" "${dst/#root:\/\/localhost/$STUB/fs}"
 EOF
   printf '#!/bin/bash\nexit 1\n' > $stub/pgrep
   printf '#!/bin/bash\necho "$*"\n' > $stub/curl
-  chmod +x $stub/eos $stub/pgrep $stub/xrdcp $stub/curl
+  printf '#!/bin/bash\necho "path=$1 size=1 time=0 adler32=0a1b2c3d"\n' > $stub/eos-adler32
+  chmod +x $stub/eos $stub/pgrep $stub/xrdcp $stub/curl $stub/eos-adler32
   mkdir -p $STUB/fs/d
   rm -f $logs/mgm.down $logs/order.toggled $logs/undo
 }
@@ -157,6 +161,11 @@ space config default space.policy.x=2"
 fs config 2 configstatus=ro"
 }
 
+@test "fs_value: a key that only fs status shows" {
+  [ "$(fs_value 2 scan_disk_interval)" = 14400 ]
+  [ -z "$(fs_value 2 nokey)" ]
+}
+
 @test "json, replicas, replica_file and attr_value" {
   [ "$(json .id fileinfo /f)" = 7 ]
   [ "$(replicas /f | xargs)" = "1 2" ]
@@ -207,6 +216,29 @@ fs config 2 configstatus=ro"
   recycle_as_owner "restore -f" /d/f
   [ "$(tail -1 $STUB/eos.calls)" = "-r 3 4 recycle restore -f fxid:1" ]
   run recycle_as_owner "purge -k" /d/none
+  assert_failure
+}
+
+@test "recycle_purge: each entry under a path, as its owner" {
+  recycle_purge /d/
+  run -0 grep "recycle purge" $STUB/eos.calls
+  assert_output "-r 3 4 recycle purge -k fxid:1
+-r 5 6 recycle purge -k fxid:2"
+}
+
+@test "group_value: one value of one group, not of a group with a longer name" {
+  [ "$(group_value default.0 dev.stat.statfs.filled)" = 0.06 ]
+  [ -z "$(group_value default.0 nokey)" ]
+}
+
+@test "local_checksum: the checksums as EOS shows them" {
+  printf abc > $BATS_TEST_TMPDIR/f
+  [ "$(local_checksum md5 $BATS_TEST_TMPDIR/f)" = 900150983cd24fb0d6963f7d28e17f72 ]
+  [ "$(local_checksum sha1 $BATS_TEST_TMPDIR/f)" = a9993e364706816aba3e25717850c26c9cd0d89d ]
+  [ "$(local_checksum sha $BATS_TEST_TMPDIR/f)" = a9993e364706816aba3e25717850c26c9cd0d89d ]
+  [ "$(local_checksum sha256 $BATS_TEST_TMPDIR/f)" = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ]
+  [ "$(local_checksum adler $BATS_TEST_TMPDIR/f)" = 0a1b2c3d ]
+  run local_checksum crc99 $BATS_TEST_TMPDIR/f
   assert_failure
 }
 

@@ -19,10 +19,12 @@
 
 here=$(dirname "$(readlink -f "$0")")
 
-# A suite is a directory with .bats files
+# A suite is a directory with .bats files, also in its subdirectories (areas)
 if [ $# = 0 ]; then
   for dir in "$here" "$here/../share/eos/test"; do
-    for f in "$dir"/*/*.bats; do [ -e "$f" ] && basename "$(dirname "$f")"; done
+    for f in "$dir"/*/*.bats "$dir"/*/*/*.bats; do
+      [ -e "$f" ] && f=${f#"$dir"/} && echo "${f%%/*}"
+    done
   done | grep -vx bats | sort -u
   exit 0
 fi
@@ -48,7 +50,7 @@ done
 
 # The names for --filter
 if [ "${2-}" = --list ]; then
-  sed -n 's/^@test "\(.*\)" {$/\1/p' "$dir/$suite"/*.bats
+  find "$dir/$suite" -name '*.bats' | sort | xargs sed -n 's/^@test "\(.*\)" {$/\1/p'
   exit 0
 fi
 
@@ -58,4 +60,4 @@ shift 2
 report=${EOS_TEST_REPORT_DIR:-/tmp/eos-bats-reports/$suite}
 mkdir -p "$report"
 # The bats of the submodule bats/vendor/bats-core, the same on each platform
-exec "$dir/bats/vendor/bats-core/bin/bats" --timing --report-formatter junit --output "$report" "$@" "$dir/$suite"
+exec "$dir/bats/vendor/bats-core/bin/bats" --timing --report-formatter junit --output "$report" --recursive "$@" "$dir/$suite"

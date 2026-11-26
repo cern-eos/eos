@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=end_checks
 # ------------------------------------------------------------------------------
 # Contention test, the end checks: after the races and the load, the namespace,
 # the quota, the tree counters and the file systems must agree. The checks run

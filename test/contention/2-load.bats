@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=load
 # ------------------------------------------------------------------------------
 # Contention test, the load: 2 workers of each kind for $CONTENTION_DURATION s,
 # while one file system is drained and a probe asks the MGM every 2 s if it

@@ -49,15 +49,18 @@
 
 
 .dock8s_system_test_template:
-  extends: .dock8s_base
+  extends: .dock8s_bats_template
   resource_group: $EOS_K8S_QUEUE_1
   variables:
-    # eos-instance-test-ci runs eos-grpc-gateway-test against the REST API
+    BATS_SUITE: instance
+    BATS_ENV: EOS_SCHEDULER_TYPE=${EOS_SCHEDULER_TYPE} EOS_TEST_QUOTA=on
+    # The grpc_gateway tests of the instance suite use the REST API
     EOS_MGM_ENABLE_REST_API: "1"
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    - exec_cmd eos-mgm1 "EOS_SCHEDULER_TYPE=${EOS_SCHEDULER_TYPE} eos-instance-test-ci"
+    - exec_cmd eos-mgm1 "EOS_SCHEDULER_TYPE=${EOS_SCHEDULER_TYPE} eos-drain-test localhost"
+    - !reference [.dock8s_bats_run, script]
     - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - date

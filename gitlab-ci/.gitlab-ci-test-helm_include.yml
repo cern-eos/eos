@@ -312,20 +312,6 @@ helm_stress:
       artifacts: false
   rules: !reference [.rules-manual, rules]
 
-.helm_system_test_template:
-  stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
-  <<: [*helm_before_script_template, *helm_after_script_template]
-  resource_group: $EOS_K8S_QUEUE_1
-  script:
-    - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
-    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
-    - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
 
 helm_system:
   extends: .helm_system_test_template
@@ -364,6 +350,18 @@ helm_system:
       - bats-logs/
     reports:
       junit: bats-junit.xml
+
+.helm_system_test_template:
+  extends: .helm_bats_template
+  resource_group: $EOS_K8S_QUEUE_1
+  variables:
+    BATS_SUITE: instance
+    BATS_ENV: EOS_TEST_QUOTA=on
+  script:
+    - kubectl exec eos-mgm-0 -- eos-drain-test localhost
+    - !reference [.helm_bats_run, script]
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
 
 .helm_contention_test_template:
   extends: .helm_bats_template

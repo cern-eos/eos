@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=races
 # ------------------------------------------------------------------------------
 # Contention test, the races: many clients change the same entries at the same
 # time, and the namespace must stay right. Each race makes its own entries in

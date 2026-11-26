@@ -1,6 +1,9 @@
 #!/usr/bin/env bats
+# bats file_tags=example
 # ------------------------------------------------------------------------------
-# <Suite>, <part>: what these tests check. bats runs the files in name order.
+# <Suite>, <part>: what these tests check. Rename the file to <part>.bats and the
+# tag to <part>. Number the files (1-<part>.bats) only when one needs the state
+# of an earlier one.
 # ------------------------------------------------------------------------------
 
 load template

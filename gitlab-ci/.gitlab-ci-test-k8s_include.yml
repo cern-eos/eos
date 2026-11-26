@@ -91,7 +91,7 @@ k8s_tape_rest:
   script:
     - exec_cmd eos-mgm1 'eos space config default space.taperestapi.status=on'
     - exec_cmd eos-mgm1 'eos space config default space.taperestapi.stage=on'
-    - exec_cmd eos-mgm1 'EOS_TAPE_REST_REQUIRE=1 eos-instance-test taperest'
+    - exec_cmd eos-mgm1 'EOS_TAPE_REST_REQUIRE=1 eos-bats-test instance /eos/dockertest --filter-tags taperest'
   needs:
     - job: el9_docker_image
       artifacts: false

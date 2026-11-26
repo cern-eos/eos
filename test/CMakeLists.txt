@@ -163,33 +163,33 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   eos-udp-dumper eos-mmap eos-io-tool eos-recycle-config-request
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
+install(PROGRAMS xrdstress
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-accounting-test
   eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test
-  eos-http-upload-test eos-http-range-test eos-https-functional-test eos-token-test eos-traffic-shaping-test
+  eos-http-upload-test eos-http-range-test eos-token-test eos-traffic-shaping-test
   eos-jwk-https-test
-  eos-fst-close-test eos-rename-test eos-bats-test eos-grpc-test eos-grpc-file-test eos-grpc-gateway-test
+  eos-fst-close-test eos-rename-test eos-bats-test eos-grpc-test eos-grpc-file-test
   eos-file-dual-protocol-test eos-fsck-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
-  eos-convert-test eos-balance-test eos-timestamp-test
+  eos-convert-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test eos-macaroon-init
   eos-synctime-test eos-rclone-test eos-bash test-eos-iam-mapfile.py
   fusex/eos-test-credential-bindings fusex/eos-fusex-functional-test
-  fusex/eos-msoffice-save-test eos-archive-setup-test
+  fusex/eos-msoffice-save-test
   eos-acl-concurrent eos-recycle-test eos-ec-parallel-write-test
-  eos-rain-pio-write-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE)
 
 # The BATS suites, see bats/README.md. eos-bats-test runs them. A suite is
-# each directory here with .bats files: a new one needs no edit here.
+# each directory here with .bats files, also in its subdirectories: a new one
+# needs no edit here.
 file(GLOB bats_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
-  ${CMAKE_CURRENT_SOURCE_DIR}/*/*.bats)
+  ${CMAKE_CURRENT_SOURCE_DIR}/*/*.bats ${CMAKE_CURRENT_SOURCE_DIR}/*/*/*.bats)
 set(bats_suites)
 foreach(file ${bats_files})
-  get_filename_component(dir ${file} DIRECTORY)
+  string(REGEX REPLACE "/.*" "" dir ${file})
   list(APPEND bats_suites ${dir})
 endforeach()
 list(REMOVE_DUPLICATES bats_suites)

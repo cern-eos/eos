@@ -40,6 +40,6 @@ mgm:
       password: "--set $TEST_ADMINPRINC_PASSWORD"
   extraEnv:
     # Enable the internal grpc-gateway HTTP/JSON REST API so it can be
-    # exercised by eos-grpc-gateway-test
+    # exercised by the grpc_gateway tests of the instance BATS suite
     - name: EOS_MGM_ENABLE_REST_API
       value: "1"
