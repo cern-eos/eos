@@ -16,6 +16,17 @@ Introduction
 
 This release is based on XRootD V5/6.
 
+``v5.5.7 Diopside``
+===================
+
+2026-11-27
+
+Bug
+----
+
+* FUSEX: Add timeouts to accesses to links under /proc/pid to avoid kernel deadlock
+
+
 ``v5.5.6 Diopside``
 ===================
 
