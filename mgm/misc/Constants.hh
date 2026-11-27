@@ -52,6 +52,7 @@ static const std::string SYS_FORCED_CHECKSUM = "sys.forced.checksum";
 static const std::string SYS_FORCED_BLOCKSIZE = "sys.forced.blocksize";
 static const std::string SYS_FORCED_BLOCKCHECKSUM = "sys.forced.blockchecksum";
 static const std::string SYS_FORCED_NSTRIPES = "sys.forced.nstripes";
+static const std::string SYS_FORCED_COMPRESSION = "sys.forced.compression";
 static const std::string SYS_FORCED_SYNTHETICIO = "sys.forced.syntheticio";
 static const std::string SYS_SYNTHETICIO = "sys.syntheticio";
 
@@ -65,6 +66,7 @@ static const std::string USER_FORCED_BLOCKSIZE = "user.forced.blocksize";
 static const std::string USER_FORCED_BLOCKCHECKSUM =
   "user.forced.blockchecksum";
 static const std::string USER_FORCED_NSTRIPES = "user.forced.nstripes";
+static const std::string USER_FORCED_COMPRESSION = "user.forced.compression";
 
 // Policy related strings
 static const std::string POLICY_BANDWIDTH = "policy.bandwidth";

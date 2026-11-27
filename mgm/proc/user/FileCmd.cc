@@ -1356,81 +1356,37 @@ FileCmd::ConvertSubcmd(const eos::console::FileConvertProto& convert,
                  "compression bit of the current layout";
       retc = EINVAL;
     } else {
-      std::shared_ptr<eos::IFileMD> fmd;
       const bool enable = convert.compress();
-      bool kick = false;
-      eos::common::FileId::fileid_t kick_fid = 0;
-      unsigned long kick_layout = 0;
-      eos::IFileMD::LocationVector kick_fsids;
+      const XrdMgmOfs::CompressionMark mark =
+        gOFS->MarkFileCompression(spath, enable);
+      retc = mark.retc;
 
-      {
-        eos::MDLocking::FileWriteLockPtr fmd_lock;
+      if (!mark.found) {
+        std_err << "error: unable to get file meta data of file " << spath;
 
-        try {
-          fmd = gOFS->eosView->getFile(spath.c_str());
-        } catch (eos::MDException& e) {
-          errno = e.getErrno();
-          std_err << "error: unable to get file meta data of file " << spath;
-          retc = errno ? errno : ENOENT;
+        if (!retc) {
+          retc = ENOENT;
         }
+      } else if (!mark.changed) {
+        std_out << "info: already marked "
+                << (enable ? "for compression" : "as uncompressed")
+                << ", layout="
+                << eos::common::LayoutId::PrintLayoutString(mark.layout)
+                << " path=" << spath;
+      } else {
+        std_out << "success: marked for "
+                << (enable ? "compression" : "decompression")
+                << ", layout="
+                << eos::common::LayoutId::PrintLayoutString(mark.layout)
+                << " path=" << spath;
 
-        if (fmd && !retc) {
-          fmd_lock = eos::MDLocking::writeLock(fmd.get());
-
-          // A parallel rm removed the file after the lookup
-          if (fmd->isDeleted()) {
-            std_err << "error: unable to get file meta data of file " << spath;
-            retc = ENOENT;
-          }
-        }
-
-        if (fmd && !retc) {
-          unsigned long layout = fmd->getLayoutId();
-
-          if (eos::common::LayoutId::HasCompression(layout) == enable) {
-            std_out << "info: already marked "
-                    << (enable ? "for compression" : "as uncompressed")
-                    << ", layout="
-                    << eos::common::LayoutId::PrintLayoutString(layout)
-                    << " path=" << spath;
-          } else {
-            eos::common::LayoutId::SetCompression(layout, enable);
-            fmd->setLayoutId(static_cast<eos::IFileMD::layoutId_t>(layout));
-            gOFS->eosView->updateFileStore(fmd.get());
-            kick = true;
-            kick_fid = fmd->getId();
-            kick_layout = layout;
-            kick_fsids = fmd->getLocations();
-            std_out << "success: marked for "
-                    << (enable ? "compression" : "decompression")
-                    << ", layout="
-                    << eos::common::LayoutId::PrintLayoutString(layout)
-                    << " path=" << spath;
-          }
-        }
-      }
-
-      // The namespace lock is released before talking to the FSTs. Each
-      // replica is queued immediately; the scanner retries a missed kick.
-      if (kick && !retc) {
-        if (kick_fsids.empty()) {
+        if (mark.total == 0) {
           std_err << "error: file has no replicas to convert, path=" << spath;
           retc = ENOENT;
-        } else {
-          unsigned failed = 0;
-
-          for (const auto fsid : kick_fsids) {
-            if (gOFS->QueryCompress(kick_fid, fsid, enable, kick_layout)) {
-              ++failed;
-            }
-          }
-
-          if (failed) {
-            std_err << "error: failed to queue conversion on " << failed
-                    << " of " << kick_fsids.size() << " replica(s), path="
-                    << spath;
-            retc = EIO;
-          }
+        } else if (mark.failed) {
+          std_err << "error: failed to queue conversion on " << mark.failed
+                  << " of " << mark.total << " replica(s), path=" << spath;
+          retc = EIO;
         }
       }
     }

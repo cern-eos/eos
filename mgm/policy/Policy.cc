@@ -242,8 +242,11 @@ Policy::GetLayoutAndSpace(const char* path,
     noforcedchecksum = true;
   }
 
+  // Root can request not to apply any forced settings, including compression.
+  bool skip_forced_layout = false;
+
   if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce"))) {
-    // root can request not to apply any forced settings
+    skip_forced_layout = true;
   } else {
     if (auto space_kv = attrmap.find(SYS_FORCED_SPACE);
         space_kv != attrmap.end()) {
@@ -522,9 +525,47 @@ Policy::GetLayoutAndSpace(const char* path,
 
   layoutId =
     eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
-  eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld",
-                  layout, layoutId, xsum, stripes, blocksize);
+
+  if (!skip_forced_layout && CompressionRequested(attrmap)) {
+    eos::common::LayoutId::SetCompression(layoutId, true);
+  }
+
+  eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld "
+                  "compression=%d",
+                  layout, layoutId, xsum, stripes, blocksize,
+                  eos::common::LayoutId::HasCompression(layoutId));
   return;
+}
+
+//------------------------------------------------------------------------------
+// Directory attributes that request the compression bit on a new layout
+//------------------------------------------------------------------------------
+bool
+Policy::CompressionRequested(const eos::IContainerMD::XAttrMap& attrmap)
+{
+  bool compress = false;
+
+  if (auto kv = attrmap.find(SYS_FORCED_COMPRESSION); kv != attrmap.end()) {
+    compress = (kv->second == "1");
+  }
+
+  const bool allow_user =
+    ((!attrmap.count("sys.forced.nouserlayout")) ||
+     (attrmap.at("sys.forced.nouserlayout") != "1")) &&
+    ((!attrmap.count("user.forced.nouserlayout")) ||
+     (attrmap.at("user.forced.nouserlayout") != "1"));
+
+  if (allow_user) {
+    if (auto kv = attrmap.find(USER_FORCED_COMPRESSION); kv != attrmap.end()) {
+      if (kv->second == "1") {
+        compress = true;
+      } else if (kv->second == "0") {
+        compress = false;
+      }
+    }
+  }
+
+  return compress;
 }
 
 /*----------------------------------------------------------------------------*/

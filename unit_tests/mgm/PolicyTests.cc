@@ -1,5 +1,6 @@
 #include "mgm/policy/Policy.hh"
 #include "mgm/misc/Constants.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include "gtest/gtest.h"
 
 using namespace eos::mgm;
@@ -32,6 +33,34 @@ TEST(Policy, RWParams_get_key)
   ASSERT_EQ(params.getKey("test"), "test:w");
   Policy::RWParams params4("", "", "", false);
   ASSERT_EQ(params4.getKey("test"), "test:r");
+}
+
+TEST(Policy, CompressionRequested)
+{
+  eos::IContainerMD::XAttrMap map;
+  EXPECT_FALSE(Policy::CompressionRequested(map));
+
+  map[SYS_FORCED_COMPRESSION] = "1";
+  EXPECT_TRUE(Policy::CompressionRequested(map));
+
+  map[SYS_FORCED_COMPRESSION] = "0";
+  EXPECT_FALSE(Policy::CompressionRequested(map));
+
+  map.clear();
+  map[USER_FORCED_COMPRESSION] = "1";
+  EXPECT_TRUE(Policy::CompressionRequested(map));
+
+  map[SYS_FORCED_COMPRESSION] = "1";
+  map[USER_FORCED_COMPRESSION] = "0";
+  EXPECT_FALSE(Policy::CompressionRequested(map));
+
+  map["sys.forced.nouserlayout"] = "1";
+  EXPECT_TRUE(Policy::CompressionRequested(map));
+
+  map.clear();
+  map[USER_FORCED_COMPRESSION] = "1";
+  map["sys.forced.nouserlayout"] = "1";
+  EXPECT_FALSE(Policy::CompressionRequested(map));
 }
 
 TEST(Policy, GetRWConfigKey)

@@ -409,6 +409,11 @@ void LRU::processDirectory(const std::string& dir,
     // Files with a given match/age will be automatically converted
     ConvertMatch(dir.c_str(), map);
   }
+
+  if (map.count("sys.lru.compress.match")) {
+    // Files with a given match/age get the compression bit of their layout
+    CompressMatch(dir.c_str(), map);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -882,6 +887,150 @@ LRU::ConvertMatch(const char* dir,
     } else {
       eos_static_err("msg=\"LRU failed to schedule conversion job\" "
                      "tag=\"%s\"", conv_tag.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Flag files matching sys.lru.compress.match for at-rest compression
+//------------------------------------------------------------------------------
+void
+LRU::CompressMatch(const char* dir, eos::IContainerMD::XAttrMap& map)
+{
+  eos_static_info("msg=\"applying compression match policy\" dir=\"%s\" "
+                  "match=\"%s\"",
+                  dir, map["sys.lru.compress.match"].c_str());
+  std::map<std::string, std::string> lMatchMap;
+  std::map<std::string, time_t> lMatchAgeMap;
+  std::map<std::string, ssize_t> lMatchSizeMap;
+  const time_t now = time(NULL);
+
+  if (!StringConversion::GetKeyValueMap(map["sys.lru.compress.match"].c_str(),
+                                        lMatchMap, ":")) {
+    eos_static_err("msg=\"LRU compression match attribute is illegal\" "
+                   "val=\"%s\"",
+                   map["sys.lru.compress.match"].c_str());
+    return;
+  }
+
+  for (auto it = lMatchMap.begin(); it != lMatchMap.end(); ++it) {
+    time_t age = 0;
+    ssize_t size = 0;
+    std::ostringstream errMsg;
+
+    if (!extractTimeSizeCriterias(it->second, age, size, errMsg)) {
+      eos_static_err("msg=\"LRU compression match attribute is illegal\" "
+                     "val=\"%s\" msg=\"%s\"",
+                     it->first.c_str(), errMsg.str().c_str());
+      continue;
+    }
+
+    lMatchAgeMap[it->first] = age;
+    lMatchSizeMap[it->first] = size;
+    eos_static_info("rule=\"%s %u\"", it->first.c_str(),
+                    static_cast<unsigned>(age));
+  }
+
+  std::vector<std::string> paths;
+  {
+    std::shared_ptr<eos::IContainerMD> cmd;
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
+
+    try {
+      cmd = gOFS->eosView->getContainer(dir);
+
+      for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
+        std::shared_ptr<eos::IFileMD> fmd = cmd->findFile(fit.key());
+
+        if (fmd == nullptr) {
+          eos_static_err("msg=\"file is null\" fxid=%08llx", fit.key().c_str());
+          continue;
+        }
+
+        XrdOucString fname;
+        eos::IFileMD::ctime_t fctime;
+        uint64_t fsize = 0;
+        eos::IFileMD::layoutId_t flayoutId = 0;
+        {
+          eos::MDLocking::FileReadLock fmdLock(fmd.get());
+          fname = fmd->getName().c_str();
+          fmd->getCTime(fctime);
+          fsize = fmd->getSize();
+          flayoutId = fmd->getLayoutId();
+        }
+
+        if (LayoutId::HasCompression(flayoutId)) {
+          continue;
+        }
+
+        for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); ++mit) {
+          if (!fname.matches(mit->first.c_str())) {
+            continue;
+          }
+
+          if ((fctime.tv_sec + mit->second) >= now) {
+            continue;
+          }
+
+          const ssize_t limit = lMatchSizeMap[mit->first];
+
+          if ((limit < 0) && (static_cast<ssize_t>(fsize) >= -limit)) {
+            continue;
+          }
+
+          if ((limit > 0) && (static_cast<ssize_t>(fsize) <= limit)) {
+            continue;
+          }
+
+          std::string fullpath = dir;
+
+          if (fullpath.empty() || (fullpath.back() != '/')) {
+            fullpath.push_back('/');
+          }
+
+          fullpath += fname.c_str();
+          eos_static_notice("msg=\"flag file for compression\" path=\"%s\" "
+                            "ctime=%u policy-age=%u age=%lld",
+                            fullpath.c_str(),
+                            static_cast<unsigned>(fctime.tv_sec),
+                            static_cast<unsigned>(mit->second),
+                            static_cast<long long>(now - fctime.tv_sec));
+          paths.push_back(std::move(fullpath));
+          break;
+        }
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      cmd.reset();
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                     e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  for (const std::string& path : paths) {
+    const XrdMgmOfs::CompressionMark mark =
+      gOFS->MarkFileCompression(path, true);
+
+    if (!mark.found) {
+      eos_static_err("msg=\"failed to flag file for compression\" path=\"%s\" "
+                     "retc=%d",
+                     path.c_str(), mark.retc);
+      continue;
+    }
+
+    if (!mark.changed) {
+      continue;
+    }
+
+    if (mark.retc) {
+      eos_static_err("msg=\"compression flag stored, kick incomplete\" "
+                     "path=\"%s\" retc=%d failed=%u total=%u",
+                     path.c_str(), mark.retc, mark.failed, mark.total);
+    } else {
+      eos_static_info("msg=\"flagged file for compression\" path=\"%s\" "
+                      "layout=\"%s\"",
+                      path.c_str(),
+                      LayoutId::PrintLayoutString(mark.layout).c_str());
     }
   }
 }

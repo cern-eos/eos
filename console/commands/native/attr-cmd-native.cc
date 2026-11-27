@@ -74,6 +74,8 @@ std::string MakeAttrHelp()
          "adler,crc32,crc32c,md5,sha\n";
   oss << "         sys.forced.nstripes=<n>               : enforces to use <n> "
          "stripes[<n>= 1..16]\n";
+  oss << "         sys.forced.compression=1|0            : 1 sets the "
+         "compression bit on files created here. 0 leaves them plain\n";
   oss << "         sys.forced.blocksize=<w>              : enforces to use a "
          "blocksize of <w> - <w> can be 4k,64k,128k,256k or 1M \n";
   oss << "         sys.forced.placementpolicy=<policy>[:geotag] : enforces to "
@@ -127,6 +129,11 @@ std::string MakeAttrHelp()
          "that files with a given match will be converted to the layouts "
          "defined by sys.conversion.<match> when their access time reaches "
          "<age>.\n";
+  oss << "         sys.lru.compress.match=[match1:<age1>,match2:<age2>,...]\n";
+  oss << "                                                 flag files with a "
+         "given match for at-rest compression when their age reaches <age>. "
+         "The current layout is kept. An optional size limit uses the same "
+         "form as sys.lru.convert.match, for example '*:1mo:>1G'.\n";
   oss << "\n";
   oss << "         sys.stall.unavailable=<sec>           : stall clients for "
          "<sec> seconds if a needed file system is unavailable\n";
@@ -159,9 +166,14 @@ std::string MakeAttrHelp()
          "command on accessing the file\n";
   oss << "\nUser Variables:\n";
   oss << "         user.forced.space, user.forced.layout, user.forced.checksum, "
-         "etc. (s.a. Administrator Variables)\n";
+         "user.forced.compression, etc. (s.a. Administrator Variables)\n";
+  oss << "         user.forced.compression=1|0           : same as "
+         "sys.forced.compression, unless sys.forced.nouserlayout=1. 0 turns "
+         "off a sys.forced.compression inherited by this directory\n";
   oss << "\nExamples:\n";
   oss << "  attr set default=replica /eos/instance/2-replica\n";
+  oss << "  attr set sys.forced.compression=1 /eos/instance/compressed/\n";
+  oss << "  attr set sys.lru.compress.match=\"*:1mo\" /eos/instance/compressed/\n";
   oss << "  attr set sys.forced.nstripes=10 /eos/instance/archive\n";
   oss << "  attr set sys.forced.cachespace=cache /eos/instance/hot/\n";
   oss << "  attr set sys.acl=g:xx::!d!u /eos/instance/no-update-deletion\n";

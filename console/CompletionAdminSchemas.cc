@@ -266,6 +266,8 @@ ConfigureAdminCompletion(CommandCompletionSchema& schema, const std::string& nam
                                            "sys.forced.blockchecksum",
                                            "sys.forced.nstripes",
                                            "sys.forced.blocksize",
+                                           "sys.forced.compression",
+                                           "user.forced.compression",
                                            "sys.forced.placementpolicy",
                                            "sys.forced.nouserlayout",
                                            "sys.forced.atomic",

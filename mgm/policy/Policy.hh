@@ -46,6 +46,13 @@ public:
 
   ~Policy() {};
 
+  //--------------------------------------------------------------------------
+  //! True when a directory attribute asks for the compression bit.
+  //! sys.forced.compression=1 enables it. user.forced.compression overrides
+  //! that when user layout policies are allowed: 1 enables, 0 disables.
+  //--------------------------------------------------------------------------
+  static bool CompressionRequested(const eos::IContainerMD::XAttrMap& map);
+
   static void GetLayoutAndSpace(const char* path,
                                 eos::IContainerMD::XAttrMap& map,
                                 const eos::common::VirtualIdentity& vid,

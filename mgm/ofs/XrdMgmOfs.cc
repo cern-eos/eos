@@ -1870,6 +1870,72 @@ XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
 }
 
 //------------------------------------------------------------------------------
+// Set or clear the compression bit and queue every replica
+//------------------------------------------------------------------------------
+XrdMgmOfs::CompressionMark
+XrdMgmOfs::MarkFileCompression(const std::string& path, bool enable)
+{
+  using eos::common::LayoutId;
+  CompressionMark result;
+  std::shared_ptr<eos::IFileMD> fmd;
+  eos::IFileMD::LocationVector locations;
+  eos::common::FileId::fileid_t fid = 0;
+
+  {
+    eos::MDLocking::FileWriteLockPtr fmd_lock;
+
+    try {
+      fmd = eosView->getFile(path);
+    } catch (eos::MDException& e) {
+      result.retc = e.getErrno() ? e.getErrno() : ENOENT;
+      return result;
+    }
+
+    fmd_lock = eos::MDLocking::writeLock(fmd.get());
+
+    if (fmd->isDeleted()) {
+      result.retc = ENOENT;
+      return result;
+    }
+
+    result.found = true;
+    unsigned long layout = fmd->getLayoutId();
+
+    if (LayoutId::HasCompression(layout) == enable) {
+      result.layout = layout;
+      return result;
+    }
+
+    LayoutId::SetCompression(layout, enable);
+    fmd->setLayoutId(static_cast<eos::IFileMD::layoutId_t>(layout));
+    eosView->updateFileStore(fmd.get());
+    result.changed = true;
+    result.layout = layout;
+    fid = fmd->getId();
+    locations = fmd->getLocations();
+  }
+
+  result.total = static_cast<unsigned>(locations.size());
+
+  if (locations.empty()) {
+    result.retc = ENOENT;
+    return result;
+  }
+
+  for (const auto fsid : locations) {
+    if (QueryCompress(fid, fsid, enable, result.layout)) {
+      ++result.failed;
+    }
+  }
+
+  if (result.failed) {
+    result.retc = EIO;
+  }
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
 // Queue compression or decompression of one replica on its FST
 //------------------------------------------------------------------------------
 int

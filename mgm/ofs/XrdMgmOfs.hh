@@ -1415,6 +1415,28 @@ public:
                   eos::common::FileSystem::fsid_t fsid, bool force = false);
 
   //----------------------------------------------------------------------------
+  //! Outcome of setting or clearing the compression bit on one file.
+  //----------------------------------------------------------------------------
+  struct CompressionMark {
+    int retc = 0;
+    bool found = false;
+    bool changed = false;
+    unsigned long layout = 0;
+    unsigned failed = 0;
+    unsigned total = 0;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Set or clear the compression bit and queue every replica. The namespace
+  //! lock is released before the FSTs are contacted. A missed kick leaves the
+  //! bit set; the scanner retries it.
+  //!
+  //! @param path namespace path
+  //! @param enable true to compress, false to decompress
+  //----------------------------------------------------------------------------
+  CompressionMark MarkFileCompression(const std::string& path, bool enable);
+
+  //----------------------------------------------------------------------------
   //! Tell one FST to compress or decompress a replica now. The scanner still
   //! notices a layout bit that this message missed.
   //!

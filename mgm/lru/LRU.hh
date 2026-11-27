@@ -226,6 +226,12 @@ public:
   void ConvertMatch(const char* dir, eos::IContainerMD::XAttrMap& map);
 
   //----------------------------------------------------------------------------
+  //! Flag files matching sys.lru.compress.match for at-rest compression.
+  //! The current layout is kept. Each replica is queued on its FST.
+  //----------------------------------------------------------------------------
+  void CompressMatch(const char* dir, eos::IContainerMD::XAttrMap& map);
+
+  //----------------------------------------------------------------------------
   //! Signal the LRU stat it shoudl refresh it's options
   //----------------------------------------------------------------------------
   inline void RefreshOptions()

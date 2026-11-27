@@ -48,6 +48,12 @@ bool SanitizeXattr(const std::string& key, const std::string& value)
     return eos::common::LayoutId::IsValidBlocksize(out_val);
   }
 
+  if ((key == SYS_FORCED_COMPRESSION) || (key == USER_FORCED_COMPRESSION)) {
+    std::string raw = value;
+    (void) eos::common::SymKey::DeBase64(value, raw);
+    return (raw == "0") || (raw == "1");
+  }
+
   if ((key == SYS_FORCED_SYNTHETICIO) || (key == "user.forced.syntheticio")) {
     // Console attr set sends values as base64:<payload>; decode like blocksize.
     std::string raw = value;

@@ -1784,6 +1784,38 @@ file sizes.
    eos attr set sys.lru.convert.match="*:1w:>1G"
 
 
+Automatic compression of files that reach a defined age
+```````````````````````````````````````````````````````
+This policy flags matching files for at-rest ZSTD compression. It sets the
+compression bit on the layout the file already has and queues each replica.
+It does not rewrite the file into a new layout. The LRU engine must be
+enabled (``space.lru=on``). A file that already carries the bit is skipped.
+The FST scan retries a replica whose kick did not land.
+
+.. code-block:: bash
+
+   # flag every file older than a month
+   eos attr set sys.lru.compress.match="*:1mo" /eos/dev/instance/compress/
+
+   # files larger than 1G, and *.txt files older than a week
+   eos attr set sys.lru.compress.match="*:1mo:>1G,*.txt:1w" /eos/dev/instance/compress/
+
+
+Files created in a directory are stored compressed
+``````````````````````````````````````````````````
+``sys.forced.compression=1`` sets the compression bit on the layout chosen
+for a new file, and for a file replaced with ``O_TRUNC``. The layout type,
+stripe count, checksum and block size still come from ``default=replica`` or
+the other ``sys.forced.*`` attributes. ``user.forced.compression=1`` does the
+same unless ``sys.forced.nouserlayout=1`` is set. ``user.forced.compression=0``
+turns the setting off for that directory.
+
+.. code-block:: bash
+
+   eos attr set default=replica /eos/dev/instance/compress/
+   eos attr set sys.forced.compression=1 /eos/dev/instance/compress/
+
+
 Automatic time based layout conversion if a file has not been used for specified time
 ``````````````````````````````````````````````````````````````````````````````````````
 This policy allows to convert a file from the current layout to a different layout
