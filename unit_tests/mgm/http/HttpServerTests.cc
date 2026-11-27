@@ -59,15 +59,13 @@ TEST(HttpServer, ParsePathAndToken)
   ASSERT_STREQ("deadbeef", env_opaque->Get("authz"));
   // Authorization appened as part of the http headers
   norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file2.dat"},
-    {"authorization", "dabadaba"}
-  };
+               {"authorization", "Bearer dabadaba"}};
   ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
   EXPECT_EQ("/eos/dev/file2.dat", path);
-  ASSERT_STREQ("dabadaba", env_opaque->Get("authz"));
+  ASSERT_STREQ("Bearer%20dabadaba", env_opaque->Get("authz"));
   // Fail if both http header and opaque info with authorization present
   norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file3.dat?authz=abbaabba"},
-    {"authorization", "dabadaba"}
-  };
+               {"authorization", "Bearer dabadaba"}};
   ASSERT_FALSE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
   // Authorization appeneded as opaque information plus extra opaque data
   norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file4.dat?authz=deadbeef&test=dummy"}};
@@ -84,6 +82,31 @@ TEST(HttpServer, ParsePathAndToken)
   norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file4.dat?eos.app=test&authz=deadbeef&test=dummy&eos.app=wizz"}};
   ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
   ASSERT_STREQ("http/wizz", env_opaque->Get("eos.app"));
+}
+
+//------------------------------------------------------------------------------
+// Only an Authorization header with the Bearer scheme carries a token, written
+// "Bearer <token>" as the XRootD authz plugins expect it. Any other header,
+// e.g. Basic or a value without a scheme, is not passed on. A token in the URL
+// is still refused with any Authorization header.
+//------------------------------------------------------------------------------
+TEST(HttpServer, AuthorizationHeaderWithoutTheBearerSchemeIsNotAToken)
+{
+  using eos::mgm::HttpServer;
+  std::string path;
+  std::unique_ptr<XrdOucEnv> env;
+
+  for (const std::string header :
+       {"Basic dXNlcjpwYXNzd29yZA==", "dabadaba", "bearer dabadaba", "Bearerdabadaba"}) {
+    SCOPED_TRACE(header);
+    std::map<std::string, std::string> headers{
+        {"xrd-http-fullresource", "/eos/dev/file.dat"}, {"authorization", header}};
+    ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+    EXPECT_EQ("/eos/dev/file.dat", path);
+    EXPECT_EQ(nullptr, env->Get("authz"));
+    headers["xrd-http-fullresource"] = "/eos/dev/file.dat?authz=abbaabba";
+    EXPECT_FALSE(HttpServer::BuildPathAndEnvOpaque(headers, path, env));
+  }
 }
 
 //------------------------------------------------------------------------------

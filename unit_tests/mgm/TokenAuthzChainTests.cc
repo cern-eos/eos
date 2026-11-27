@@ -120,6 +120,19 @@ protected:
     ASSERT_NE(nullptr, pw);
     mVomsUid = pw->pw_uid;
     mVomsGid = pw->pw_gid;
+    pw = getpwnam("mail");
+    ASSERT_NE(nullptr, pw);
+    mKeyUid = pw->pw_uid;
+    mKeyGid = pw->pw_gid;
+  }
+
+  //! Map the key of a gateway to mail, like
+  //! eos vid set map -<prot> key:<key> vuid:<mail> vgid:<mail>
+  void
+  SetKey(const std::string& prot)
+  {
+    Mapping::gVirtualUidMap[prot + ":\"key:" + mKey + "\":uid"] = mKeyUid;
+    Mapping::gVirtualGidMap[prot + ":\"key:" + mKey + "\":gid"] = mKeyGid;
   }
 
   //! Give the client the VOMS group /cms with the role production, and map it
@@ -217,6 +230,15 @@ protected:
     EXPECT_EQ(mVomsGid, vid.gid);
   }
 
+  //! The user of the gateway key, mail
+  void
+  ExpectKey(const VirtualIdentity& vid)
+  {
+    EXPECT_EQ(mKeyUid, vid.uid);
+    EXPECT_EQ(mKeyGid, vid.gid);
+    EXPECT_TRUE(vid.gateway);
+  }
+
   //! The "authz" CGI of an HTTPS request with this token in its Authorization
   //! header, as HttpServer passes it to IdMap
   static std::string
@@ -236,6 +258,9 @@ protected:
   gid_t mClientGid{0};
   uid_t mVomsUid{0};
   gid_t mVomsGid{0};
+  uid_t mKeyUid{0};
+  gid_t mKeyGid{0};
+  std::string mKey{"gateway-key"};
   std::string mGrps{"/cms"};
   std::string mRole{"production"};
   std::string mName{"bin"};
@@ -244,6 +269,8 @@ protected:
   const std::string mOut{"/eos/out/f"};
   const std::string mValid{"authz=Bearer%20valid-token"};
   const std::string mInvalid{"authz=Bearer%20invalid-token"};
+  //! The same token in the URL: HttpServer passes the decoded query to IdMap
+  const std::string mUrlValid{"authz=valid-token"};
 };
 
 TEST_F(TokenAuthzChainF, HttpsInvalidTokenAfterAValidTokenIsNobody)
@@ -406,4 +433,107 @@ TEST_F(TokenAuthzChainF, HttpsTokenThatTheAuthzPluginsRefuseIsNobody)
   client.tident = mTident.c_str();
   ExpectNobody(Map(client, mValid, mIn, &refusing));
   EXPECT_EQ(1, refusing.Calls());
+}
+
+//------------------------------------------------------------------------------
+// Over HTTPS, a token can also come in the URL, as "authz=<token>" without the
+// "Bearer%20" prefix. It maps like a token in the Authorization header: the
+// token's user or nobody, never the name or the VOMS groups of the client's
+// certificate. An EOS token keeps the client's own identity there too.
+//------------------------------------------------------------------------------
+TEST_F(TokenAuthzChainF, HttpsTokenInTheUrlMapsToItsUser)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectToken(Map(client, mUrlValid, mIn));
+}
+
+TEST_F(TokenAuthzChainF, HttpsTokenInTheUrlOfAClientWithoutANameMapsToItsUser)
+{
+  XrdSecEntity client("https");
+  client.tident = mTident.c_str();
+  ExpectToken(Map(client, mUrlValid, mIn));
+}
+
+TEST_F(TokenAuthzChainF, HttpsTokenInTheUrlOutsideItsScopeIsNobody)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectNobody(Map(client, mUrlValid, mOut));
+}
+
+TEST_F(TokenAuthzChainF, HttpsTokenInTheUrlIsNotReplacedByTheVomsUser)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  SetVoms(client);
+  ExpectToken(Map(client, mUrlValid, mIn));
+}
+
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerInTheUrlMapsTheClientName)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectClient(Map(client, "authz=" + EosToken(""), mIn));
+}
+
+TEST_F(TokenAuthzChainF, HttpsEosTokenInTheUrlIsNotGivenToTheAuthzPlugins)
+{
+  RefusingAuthz refusing;
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectClient(Map(client, "authz=" + EosToken(""), mIn, &refusing));
+  EXPECT_EQ(0, refusing.Calls());
+}
+
+// An EOS token as the path of the request: HttpServer gives IdMap the token
+// and no path
+TEST_F(TokenAuthzChainF, HttpsEosTokenPathIsNotGivenToTheAuthzPlugins)
+{
+  RefusingAuthz refusing;
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  const VirtualIdentity vid = Map(client, "authz=" + EosToken(""), "", &refusing);
+  ExpectClient(vid);
+  ASSERT_NE(nullptr, vid.token);
+  EXPECT_TRUE(vid.token->Valid());
+  EXPECT_EQ(0, refusing.Calls());
+}
+
+//------------------------------------------------------------------------------
+// Gateways keep their key mappings. HttpServer maps the key of an HTTPS
+// gateway, from its x-gateway-authorization header, without the opaque data
+// of the request. Over sss, a token in the request does not replace the
+// mapping of the key.
+//------------------------------------------------------------------------------
+TEST_F(TokenAuthzChainF, HttpsGatewayKeyMapsToTheUserOfTheKey)
+{
+  SetKey("https");
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  client.endorsements = mKey.data();
+  VirtualIdentity vid;
+  Mapping::IdMap(&client, "", "https.0:0@client.example.org", vid);
+  ExpectKey(vid);
+}
+
+TEST_F(TokenAuthzChainF, SssGatewayKeyWithATokenMapsToTheUserOfTheKey)
+{
+  // eos vid add gateway client.example.org sss
+  Mapping::gVirtualUidMap["tident:\"sss@client.example.org\":uid"] = 0;
+  Mapping::gVirtualGidMap["tident:\"sss@client.example.org\":gid"] = 0;
+  SetKey("sss");
+  XrdSecEntity client("sss");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  client.endorsements = mKey.data();
+  ExpectKey(Map(client, mUrlValid, mIn));
+  ExpectKey(Map(client, mValid, mIn));
 }

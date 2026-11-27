@@ -771,6 +771,42 @@ fi
 api POST archiveinfo/ "$TOK_INVALID" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
 expect "archiveinfo, client certificate and an invalid token" 403
 
+# A token in the URL, as "authz=<token>" without "Bearer%20", maps like a token
+# in the Authorization header
+: > "$work/body"
+code=$(curl -sS -o /dev/null -w '%{http_code}' "$mgm$in?authz=$TOK_READ" \
+         2> "$work/curl.err") || code=000
+expect "GET of an in-scope file, read token in the URL" 307
+
+: > "$work/body"
+code=$(curl -sS -o /dev/null -w '%{http_code}' --cert "$cert" --key "$certkey" \
+         "$mgm$in?authz=$TOK_READ" 2> "$work/curl.err") || code=000
+expect "GET of an in-scope file, client certificate and a read token in the URL" 307
+
+# The tape user may read the out file, but this token is for the in directory
+: > "$work/body"
+code=$(curl -sS -o /dev/null -w '%{http_code}' --cert "$cert" --key "$certkey" \
+         "$mgm$out?authz=$TOK_READ" 2> "$work/curl.err") || code=000
+expect "GET of the out file, client certificate and a read token for the in directory in the URL" 403
+
+# Only an Authorization header with the Bearer scheme carries a token. Any other
+# one, e.g. Basic, leaves the identity of the client certificate.
+name="whoami, client certificate and a Basic Authorization header"
+basic_uid=$(id -u "$user")
+: > "$work/body"
+code=$(curl -sS -o "$work/body" -w '%{http_code}' --cert "$cert" --key "$certkey" \
+         -H "Authorization: Basic $(printf 'user:password' | base64)" \
+         "$mgm/proc/user/?mgm.cmd=whoami&mgm.option=m&mgm.format=fuse" \
+         2> "$work/curl.err") || code=000
+
+if [[ $code != 200 ]]; then
+  fail "$name: HTTP $code, expected 200: $(tail -n 1 "$work/curl.err" 2> /dev/null)"
+elif ! grep -qE "(^|[[:space:]])uid=$basic_uid([[:space:]]|$)" "$work/body"; then
+  fail "$name: not mapped to the certificate's user $user (uid $basic_uid)"
+else
+  pass "$name"
+fi
+
 name="whoami, client certificate and an EOS token without an owner in the header"
 space=$(eos -b "$rooturl" space status default -m)
 

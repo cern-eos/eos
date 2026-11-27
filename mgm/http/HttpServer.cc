@@ -589,7 +589,11 @@ HttpServer::BuildPathAndEnvOpaque
     return false;
   }
 
-  if (!http_authz.empty()) {
+  // Only the Bearer scheme carries a token, written "Bearer <token>" as the
+  // XRootD authz plugins expect it. Any other header, e.g. Basic, is not one.
+  static const std::string bearer_tag = "Bearer ";
+
+  if (http_authz.compare(0, bearer_tag.size(), bearer_tag) == 0) {
     std::string enc_authz = StringConversion::curl_default_escaped(http_authz);
     opaque += "&authz=";
     opaque += enc_authz;

@@ -342,7 +342,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     HandleVOMS(client, vid);
   }
 
-  // HTTPS mapping. With a bearer token in the Authorization header:
+  // HTTPS mapping. With a token, in the Authorization header ("authz" is
+  // "Bearer%20<token>") or in the URL ("authz" is "<token>"):
   // - a WLCG token or a macaroon alone gives the identity: the user that the
   //   authz plugins map it to, or nobody; never the name or the VOMS groups of
   //   the client's certificate. A token that they refuse maps to nobody;
@@ -355,9 +356,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     eos_static_debug("%s", "msg=\"https mapping\"");
     static const std::string bearer_tag = "Bearer%20";
     // A WLCG token or a macaroon, for the authz plugins
-    const bool plugin_token = authz_obj &&
-                              (authz.compare(0, bearer_tag.size(), bearer_tag) == 0) &&
-                              !EosTok::IsEosCredential(authz);
+    const bool plugin_token =
+        authz_obj && !authz.empty() && !EosTok::IsEosCredential(authz);
 
     if (plugin_token) {
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
@@ -368,7 +368,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // XrdMgmOfsFile::open would then pick the FST XRootD port instead
         // of the HTTP one when building the redirection for an HTTP client.
         vid.toNobody();
-        std::string nobearer = authz.substr(bearer_tag.size());
+        std::string nobearer = authz;
+
+        if (nobearer.compare(0, bearer_tag.size(), bearer_tag) == 0) {
+          nobearer.erase(0, bearer_tag.size());
+        }
+
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "jwt={%s}[%s]", path.c_str(), env,
                        PrintJWT(nobearer).c_str(), nobearer.c_str());
