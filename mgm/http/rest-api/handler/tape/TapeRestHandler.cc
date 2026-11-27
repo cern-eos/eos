@@ -22,15 +22,15 @@
  ************************************************************************/
 
 #include "TapeRestHandler.hh"
-#include "mgm/imaster/IMaster.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/http/rest-api/action/tape/TapeActions.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/Constants.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/json/tape/TapeJsonifiers.hh"
 #include "mgm/http/rest-api/json/tape/TapeModelBuilders.hh"
 #include "mgm/http/rest-api/response/ErrorHandling.hh"
+#include "mgm/imaster/IMaster.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -227,6 +227,13 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
     return mTapeRestApiResponseFactory.InternalError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
   }
 
+  // A token is taken only from the Authorization header, never from the URL
+  if (hasTokenInTheUrl(*request)) {
+    return mTapeRestApiResponseFactory
+        .BadRequest("The tape REST API takes a token only in the Authorization header")
+        .getHttpResponse();
+  }
+
   // A WLCG token is checked file by file later (deferredAuth). Any other client
   // must have mapped to a user: nobody means no usable credentials.
   if (vid == nullptr || (vid->deferredAuth.empty() && vid->IsNobody())) {
@@ -239,6 +246,20 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
   return HandleWithErrors(mTapeRestApiResponseFactory, [this, request, vid]() {
     return mRouter.dispatch(request, vid);
   });
+}
+
+bool
+TapeRestHandler::hasTokenInTheUrl(common::HttpRequest& request)
+{
+  const auto& headers = request.GetHeaders();
+  const auto header = headers.find("authorization");
+
+  if (header != headers.end() && !header->second.empty()) {
+    return false;
+  }
+
+  XrdOucEnv env(request.GetQuery().c_str());
+  return env.Get("authz") != nullptr;
 }
 
 std::unique_ptr<URLBuilder> TapeRestHandler::getAccessURLBuilder() const

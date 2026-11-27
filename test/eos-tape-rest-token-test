@@ -808,8 +808,68 @@ else
     else
       pass "$name"
     fi
+
+    # The tape REST API takes a token only in the Authorization header (see "A
+    # token in the URL" below), an EOS token too
+    api POST "archiveinfo/?authz=$(jq -rn --arg t "$eostok" '$t | @uri')" "" \
+      "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
+    expect "archiveinfo, client certificate and an EOS token without an owner in the URL" 400 \
+      '.status == 400 and .title == "Bad request"'
   fi
 fi
+
+# --- A token in the URL ------------------------------------------------------
+# The tape REST API takes a token only in the Authorization header. A request
+# with a token in its URL gets 400 and changes nothing, whatever identity the
+# token or a client certificate gives. The well-known document stays reachable
+# whatever the credentials.
+token_in_url='.status == 400 and .title == "Bad request"'
+
+if [[ -z $instance ]]; then
+  fail "stage, in-scope token in the URL: no EOS_INSTANCE in the output of eos version"
+elif ! before=$(stage_requests); then
+  fail "stage, in-scope token in the URL: cannot list $stagedir"
+else
+  api POST "stage/?authz=$TOK_STAGE" "" "{\"files\":[{\"path\":\"$in\"}]}"
+
+  if [[ $code == 201 ]]; then
+    requests+=("$(jq -r .requestId "$work/body")")
+  fi
+
+  expect "stage, in-scope token in the URL" 400 "$token_in_url"
+
+  if ! after=$(stage_requests); then
+    fail "stage, in-scope token in the URL: cannot list $stagedir after the request"
+  elif [[ $after != "$before" ]]; then
+    fail "stage, in-scope token in the URL: $stagedir went from $before to $after stage requests"
+  else
+    pass "stage, in-scope token in the URL: no new stage request in $stagedir"
+  fi
+fi
+
+api POST "archiveinfo/?authz=Bearer%20$TOK_STAGE" "" "{\"paths\":[\"$in\"]}"
+expect "archiveinfo, in-scope token in the URL with Bearer%20" 400 "$token_in_url"
+
+api POST "archiveinfo/?authz=$TOK_STAGE" "" "{\"paths\":[\"$in\"]}" \
+  --cert "$cert" --key "$certkey"
+expect "archiveinfo, client certificate and an in-scope token in the URL" 400 "$token_in_url"
+
+well_known='.endpoints | any(.version == "v1" and (.uri | endswith("/api/v1")))'
+
+: > "$work/body"
+code=$(curl -sS -o "$work/body" -w '%{http_code}' \
+         "$mgm/.well-known/wlcg-tape-rest-api?authz=$TOK_STAGE" 2> "$work/curl.err") || code=000
+expect "well-known, token in the URL" 200 "$well_known"
+
+: > "$work/body"
+code=$(curl -sS -o "$work/body" -w '%{http_code}' -H "Authorization: Bearer $TOK_STAGE" \
+         "$mgm/.well-known/wlcg-tape-rest-api" 2> "$work/curl.err") || code=000
+expect "well-known, token in the Authorization header" 200 "$well_known"
+
+: > "$work/body"
+code=$(curl -sS -o "$work/body" -w '%{http_code}' --cert "$cert" --key "$certkey" \
+         "$mgm/.well-known/wlcg-tape-rest-api" 2> "$work/curl.err") || code=000
+expect "well-known, client certificate" 200 "$well_known"
 
 if (( failures )); then
   issuer_log

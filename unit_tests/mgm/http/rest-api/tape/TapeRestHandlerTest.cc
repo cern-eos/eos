@@ -215,6 +215,89 @@ TEST_F(TapeRestHandlerTest, handleRequestDispatchesNobodyWithADeferredToken)
   ASSERT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
 }
 
+namespace {
+const std::string kToken = "header.payload.signature";
+
+//! The query that HttpServer passes on for a request with a token in its URL
+const std::vector<std::string> kQueriesWithATokenInTheUrl = {
+    "&authz=" + kToken + "&eos.app=http", "&authz=Bearer%20" + kToken + "&eos.app=http"};
+
+void
+expectTokenInTheUrlRefused(eos::common::HttpResponse* response)
+{
+  ASSERT_NE(nullptr, response);
+  EXPECT_EQ(eos::common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response);
+  EXPECT_EQ("Bad request", root["title"].asString());
+  EXPECT_NE(std::string::npos, root["detail"].asString().find("Authorization header"));
+}
+} // namespace
+
+// The tape REST API takes a token only in the Authorization header. A request
+// with a token in its URL gets 400, whatever identity the token gave.
+TEST_F(TapeRestHandlerTest, handleRequestAnswers400ToATokenInTheUrl)
+{
+  expectNoBusinessCall(*mMockBusiness, mVid);
+  const eos::common::VirtualIdentity nobody;
+  const std::vector<std::pair<std::string, const eos::common::VirtualIdentity*>> vids = {
+      {"nobody", &nobody}, {"a user", &mVid}};
+
+  for (const auto& [label, vid] : vids) {
+    for (const auto& query : kQueriesWithATokenInTheUrl) {
+      for (const auto& route : kTapeRoutes) {
+        SCOPED_TRACE(route.method + " " + route.url + " " + query + ", mapped to " +
+                     label);
+        auto request = createHttpRequest(route.method, route.url, route.body, query);
+        std::unique_ptr<eos::common::HttpResponse> response(
+            mHandler->handleRequest(request.get(), vid));
+        expectTokenInTheUrlRefused(response.get());
+      }
+    }
+  }
+}
+
+TEST_F(TapeRestHandlerTest, handleRequestAnswers400ToATokenInTheUrlWithAnEmptyHeader)
+{
+  expectNoBusinessCall(*mMockBusiness, mVid);
+
+  for (const auto& query : kQueriesWithATokenInTheUrl) {
+    SCOPED_TRACE(query);
+    auto request = createHttpRequest("GET", "/api/v1/stage/req-id", "", query,
+                                     {{"authorization", ""}});
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), &mVid));
+    expectTokenInTheUrlRefused(response.get());
+  }
+}
+
+// HttpServer passes the token of the Authorization header on as "authz" in the
+// query: a WLCG token checked file by file later, or a token that mapped
+TEST_F(TapeRestHandlerTest, handleRequestDispatchesATokenInTheAuthorizationHeader)
+{
+  auto responseModel = std::make_shared<GetStageBulkRequestResponseModel>();
+  responseModel->setId("req-id");
+  responseModel->setCreatedAt(1646305430);
+  responseModel->setStartedAt(1646305456);
+  EXPECT_CALL(*mMockBusiness, getStageBulkRequest("req-id", _))
+      .Times(2)
+      .WillRepeatedly(Return(responseModel));
+  eos::common::VirtualIdentity deferred;
+  deferred.deferredAuth = "Bearer " + kToken;
+  const std::vector<std::pair<std::string, const eos::common::VirtualIdentity*>> vids = {
+      {"a deferred token", &deferred}, {"a user", &mVid}};
+
+  for (const auto& [label, vid] : vids) {
+    SCOPED_TRACE(label);
+    auto request = createHttpRequest("GET", "/api/v1/stage/req-id", "",
+                                     "&authz=Bearer%20" + kToken + "&eos.app=http",
+                                     {{"authorization", "Bearer " + kToken}});
+    std::unique_ptr<eos::common::HttpResponse> response(
+        mHandler->handleRequest(request.get(), vid));
+    ASSERT_NE(nullptr, response);
+    EXPECT_EQ(eos::common::HttpResponse::OK, response->GetResponseCode());
+  }
+}
+
 TEST_F(TapeRestHandlerTest, handleRequestDispatchesGetStage200)
 {
   auto responseModel = std::make_shared<GetStageBulkRequestResponseModel>();

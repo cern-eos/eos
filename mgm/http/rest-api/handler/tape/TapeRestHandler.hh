@@ -96,6 +96,14 @@ private:
   std::string apiVersionToStr(ApiVersion apiVersion);
 
   /**
+   * @return true if the request has a token in its URL. On the XrdHttp port,
+   * HttpServer refuses a request with both an Authorization header and a token
+   * in its URL: with a non-empty header, "authz" in the query is the token of
+   * the header.
+   */
+  static bool hasTokenInTheUrl(common::HttpRequest& request);
+
+  /**
    * Initialize a version of the tape REST API
    * @param apiVersion the version of the Tape REST API to initialize
    */

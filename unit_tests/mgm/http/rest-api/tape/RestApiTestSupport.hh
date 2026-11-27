@@ -35,14 +35,15 @@
 
 namespace eos::mgm::rest::test {
 
-inline std::unique_ptr<eos::common::HttpRequest> createHttpRequest(
-  const std::string& method, const std::string& url, const std::string& body = "")
+inline std::unique_ptr<eos::common::HttpRequest>
+createHttpRequest(const std::string& method, const std::string& url,
+                  const std::string& body = "", const std::string& query = "",
+                  const eos::common::HttpRequest::HeaderMap& headers = {})
 {
-  eos::common::HttpRequest::HeaderMap headers;
   size_t dataSize = body.size();
   eos::common::HttpRequest::HeaderMap cookies;
-  return std::make_unique<eos::common::HttpRequest>(headers, method, url, "", body,
-      &dataSize, cookies);
+  return std::make_unique<eos::common::HttpRequest>(headers, method, url, query, body,
+                                                    &dataSize, cookies);
 }
 
 //! Identity of a client whose credentials mapped to a user, not to nobody
