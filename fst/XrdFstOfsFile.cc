@@ -1022,6 +1022,64 @@ XrdFstOfsFile::GetBandwidthSleepMs(int bandwidth_mb, unsigned long long total_by
 }
 
 //------------------------------------------------------------------------------
+// True when this server must serve logical synthetic bytes for a RAIN file
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::SyntheticRainEntry() const
+{
+  return mSyntheticIOSpec && mLayout && mLayout->IsEntryServer() &&
+         eos::common::LayoutId::IsRain(mLid);
+}
+
+//------------------------------------------------------------------------------
+// Fill a logical RAIN read from the syntheticio spec
+//------------------------------------------------------------------------------
+int64_t
+XrdFstOfsFile::SyntheticRainRead(XrdSfsFileOffset offset, char* buffer,
+                                 XrdSfsXferSize length)
+{
+  if (length <= 0) {
+    return 0;
+  }
+
+  const int64_t logical = mLayout->LogicalSize();
+
+  if (logical < 0) {
+    return gOFS.Emsg("read", error, EIO, "read file - unknown syntheticio size",
+                     FName());
+  }
+
+  if (offset >= logical) {
+    return 0;
+  }
+
+  if (eos::common::syntheticio_sequential_only(*mSyntheticIOSpec) &&
+      (static_cast<std::uint64_t>(offset) != mSyntheticIOSeqOffset)) {
+    eos_err("error=non-sequential syntheticio read offset=%lli expected=%llu",
+            static_cast<long long>(offset), mSyntheticIOSeqOffset);
+    return gOFS.Emsg("read", error, ESPIPE,
+                     "read file - non-sequential syntheticio", FName());
+  }
+
+  int64_t to_read = length;
+
+  if (offset + to_read > logical) {
+    to_read = logical - offset;
+  }
+
+  eos::common::syntheticio_fill(*mSyntheticIOSpec,
+                           static_cast<std::uint64_t>(offset), buffer,
+                           static_cast<std::size_t>(to_read));
+
+  if (eos::common::syntheticio_sequential_only(*mSyntheticIOSpec)) {
+    mSyntheticIOSeqOffset = static_cast<std::uint64_t>(offset) +
+                            static_cast<std::uint64_t>(to_read);
+  }
+
+  return to_read;
+}
+
+//------------------------------------------------------------------------------
 // Add data written to a RAIN stripe file to the stripe checksum
 //------------------------------------------------------------------------------
 void
@@ -1103,9 +1161,13 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   gOFS.mIoDelayConfig.WaitForRead(vid, static_cast<uint64_t>(buffer_size));
 
+  // Stripe payloads are not stored. Rebuild the logical file here, where the
+  // offset is still the client offset, instead of reading the stripes.
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
   // would turn this into a huge positive value corrupting all the checks below
-  const int64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  const int64_t rc = SyntheticRainEntry()
+                     ? SyntheticRainRead(fileOffset, buffer, buffer_size)
+                     : mLayout->Read(fileOffset, buffer, buffer_size);
 
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
@@ -1241,7 +1303,28 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   RegulateBandwidth();
   gOFS.mIoDelayConfig.WaitForRead(vid, total_read);
-  const int64_t rv = mLayout->ReadV(chunkList, total_read);
+  int64_t rv = 0;
+
+  if (SyntheticRainEntry()) {
+    for (int i = 0; i < readCount; ++i) {
+      const int64_t n = SyntheticRainRead(readV[i].offset, readV[i].data,
+                                           readV[i].size);
+
+      if (n < 0) {
+        rv = n;
+        break;
+      }
+
+      rv += n;
+
+      // Leave the request sizes intact. A short count means EOF.
+      if (n < readV[i].size) {
+        break;
+      }
+    }
+  } else {
+    rv = mLayout->ReadV(chunkList, total_read);
+  }
 
   if (rv > 0) {
     totalBytes += rv;
@@ -1337,7 +1420,14 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   // if required, obfuscate a buffer server side
   const char* write_buf = buffer;
-  if (mSyntheticIOSpec) {
+
+  // The entry server rewrites the client buffer at the logical offset. A
+  // non-entry stripe receives that layout's own bytes, including the RAIN
+  // header, and must store those bytes unchanged.
+  const bool rain_stripe = mLayout && !mLayout->IsEntryServer() &&
+                           eos::common::LayoutId::IsRain(mLid);
+
+  if (mSyntheticIOSpec && !rain_stripe) {
     mSyntheticIOWriteBuf.resize(buffer_size);
     eos::common::syntheticio_fill(*mSyntheticIOSpec,
                              static_cast<std::uint64_t>(fileOffset),

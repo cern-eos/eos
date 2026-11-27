@@ -188,6 +188,8 @@ private:
   std::uint64_t mLogicalSize = 0; ///< uncompressed size of a converted file
   std::optional<eos::common::SyntheticIOSpec> mSyntheticIOSpec; ///< synthetic data spec
   std::uint64_t mSyntheticIOSeqOffset = 0; ///< next expected offset for streaming reads
+  //! RAIN stripe header kept as real bytes. Payload past this offset stays synthetic.
+  off_t mSyntheticIOHeader = 0;
 
   //--------------------------------------------------------------------------
   //! Read and write a file that is already stored as compressed slots.

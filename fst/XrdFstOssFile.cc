@@ -144,6 +144,13 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     auto spec = eos::common::parse_syntheticio(val);
     if (spec) {
       mSyntheticIOSpec = *spec;
+
+      // The RAIN header lives at the start of each stripe and must survive.
+      // Payload past it is still not stored.
+      if (eos::common::LayoutId::IsRain(lid)) {
+        mSyntheticIOHeader =
+          static_cast<off_t>(eos::common::LayoutId::OssXsBlockSize);
+      }
     } else {
       eos_err("error=invalid eos.syntheticio value: %s", val);
       return -EINVAL;
@@ -290,11 +297,35 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 
     std::size_t to_read = static_cast<std::size_t>(
         std::min<off_t>(static_cast<off_t>(length), statinfo.st_size - offset));
-    eos::common::syntheticio_fill(*mSyntheticIOSpec, static_cast<std::uint64_t>(offset),
-                             static_cast<char*>(buffer), to_read);
+    char* out = static_cast<char*>(buffer);
+    std::size_t from_disk = 0;
+
+    // Header reads must return the bytes written at close, not a synthetic fill.
+    if ((mSyntheticIOHeader > 0) && (offset < mSyntheticIOHeader)) {
+      const off_t hdr_left = mSyntheticIOHeader - offset;
+      from_disk = static_cast<std::size_t>(
+                    std::min<off_t>(hdr_left, static_cast<off_t>(to_read)));
+      ssize_t nread = 0;
+
+      do {
+        nread = pread(fd, out, from_disk, offset);
+      } while ((nread < 0) && (errno == EINTR));
+
+      if (nread != static_cast<ssize_t>(from_disk)) {
+        return (nread < 0) ? static_cast<ssize_t>(-errno) : static_cast<ssize_t>(-EIO);
+      }
+    }
+
+    if (from_disk < to_read) {
+      eos::common::syntheticio_fill(*mSyntheticIOSpec,
+                               static_cast<std::uint64_t>(offset) + from_disk,
+                               out + from_disk, to_read - from_disk);
+    }
+
     if (eos::common::syntheticio_sequential_only(*mSyntheticIOSpec)) {
       mSyntheticIOSeqOffset = static_cast<std::uint64_t>(offset) + to_read;
     }
+
     return static_cast<ssize_t>(to_read);
   }
 
@@ -598,6 +629,25 @@ XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
     }
 
     off_t end = offset + static_cast<off_t>(length);
+    std::size_t persisted = 0;
+
+    // Keep the RAIN header. The stripe payload is extended as a hole.
+    if ((mSyntheticIOHeader > 0) && (offset < mSyntheticIOHeader)) {
+      const off_t hdr_left = mSyntheticIOHeader - offset;
+      persisted = static_cast<std::size_t>(
+                    std::min<off_t>(hdr_left, static_cast<off_t>(length)));
+      ssize_t nwrite = 0;
+
+      do {
+        nwrite = pwrite(fd, buffer, persisted, offset);
+      } while ((nwrite < 0) && (errno == EINTR));
+
+      if (nwrite != static_cast<ssize_t>(persisted)) {
+        return (nwrite < 0) ? static_cast<ssize_t>(-errno)
+               : static_cast<ssize_t>(-EIO);
+      }
+    }
+
     struct stat statinfo;
     off_t current_size = 0;
     if (!fstat(fd, &statinfo)) {
@@ -613,9 +663,18 @@ XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
     if (mBlockXs) {
       XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
       std::vector<char> syntheticio_buf(length);
-      eos::common::syntheticio_fill(*mSyntheticIOSpec,
-                               static_cast<std::uint64_t>(offset),
-                               syntheticio_buf.data(), length);
+
+      if (persisted > 0) {
+        std::memcpy(syntheticio_buf.data(), buffer, persisted);
+      }
+
+      if (persisted < length) {
+        eos::common::syntheticio_fill(*mSyntheticIOSpec,
+                                 static_cast<std::uint64_t>(offset) + persisted,
+                                 syntheticio_buf.data() + persisted,
+                                 length - persisted);
+      }
+
       mBlockXs->AddBlockSum(offset, syntheticio_buf.data(), length);
     }
 

@@ -83,7 +83,9 @@ protected:
     }
   }
 
-  int openSyntheticIO(const char* syntheticio_value, int flags) {
+  int openSyntheticIO(const char* syntheticio_value, int flags,
+                      unsigned long lid =
+                      eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain)) {
     if (mOss) {
       mOss->Close();
       delete mOss;
@@ -92,8 +94,6 @@ protected:
     mOss = new XrdFstOssFile("syntheticio-test");
     // An omitted layout id is plain with block-checksum nibble 0. kNone is 1,
     // so Open tries to build a blockxs object and returns -EIO.
-    const unsigned long lid =
-        eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain);
     std::string opaque = "&eos.syntheticio=";
     opaque += syntheticio_value;
     opaque += "&mgm.lid=";
@@ -173,6 +173,48 @@ TEST_F(SyntheticIOOssTest, XoshiroRequiresSequentialReads) {
   EXPECT_EQ(mOss->Read(buf, 0, 64), 64);
   EXPECT_EQ(mOss->Read(buf, 64, 64), 64);
   EXPECT_EQ(mOss->Read(buf, 200, 64), -ESPIPE);
+}
+
+TEST_F(SyntheticIOOssTest, RainHeaderIsPersistedAndPayloadIsNot) {
+  const unsigned long lid = eos::common::LayoutId::GetId(
+                               eos::common::LayoutId::kRaid6,
+                               eos::common::LayoutId::kNone, 12);
+  ASSERT_EQ(openSyntheticIO("pattern:abc", O_RDWR | O_CREAT, lid), XrdOssOK);
+
+  const off_t header = static_cast<off_t>(eos::common::LayoutId::OssXsBlockSize);
+  std::vector<char> hdr(static_cast<std::size_t>(header), 'H');
+  std::memcpy(hdr.data(), "_HEADER__RAIDIO_", 16);
+  ASSERT_EQ(mOss->Write(hdr.data(), 0, hdr.size()),
+            static_cast<ssize_t>(hdr.size()));
+
+  const char payload[] = "PAYLOAD-SHOULD-NOT-HIT-DISK";
+  ASSERT_EQ(mOss->Write(payload, header, sizeof(payload) - 1),
+            static_cast<ssize_t>(sizeof(payload) - 1));
+
+  std::vector<char> on_disk(hdr.size() + sizeof(payload) - 1, '\1');
+  ASSERT_EQ(pread(mOss->getFD(), on_disk.data(), on_disk.size(), 0),
+            static_cast<ssize_t>(on_disk.size()));
+  EXPECT_EQ(std::string(on_disk.begin(), on_disk.begin() + 16), "_HEADER__RAIDIO_");
+  EXPECT_EQ(std::string(on_disk.begin() + 16, on_disk.begin() + hdr.size()),
+            std::string(hdr.size() - 16, 'H'));
+  EXPECT_EQ(std::string(on_disk.begin() + hdr.size(), on_disk.end()),
+            std::string(sizeof(payload) - 1, '\0'));
+
+  std::vector<char> read_back(16);
+  EXPECT_EQ(mOss->Read(read_back.data(), 0, read_back.size()),
+            static_cast<ssize_t>(read_back.size()));
+  EXPECT_EQ(std::string(read_back.begin(), read_back.end()), "_HEADER__RAIDIO_");
+
+  char data[3] = {};
+  EXPECT_EQ(mOss->Read(data, header, sizeof(data)),
+            static_cast<ssize_t>(sizeof(data)));
+  eos::common::SyntheticIOSpec spec;
+  spec.kind = eos::common::SyntheticIOSpec::Kind::Pattern;
+  spec.pattern = "abc";
+  char expected[3] = {};
+  eos::common::syntheticio_fill(spec, static_cast<std::uint64_t>(header),
+                                expected, sizeof(expected));
+  EXPECT_EQ(std::memcmp(data, expected, sizeof(data)), 0);
 }
 
 TEST_F(SyntheticIOOssTest, WriteExtendsSparseFile) {

@@ -346,6 +346,19 @@ public:
                                   const char* buffer, size_t length);
 
   //----------------------------------------------------------------------------
+  //! True when this server must serve logical synthetic bytes for a RAIN file.
+  //----------------------------------------------------------------------------
+  bool SyntheticRainEntry() const;
+
+  //----------------------------------------------------------------------------
+  //! Fill a logical RAIN read from the syntheticio spec.
+  //!
+  //! @return bytes copied, 0 at EOF, or -1 after setting the error object
+  //----------------------------------------------------------------------------
+  int64_t SyntheticRainRead(XrdSfsFileOffset offset, char* buffer,
+                            XrdSfsXferSize length);
+
+  //----------------------------------------------------------------------------
   //! Regulate the IO bandwidth of the current stream by sleeping whenever the
   //! bytes transferred so far are ahead of the schedule imposed by the
   //! bandwidth limit (mgm.iobw in MB/s).
@@ -375,6 +388,7 @@ public:
   std::string mSyntheticIOValue; ///< SyntheticIO algorithm/pattern for synthetic data
   std::optional<eos::common::SyntheticIOSpec> mSyntheticIOSpec; ///< parsed syntheticio spec
   std::vector<char> mSyntheticIOWriteBuf; ///< scratch buffer for syntheticio writes
+  std::uint64_t mSyntheticIOSeqOffset = 0; ///< next logical offset for streaming reads
   unsigned long long mFileId; //! file id
   eos::common::FileSystem::fsid_t mFsId; //! file system id
   unsigned long mLid; //! layout id

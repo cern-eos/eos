@@ -269,6 +269,16 @@ public:
   virtual int Stat(struct stat* buf) = 0;
 
   //----------------------------------------------------------------------------
+  //! Logical size of the open file. RAIN takes this from the stripe header.
+  //!
+  //! @return logical size, or -1 when this layout does not track one
+  //----------------------------------------------------------------------------
+  virtual int64_t LogicalSize() const
+  {
+    return -1;
+  }
+
+  //----------------------------------------------------------------------------
   //! Execute implementation dependant command
   //!
   //! @param cmd command

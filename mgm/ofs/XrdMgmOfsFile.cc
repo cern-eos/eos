@@ -1753,6 +1753,36 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   "obfuscated or encrypted files",
                   path);
     }
+
+    // Stripe payloads are not stored, so the client cannot rebuild the file.
+    // The rain plugin falls back to a gateway open, and the entry server
+    // synthesizes the logical bytes.
+    std::string syntheticio_policy;
+    if (!attr::getValue(attrmap, SYS_FORCED_SYNTHETICIO, syntheticio_policy)) {
+      attr::getValue(attrmap, "user.forced.syntheticio", syntheticio_policy);
+    }
+
+    std::string syntheticio_file;
+    attr::getValue(attrmapF, SYS_SYNTHETICIO, syntheticio_file);
+    const std::string syntheticio_cgi =
+      XrdUtils::GetEnv(*openOpaque, "eos.syntheticio");
+    const bool policy_disables =
+      !syntheticio_policy.empty() &&
+      eos::common::syntheticio_disabled(syntheticio_policy);
+    const bool syntheticio_file_on =
+      !syntheticio_file.empty() &&
+      !eos::common::syntheticio_disabled(syntheticio_file);
+    const bool syntheticio_policy_on =
+      !syntheticio_policy.empty() && !policy_disables;
+    const bool syntheticio_cgi_on =
+      !policy_disables && !syntheticio_cgi.empty() &&
+      !eos::common::syntheticio_disabled(syntheticio_cgi);
+
+    if (syntheticio_file_on || syntheticio_policy_on || syntheticio_cgi_on) {
+      return Emsg(epname, error, ENOTSUP,
+                  "open - PIO is not supported for syntheticio files",
+                  path);
+    }
   }
 
   // ---------------------------------------------------------------------------
