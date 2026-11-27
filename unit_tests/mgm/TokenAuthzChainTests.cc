@@ -26,6 +26,7 @@
 #include "common/token/EosTok.hh"
 #include "unit_tests/mgm/FakeSciTokensAuthz.hh"
 #include "gtest/gtest.h"
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <XrdSec/XrdSecEntity.hh>
 #include <ctime>
 #include <pwd.h>
@@ -34,13 +35,55 @@
 using eos::common::Mapping;
 using eos::common::VirtualIdentity;
 
+namespace {
+//------------------------------------------------------------------------------
+//! A token authorization chain that refuses every request, like XrdSciTokens
+//! with "onmissing = deny" in its configuration. It counts the requests.
+//------------------------------------------------------------------------------
+class RefusingAuthz : public XrdAccAuthorize {
+public:
+  using XrdAccAuthorize::Access;
+
+  XrdAccPrivs
+  Access(const XrdSecEntity*, const char*, const Access_Operation, XrdOucEnv*) override
+  {
+    ++mCalls;
+    return XrdAccPriv_None;
+  }
+
+  int
+  Audit(const int, const XrdSecEntity*, const char*, const Access_Operation,
+        XrdOucEnv*) override
+  {
+    return 0;
+  }
+
+  int
+  Test(const XrdAccPrivs, const Access_Operation) override
+  {
+    return 0;
+  }
+
+  int
+  Calls() const
+  {
+    return mCalls;
+  }
+
+private:
+  int mCalls{0};
+};
+} // namespace
+
 //------------------------------------------------------------------------------
 // Mapping::IdMap with the token authorization chain of the MGM: XrdSciTokens,
 // then XrdMgmAuthz. The entity of a client lives as long as its connection,
 // and XrdSciTokens writes the user of a token in it. A request must map only
 // with its own credentials: with a token, the token's user or nobody, never
 // the user that a token gave to an earlier request on the same connection,
-// nor the client's own name.
+// nor the client's own name. An EOS token without an owner is the exception:
+// it keeps the client's own identity. An EOS token never goes to the chain:
+// IdMap checks it itself.
 //
 // The token "valid-token" covers the paths under /eos/in/ and maps to daemon.
 // The clients that have a name of their own are named bin.
@@ -69,6 +112,25 @@ protected:
     ASSERT_NE(nullptr, pw);
     mForcedUid = pw->pw_uid;
     mForcedGid = pw->pw_gid;
+    pw = getpwnam("bin");
+    ASSERT_NE(nullptr, pw);
+    mClientUid = pw->pw_uid;
+    mClientGid = pw->pw_gid;
+    pw = getpwnam("adm");
+    ASSERT_NE(nullptr, pw);
+    mVomsUid = pw->pw_uid;
+    mVomsGid = pw->pw_gid;
+  }
+
+  //! Give the client the VOMS group /cms with the role production, and map it
+  //! to adm, like eos vid set map -voms "/cms:production" vuid:<adm> vgid:<adm>
+  void
+  SetVoms(XrdSecEntity& client)
+  {
+    client.grps = mGrps.data();
+    client.role = mRole.data();
+    Mapping::gVirtualUidMap["voms:\"/cms:production\":uid"] = mVomsUid;
+    Mapping::gVirtualGidMap["voms:\"/cms:production\":gid"] = mVomsGid;
   }
 
   //! Map every unix client to lp, like
@@ -140,6 +202,29 @@ protected:
     EXPECT_EQ(mForcedGid, vid.gid);
   }
 
+  //! The client's own name, bin
+  void
+  ExpectClient(const VirtualIdentity& vid)
+  {
+    EXPECT_EQ(mClientUid, vid.uid);
+    EXPECT_EQ(mClientGid, vid.gid);
+  }
+
+  void
+  ExpectVoms(const VirtualIdentity& vid)
+  {
+    EXPECT_EQ(mVomsUid, vid.uid);
+    EXPECT_EQ(mVomsGid, vid.gid);
+  }
+
+  //! The "authz" CGI of an HTTPS request with this token in its Authorization
+  //! header, as HttpServer passes it to IdMap
+  static std::string
+  BearerEnv(const std::string& token)
+  {
+    return "authz=Bearer%20" + eos::common::StringConversion::curl_default_escaped(token);
+  }
+
   Mapping::VirtualUserMap_t mUids;
   Mapping::VirtualGroupMap_t mGids;
   FakeSciTokensAuthz mAuthz{"valid-token", "/eos/in/", "daemon"};
@@ -147,6 +232,12 @@ protected:
   gid_t mTokenGid{0};
   uid_t mForcedUid{0};
   gid_t mForcedGid{0};
+  uid_t mClientUid{0};
+  gid_t mClientGid{0};
+  uid_t mVomsUid{0};
+  gid_t mVomsGid{0};
+  std::string mGrps{"/cms"};
+  std::string mRole{"production"};
   std::string mName{"bin"};
   std::string mTident{"client.1:2@client.example.org"};
   const std::string mIn{"/eos/in/f"};
@@ -241,7 +332,7 @@ TEST_F(TokenAuthzChainF, ZtnTokenThatNoLongerValidatesIsNobody)
   ExpectNobody(Map(client, "", mIn));
 }
 
-// XrdMgmAuthz allows every EOS token, and the token's owner is the identity
+// The owner of an EOS token is the identity
 TEST_F(TokenAuthzChainF, HttpsEosTokenMapsToItsOwner)
 {
   XrdSecEntity client("https");
@@ -253,13 +344,66 @@ TEST_F(TokenAuthzChainF, HttpsEosTokenMapsToItsOwner)
   ExpectToken(Map(client, env, mIn));
 }
 
-TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerIsNobody)
+// An EOS token without an owner keeps the identity of the client that presents
+// it, on every transport: the token only gives its permission on its paths
+// (doc/diopside/manual/using.rst, "dynamic" user tokens).
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerMapsTheClientName)
 {
   XrdSecEntity client("https");
   client.name = mName.data();
   client.tident = mTident.c_str();
-  const std::string env =
-      "authz=Bearer%20" +
-      eos::common::StringConversion::curl_default_escaped(EosToken(""));
-  ExpectNobody(Map(client, env, mIn));
+  ExpectClient(Map(client, BearerEnv(EosToken("")), mIn));
+}
+
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerMapsTheVomsUser)
+{
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  SetVoms(client);
+  ExpectVoms(Map(client, BearerEnv(EosToken("")), mIn));
+}
+
+// Without a name of its own, e.g. without a client certificate, the client is
+// nobody
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerOfAClientWithoutANameIsNobody)
+{
+  XrdSecEntity client("https");
+  client.tident = mTident.c_str();
+  ExpectNobody(Map(client, BearerEnv(EosToken("")), mIn));
+}
+
+//------------------------------------------------------------------------------
+// An EOS token is EOS's own: IdMap checks it, and the authz plugins never see
+// it. A chain that refuses every request does not change how it maps. A WLCG
+// token or a macaroon still goes to the plugins.
+//------------------------------------------------------------------------------
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithoutOwnerIsNotGivenToTheAuthzPlugins)
+{
+  RefusingAuthz refusing;
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectClient(Map(client, BearerEnv(EosToken("")), mIn, &refusing));
+  EXPECT_EQ(0, refusing.Calls());
+}
+
+TEST_F(TokenAuthzChainF, HttpsEosTokenWithAnOwnerIsNotGivenToTheAuthzPlugins)
+{
+  RefusingAuthz refusing;
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectToken(Map(client, BearerEnv(EosToken("daemon")), mIn, &refusing));
+  EXPECT_EQ(0, refusing.Calls());
+}
+
+TEST_F(TokenAuthzChainF, HttpsTokenThatTheAuthzPluginsRefuseIsNobody)
+{
+  RefusingAuthz refusing;
+  XrdSecEntity client("https");
+  client.name = mName.data();
+  client.tident = mTident.c_str();
+  ExpectNobody(Map(client, mValid, mIn, &refusing));
+  EXPECT_EQ(1, refusing.Calls());
 }

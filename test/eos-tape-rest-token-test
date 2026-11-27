@@ -60,6 +60,8 @@ Prerequisites on the MGM:
   - the MGM maps the X.509 client certificate to the tape user, e.g. with a
     gridmap line, and accepts unix authentication from localhost.
 A missing prerequisite skips the test, or fails it if EOS_TAPE_REST_TOKEN_REQUIRE=1.
+If EOS token generation is off (space.token.generation=0), the test turns it on
+while it runs and turns it off again at the end.
 EOF
 }
 
@@ -169,6 +171,7 @@ requests=()
 failures=0
 code=""
 issuer_pid=""
+generation=""
 TOK_STAGE=""
 
 # api <method> <path below /api/v1/> <token or ""> [JSON body [curl options...]]
@@ -206,6 +209,12 @@ cleanup() {
 
   if (( created )) && ! eos -b "$rooturl" rm -r "$dir" > /dev/null; then
     echo "FAIL: cleanup of $dir"
+    rc=1
+  fi
+
+  if [[ -n $generation ]] &&
+     ! eos -b "$rooturl" space config default "space.token.generation=$generation" > /dev/null; then
+    echo "FAIL: cleanup: cannot set space.token.generation back to $generation"
     rc=1
   fi
 
@@ -747,8 +756,9 @@ else
 fi
 
 # --- A client certificate with a token ---------------------------------------
-# With a token, only the token gives the identity: the token's user, or nobody,
-# never the client's X.509 identity.
+# With a WLCG token, only the token gives the identity: the token's user, or
+# nobody, never the client's X.509 identity. An EOS token without an owner keeps
+# the identity of the client that presents it.
 api POST archiveinfo/ "" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
 
 if ! expect "archiveinfo, client certificate" 200 \
@@ -760,6 +770,46 @@ fi
 # With a token, the X.509 identity does not count: this token authorizes no file
 api POST archiveinfo/ "$TOK_INVALID" "{\"paths\":[\"$in\"]}" --cert "$cert" --key "$certkey"
 expect "archiveinfo, client certificate and an invalid token" 403
+
+name="whoami, client certificate and an EOS token without an owner in the header"
+space=$(eos -b "$rooturl" space status default -m)
+
+if [[ $space =~ (^|[[:space:]])token\.generation=([0-9]+)([[:space:]]|$) ]] &&
+   [[ ${BASH_REMATCH[2]} != 0 ]]; then
+  generation_on=1
+elif eos -b "$rooturl" space config default space.token.generation=1 > /dev/null; then
+  generation=0
+  generation_on=1
+else
+  generation_on=0
+fi
+
+if (( ! generation_on )); then
+  fail "$name: cannot turn on EOS token generation"
+else
+  # Issued by root, so the token has no owner
+  eostok=$(eos -b "$rooturl" token --path "$dir/" --permission rx --tree \
+             --expires $(( $(date +%s) + 3600 )))
+
+  if [[ $eostok != zteos64:* ]] && ! is_jwt "$eostok"; then
+    fail "$name: eos token did not return a token"
+  else
+    tape_uid=$(id -u "$user")
+    : > "$work/body"
+    code=$(curl -sS -o "$work/body" -w '%{http_code}' --cert "$cert" --key "$certkey" \
+             -H "Authorization: Bearer $eostok" \
+             "$mgm/proc/user/?mgm.cmd=whoami&mgm.option=m&mgm.format=fuse" \
+             2> "$work/curl.err") || code=000
+
+    if [[ $code != 200 ]]; then
+      fail "$name: HTTP $code, expected 200: $(tail -n 1 "$work/curl.err" 2> /dev/null)"
+    elif ! grep -qE "(^|[[:space:]])uid=$tape_uid([[:space:]]|$)" "$work/body"; then
+      fail "$name: not mapped to the certificate's user $user (uid $tape_uid)"
+    else
+      pass "$name"
+    fi
+  fi
+fi
 
 if (( failures )); then
   issuer_log

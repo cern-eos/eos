@@ -342,13 +342,24 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     HandleVOMS(client, vid);
   }
 
-  // HTTPS mapping
+  // HTTPS mapping. With a bearer token in the Authorization header:
+  // - a WLCG token or a macaroon alone gives the identity: the user that the
+  //   authz plugins map it to, or nobody; never the name or the VOMS groups of
+  //   the client's certificate. A token that they refuse maps to nobody;
+  // - an EOS token is EOS's own: the authz plugins never see it, and the EOS
+  //   token mapping below checks it. It keeps the client's own identity, name
+  //   and VOMS mapping, as without a token ("dynamic" user tokens): the token
+  //   only grants its permission on its paths. Its owner, if it has one,
+  //   replaces that identity there (see "eos vid tokensudo").
   if (vid.prot == "https") {
     eos_static_debug("%s", "msg=\"https mapping\"");
-    const bool has_token = authz_obj && !authz.empty() && (authz.find("Bearer%20") == 0);
+    static const std::string bearer_tag = "Bearer%20";
+    // A WLCG token or a macaroon, for the authz plugins
+    const bool plugin_token = authz_obj &&
+                              (authz.compare(0, bearer_tag.size(), bearer_tag) == 0) &&
+                              !EosTok::IsEosCredential(authz);
 
-    // Handle bearer token authorization
-    if (has_token) {
+    if (plugin_token) {
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
           XrdAccPriv_None) {
         // Downgrade to 'nobody' but keep prot/tident - a full reset via
@@ -357,7 +368,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // XrdMgmOfsFile::open would then pick the FST XRootD port instead
         // of the HTTP one when building the redirection for an HTTP client.
         vid.toNobody();
-        std::string nobearer = authz.substr(9);
+        std::string nobearer = authz.substr(bearer_tag.size());
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "jwt={%s}[%s]", path.c_str(), env,
                        PrintJWT(nobearer).c_str(), nobearer.c_str());
@@ -365,11 +376,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
     }
 
-    // With a token, only the token gives the identity: the user that the authz
-    // plugin mapped it to, or nobody. Without a token, the client's own name.
+    // A WLCG token or a macaroon: the token's user, or nobody. Otherwise, the
+    // client's own name.
     std::string client_username;
 
-    if (has_token) {
+    if (plugin_token) {
       SecEntity::GetRequestName(client, client_username);
     } else if (client->name) {
       client_username = client->name;
@@ -378,9 +389,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     HandleUidGidMapping(client_username.c_str(), vid,
                         g_https_uid_key, g_https_gid_key);
 
-    // The VOMS groups come from the client's certificate: with a token, only
-    // the token gives the identity.
-    if (!has_token) {
+    // The VOMS groups come from the client's certificate
+    if (!plugin_token) {
       HandleVOMS(client, vid);
     }
 
